@@ -33,7 +33,7 @@ The combined effect collapses the model from five objects down to three:
 
 | Before | After |
 |--------|-------|
-| `Season` (DB table, admin-managed) | `REGISTRATION_OPENS_AT` / `REGISTRATION_CLOSES_AT` (env vars, ISO-8601) |
+| `Season` (DB table, admin-managed) | `REGISTRATION_OPENS_AT` / `REGISTRATION_CLOSES_AT` (env vars, dates) |
 | `PriceCategory` (per-season ordered table) | removed |
 | `Account` (1:1 to User, holds phone + language) | removed; fields moved to `Registration` |
 | `Registration.account` FK | `Registration.user` OneToOneField |
@@ -47,10 +47,12 @@ declined and expired matches accumulate as history.
 
 ### Registration window
 
-`is_registration_open() -> bool` compares `timezone.now()` to the two
-ISO-8601 strings from settings. Dev defaults (`2020-01-01` → `2099-12-31`)
-keep the window always open in local development. Production overrides them
-via environment variables. Parse errors fail safe (returns `False`).
+`is_registration_open() -> bool` compares today (`timezone.localdate()`) to the
+two **date** bounds from settings (`YYYY-MM-DD`; any time/timezone component is
+ignored). Both bounds are inclusive — registration is open on the closing date.
+Dev defaults (`2020-01-01` → `2099-12-31`) keep the window always open in local
+development. Production overrides them via environment variables. Parse errors
+fail safe (returns `False`).
 
 ### Eligibility rules (simplified)
 

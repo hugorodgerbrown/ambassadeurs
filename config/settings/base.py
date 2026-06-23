@@ -84,12 +84,10 @@ TEMPLATES = [
 # have a User but no Registration.
 
 CONTACT_WINDOW_HOURS: int = config("CONTACT_WINDOW_HOURS", default=72, cast=int)
-REGISTRATION_OPENS_AT: str = config(
-    "REGISTRATION_OPENS_AT", default="2020-01-01T00:00:00+00:00"
-)
-REGISTRATION_CLOSES_AT: str = config(
-    "REGISTRATION_CLOSES_AT", default="2099-12-31T23:59:59+00:00"
-)
+# Registration window bounds are dates (YYYY-MM-DD); time and timezone are
+# ignored. Both bounds are inclusive — registration is open on the closing date.
+REGISTRATION_OPENS_AT: str = config("REGISTRATION_OPENS_AT", default="2020-01-01")
+REGISTRATION_CLOSES_AT: str = config("REGISTRATION_CLOSES_AT", default="2099-12-31")
 
 # --- Authentication -------------------------------------------------------
 # AUTH_USER_MODEL stays the default Django ``auth.User``.

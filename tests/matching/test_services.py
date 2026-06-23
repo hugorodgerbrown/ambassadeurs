@@ -35,11 +35,11 @@ def test_registration_open_within_window() -> None:
 
 
 @override_settings(
-    REGISTRATION_OPENS_AT="2020-01-01T00:00:00+00:00",
-    REGISTRATION_CLOSES_AT="2020-12-31T23:59:59+00:00",
+    REGISTRATION_OPENS_AT="2020-01-01",
+    REGISTRATION_CLOSES_AT="2020-12-31",
 )
 def test_registration_closed_outside_window() -> None:
-    """is_registration_open returns False when now is outside the window."""
+    """is_registration_open returns False when today is outside the window."""
     assert is_registration_open() is False
 
 
@@ -52,17 +52,21 @@ def test_registration_closed_on_parse_error() -> None:
     assert is_registration_open() is False
 
 
-@override_settings(
-    REGISTRATION_OPENS_AT="2020-06-01",
-    REGISTRATION_CLOSES_AT="2099-12-31",
-)
-def test_registration_open_with_offset_naive_window() -> None:
-    """Offset-naive (date-only / no-offset) bounds are treated as local time.
+def test_registration_window_is_date_based_and_inclusive() -> None:
+    """Bounds are dates and both ends are inclusive (open on the closing date)."""
+    today = timezone.localdate()
+    with override_settings(
+        REGISTRATION_OPENS_AT=today.isoformat(),
+        REGISTRATION_CLOSES_AT=today.isoformat(),
+    ):
+        assert is_registration_open() is True
 
-    Regression: comparing an offset-naive parsed datetime against the aware
-    ``now`` raised TypeError and blocked registration.
-    """
-    assert is_registration_open() is True
+    yesterday = (today - timedelta(days=1)).isoformat()
+    with override_settings(
+        REGISTRATION_OPENS_AT="2020-01-01",
+        REGISTRATION_CLOSES_AT=yesterday,
+    ):
+        assert is_registration_open() is False
 
 
 # ---------------------------------------------------------------------------

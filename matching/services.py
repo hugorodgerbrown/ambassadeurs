@@ -18,7 +18,7 @@ from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import Case, IntegerField, Value, When
 from django.utils import timezone, translation
-from django.utils.dateparse import parse_datetime
+from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 
 from .models import Match, Registration
@@ -27,30 +27,24 @@ logger = logging.getLogger(__name__)
 
 
 def is_registration_open() -> bool:
-    """Return True if ``timezone.now()`` falls within the configured window.
+    """Return True if today falls within the configured registration window.
 
-    Reads REGISTRATION_OPENS_AT and REGISTRATION_CLOSES_AT from settings
-    (ISO-8601 strings set via python-decouple). A value without an explicit UTC
-    offset (e.g. ``2026-06-01`` or ``2026-06-01T08:00:00``) is interpreted in the
-    project timezone (``settings.TIME_ZONE``). If either string fails to parse
-    the window is treated as closed (fail-safe).
+    Reads REGISTRATION_OPENS_AT and REGISTRATION_CLOSES_AT from settings as
+    dates (``YYYY-MM-DD``); any time/timezone component is ignored. Both bounds
+    are inclusive, compared against today in the project timezone
+    (``timezone.localdate()``). If either string is not a valid date the window
+    is treated as closed (fail-safe).
     """
-    now = timezone.now()
-    opens_at = parse_datetime(settings.REGISTRATION_OPENS_AT)
-    closes_at = parse_datetime(settings.REGISTRATION_CLOSES_AT)
-    if opens_at is None or closes_at is None:
+    today = timezone.localdate()
+    opens_on = parse_date(settings.REGISTRATION_OPENS_AT)
+    closes_on = parse_date(settings.REGISTRATION_CLOSES_AT)
+    if opens_on is None or closes_on is None:
         logger.error(
-            "REGISTRATION_OPENS_AT / REGISTRATION_CLOSES_AT could not be parsed; "
+            "REGISTRATION_OPENS_AT / REGISTRATION_CLOSES_AT is not a valid date; "
             "treating window as closed."
         )
         return False
-    # An offset-naive config value (no UTC offset, or date-only) cannot be
-    # compared against the aware ``now``; treat it as project-local time.
-    if timezone.is_naive(opens_at):
-        opens_at = timezone.make_aware(opens_at)
-    if timezone.is_naive(closes_at):
-        closes_at = timezone.make_aware(closes_at)
-    return opens_at <= now <= closes_at
+    return opens_on <= today <= closes_on
 
 
 def is_eligible_pair(ambassador: Registration, referee: Registration) -> bool:

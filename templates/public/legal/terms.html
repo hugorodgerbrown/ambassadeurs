@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Terms of Use" %}{% endblock %}
+
+{% block content %}
+    <article class="mx-auto max-w-2xl space-y-4 text-text-2">
+        <h1 class="text-2xl font-bold text-text-1">{% translate "Terms of Use" %}</h1>
+        <p class="text-sm text-text-3">{% translate "Last updated" %}: 2026-06-23</p>
+
+        <h2 class="pt-2 text-lg font-semibold text-text-1">{% translate "What this service does" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                This service helps you find a partner for the 4 Vallées Ambassadors Program. It is matchmaking only:
+                the actual discount application and the purchase at the ticket office happen separately, in person, and
+                are not part of this service.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-text-1">{% translate "Your responsibilities" %}</h2>
+        <ul class="list-disc space-y-2 pl-5">
+            <li>{% translate "Give accurate information, including your honest prior-season eligibility." %}</li>
+            <li>{% translate "Respond to a match within 72 hours — accept or decline." %}</li>
+            <li>
+                {% blocktranslate trimmed %}
+                    If you do not respond in time, your match is cancelled and you go to the back of the queue.
+                {% endblocktranslate %}
+            </li>
+            <li>{% translate "Be respectful and prompt with the partner you are matched with." %}</li>
+        </ul>
+
+        <h2 class="pt-2 text-lg font-semibold text-text-1">{% translate "Eligibility" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                Eligibility is self-declared here and verified off-app when you apply together at the ticket office.
+                Registering does not guarantee a match or entitle you to the discount; both depend on the off-app
+                application.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-text-1">{% translate "No guarantee" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                There are usually more referees than ambassadors, so we cannot guarantee that everyone will be matched.
+            {% endblocktranslate %}
+        </p>
+
+        <p class="pt-4 text-sm text-text-3">
+            {% blocktranslate trimmed %}
+                These terms are a first-draft baseline and should be reviewed by a legal professional before the program
+                launches.
+            {% endblocktranslate %}
+        </p>
+    </article>
+{% endblock %}

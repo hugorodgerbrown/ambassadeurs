@@ -153,3 +153,25 @@ def test_referee_done_renders_referee_copy() -> None:
     response = Client().get(reverse("public:register_done", args=["referee"]))
     assert response.status_code == 200
     assert b"Ambassador" in response.content
+
+
+@pytest.mark.parametrize(
+    ("page", "marker"),
+    [
+        ("privacy", b"Privacy Policy"),
+        ("cookies", b"Cookie Policy"),
+        ("terms", b"Terms of Use"),
+    ],
+)
+def test_legal_pages_render(page: str, marker: bytes) -> None:
+    """Each legal page renders 200 with its heading and the footer links."""
+    response = Client().get(reverse("public:legal", args=[page]))
+    assert response.status_code == 200
+    assert marker in response.content
+    assert reverse("public:legal", args=["privacy"]).encode() in response.content
+
+
+def test_legal_unknown_page_404() -> None:
+    """An unknown legal slug returns 404."""
+    response = Client().get(reverse("public:legal", args=["banana"]))
+    assert response.status_code == 404

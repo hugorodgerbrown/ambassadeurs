@@ -47,10 +47,12 @@ config/          Django project settings (split base/development/production)
 core/            Shared abstractions (BaseModel; abstract, no concrete tables),
                  HTTP-layer middleware, shared helpers
 accounts/        Signed-link auth, and Facebook social login (django-allauth);
-                 AUTH_USER_MODEL is the default Django model, with a 1:1 FK from the
-                 Account to the User - Account stores non-core attributes.
-matching/        The core domain — Season, Registration, Match, the matching
-                 engine (queue + assignment) and the Match state machine
+                 AUTH_USER_MODEL is the default Django model. Participant
+                 attributes (phone, preferred_language) live on
+                 matching.Registration (OneToOneField to User). Admin users
+                 have a User but no Registration.
+matching/        The core domain — Registration, Match, the matching engine
+                 (queue + assignment) and the Match state machine
                  (proposed → accepted / declined / expired) and its services
 public/          Public-facing registration + match site (full-page views + HTMX partials)
 templates/       Project-level templates shared across apps
@@ -63,77 +65,67 @@ logs/            Log files (gitignored except .gitkeep)
 
 ### Core domain
 
-- **Season** — a campaign period (e.g. the 2026/27 season). Registrations, the
-  matching pool, and matches are all scoped to a season; the active season is the
-  one open for registration. Holds the season's config: the **contact-window
-  length**, the two qualifying prior seasons, and the price categories. The product
-  is the 4 Vallées annual season ticket (CHF 999 for the 24/25 adult category —
-  price/category are per-season data, never hard-coded).
-- **PriceCategory** — an *ordered* category (child < … < adult < senior). The
-  ordering drives match eligibility (see the price-category rule below). Per season.
-- **Registration** — a user's enrolment into a season's pool in one **role**
-  (`AMBASSADOR` or `REFEREE`). Holds the role, price category, preferred ticket
-  office / resort (a *soft* preference — used to rank matches, not to gate them),
-  eligibility attestation, `DISCOUNT_ELIGIBLE` (ambassadors; `false` for Mont 4 /
-  special-reduction holders), `status` (`WAITING` → `MATCHED` → `CONFIRMED`, or
-  `WITHDRAWN`), and the queue **priority** that asymmetric flaking handling adjusts.
-- **Match** — a system-created **1:1** link of one ambassador registration and one
-  referee registration in a season. NB Although a succesful match is 1:1 -
-  within the system we model many:many as we track unsuccesful matches as well
-  as those that work out. State machine:
+The platform runs one season at a time. Season configuration (registration
+window, contact window) is managed via environment variables rather than
+database rows. See `docs/decisions/0005-single-season-matching-engine.md`.
+
+- **Registration** — a user's enrolment in one **role** (`AMBASSADOR` or
+  `REFEREE`). OneToOneField to `User`. Holds the role, `prior_pass` attestation
+  (`NONE / SEASONAL / ANNUAL / MONT4`) that gates match eligibility, phone,
+  preferred language, preferred ticket office / resort (a *soft* preference —
+  used to rank matches, not to gate them), `status` (`WAITING` → `MATCHED` →
+  `CONFIRMED`, or `WITHDRAWN`), and the queue **priority** that asymmetric
+  flaking handling adjusts.
+- **Match** — a system-created link of one ambassador registration and one
+  referee registration. Terminal matches accumulate as history (no unique
+  constraint on the registration FKs). State machine:
   - `PROPOSED` — the engine paired them; both are notified; **neither sees the
     other's identity or contact details**.
   - each side accepts or declines within the contact window.
-  - both accept → `ACCEPTED` — contact details are revealed and the pair proceeds
-    to the off-app application. Terminal success; both leave the pool.
+  - both accept → `ACCEPTED` — contact details are revealed and the pair
+    proceeds to the off-app application. Terminal success; both leave the pool.
   - one declines → `DECLINED`; window lapses without both accepting → `EXPIRED`.
-    In both, the registrations re-queue with **asymmetric** priority: the party who
-    accepted keeps their place near the front; the non-responder is sent to the
-    **back of the queue**. The contact window is **72 hours** by default
-    (`Season.contact_window_hours`).
+    In both, the registrations re-queue with **asymmetric** priority: the party
+    who accepted keeps their place near the front; the non-responder is sent to
+    the **back of the queue**. The contact window is **72 hours** by default
+    (`CONTACT_WINDOW_HOURS` env var).
 
-**The matching engine** assigns rather than letting users choose. Ambassadors are
-the scarce side, so referees queue (FIFO by registration time, adjusted by
-priority); when an ambassador registers or frees up, the engine matches them to the
-highest-priority *eligible* waiting referee, preferring a shared location. A match
-is only ever proposed between an eligible pair (see below). Keep the eligibility and
-assignment logic in `matching/` services, not in views.
+**The matching engine** assigns rather than letting users choose. Referees are
+the scarce side — there are always more ambassadors than referees looking to
+pair. When either party registers and an eligible counterpart is already
+waiting, the engine proposes a match immediately (synchronous trigger inside
+`register_participant`). Ranking: shared location first, then priority
+descending, then FIFO. A match is only ever proposed between an eligible pair
+(see below). Keep all eligibility and assignment logic in `matching/` services,
+not in views.
 
-### Match eligibility (from the 24/25 application form)
+### Match eligibility
 
-A match may only be proposed between an eligible pair. These are the program's hard
-constraints; model them as data + `matching/` services, not as inline conditionals
-in views, and capture the rationale in [`docs/decisions/`](docs/decisions/).
+A match may only be proposed between an eligible pair. Model these as data +
+`matching/` services, never as inline conditionals in views. Capture the
+rationale in [`docs/decisions/`](docs/decisions/).
 
-- **Ambassador must be a returning holder** — held a seasonal or annual 4 Vallées
-  pass in *either* of the two prior seasons (e.g. 2022-23 or 2023-24 for the 24/25
-  campaign).
-- **Referee must be genuinely new** — did *not* hold a mid-season, seasonal, or
-  annual 4 Vallées pass in either prior season.
-- **Price-category ordering** — an ambassador may only be matched with a referee in
-  a price category higher than *or equal to* their own (`referee.category >=
-  ambassador.category` in the ordering: an adult ambassador cannot take a child
-  referee; a child ambassador can take an adult). The engine enforces this.
-- **Discount exclusion ≠ pool exclusion** — Mont 4 Card and special-reduction
-  ambassadors still provide valid supply (the referee they take still benefits), so
-  they stay in the pool with `discount_eligible = false`; they just don't get the
-  discount themselves.
-- **Location is a soft preference** — the pair must ultimately buy together at the
-  same ticket office, so registrations capture a preferred resort/office. The engine
-  *prefers* a shared location but does not hard-gate on it; the pair settle the
-  meeting between themselves.
-
-**Eligibility is self-attested in-app; proof happens off-app.** The real proof of
-prior-holding (and the genuinely-new check) is done by staff at the kiosk against
-the form. How much the app verifies up front vs trusts attestation is an open
-question — see below.
+- **Ambassador `prior_pass` in `{SEASONAL, ANNUAL, MONT4}`** — held a seasonal
+  or annual 4 Vallées pass (or a Mont 4 Card / special reduction) in a prior
+  season.
+- **Referee `prior_pass == NONE`** — did *not* hold any prior pass (genuinely
+  new). This is self-attested; proof happens off-app at the kiosk.
+- **Both must be `WAITING`** — neither can already be in a proposed or accepted
+  match.
+- **Mont 4 / special-reduction ambassadors** (`prior_pass == MONT4`) are fully
+  eligible to match. The referee they take still benefits from the referral
+  discount even if the ambassador does not receive one.
+- **Location is a soft preference** — the pair must ultimately buy together at
+  the same ticket office, so registrations capture a `preferred_location`. The
+  engine *prefers* a shared location but does not hard-gate on it; the pair
+  settle the meeting between themselves.
 
 **Data minimisation.** The full form PII (date of birth, address, photo ID,
-keycard, insurance, consents) belongs to the *off-app* application and must **not**
-be collected here. The app holds only what matching and contact need: name, email,
-phone, role, price category, prior-holding attestation, and preferred location.
-Treat email and phone as sensitive (Swiss data protection) and never expose them
-across a match before mutual accept (see Invariants).
+keycard, insurance, consents) belongs to the *off-app* application and must
+**not** be collected here. The app holds only what matching and contact need:
+name, email, phone, role, `prior_pass` attestation, and preferred location.
+Treat email and phone as sensitive (Swiss data protection) and never expose
+them across a match before mutual accept (see Invariants).
 
 ### Open questions (resolve before building the relevant slice)
 

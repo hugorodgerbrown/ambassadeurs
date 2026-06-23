@@ -47,6 +47,17 @@
             </p>
         </div>
 
+        {% if role_value == 'REFEREE' %}
+            {# Referee-only reminder: eligibility hinges on being genuinely new. #}
+            <div class="mb-6 rounded-md border border-border bg-surface p-4 text-sm text-text-2">
+                {% blocktranslate trimmed %}
+                    To qualify, you must be genuinely new: you must not have held a mid-season, seasonal or annual 4
+                    Vallées pass in either of the two previous seasons. Your Ambassador is a returning holder who
+                    refers you so you both get the discount.
+                {% endblocktranslate %}
+            </div>
+        {% endif %}
+
         <form method="post" novalidate>
             {% csrf_token %}
 

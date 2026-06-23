@@ -3,7 +3,7 @@
 #
 # The flow is: capture + verify the email (signed-link or Facebook) -> choose a
 # role -> fill the role-specific details (loaded on demand via HTMX) -> done.
-# The Account/User/Registration creation lives in the matching app.
+# The User/Registration creation lives in the matching app services.
 
 from __future__ import annotations
 
@@ -27,8 +27,8 @@ from accounts.tokens import (
 )
 from core.decorators import require_htmx
 from matching.forms import RegistrationEmailForm, RegistrationForm
-from matching.models import Registration, Season
-from matching.services import register_participant
+from matching.models import Registration
+from matching.services import is_registration_open, register_participant
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def home(request: HttpRequest) -> HttpResponse:
     return render(
         request,
         "public/home.html",
-        {"registration_open": Season.objects.active().exists()},
+        {"registration_open": is_registration_open()},
     )
 
 
@@ -105,7 +105,7 @@ def register_start(request: HttpRequest) -> HttpResponse:
     if role_hint in ROLE_BY_SLUG:
         request.session["register_role"] = role_hint
 
-    if not Season.objects.active().exists():
+    if not is_registration_open():
         return render(request, "public/register_closed.html")
 
     if request.user.is_authenticated:
@@ -140,8 +140,7 @@ def register_verify(request: HttpRequest, token: str) -> HttpResponse:
 @login_required
 def register_details(request: HttpRequest) -> HttpResponse:
     """Step 4-5: choose a role and submit the role-specific details."""
-    season = Season.objects.active().first()
-    if season is None:
+    if not is_registration_open():
         return render(request, "public/register_closed.html")
 
     user = cast(User, request.user)
@@ -151,20 +150,18 @@ def register_details(request: HttpRequest) -> HttpResponse:
         role_value = ROLE_BY_SLUG.get(role)
         if role_value is None:
             raise Http404("Unknown registration role.")
-        form = RegistrationForm(
-            role=role_value, season=season, data=request.POST, user=user
-        )
+        form = RegistrationForm(role=role_value, data=request.POST, user=user)
         if form.is_valid():
             data = form.cleaned_data
             register_participant(
-                season=season,
                 role=role_value,
                 user=user,
                 first_name=data["first_name"],
                 last_name=data["last_name"],
-                price_category=data["price_category"],
-                preferred_location=data["preferred_location"],
-                preferred_language=data["preferred_language"],
+                prior_pass=data["prior_pass"],
+                phone=data.get("phone", ""),
+                preferred_location=data.get("preferred_location", ""),
+                preferred_language=data.get("preferred_language", ""),
             )
             request.session.pop("register_role", None)
             return redirect("public:register_done", role=role)
@@ -185,15 +182,14 @@ def register_details(request: HttpRequest) -> HttpResponse:
 @require_htmx
 def register_details_form(request: HttpRequest) -> HttpResponse:
     """Return the role-specific details form fragment (HTMX, step 5)."""
-    season = Season.objects.active().first()
-    if season is None:
+    if not is_registration_open():
         raise Http404("Registration is closed.")
     role = request.GET.get("role", "")
     role_value = ROLE_BY_SLUG.get(role)
     if role_value is None:
         raise Http404("Unknown registration role.")
     user = cast(User, request.user)
-    form = RegistrationForm(role=role_value, season=season, user=user)
+    form = RegistrationForm(role=role_value, user=user)
     return render(
         request,
         "public/partials/register_details_form.html",

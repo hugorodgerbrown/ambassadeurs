@@ -3,6 +3,9 @@
 Role-specific registration details form. Loaded on demand via HTMX from the
 details page, or rendered inline by the server when a submitted form has errors.
 Context: form (RegistrationForm), role (slug), role_value (Role value).
+
+For ambassadors, the form renders a prior_pass select (SEASONAL / ANNUAL / MONT4).
+Referees do not see this field — their prior_pass resolves to NONE in the service.
 {% endcomment %}
 <div class="rounded-card border border-border bg-card p-6">
     <h2 class="mb-1 text-lg font-semibold text-text-1">

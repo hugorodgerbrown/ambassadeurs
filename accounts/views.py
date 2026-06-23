@@ -29,7 +29,7 @@ def account_detail(request: HttpRequest) -> HttpResponse:
     """Show the participant's profile, registration and security controls."""
     user = cast(User, request.user)
     try:
-        registration: Registration | None = user.registration
+        registration: Registration | None = Registration.objects.get(user=user)
     except Registration.DoesNotExist:
         registration = None
     return render(
@@ -44,7 +44,7 @@ def account_edit(request: HttpRequest) -> HttpResponse:
     """Edit the participant's name, phone and preferred language."""
     user = cast(User, request.user)
     try:
-        registration: Registration | None = user.registration
+        registration: Registration | None = Registration.objects.get(user=user)
     except Registration.DoesNotExist:
         registration = None
 

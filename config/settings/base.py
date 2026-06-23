@@ -6,6 +6,8 @@
 
 from pathlib import Path
 
+from decouple import config
+
 # Repo root: base.py -> settings -> config -> <root>.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -74,9 +76,23 @@ TEMPLATES = [
     },
 ]
 
+# --- Matching / registration window ---------------------------------------
+# The contact window, and the dates during which registration is open, are
+# configured via environment variables. Dev defaults: window always open.
+# AUTH_USER_MODEL is the default Django ``auth.User``; custom attributes live
+# on ``matching.Registration`` (1:1 via OneToOneField to User). Admin users
+# have a User but no Registration.
+
+CONTACT_WINDOW_HOURS: int = config("CONTACT_WINDOW_HOURS", default=72, cast=int)
+REGISTRATION_OPENS_AT: str = config(
+    "REGISTRATION_OPENS_AT", default="2020-01-01T00:00:00+00:00"
+)
+REGISTRATION_CLOSES_AT: str = config(
+    "REGISTRATION_CLOSES_AT", default="2099-12-31T23:59:59+00:00"
+)
+
 # --- Authentication -------------------------------------------------------
-# AUTH_USER_MODEL stays the default Django ``auth.User``. Custom attributes
-# live on ``accounts.Account`` (1:1 to User); admin users have no Account.
+# AUTH_USER_MODEL stays the default Django ``auth.User``.
 
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",

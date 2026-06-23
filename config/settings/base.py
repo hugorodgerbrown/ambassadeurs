@@ -148,7 +148,9 @@ STORAGES = {
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-DEFAULT_FROM_EMAIL = "Ambassadeurs <noreply@example.com>"
+DEFAULT_FROM_EMAIL = config(
+    "DEFAULT_FROM_EMAIL", default="Ambassadeurs <noreply@example.com>"
+)
 
 # --- Logging --------------------------------------------------------------
 

@@ -24,6 +24,22 @@ _INPUT_CLASSES = (
 )
 
 
+class RegistrationEmailForm(forms.Form):
+    """Capture the email to verify before registration begins (VERB-9 step 2)."""
+
+    email = forms.EmailField(
+        label=_("Email"),
+        widget=forms.EmailInput(
+            attrs={"class": _INPUT_CLASSES, "autocomplete": "email"}
+        ),
+    )
+
+    def clean_email(self) -> str:
+        """Normalise the email to lowercase (CLAUDE.md invariant 5)."""
+        email: str = self.cleaned_data["email"]
+        return email.lower()
+
+
 class PriceCategoryChoiceField(forms.ModelChoiceField):
     """Model choice field that labels a price category with its discounted price."""
 

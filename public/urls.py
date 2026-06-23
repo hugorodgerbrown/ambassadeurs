@@ -10,8 +10,17 @@ app_name = "public"
 
 urlpatterns = [
     path("", views.home, name="home"),
-    path("register/<slug:role>/", views.register, name="register"),
-    path("register/<slug:role>/done/", views.register_done, name="register_done"),
+    # Streamlined, verify-first registration flow (VERB-9).
+    path("register/", views.register_start, name="register"),
+    path("register/sent/", views.register_email_sent, name="register_email_sent"),
+    path("register/verify/<str:token>/", views.register_verify, name="register_verify"),
+    path("register/details/", views.register_details, name="register_details"),
+    path(
+        "register/details/form/",
+        views.register_details_form,
+        name="register_details_form",
+    ),
+    path("register/done/<slug:role>/", views.register_done, name="register_done"),
     path("legal/<slug:page>/", views.legal_page, name="legal"),
     # Well-known root requests served to avoid excess 404s (VERB-7).
     path("sw.js", views.service_worker, name="service_worker"),

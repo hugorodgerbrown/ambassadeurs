@@ -1,0 +1,83 @@
+{% load i18n %}
+{% comment %}
+Role-specific registration details form. Loaded on demand via HTMX from the
+details page, or rendered inline by the server when a submitted form has errors.
+Context: form (RegistrationForm), role (slug), role_value (Role value).
+{% endcomment %}
+<div class="rounded-card border border-border bg-card p-6">
+    <h2 class="mb-1 text-lg font-semibold text-text-1">
+        {% if role_value == 'AMBASSADOR' %}
+            {% translate "Ambassador details" %}
+        {% else %}
+            {% translate "Referee details" %}
+        {% endif %}
+    </h2>
+
+    {% if role_value == 'REFEREE' %}
+        <p class="mb-4 text-sm text-text-2">
+            {% blocktranslate trimmed %}
+                To qualify you must be genuinely new: you must not have held a mid-season, seasonal or annual 4 Vallées
+                pass in either of the two previous seasons.
+            {% endblocktranslate %}
+        </p>
+    {% endif %}
+
+    <form method="post" action="{% url 'public:register_details' %}">
+        {% csrf_token %}
+        <input type="hidden" name="role" value="{{ role }}">
+
+        {% if form.non_field_errors %}
+            <div class="mb-4 rounded-md border border-accent bg-accent/5 p-3 text-sm text-accent">
+                {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+            </div>
+        {% endif %}
+
+        {% for field in form %}
+            {% if field.name != 'attestation' %}
+                <div class="mb-4">
+                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-text-1">
+                        {{ field.label }}{% if field.field.required %} *{% endif %}
+                    </label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <p class="mt-1 text-xs text-text-3">{{ field.help_text }}</p>
+                    {% endif %}
+                    {% for error in field.errors %}
+                        <p class="mt-1 text-xs text-accent">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endfor %}
+
+        {# Mandatory prior-season attestation — wording set per role. #}
+        <fieldset class="mb-6 rounded-md border border-border bg-surface p-4">
+            <p class="mb-2 text-sm text-text-2">
+                {% if role_value == 'AMBASSADOR' %}
+                    {% blocktranslate trimmed %}
+                        I confirm that I held a seasonal or annual 4 Vallées pass in one of the two previous seasons. I
+                        understand this will be checked against my keycard when we apply together.
+                    {% endblocktranslate %}
+                {% else %}
+                    {% blocktranslate trimmed %}
+                        I confirm that I did NOT hold a mid-season, seasonal or annual 4 Vallées pass in either of the
+                        two previous seasons.
+                    {% endblocktranslate %}
+                {% endif %}
+            </p>
+            <label class="flex items-start gap-2 text-sm text-text-1">
+                {{ form.attestation }}
+                <span>{{ form.attestation.label }}</span>
+            </label>
+            {% for error in form.attestation.errors %}
+                <p class="mt-1 text-xs text-accent">{{ error }}</p>
+            {% endfor %}
+        </fieldset>
+
+        <button
+            type="submit"
+            class="inline-flex items-center justify-center rounded-pill bg-accent px-5 py-2.5 font-medium text-white transition hover:opacity-90"
+        >
+            {% translate "Register and join the queue" %}
+        </button>
+    </form>
+</div>

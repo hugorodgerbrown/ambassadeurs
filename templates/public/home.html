@@ -58,7 +58,7 @@
                     {% endblocktranslate %}
                 </p>
                 <a
-                    href="{% url 'public:register' role='ambassador' %}"
+                    href="{% url 'public:register' %}?role=ambassador"
                     class="inline-flex items-center justify-center rounded-pill bg-accent px-5 py-2.5 font-medium text-white transition hover:opacity-90"
                 >
                     {% translate "Register as an Ambassador" %}
@@ -76,7 +76,7 @@
                     {% endblocktranslate %}
                 </p>
                 <a
-                    href="{% url 'public:register' role='referee' %}"
+                    href="{% url 'public:register' %}?role=referee"
                     class="inline-flex items-center justify-center rounded-pill bg-accent px-5 py-2.5 font-medium text-white transition hover:opacity-90"
                 >
                     {% translate "Register as a Referee" %}

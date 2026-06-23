@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Link expired" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-md text-center">
+        <h1 class="mb-4 text-2xl font-bold text-text-1">{% translate "This link is invalid or has expired" %}</h1>
+        <p class="text-text-2">
+            {% blocktranslate trimmed %}
+                Verification links are single-use and expire after 24 hours. Please start again to get a fresh link.
+            {% endblocktranslate %}
+        </p>
+        <p class="mt-6">
+            <a href="{% url 'public:register' %}" class="font-medium text-accent underline">
+                {% translate "Start again" %}
+            </a>
+        </p>
+    </section>
+{% endblock %}

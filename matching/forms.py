@@ -1,27 +1,34 @@
 # Registration form shared by the ambassador and referee flows.
 #
-# The form is role-parameterised and bound to the active season: the price
-# category choices come from that season, and the attestation checkbox carries
-# the role-appropriate prior-season statement. Account/User/Registration
-# creation happens in services.register_participant, never in the form.
+# The form is role-parameterised. prior_pass is role-aware: ambassadors choose
+# from SEASONAL / ANNUAL / MONT4; referees have no select and it resolves to
+# NONE. Account/User/Registration creation happens in services.register_participant,
+# never in the form.
 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, cast
+from typing import Any
 
 from django import forms
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
 
-from .models import PriceCategory, Registration, Resort, Season
+from .models import Registration, Resort
 
 # Tailwind utility classes applied to text-like inputs and selects.
 _INPUT_CLASSES = (
     "mt-1 block w-full rounded-md border border-border bg-card px-3 py-2 "
     "text-text-1 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
 )
+
+# prior_pass choices available to ambassadors (must hold one of these).
+_AMBASSADOR_PRIOR_PASS_CHOICES = [
+    (Registration.PriorPass.SEASONAL, Registration.PriorPass.SEASONAL.label),
+    (Registration.PriorPass.ANNUAL, Registration.PriorPass.ANNUAL.label),
+    (Registration.PriorPass.MONT4, Registration.PriorPass.MONT4.label),
+]
 
 
 class RegistrationEmailForm(forms.Form):
@@ -40,20 +47,14 @@ class RegistrationEmailForm(forms.Form):
         return email.lower()
 
 
-class PriceCategoryChoiceField(forms.ModelChoiceField):
-    """Model choice field that labels a price category with its discounted price."""
-
-    def label_from_instance(self, obj: PriceCategory) -> str:
-        """Return ``Label — CHF 999`` for the dropdown option."""
-        return f"{obj.label} — CHF {obj.discounted_price:.0f}"
-
-
 class RegistrationForm(forms.Form):
-    """Collect the participant details needed to enrol them in a season's pool.
+    """Collect the participant details needed to enrol them in the pool.
 
-    Built with ``role`` (Registration.Role) and the active ``season``; the view
-    passes both. ``attestation`` is the mandatory prior-season confirmation whose
-    wording is set per role in the template.
+    Built with ``role`` (Registration.Role). ``attestation`` is the mandatory
+    prior-season confirmation whose wording is set per role in the template.
+
+    For ambassadors, a ``prior_pass`` select is rendered (SEASONAL / ANNUAL /
+    MONT4). For referees the field is hidden and resolves to NONE in ``clean``.
     """
 
     first_name = forms.CharField(
@@ -70,6 +71,12 @@ class RegistrationForm(forms.Form):
         label=_("Email"),
         widget=forms.EmailInput(attrs={"class": _INPUT_CLASSES}),
     )
+    phone = forms.CharField(
+        label=_("Phone"),
+        max_length=32,
+        required=False,
+        widget=forms.TextInput(attrs={"class": _INPUT_CLASSES}),
+    )
     preferred_location = forms.ChoiceField(
         label=_("Preferred resort / ticket office"),
         required=False,
@@ -82,10 +89,10 @@ class RegistrationForm(forms.Form):
         choices=[("", _("No preference"))] + list(settings.LANGUAGES),
         widget=forms.Select(attrs={"class": _INPUT_CLASSES}),
     )
-    price_category = PriceCategoryChoiceField(
-        label=_("Ticket type"),
-        queryset=PriceCategory.objects.none(),
-        empty_label=None,
+    prior_pass = forms.ChoiceField(
+        label=_("Prior-season pass type"),
+        choices=_AMBASSADOR_PRIOR_PASS_CHOICES,
+        required=False,
         widget=forms.Select(attrs={"class": _INPUT_CLASSES}),
     )
     attestation = forms.BooleanField(
@@ -97,24 +104,25 @@ class RegistrationForm(forms.Form):
         self,
         *,
         role: str,
-        season: Season,
         data: Mapping[str, Any] | None = None,
         user: User | None = None,
     ) -> None:
-        """Bind the form to ``role`` and the active ``season``.
+        """Bind the form to ``role``.
 
         When ``user`` is given (e.g. after a Facebook login) the email field is
         dropped and the name is prefilled — the participant is already
         identified, so we only collect the role-specific fields.
+
+        Referees do not see the prior_pass select — their value is always NONE.
         """
         self.role = role
-        self.season = season
         self.user = user
         super().__init__(data=data)
-        category_field = cast(PriceCategoryChoiceField, self.fields["price_category"])
-        category_field.queryset = PriceCategory.objects.for_season(season).order_by(
-            "order"
-        )
+
+        if role != Registration.Role.AMBASSADOR:
+            # Referees do not choose a prior pass; it resolves to NONE in clean.
+            del self.fields["prior_pass"]
+
         if user is not None:
             del self.fields["email"]
             self.fields["first_name"].initial = user.first_name
@@ -126,19 +134,29 @@ class RegistrationForm(forms.Form):
         return email.lower()
 
     def clean(self) -> dict[str, Any]:
-        """Reject a second registration by the same participant in this season."""
+        """Validate the form.
+
+        1. Resolve prior_pass for referees to NONE.
+        2. Reject a second registration by the same participant.
+        """
         cleaned = super().clean() or {}
-        in_season = Registration.objects.for_season(self.season)
+
+        # For referees, prior_pass is always NONE (they have no prior pass field).
+        if self.role != Registration.Role.AMBASSADOR:
+            cleaned["prior_pass"] = Registration.PriorPass.NONE
+
+        # Duplicate-registration guard: one registration per user.
         already_registered = False
         if self.user is not None:
-            already_registered = in_season.filter(account__user=self.user).exists()
+            already_registered = Registration.objects.filter(user=self.user).exists()
         else:
             email = cleaned.get("email")
             already_registered = (
-                bool(email) and in_season.filter(account__user__email=email).exists()
+                bool(email) and Registration.objects.filter(user__email=email).exists()
             )
         if already_registered:
             raise forms.ValidationError(
                 _("You are already registered for the current season.")
             )
+
         return cleaned

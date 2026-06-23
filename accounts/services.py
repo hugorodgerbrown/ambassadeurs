@@ -7,12 +7,37 @@ from __future__ import annotations
 
 import logging
 
+from allauth.account.models import EmailAddress
 from django.contrib.auth.models import User
 from django.db import transaction
 
 from .models import Account
 
 logger = logging.getLogger(__name__)
+
+
+def get_or_create_participant_user(email: str) -> User:
+    """Return the passwordless user for a verified ``email``, creating if needed.
+
+    Keyed on the lowercased email as username. The matching allauth
+    ``EmailAddress`` is recorded as verified so the user's email state is
+    consistent with the social-login flow.
+    """
+    email = email.lower()
+    with transaction.atomic():
+        user, created = User.objects.get_or_create(
+            username=email, defaults={"email": email}
+        )
+        if created:
+            user.set_unusable_password()
+            user.save(update_fields=["password"])
+        EmailAddress.objects.get_or_create(
+            user=user,
+            email=email,
+            defaults={"verified": True, "primary": True},
+        )
+    logger.info("Verified participant email %s", email)
+    return user
 
 
 def update_account(

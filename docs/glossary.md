@@ -18,3 +18,5 @@ implement it. Add a row when a term gains a symbol.
 | Register a participant | `matching.services.register_participant` | `matching/services.py` |
 | Update own profile | `accounts.services.update_account` | `accounts/services.py` |
 | Delete own account | `accounts.services.delete_account` | `accounts/services.py` |
+| Email-verification signed link | `accounts.tokens.make_email_verification_token` | `accounts/tokens.py` |
+| Verify a participant's email | `accounts.services.get_or_create_participant_user` | `accounts/services.py` |

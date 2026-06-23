@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Check your inbox" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-md text-center">
+        <h1 class="mb-4 text-2xl font-bold text-text-1">{% translate "Check your inbox" %}</h1>
+        <p class="text-text-2">
+            {% blocktranslate trimmed %}
+                We've emailed you a link to confirm your address and continue registering. The link expires in 24 hours.
+            {% endblocktranslate %}
+        </p>
+        <p class="mt-6">
+            <a href="{% url 'public:home' %}" class="font-medium text-accent underline">
+                {% translate "Back to home" %}
+            </a>
+        </p>
+    </section>
+{% endblock %}

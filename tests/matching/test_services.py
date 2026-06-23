@@ -52,6 +52,19 @@ def test_registration_closed_on_parse_error() -> None:
     assert is_registration_open() is False
 
 
+@override_settings(
+    REGISTRATION_OPENS_AT="2020-06-01",
+    REGISTRATION_CLOSES_AT="2099-12-31",
+)
+def test_registration_open_with_offset_naive_window() -> None:
+    """Offset-naive (date-only / no-offset) bounds are treated as local time.
+
+    Regression: comparing an offset-naive parsed datetime against the aware
+    ``now`` raised TypeError and blocked registration.
+    """
+    assert is_registration_open() is True
+
+
 # ---------------------------------------------------------------------------
 # is_eligible_pair
 # ---------------------------------------------------------------------------

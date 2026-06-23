@@ -30,7 +30,9 @@ def is_registration_open() -> bool:
     """Return True if ``timezone.now()`` falls within the configured window.
 
     Reads REGISTRATION_OPENS_AT and REGISTRATION_CLOSES_AT from settings
-    (ISO-8601 strings set via python-decouple). If either string fails to parse
+    (ISO-8601 strings set via python-decouple). A value without an explicit UTC
+    offset (e.g. ``2026-06-01`` or ``2026-06-01T08:00:00``) is interpreted in the
+    project timezone (``settings.TIME_ZONE``). If either string fails to parse
     the window is treated as closed (fail-safe).
     """
     now = timezone.now()
@@ -42,6 +44,12 @@ def is_registration_open() -> bool:
             "treating window as closed."
         )
         return False
+    # An offset-naive config value (no UTC offset, or date-only) cannot be
+    # compared against the aware ``now``; treat it as project-local time.
+    if timezone.is_naive(opens_at):
+        opens_at = timezone.make_aware(opens_at)
+    if timezone.is_naive(closes_at):
+        closes_at = timezone.make_aware(closes_at)
     return opens_at <= now <= closes_at
 
 

@@ -1,0 +1,8 @@
+{
+  // Use the project's pinned ruff (.venv, currently 0.15.18) instead of the
+  // VS Code extension's bundled binary, which lags and rejects newer
+  // target-version values such as "py314". Resolves per workspace folder, so
+  // it stays correct across git worktrees that each have their own .venv.
+  "ruff.importStrategy": "fromEnvironment",
+  "python.defaultInterpreterPath": ".venv/bin/python"
+}

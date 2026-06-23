@@ -1,0 +1,13 @@
+{% comment %}
+Reusable primary button / link.
+Params: url, label, variant ("primary" default | "secondary").
+{% endcomment %}
+<a
+    href="{{ url }}"
+    class="
+        inline-flex items-center justify-center rounded-pill px-5 py-2.5 font-medium transition
+        {% if variant == 'secondary' %}border border-border bg-card text-text-1 hover:bg-surface{% else %}bg-accent text-white hover:opacity-90{% endif %}
+    "
+>
+    {{ label }}
+</a>

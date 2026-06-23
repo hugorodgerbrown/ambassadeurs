@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block content %}
+    <section class="text-center">
+        <p class="mb-2 text-sm font-medium uppercase tracking-wide text-text-3">
+            {% translate "4 Vallées Ambassadors Program" %}
+        </p>
+        <h1 class="mb-4 text-3xl font-bold text-text-1">
+            {% translate "Find your season-pass partner" %}
+        </h1>
+        <p class="mx-auto mb-8 max-w-xl text-text-2">
+            {% blocktranslate trimmed %}
+                Get matched with a partner so you can both claim the Ambassadors discount on the 4 Vallées annual pass.
+                No more scrambling in the Facebook group.
+            {% endblocktranslate %}
+        </p>
+        <p class="text-text-3">
+            {% translate "Registration flows are coming soon." %}
+        </p>
+    </section>
+{% endblock %}

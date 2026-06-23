@@ -1,0 +1,13 @@
+{
+  "name": "ambassadeurs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tailwind CSS build for the Ambassadeurs app.",
+  "scripts": {
+    "css:watch": "tailwindcss -i ./src/css/main.css -o ./static/css/output.css --watch",
+    "css:build": "tailwindcss -i ./src/css/main.css -o ./static/css/output.css --minify"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.0.0"
+  }
+}

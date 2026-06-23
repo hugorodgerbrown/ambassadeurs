@@ -1,0 +1,98 @@
+# Project metadata and tooling configuration for the Ambassadeurs app.
+#
+# pyproject.toml is the single source of truth for dependencies (PEP 621
+# `[project]` + PEP 735 `[dependency-groups]`); the resolved set is pinned in
+# uv.lock. See CLAUDE.md "Dependency management".
+
+[project]
+name = "ambassadeurs"
+version = "0.1.0"
+description = "Partner matchmaking for the 4 Vallees Ambassadors Program."
+requires-python = ">=3.14"
+dependencies = [
+    "django>=6.0,<6.1",
+    "django-allauth[socialaccount]>=65.0",
+    "django-htmx>=1.21",
+    "python-decouple>=3.8",
+    "whitenoise>=6.7",
+    "dj-database-url>=2.2",
+    "psycopg[binary]>=3.2",
+    "gunicorn>=23.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-django>=4.9",
+    "pytest-cov>=6.0",
+    "factory-boy>=3.3",
+    # Cap mypy below 2.0 — django-stubs' plugin does not yet load under mypy 2.x.
+    "mypy>=1.13,<2",
+    "django-stubs[compatible-mypy]>=5.1",
+    "ruff>=0.8",
+    "djangofmt>=0.2.10",
+    "pre-commit>=4.0",
+    "pip-audit>=2.7",
+    "tox>=4.23",
+    "tox-uv>=1.16",
+]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+
+[tool.ruff.lint]
+# E/F: pycodestyle + pyflakes; I: isort; UP: pyupgrade; B: bugbear;
+# DJ: flake8-django; C4: comprehensions; S: bandit (security).
+select = ["E", "F", "I", "UP", "B", "DJ", "C4", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+# Assertions and hard-coded test data are expected in the test suite.
+"tests/**" = ["S101", "S106"]
+"**/migrations/**" = ["E501"]
+
+[tool.mypy]
+python_version = "3.14"
+plugins = ["mypy_django_plugin.main"]
+strict = true
+warn_unused_ignores = true
+# Generated migrations and the settings package are not worth type-gating.
+exclude = ['(^|/)migrations/', '^config/settings/']
+
+[[tool.mypy.overrides]]
+module = ["factory.*", "allauth.*", "decouple.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# ModelAdmin/InlineModelAdmin are generic only for type-checkers; subscripting
+# them at runtime fails, so admin classes stay unparametrised.
+module = ["*.admin"]
+disallow_any_generics = false
+
+[[tool.mypy.overrides]]
+# allauth ships no type stubs, so its adapter base is Any.
+module = ["accounts.adapters"]
+disallow_subclassing_any = false
+
+[[tool.mypy.overrides]]
+# Settings modules are dynamic (env-driven) and not worth type-gating.
+module = ["config.settings.*"]
+ignore_errors = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings.development"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.development"
+python_files = ["test_*.py"]
+testpaths = ["tests"]
+addopts = "--cov --cov-report=term-missing"
+
+[tool.coverage.run]
+branch = true
+source = ["core", "accounts", "matching", "public"]
+omit = ["*/migrations/*", "*/tests/*", "tests/*", "*/apps.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

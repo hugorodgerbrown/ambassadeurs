@@ -9,8 +9,10 @@ Django web app that **matches partners** for the 4 Vallées Ambassadors Program
 *ambassador*) and a genuinely new holder (a *referee*) must apply and buy together.
 There are always more referees than ambassadors, so each season opens with an
 uncontrolled scramble — mostly in a Facebook group — for a partner, and people
-routinely commit to one partner and then vanish before the pair can meet. This app
-brings order to *finding a partner*. It is **not** the application or purchase
+routinely commit to one partner and then vanish before the pair can meet. There is
+also no way to tell who is still available: posts never expire and draw replies
+months later, long after the slot is gone. This app brings order to *finding a
+partner*. It is **not** the application or purchase
 system: filling in the form and buying at the kiosk happen off-app and are unchanged.
 
 **How it works — an invisible "taxi rank".** Ambassadors pre-register their

@@ -22,6 +22,11 @@ ROLE_BY_SLUG = {
 }
 
 
+# The legal documents, keyed by URL slug. Validating against this set keeps
+# unknown pages out of the view (404) and out of template lookups.
+LEGAL_PAGES = {"privacy", "cookies", "terms"}
+
+
 def home(request: HttpRequest) -> HttpResponse:
     """Render the public landing page with the two role calls-to-action."""
     return render(
@@ -29,6 +34,13 @@ def home(request: HttpRequest) -> HttpResponse:
         "public/home.html",
         {"registration_open": Season.objects.active().exists()},
     )
+
+
+def legal_page(request: HttpRequest, page: str) -> HttpResponse:
+    """Render a static legal document (privacy / cookies / terms)."""
+    if page not in LEGAL_PAGES:
+        raise Http404("Unknown legal page.")
+    return render(request, f"public/legal/{page}.html")
 
 
 def register(request: HttpRequest, role: str) -> HttpResponse:

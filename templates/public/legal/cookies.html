@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Cookie Policy" %}{% endblock %}
+
+{% block content %}
+    <article class="mx-auto max-w-2xl space-y-4 text-text-2">
+        <h1 class="text-2xl font-bold text-text-1">{% translate "Cookie Policy" %}</h1>
+        <p class="text-sm text-text-3">{% translate "Last updated" %}: 2026-06-23</p>
+
+        <h2 class="pt-2 text-lg font-semibold text-text-1">{% translate "What we use" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                We only use strictly-necessary cookies: a session cookie to keep you signed in, a security cookie to
+                protect forms against cross-site request forgery, and a cookie that remembers your chosen language.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-text-1">{% translate "What we don't use" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                We do not use analytics, advertising, or third-party tracking cookies, so there is no cookie consent
+                banner to manage.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-text-1">{% translate "Managing cookies" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                You can clear or block cookies in your browser settings, but the site will not work correctly without
+                the strictly-necessary cookies above.
+            {% endblocktranslate %}
+        </p>
+
+        <p class="pt-4 text-sm text-text-3">
+            {% blocktranslate trimmed %}
+                This policy is a first-draft baseline and should be reviewed by a legal professional before the program
+                launches.
+            {% endblocktranslate %}
+        </p>
+    </article>
+{% endblock %}

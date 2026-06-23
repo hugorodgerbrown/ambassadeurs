@@ -43,6 +43,16 @@ def legal_page(request: HttpRequest, page: str) -> HttpResponse:
     return render(request, f"public/legal/{page}.html")
 
 
+# A no-op service worker served at the origin root so browsers stop 404-ing on
+# /sw.js. We intentionally register no fetch/cache handlers (VERB-7).
+_SERVICE_WORKER_BODY = "/* 4 Vallées Ambassadors — intentionally minimal. */\n"
+
+
+def service_worker(request: HttpRequest) -> HttpResponse:
+    """Serve a minimal no-op service worker at /sw.js."""
+    return HttpResponse(_SERVICE_WORKER_BODY, content_type="application/javascript")
+
+
 def register(request: HttpRequest, role: str) -> HttpResponse:
     """Render and process the registration form for one role.
 

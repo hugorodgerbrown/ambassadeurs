@@ -1,0 +1,25 @@
+# Claude Code — machine-local settings (permissions, etc.)
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# Tooling caches
+.tox/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+
+# Node / Tailwind build
+node_modules/
+static/css/output.css
+
+# Env / secrets
+.env
+
+# Logs
+logs/

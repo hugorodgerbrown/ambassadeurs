@@ -2,7 +2,7 @@
 
 from django.contrib import admin
 
-from .models import PriceCategory, Season
+from .models import PriceCategory, Registration, Season
 
 
 class PriceCategoryInline(admin.TabularInline):
@@ -31,4 +31,23 @@ class PriceCategoryAdmin(admin.ModelAdmin):
     list_display = ["season", "code", "order", "full_price", "discounted_price"]
     list_filter = ["season", "code"]
     ordering = ["season", "order"]
+    readonly_fields = ["created_at", "updated_at"]
+
+
+@admin.register(Registration)
+class RegistrationAdmin(admin.ModelAdmin):
+    """Admin for Registration."""
+
+    list_display = [
+        "account",
+        "role",
+        "season",
+        "price_category",
+        "status",
+        "priority",
+        "created_at",
+    ]
+    list_filter = ["season", "role", "status", "discount_eligible"]
+    search_fields = ["account__user__email", "account__user__first_name"]
+    raw_id_fields = ["account", "price_category"]
     readonly_fields = ["created_at", "updated_at"]

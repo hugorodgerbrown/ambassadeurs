@@ -5,11 +5,14 @@
 # (CLAUDE.md "Match eligibility"). Fixed choice values are TextChoices with
 # UPPER_CASE values.
 
+from __future__ import annotations
+
 from decimal import Decimal
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from accounts.models import Account
 from core.models import BaseModel, BaseQuerySet
 
 
@@ -108,3 +111,121 @@ class PriceCategory(BaseModel):
     def to_string(self) -> str:
         """Return a human-readable label for the category."""
         return f"{self.season} · {self.get_code_display()}"
+
+
+class Resort(models.TextChoices):
+    """4 Vallées ticket offices / resorts a participant may prefer.
+
+    Location is a *soft* preference (CLAUDE.md "Match eligibility"): the engine
+    prefers a shared resort but never hard-gates on it. Values are UPPER_CASE.
+    """
+
+    VERBIER = "VERBIER", _("Verbier")
+    THYON = "THYON", _("Thyon")
+    NENDAZ = "NENDAZ", _("Nendaz")
+    VEYSONNAZ = "VEYSONNAZ", _("Veysonnaz")
+    LA_TZOUMAZ = "LA_TZOUMAZ", _("La Tzoumaz")
+    BRUSON = "BRUSON", _("Bruson")
+
+
+class RegistrationQuerySet(BaseQuerySet):
+    """Queryset for Registration."""
+
+    def for_season(self, season: Season) -> RegistrationQuerySet:
+        """Return registrations scoped to ``season``."""
+        return self.filter(season=season)
+
+    def ambassadors(self) -> RegistrationQuerySet:
+        """Return ambassador (referrer) registrations."""
+        return self.filter(role=Registration.Role.AMBASSADOR)
+
+    def referees(self) -> RegistrationQuerySet:
+        """Return referee (referred) registrations."""
+        return self.filter(role=Registration.Role.REFEREE)
+
+    def waiting(self) -> RegistrationQuerySet:
+        """Return registrations still waiting in the pool."""
+        return self.filter(status=Registration.Status.WAITING)
+
+
+class Registration(BaseModel):
+    """A participant's enrolment into a season's pool in one role.
+
+    Holds the role, chosen price category, soft location preference, the
+    prior-season attestation that drives match eligibility, the pool status, and
+    the queue priority. One registration per account per season.
+    """
+
+    class Role(models.TextChoices):
+        """The two participant roles. Fixed once registered (CLAUDE.md)."""
+
+        AMBASSADOR = "AMBASSADOR", _("Ambassador")
+        REFEREE = "REFEREE", _("Referee")
+
+    class Status(models.TextChoices):
+        """Lifecycle of a registration in the pool."""
+
+        WAITING = "WAITING", _("Waiting")
+        MATCHED = "MATCHED", _("Matched")
+        CONFIRMED = "CONFIRMED", _("Confirmed")
+        WITHDRAWN = "WITHDRAWN", _("Withdrawn")
+
+    season = models.ForeignKey(
+        Season,
+        on_delete=models.CASCADE,
+        related_name="registrations",
+    )
+    account = models.ForeignKey(
+        Account,
+        on_delete=models.CASCADE,
+        related_name="registrations",
+    )
+    role = models.CharField(max_length=16, choices=Role.choices)
+    price_category = models.ForeignKey(
+        PriceCategory,
+        on_delete=models.PROTECT,
+        related_name="registrations",
+    )
+    preferred_location = models.CharField(
+        max_length=16,
+        choices=Resort.choices,
+        blank=True,
+        help_text="Soft preference; used to rank matches, never to gate them.",
+    )
+    held_prior_pass = models.BooleanField(
+        help_text=(
+            "Prior-season attestation. Ambassadors confirm they held a 4 Vallées "
+            "pass (True); referees confirm they did not (False)."
+        ),
+    )
+    discount_eligible = models.BooleanField(
+        default=True,
+        help_text=(
+            "False for Mont 4 / special-reduction ambassadors, who still supply a "
+            "valid match but take no discount themselves."
+        ),
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.WAITING,
+    )
+    priority = models.IntegerField(
+        default=0,
+        help_text="Queue priority; higher is nearer the front. Adjusted by flaking.",
+    )
+
+    objects = RegistrationQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["season", "account"],
+                name="unique_registration_per_season",
+            ),
+        ]
+
+    def to_string(self) -> str:
+        """Return a human-readable label for the registration."""
+        return f"{self.account.user} · {self.get_role_display()} · {self.season}"

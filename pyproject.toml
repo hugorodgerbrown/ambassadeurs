@@ -64,9 +64,10 @@ module = ["factory.*", "allauth.*", "decouple.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-# ModelAdmin/InlineModelAdmin are generic only for type-checkers; subscripting
-# them at runtime fails, so admin classes stay unparametrised.
-module = ["*.admin"]
+# ModelAdmin/InlineModelAdmin and form fields (ModelChoiceField) are generic
+# only for type-checkers; subscripting them at runtime fails, so these classes
+# stay unparametrised.
+module = ["*.admin", "matching.forms"]
 disallow_any_generics = false
 
 [[tool.mypy.overrides]]

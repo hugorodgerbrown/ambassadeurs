@@ -88,7 +88,9 @@ logs/            Log files (gitignored except .gitkeep)
     to the off-app application. Terminal success; both leave the pool.
   - one declines → `DECLINED`; window lapses without both accepting → `EXPIRED`.
     In both, the registrations re-queue with **asymmetric** priority: the party who
-    accepted is boosted (kept near the front); the non-responder is penalised.
+    accepted keeps their place near the front; the non-responder is sent to the
+    **back of the queue**. The contact window is **72 hours** by default
+    (`Season.contact_window_hours`).
 
 **The matching engine** assigns rather than letting users choose. Ambassadors are
 the scarce side, so referees queue (FIFO by registration time, adjusted by
@@ -135,11 +137,9 @@ across a match before mutual accept (see Invariants).
 
 ### Open questions (resolve before building the relevant slice)
 
-- **Contact-window length** — 24 / 48 / 72h? Make it per-season config; pick a
-  default when the matching slice is scoped.
-- **Asymmetric flaking specifics** — exact priority boost for the responder and
-  penalty for the non-responder; whether repeated no-shows lead to suspension and at
-  what threshold.
+- **Asymmetric flaking specifics** — the shape is decided (the responder keeps
+  their place; the non-responder goes to the back of the queue). Still open: whether
+  repeated no-shows lead to suspension, and at what threshold.
 - **Eligibility verification depth** — pure self-attestation, or some up-front check
   (e.g. keycard / prior-pass lookup) before a registration enters the pool.
 - **Completion + post-accept no-shows** — does the app track whether the pair

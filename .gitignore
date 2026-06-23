@@ -13,10 +13,16 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 htmlcov/
+.coverage
 
 # Node / Tailwind build
 node_modules/
 static/css/output.css
+
+# Django
+db.sqlite3
+staticfiles/
+*.mo
 
 # Env / secrets
 .env

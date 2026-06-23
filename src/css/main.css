@@ -1,0 +1,24 @@
+/* Tailwind CSS v4 source.
+ *
+ * Compiled to static/css/output.css by the @tailwindcss/cli (see package.json
+ * and CLAUDE.md "Frontend"). Lives outside static/ so WhiteNoise never
+ * post-processes it. Define design tokens in @theme; templates use the
+ * generated utilities (bg-surface, text-text-1, rounded-card, …) rather than
+ * raw palette values. */
+
+@import "tailwindcss";
+
+@theme {
+  --color-surface: #f4f6f9;
+  --color-card: #ffffff;
+  --color-border: #e2e8f0;
+  --color-text-1: #0f172a;
+  --color-text-2: #475569;
+  --color-text-3: #94a3b8;
+  --color-accent: #e2001a; /* 4 Vallées red */
+
+  --radius-sm: 0.375rem;
+  --radius-card: 0.75rem;
+  --radius-tag: 0.5rem;
+  --radius-pill: 9999px;
+}

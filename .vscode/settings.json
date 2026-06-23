@@ -4,5 +4,9 @@
   // target-version values such as "py314". Resolves per workspace folder, so
   // it stays correct across git worktrees that each have their own .venv.
   "ruff.importStrategy": "fromEnvironment",
-  "python.defaultInterpreterPath": ".venv/bin/python"
+  // Pin ruff config discovery to this workspace's pyproject.toml. This also
+  // overrides any stale user-level "ruff.configuration" that resolves to a
+  // directory ("Is a directory" error).
+  "ruff.configuration": "${workspaceFolder}/pyproject.toml",
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python"
 }

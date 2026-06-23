@@ -64,7 +64,7 @@ def update_account(
         user.save(update_fields=["first_name", "last_name"])
 
         try:
-            registration = user.registration
+            registration = Registration.objects.get(user=user)
         except Registration.DoesNotExist:
             registration = None
 

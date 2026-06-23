@@ -175,3 +175,17 @@ def test_legal_unknown_page_404() -> None:
     """An unknown legal slug returns 404."""
     response = Client().get(reverse("public:legal", args=["banana"]))
     assert response.status_code == 404
+
+
+def test_service_worker_served_as_javascript() -> None:
+    """/sw.js returns 200 with a JavaScript content type (no 404)."""
+    response = Client().get(reverse("public:service_worker"))
+    assert response.status_code == 200
+    assert "javascript" in response["Content-Type"]
+
+
+def test_favicon_redirects_to_static_icon() -> None:
+    """/favicon.ico redirects to the static SVG icon rather than 404ing."""
+    response = Client().get(reverse("public:favicon"))
+    assert response.status_code in (301, 302)
+    assert response.url.endswith("favicon.svg")

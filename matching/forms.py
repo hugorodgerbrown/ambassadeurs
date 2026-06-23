@@ -12,6 +12,7 @@ from typing import Any, cast
 
 from django import forms
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
 
 from .models import PriceCategory, Registration, Resort, Season
@@ -82,15 +83,26 @@ class RegistrationForm(forms.Form):
         role: str,
         season: Season,
         data: Mapping[str, Any] | None = None,
+        user: User | None = None,
     ) -> None:
-        """Bind the form to ``role`` and the active ``season``."""
+        """Bind the form to ``role`` and the active ``season``.
+
+        When ``user`` is given (e.g. after a Facebook login) the email field is
+        dropped and the name is prefilled — the participant is already
+        identified, so we only collect the role-specific fields.
+        """
         self.role = role
         self.season = season
+        self.user = user
         super().__init__(data=data)
         category_field = cast(PriceCategoryChoiceField, self.fields["price_category"])
         category_field.queryset = PriceCategory.objects.for_season(season).order_by(
             "order"
         )
+        if user is not None:
+            del self.fields["email"]
+            self.fields["first_name"].initial = user.first_name
+            self.fields["last_name"].initial = user.last_name
 
     def clean_email(self) -> str:
         """Normalise the email to lowercase (CLAUDE.md invariant 5)."""
@@ -98,15 +110,19 @@ class RegistrationForm(forms.Form):
         return email.lower()
 
     def clean(self) -> dict[str, Any]:
-        """Reject a second registration by the same email in this season."""
+        """Reject a second registration by the same participant in this season."""
         cleaned = super().clean() or {}
-        email = cleaned.get("email")
-        if email and (
-            Registration.objects.for_season(self.season)
-            .filter(account__user__email=email)
-            .exists()
-        ):
+        in_season = Registration.objects.for_season(self.season)
+        already_registered = False
+        if self.user is not None:
+            already_registered = in_season.filter(account__user=self.user).exists()
+        else:
+            email = cleaned.get("email")
+            already_registered = (
+                bool(email) and in_season.filter(account__user__email=email).exists()
+            )
+        if already_registered:
             raise forms.ValidationError(
-                _("This email is already registered for the current season.")
+                _("You are already registered for the current season.")
             )
         return cleaned

@@ -66,6 +66,37 @@ def test_price_category_limited_to_active_season() -> None:
     assert "price_category" in form.errors
 
 
+def test_authenticated_form_drops_email_and_prefills_name() -> None:
+    """When a user is supplied the email field is removed and name prefilled."""
+    season = SeasonFactory.create()
+    PriceCategoryFactory.create(season=season)
+    user = UserFactory.create(first_name="Ada", last_name="Lovelace")
+    form = RegistrationForm(role=Registration.Role.REFEREE, season=season, user=user)
+    assert "email" not in form.fields
+    assert form.fields["first_name"].initial == "Ada"
+
+
+def test_authenticated_duplicate_registration_rejected() -> None:
+    """A signed-in user already registered this season is rejected."""
+    season = SeasonFactory.create()
+    category = PriceCategoryFactory.create(season=season)
+    account = AccountFactory.create()
+    RegistrationFactory.create(season=season, account=account, price_category=category)
+    form = RegistrationForm(
+        role=Registration.Role.AMBASSADOR,
+        season=season,
+        user=account.user,
+        data={
+            "first_name": "Ada",
+            "last_name": "Lovelace",
+            "price_category": category.pk,
+            "attestation": True,
+        },
+    )
+    assert not form.is_valid()
+    assert form.non_field_errors()
+
+
 def test_duplicate_email_in_season_rejected() -> None:
     """A second registration with the same email in the season is rejected."""
     season = SeasonFactory.create()

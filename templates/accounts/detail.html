@@ -25,37 +25,43 @@
             </div>
             <dl class="grid grid-cols-3 gap-2 text-sm">
                 <dt class="text-text-3">{% translate "Name" %}</dt>
-                <dd class="col-span-2 text-text-1">{{ account.user.get_full_name|default:"—" }}</dd>
+                <dd class="col-span-2 text-text-1">{{ user.get_full_name|default:"—" }}</dd>
                 <dt class="text-text-3">{% translate "Email" %}</dt>
-                <dd class="col-span-2 text-text-1">{{ account.user.email }}</dd>
-                <dt class="text-text-3">{% translate "Phone" %}</dt>
-                <dd class="col-span-2 text-text-1">{{ account.phone|default:"—" }}</dd>
-                <dt class="text-text-3">{% translate "Language" %}</dt>
-                <dd class="col-span-2 text-text-1">{{ account.get_preferred_language_display|default:"—" }}</dd>
+                <dd class="col-span-2 text-text-1">{{ user.email }}</dd>
+                {% if registration %}
+                    <dt class="text-text-3">{% translate "Phone" %}</dt>
+                    <dd class="col-span-2 text-text-1">{{ registration.phone|default:"—" }}</dd>
+                    <dt class="text-text-3">{% translate "Language" %}</dt>
+                    <dd class="col-span-2 text-text-1">
+                        {{ registration.get_preferred_language_display|default:"—" }}
+                    </dd>
+                {% endif %}
             </dl>
         </div>
 
-        {# Registrations — role is read-only. #}
+        {# Registration — role is read-only. #}
         <div class="mb-6 rounded-card border border-border bg-card p-6">
-            <h2 class="mb-3 text-lg font-semibold text-text-1">{% translate "Your registrations" %}</h2>
-            {% if registrations %}
-                <ul class="space-y-2 text-sm">
-                    {% for registration in registrations %}
-                        <li class="flex items-center justify-between border-b border-border pb-2">
-                            <span class="text-text-1">
-                                {{ registration.season }} — {{ registration.get_role_display }}
-                            </span>
-                            <span class="text-text-3">{{ registration.get_status_display }}</span>
-                        </li>
-                    {% endfor %}
-                </ul>
+            <h2 class="mb-3 text-lg font-semibold text-text-1">{% translate "Your registration" %}</h2>
+            {% if registration %}
+                <dl class="grid grid-cols-3 gap-2 text-sm">
+                    <dt class="text-text-3">{% translate "Role" %}</dt>
+                    <dd class="col-span-2 text-text-1">{{ registration.get_role_display }}</dd>
+                    <dt class="text-text-3">{% translate "Status" %}</dt>
+                    <dd class="col-span-2 text-text-1">{{ registration.get_status_display }}</dd>
+                </dl>
                 <p class="mt-3 text-xs text-text-3">
                     {% blocktranslate trimmed %}
                         Your role is fixed. To register in the other role you must delete your account and start again.
                     {% endblocktranslate %}
                 </p>
             {% else %}
-                <p class="text-sm text-text-2">{% translate "You have no registrations yet." %}</p>
+                <p class="text-sm text-text-2">{% translate "You have no registration yet." %}</p>
+                <a
+                    href="{% url 'public:register' %}"
+                    class="mt-3 inline-flex items-center justify-center rounded-pill bg-accent px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+                >
+                    {% translate "Register now" %}
+                </a>
             {% endif %}
         </div>
 

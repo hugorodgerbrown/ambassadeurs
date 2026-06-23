@@ -1,0 +1,107 @@
+# .github/workflows/ci.yml — Run formatting, linting, type checks, Django
+# checks, and tests via tox on push to main and on pull requests.
+
+name: Python / Django
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**/*.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "tox.ini"
+      - ".github/workflows/ci.yml"
+
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "**/*.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "tox.ini"
+      - ".github/workflows/ci.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    name: Check formatting
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toxenv: [fmt, lint, mypy]
+    env:
+      TOXENV: ${{ matrix.toxenv }}
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python (3.14)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Create .env
+        run: |
+          echo "SECRET_KEY=ci-test-secret-key" > .env
+          echo "DJANGO_SETTINGS_MODULE=config.settings.development" >> .env
+
+      - name: Install and run tox
+        run: |
+          pip install tox
+          tox
+
+  checks:
+    name: Run Django checks
+    runs-on: ubuntu-latest
+    env:
+      TOXENV: django-checks
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python (3.14)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Create .env
+        run: |
+          echo "SECRET_KEY=ci-test-secret-key" > .env
+          echo "DJANGO_SETTINGS_MODULE=config.settings.development" >> .env
+
+      - name: Install and run tox
+        run: |
+          pip install tox
+          tox
+
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+    env:
+      TOXENV: test
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python (3.14)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Create .env
+        run: |
+          echo "SECRET_KEY=ci-test-secret-key" > .env
+          echo "DJANGO_SETTINGS_MODULE=config.settings.development" >> .env
+
+      - name: Install and run tox
+        run: |
+          pip install tox
+          tox

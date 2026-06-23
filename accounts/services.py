@@ -2,6 +2,11 @@
 #
 # Profile updates and account deletion run inline here (no Django signals,
 # CLAUDE.md "Models"), each in a single transaction.
+#
+# Note: ``Account`` has been removed. Participant attributes (phone,
+# preferred_language) now live on ``matching.Registration``.
+# ``update_account`` writes onto the user's registration; if the user has no
+# registration the update is a no-op for those fields.
 
 from __future__ import annotations
 
@@ -11,7 +16,7 @@ from allauth.account.models import EmailAddress
 from django.contrib.auth.models import User
 from django.db import transaction
 
-from .models import Account
+from matching.models import Registration
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +41,7 @@ def get_or_create_participant_user(email: str) -> User:
             email=email,
             defaults={"verified": True, "primary": True},
         )
-    logger.info("Verified participant email %s", email)
+    logger.info("Verified participant user pk=%s", user.pk)
     return user
 
 
@@ -47,25 +52,35 @@ def update_account(
     last_name: str,
     phone: str = "",
     preferred_language: str = "",
-) -> Account:
-    """Update the user's name and their Account contact / preference fields."""
+) -> None:
+    """Update the user's name and, if they have a registration, their contact fields.
+
+    If the user has no registration (e.g. an admin user) the phone and
+    preferred_language update is silently skipped; only the name is saved.
+    """
     with transaction.atomic():
         user.first_name = first_name
         user.last_name = last_name
         user.save(update_fields=["first_name", "last_name"])
 
-        account, _ = Account.objects.get_or_create(user=user)
-        account.phone = phone
-        account.preferred_language = preferred_language
-        account.save(update_fields=["phone", "preferred_language", "updated_at"])
+        try:
+            registration = user.registration
+        except Registration.DoesNotExist:
+            registration = None
 
-    logger.info("Updated account for %s", user.email)
-    return account
+        if registration is not None:
+            registration.phone = phone
+            registration.preferred_language = preferred_language
+            registration.save(
+                update_fields=["phone", "preferred_language", "updated_at"]
+            )
+
+    logger.info("Updated account for user pk=%s", user.pk)
 
 
 def delete_account(user: User) -> None:
-    """Delete the user, cascading their Account and registrations."""
-    email = user.email
+    """Delete the user, cascading their registration and matches."""
+    user_pk = user.pk
     with transaction.atomic():
         user.delete()
-    logger.info("Deleted account for %s", email)
+    logger.info("Deleted account for user pk=%s", user_pk)

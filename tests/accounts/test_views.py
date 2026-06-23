@@ -5,9 +5,8 @@ from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import reverse
 
-from accounts.models import Account
 from matching.models import Registration
-from tests.accounts.factories import AccountFactory, UserFactory
+from tests.accounts.factories import UserFactory
 from tests.matching.factories import RegistrationFactory
 
 pytestmark = pytest.mark.django_db
@@ -22,15 +21,27 @@ def test_detail_requires_login() -> None:
 
 def test_detail_renders_with_registration_role_readonly() -> None:
     """The detail page shows the user's email and their registration role."""
-    account = AccountFactory.create(user=UserFactory.create(email="ada@example.com"))
-    RegistrationFactory.create(account=account, role=Registration.Role.AMBASSADOR)
+    registration = RegistrationFactory.create(
+        user=UserFactory.create(email="ada@example.com"),
+        role=Registration.Role.AMBASSADOR,
+    )
     client = Client()
-    client.force_login(account.user)
+    client.force_login(registration.user)
     response = client.get(reverse("accounts:detail"))
     assert response.status_code == 200
     assert b"ada@example.com" in response.content
     assert b"Ambassador" in response.content
     assert b"role is fixed" in response.content
+
+
+def test_detail_without_registration_shows_register_link() -> None:
+    """A user without a registration sees a prompt to register."""
+    user = UserFactory.create()
+    client = Client()
+    client.force_login(user)
+    response = client.get(reverse("accounts:detail"))
+    assert response.status_code == 200
+    assert b"Register now" in response.content
 
 
 def test_edit_get_renders_form() -> None:
@@ -43,9 +54,12 @@ def test_edit_get_renders_form() -> None:
     assert "accounts/edit.html" in [t.name for t in response.templates]
 
 
-def test_edit_post_updates_details() -> None:
+def test_edit_post_updates_name_and_registration_fields() -> None:
     """A valid edit updates the name, phone and language and redirects."""
-    user = UserFactory.create(first_name="Ada", last_name="Lovelace")
+    registration = RegistrationFactory.create(
+        user=UserFactory.create(first_name="Ada", last_name="Lovelace"),
+    )
+    user = registration.user
     client = Client()
     client.force_login(user)
     response = client.post(
@@ -61,9 +75,9 @@ def test_edit_post_updates_details() -> None:
     assert response.url == reverse("accounts:detail")
     user.refresh_from_db()
     assert user.first_name == "Augusta"
-    account = Account.objects.get(user=user)
-    assert account.phone == "+41790000000"
-    assert account.preferred_language == "fr"
+    registration.refresh_from_db()
+    assert registration.phone == "+41790000000"
+    assert registration.preferred_language == "fr"
 
 
 def test_edit_post_invalid_redisplays_form() -> None:
@@ -90,16 +104,14 @@ def test_delete_get_renders_confirmation() -> None:
     assert "accounts/delete.html" in [t.name for t in response.templates]
 
 
-def test_delete_post_removes_user_and_registrations() -> None:
-    """Deleting the account removes the user and cascades registrations."""
-    account = AccountFactory.create()
-    RegistrationFactory.create(account=account)
-    user_pk = account.user.pk
+def test_delete_post_removes_user_and_registration() -> None:
+    """Deleting the account removes the user and cascades the registration."""
+    registration = RegistrationFactory.create()
+    user_pk = registration.user.pk
     client = Client()
-    client.force_login(account.user)
+    client.force_login(registration.user)
     response = client.post(reverse("accounts:delete"))
     assert response.status_code == 302
     assert response.url == reverse("public:home")
     assert not User.objects.filter(pk=user_pk).exists()
     assert not Registration.objects.exists()
-    assert not Account.objects.filter(pk=account.pk).exists()

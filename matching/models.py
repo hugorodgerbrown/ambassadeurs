@@ -1,116 +1,19 @@
-# Foundational matchmaking models: Season and PriceCategory.
+# Matching-domain models: Registration and Match.
 #
-# Registrations, the matching pool, and matches are scoped to a Season. A
-# PriceCategory is ordered data whose ordering drives match eligibility
-# (CLAUDE.md "Match eligibility"). Fixed choice values are TextChoices with
-# UPPER_CASE values.
+# The data model is intentionally lean — one season at a time (configured via
+# REGISTRATION_OPENS_AT / REGISTRATION_CLOSES_AT env vars), adults-only (no
+# PriceCategory), one registration per user (OneToOneField). See
+# docs/decisions/0005-single-season-matching-engine.md for the rationale.
+#
+# Fixed choice values are TextChoices with UPPER_CASE values (CLAUDE.md).
 
 from __future__ import annotations
 
-from decimal import Decimal
-
+from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from accounts.models import Account
 from core.models import BaseModel, BaseQuerySet
-
-
-class SeasonQuerySet(BaseQuerySet):
-    """Queryset for Season."""
-
-    def active(self) -> SeasonQuerySet:
-        """Return the season(s) currently open for registration."""
-        return self.filter(is_active=True)
-
-
-class Season(BaseModel):
-    """A campaign period that scopes registrations, the pool, and matches."""
-
-    name = models.CharField(max_length=32, unique=True, help_text="e.g. 2026/27")
-    slug = models.SlugField(unique=True)
-    is_active = models.BooleanField(
-        default=False,
-        help_text="Whether this season is currently open for registration.",
-    )
-    contact_window_hours = models.PositiveIntegerField(
-        default=72,
-        help_text=(
-            "Hours a matched pair has to mutually accept before the match is "
-            "cancelled and both re-queue."
-        ),
-    )
-    registration_opens_at = models.DateTimeField(null=True, blank=True)
-    registration_closes_at = models.DateTimeField(null=True, blank=True)
-
-    objects = SeasonQuerySet.as_manager()
-
-    class Meta:
-        ordering = ["-name"]
-
-    def to_string(self) -> str:
-        """Return the season's name."""
-        return self.name
-
-
-class PriceCategoryQuerySet(BaseQuerySet):
-    """Queryset for PriceCategory."""
-
-    def for_season(self, season: Season) -> PriceCategoryQuerySet:
-        """Return the price categories belonging to ``season``."""
-        return self.filter(season=season)
-
-
-class PriceCategory(BaseModel):
-    """An ordered pass price category within a season.
-
-    ``order`` defines the price-category ranking used by match eligibility: a
-    referee's category must rank greater than or equal to the ambassador's.
-    """
-
-    class Code(models.TextChoices):
-        """Pass price categories, ordered child < adult < senior."""
-
-        CHILD = "CHILD", _("Child")
-        ADULT = "ADULT", _("Adult")
-        SENIOR = "SENIOR", _("Senior")
-
-    season = models.ForeignKey(
-        Season,
-        on_delete=models.CASCADE,
-        related_name="price_categories",
-    )
-    code = models.CharField(max_length=16, choices=Code.choices)
-    order = models.PositiveIntegerField(
-        help_text="Rank within the season; higher means a higher category."
-    )
-    label = models.CharField(
-        max_length=64,
-        help_text="Display label (translated at render time).",
-    )
-    full_price = models.DecimalField(
-        max_digits=8, decimal_places=2, default=Decimal("0.00")
-    )
-    discounted_price = models.DecimalField(
-        max_digits=8, decimal_places=2, default=Decimal("0.00")
-    )
-
-    objects = PriceCategoryQuerySet.as_manager()
-
-    class Meta:
-        ordering = ["season", "order"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["season", "code"], name="unique_category_per_season"
-            ),
-            models.UniqueConstraint(
-                fields=["season", "order"], name="unique_order_per_season"
-            ),
-        ]
-
-    def to_string(self) -> str:
-        """Return a human-readable label for the category."""
-        return f"{self.season} · {self.get_code_display()}"
 
 
 class Resort(models.TextChoices):
@@ -131,10 +34,6 @@ class Resort(models.TextChoices):
 class RegistrationQuerySet(BaseQuerySet):
     """Queryset for Registration."""
 
-    def for_season(self, season: Season) -> RegistrationQuerySet:
-        """Return registrations scoped to ``season``."""
-        return self.filter(season=season)
-
     def ambassadors(self) -> RegistrationQuerySet:
         """Return ambassador (referrer) registrations."""
         return self.filter(role=Registration.Role.AMBASSADOR)
@@ -147,13 +46,31 @@ class RegistrationQuerySet(BaseQuerySet):
         """Return registrations still waiting in the pool."""
         return self.filter(status=Registration.Status.WAITING)
 
+    def eligible_ambassadors(self) -> RegistrationQuerySet:
+        """Return waiting ambassadors who hold a valid prior pass."""
+        return (
+            self.ambassadors()
+            .waiting()
+            .filter(
+                prior_pass__in=[
+                    Registration.PriorPass.SEASONAL,
+                    Registration.PriorPass.ANNUAL,
+                    Registration.PriorPass.MONT4,
+                ]
+            )
+        )
+
+    def eligible_referees(self) -> RegistrationQuerySet:
+        """Return waiting referees who are genuinely new (no prior pass)."""
+        return self.referees().waiting().filter(prior_pass=Registration.PriorPass.NONE)
+
 
 class Registration(BaseModel):
-    """A participant's enrolment into a season's pool in one role.
+    """A participant's enrolment in the current season's pool.
 
-    Holds the role, chosen price category, soft location preference, the
-    prior-season attestation that drives match eligibility, the pool status, and
-    the queue priority. One registration per account per season.
+    One registration per user (OneToOneField). Holds the role, prior-pass
+    attestation that gates match eligibility, soft location preference, the pool
+    status, and the queue priority.
     """
 
     class Role(models.TextChoices):
@@ -170,21 +87,33 @@ class Registration(BaseModel):
         CONFIRMED = "CONFIRMED", _("Confirmed")
         WITHDRAWN = "WITHDRAWN", _("Withdrawn")
 
-    season = models.ForeignKey(
-        Season,
+    class PriorPass(models.TextChoices):
+        """Prior-season pass type, used to gate match eligibility.
+
+        Ambassadors must hold SEASONAL, ANNUAL, or MONT4 (Mont 4 Card / special
+        reduction). Referees must be genuinely new and resolve to NONE.
+        UPPER_CASE values (CLAUDE.md "TextChoices").
+        """
+
+        NONE = "NONE", _("None — I did not hold a prior pass")
+        SEASONAL = "SEASONAL", _("Seasonal pass (4 Vallées)")
+        ANNUAL = "ANNUAL", _("Annual pass (4 Vallées)")
+        MONT4 = "MONT4", _("Mont 4 Card / special reduction")
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="registrations",
-    )
-    account = models.ForeignKey(
-        Account,
-        on_delete=models.CASCADE,
-        related_name="registrations",
+        related_name="registration",
     )
     role = models.CharField(max_length=16, choices=Role.choices)
-    price_category = models.ForeignKey(
-        PriceCategory,
-        on_delete=models.PROTECT,
-        related_name="registrations",
+    # Phone is contact PII; revealed only after mutual match accept (Invariant 1).
+    phone = models.CharField(max_length=32, blank=True)
+    # Language codes are external identifiers (ISO 639) keyed to settings.LANGUAGES,
+    # not a domain enum, so the UPPER_CASE TextChoices rule does not apply here.
+    preferred_language = models.CharField(
+        max_length=8,
+        choices=settings.LANGUAGES,
+        blank=True,
     )
     preferred_location = models.CharField(
         max_length=16,
@@ -192,17 +121,13 @@ class Registration(BaseModel):
         blank=True,
         help_text="Soft preference; used to rank matches, never to gate them.",
     )
-    held_prior_pass = models.BooleanField(
+    prior_pass = models.CharField(
+        max_length=16,
+        choices=PriorPass.choices,
+        default=PriorPass.NONE,
         help_text=(
-            "Prior-season attestation. Ambassadors confirm they held a 4 Vallées "
-            "pass (True); referees confirm they did not (False)."
-        ),
-    )
-    discount_eligible = models.BooleanField(
-        default=True,
-        help_text=(
-            "False for Mont 4 / special-reduction ambassadors, who still supply a "
-            "valid match but take no discount themselves."
+            "Prior-season pass attestation. Ambassadors must hold SEASONAL, ANNUAL, or "
+            "MONT4. Referees are genuinely new and hold NONE."
         ),
     )
     status = models.CharField(
@@ -219,13 +144,81 @@ class Registration(BaseModel):
 
     class Meta:
         ordering = ["-created_at"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["season", "account"],
-                name="unique_registration_per_season",
-            ),
-        ]
 
     def to_string(self) -> str:
         """Return a human-readable label for the registration."""
-        return f"{self.account.user} · {self.get_role_display()} · {self.season}"
+        return f"{self.user} · {self.get_role_display()}"
+
+    def __str__(self) -> str:
+        """Delegate to to_string."""
+        return self.to_string()
+
+
+class MatchQuerySet(BaseQuerySet):
+    """Queryset for Match."""
+
+    def proposed(self) -> MatchQuerySet:
+        """Return matches currently in the PROPOSED state."""
+        return self.filter(status=Match.Status.PROPOSED)
+
+    def active(self) -> MatchQuerySet:
+        """Return non-terminal matches (PROPOSED only; excludes DECLINED/EXPIRED)."""
+        return self.exclude(status__in=[Match.Status.DECLINED, Match.Status.EXPIRED])
+
+
+class Match(BaseModel):
+    """A system-proposed pairing of one ambassador and one referee.
+
+    Created by the matching engine when an eligible pair is found. Accumulates
+    rows (no unique constraint on the registration FKs) so that declined and
+    expired matches are preserved as history.
+
+    State machine: PROPOSED → ACCEPTED | DECLINED | EXPIRED.
+    Contact PII is never revealed until both parties accept (Invariant 1).
+    """
+
+    class Status(models.TextChoices):
+        """Match lifecycle states. UPPER_CASE values (CLAUDE.md)."""
+
+        PROPOSED = "PROPOSED", _("Proposed")
+        ACCEPTED = "ACCEPTED", _("Accepted")
+        DECLINED = "DECLINED", _("Declined")
+        EXPIRED = "EXPIRED", _("Expired")
+
+    ambassador_registration = models.ForeignKey(
+        Registration,
+        on_delete=models.CASCADE,
+        related_name="matches_as_ambassador",
+    )
+    referee_registration = models.ForeignKey(
+        Registration,
+        on_delete=models.CASCADE,
+        related_name="matches_as_referee",
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.PROPOSED,
+    )
+    expires_at = models.DateTimeField(
+        help_text=(
+            "When the contact window closes; both re-queue if not "
+            "mutually accepted by then."
+        ),
+    )
+
+    objects = MatchQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def to_string(self) -> str:
+        """Return a human-readable label for the match."""
+        return (
+            f"Match {self.pk}: {self.ambassador_registration.user} ↔ "
+            f"{self.referee_registration.user} [{self.get_status_display()}]"
+        )
+
+    def __str__(self) -> str:
+        """Delegate to to_string."""
+        return self.to_string()

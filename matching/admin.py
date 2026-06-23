@@ -2,36 +2,7 @@
 
 from django.contrib import admin
 
-from .models import PriceCategory, Registration, Season
-
-
-class PriceCategoryInline(admin.TabularInline):
-    """Edit a season's price categories inline."""
-
-    model = PriceCategory
-    extra = 0
-
-
-@admin.register(Season)
-class SeasonAdmin(admin.ModelAdmin):
-    """Admin for Season."""
-
-    list_display = ["name", "is_active", "contact_window_hours", "created_at"]
-    list_filter = ["is_active"]
-    search_fields = ["name", "slug"]
-    prepopulated_fields = {"slug": ["name"]}
-    readonly_fields = ["created_at", "updated_at"]
-    inlines = [PriceCategoryInline]
-
-
-@admin.register(PriceCategory)
-class PriceCategoryAdmin(admin.ModelAdmin):
-    """Admin for PriceCategory."""
-
-    list_display = ["season", "code", "order", "full_price", "discounted_price"]
-    list_filter = ["season", "code"]
-    ordering = ["season", "order"]
-    readonly_fields = ["created_at", "updated_at"]
+from .models import Match, Registration
 
 
 @admin.register(Registration)
@@ -39,15 +10,36 @@ class RegistrationAdmin(admin.ModelAdmin):
     """Admin for Registration."""
 
     list_display = [
-        "account",
+        "user",
         "role",
-        "season",
-        "price_category",
+        "prior_pass",
         "status",
         "priority",
+        "preferred_location",
         "created_at",
     ]
-    list_filter = ["season", "role", "status", "discount_eligible"]
-    search_fields = ["account__user__email", "account__user__first_name"]
-    raw_id_fields = ["account", "price_category"]
+    list_filter = ["role", "status", "prior_pass", "preferred_location"]
+    search_fields = ["user__email", "user__first_name", "user__last_name"]
+    raw_id_fields = ["user"]
+    readonly_fields = ["created_at", "updated_at"]
+
+
+@admin.register(Match)
+class MatchAdmin(admin.ModelAdmin):
+    """Admin for Match."""
+
+    list_display = [
+        "pk",
+        "ambassador_registration",
+        "referee_registration",
+        "status",
+        "expires_at",
+        "created_at",
+    ]
+    list_filter = ["status"]
+    search_fields = [
+        "ambassador_registration__user__email",
+        "referee_registration__user__email",
+    ]
+    raw_id_fields = ["ambassador_registration", "referee_registration"]
     readonly_fields = ["created_at", "updated_at"]

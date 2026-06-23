@@ -1,8 +1,10 @@
 # Account self-service views.
 #
-# The authenticated participant views and edits their own profile, manages their
-# Facebook connection (via allauth), and can delete their account. Role is shown
-# read-only — it is fixed once registered (CLAUDE.md).
+# The authenticated participant views and edits their own profile. Role is
+# shown read-only — it is fixed once registered (CLAUDE.md). Participant
+# attributes (phone, preferred_language) now live on matching.Registration
+# rather than a separate Account model. If the user has no registration they
+# are redirected to the registration flow.
 
 from __future__ import annotations
 
@@ -19,22 +21,21 @@ from django.utils.translation import gettext as _
 from matching.models import Registration
 
 from .forms import AccountForm
-from .models import Account
 from .services import delete_account, update_account
 
 
 @login_required
 def account_detail(request: HttpRequest) -> HttpResponse:
-    """Show the participant's profile, registrations and security controls."""
+    """Show the participant's profile, registration and security controls."""
     user = cast(User, request.user)
-    account, _created = Account.objects.get_or_create(user=user)
-    registrations = Registration.objects.filter(account=account).select_related(
-        "season", "price_category"
-    )
+    try:
+        registration: Registration | None = user.registration
+    except Registration.DoesNotExist:
+        registration = None
     return render(
         request,
         "accounts/detail.html",
-        {"account": account, "registrations": registrations},
+        {"registration": registration},
     )
 
 
@@ -42,7 +43,11 @@ def account_detail(request: HttpRequest) -> HttpResponse:
 def account_edit(request: HttpRequest) -> HttpResponse:
     """Edit the participant's name, phone and preferred language."""
     user = cast(User, request.user)
-    account, _created = Account.objects.get_or_create(user=user)
+    try:
+        registration: Registration | None = user.registration
+    except Registration.DoesNotExist:
+        registration = None
+
     if request.method == "POST":
         form = AccountForm(request.POST)
         if form.is_valid():
@@ -61,8 +66,10 @@ def account_edit(request: HttpRequest) -> HttpResponse:
             initial={
                 "first_name": user.first_name,
                 "last_name": user.last_name,
-                "phone": account.phone,
-                "preferred_language": account.preferred_language,
+                "phone": registration.phone if registration else "",
+                "preferred_language": (
+                    registration.preferred_language if registration else ""
+                ),
             }
         )
     return render(request, "accounts/edit.html", {"form": form})

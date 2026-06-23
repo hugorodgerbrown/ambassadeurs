@@ -16,6 +16,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.db import transaction
+from django.db.models import Case, IntegerField, Value, When
 from django.utils import timezone, translation
 from django.utils.dateparse import parse_datetime
 from django.utils.translation import gettext as _
@@ -119,8 +120,6 @@ def propose_match(registration: Registration) -> Match | None:
 
     # Rank: shared location first (1), then priority desc, then created_at asc.
     # We achieve the shared-location preference by annotating with a 0/1 flag.
-    from django.db.models import Case, IntegerField, Value, When  # noqa: PLC0415
-
     ranked = candidates.annotate(
         location_match=Case(
             When(
@@ -159,13 +158,13 @@ def propose_match(registration: Registration) -> Match | None:
     referee_reg.status = Registration.Status.MATCHED
 
     logger.info(
-        "Proposed match %s: ambassador %s ↔ referee %s",
+        "Proposed match pk=%s: ambassador reg pk=%s, referee reg pk=%s",
         match.pk,
-        ambassador_reg.user.email,
-        referee_reg.user.email,
+        ambassador_reg.pk,
+        referee_reg.pk,
     )
 
-    send_match_notification(match)
+    transaction.on_commit(lambda: send_match_notification(match))
     return match
 
 
@@ -194,7 +193,9 @@ def send_match_notification(match: Match) -> None:
         recipient_email = registration.user.email
         send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [recipient_email])
         logger.info(
-            "Sent match notification for match %s to %s", match.pk, recipient_email
+            "Sent match notification for match pk=%s to registration pk=%s",
+            match.pk,
+            registration.pk,
         )
 
 
@@ -251,5 +252,5 @@ def register_participant(
 
         propose_match(registration)
 
-    logger.info("Registered %s as %s", user.email, role)
+    logger.info("Registered user pk=%s as %s", user.pk, role)
     return registration

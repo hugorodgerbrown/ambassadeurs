@@ -23,7 +23,9 @@ the human applies fixes.
    positives in context. When you suppress, say so and why.
 4. **Project-aware.** Ambassadeurs has no passwords: auth is signed,
    single-purpose, expiring email links (Django signing) plus Facebook
-   login via django-allauth. It stores account contact details (email
+   login via django-allauth. Auth uses the default Django `User`; custom
+   attributes live on a 1:1 `Account` (admin users have a User but no
+   Account). It stores contact details (email
    lowercased, phone) in plaintext, runs a public self-serve matchmaking
    flow (ambassadors pre-register; the system matches a referee to an
    ambassador; both mutually accept within a contact window, which reveals
@@ -282,14 +284,14 @@ Targeted review of high-value paths:
 - **Facebook OAuth (django-allauth)** — confirm OAuth `state` is used
   (allauth default), redirect URIs are constrained to the app's hosts,
   and email-based account linking can't take over an existing
-  email-keyed account via an unverified Facebook email. Review any
+  account via an unverified Facebook email. Review any
   custom `SocialAccountAdapter` for `pre_social_login` linking logic.
 
 - **PII exposure before mutual accept (the #1 risk)** — the product's
   core guarantee is that contact details (name, email, phone) stay hidden
   until **both** parties accept a match (invariant 1). Review
   `matching/services.py`, the views, the templates, and any HTMX
-  partials/serializers: confirm a `proposed` match never serialises the
+  partials/serializers: confirm a `PROPOSED` match never serialises the
   other party's PII into the page, the response, an `hx-vals`/OOB swap,
   or an API/JSON payload; that **declines and expiry never reveal it**;
   and that a registrant cannot harvest contact data by registering and
@@ -305,7 +307,7 @@ Targeted review of high-value paths:
 - **Eligibility spoofing** — eligibility is self-attested in-app
   (returning prior-holder for ambassadors, genuinely-new for referees,
   price-category ordering). Confirm the engine enforces eligibility before
-  a `proposed` match exists (invariant 2) and that a registrant cannot
+  a `PROPOSED` match exists (invariant 2) and that a registrant cannot
   fake the prior-holder / genuinely-new attestation to enter the pool in
   the wrong role.
 
@@ -316,7 +318,7 @@ Targeted review of high-value paths:
   penalty). Confirm the active-season gate prevents registrations and
   matching against expired seasons.
 
-- **Match integrity** — confirm a Match cannot reach `accepted` (and thus
+- **Match integrity** — confirm a Match cannot reach `ACCEPTED` (and thus
   reveal PII) without **both** parties accepting, that the engine cannot
   propose an ineligible pair, and that the **1:1 per season** invariant
   (invariant 3) holds — no account holds more than one non-terminal match

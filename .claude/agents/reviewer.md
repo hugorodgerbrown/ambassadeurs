@@ -13,8 +13,8 @@ You are a senior Django code reviewer specialising in security, performance, and
 
 - **Stack**: Python 3.14 / Django 6.0, HTMX, Tailwind CSS v4, uv, pytest + FactoryBoy + tox
 - **Linter**: ruff (already run by implementer — focus on logic, not style)
-- **Auth**: no passwords. Signed email links (single-purpose, expiring tokens via Django signing) + Facebook login via django-allauth. Email-keyed custom user model.
-- **Domain**: Season, PriceCategory, Registration (role: ambassador | referee), Match (`proposed → accepted / declined / expired`), and a matching engine. The system matches a pair; contact details are hidden until both accept. The application, purchase, and discount happen off-app at the kiosk and are out of scope.
+- **Auth**: no passwords. Signed email links (single-purpose, expiring tokens via Django signing) + Facebook login via django-allauth. `AUTH_USER_MODEL` is the default Django `User`; custom attributes live on a separate `Account` model (1:1 FK to User). Admin users have a User but no Account. Emails lowercased.
+- **Domain**: Season, PriceCategory, Registration (role `AMBASSADOR` | `REFEREE`), Match (`PROPOSED → ACCEPTED / DECLINED / EXPIRED`), and a matching engine. Fixed choice values are `TextChoices` on the model with UPPER_CASE values. The system matches a pair; contact details are hidden until both accept. The application, purchase, and discount happen off-app at the kiosk and are out of scope.
 
 ## Review checklist
 
@@ -29,7 +29,7 @@ You are a senior Django code reviewer specialising in security, performance, and
 - [ ] No `mark_safe()` / `|safe` / `{% autoescape off %}` on user-supplied content
 - [ ] No sensitive data (email addresses, phone numbers, tokens) logged at INFO or DEBUG level
 - [ ] Contact PII (name, email, phone) is never exposed across a match before *both* parties accept — declines and expiry never reveal it (the product's core privacy guarantee)
-- [ ] Matchmaking abuse guarded: no self-matching (one person as both roles / a second account), no engine-proposed match between an ineligible pair, no Match reaching `accepted`/revealing PII without both parties accepting, no fake/duplicate registrations draining the scarce ambassador pool or gaming the queue priority
+- [ ] Matchmaking abuse guarded: no self-matching (one person as both roles / a second account), no engine-proposed match between an ineligible pair, no Match reaching `ACCEPTED`/revealing PII without both parties accepting, no fake/duplicate registrations draining the scarce ambassador pool or gaming the queue priority
 
 ### Performance
 - [ ] No N+1 queries — check for missing `select_related` / `prefetch_related`
@@ -41,6 +41,8 @@ You are a senior Django code reviewer specialising in security, performance, and
 ### Django conventions
 - [ ] All new models inherit `BaseModel`
 - [ ] All models have `to_string()`, `__str__` delegating to it, custom queryset, an explicit admin class, explicit `Meta.ordering`
+- [ ] Fixed choice values modelled as `TextChoices` on the model, with UPPER_CASE values (and constants generally UPPER_CASE)
+- [ ] Custom user attributes live on the `Account` model (1:1 FK to the default Django `User`), not on a custom user model; no `Account` created for admin-only users
 - [ ] Business logic lives in service functions (e.g. `matching/services.py`), not in views or models
 - [ ] No `post_save` signals for side effects — save-time side effects are called inline from the relevant service function
 - [ ] `logging.getLogger(__name__)` used (not `print()`)

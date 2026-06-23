@@ -87,12 +87,17 @@ they don't, fix before reporting. After editing templates, run
 - Partial/fragment views live under a `partials/` prefix and are guarded with
   `require_htmx` (reject plain HTTP with 400).
 - No passwords. Auth is signed email links (single-purpose, expiring tokens via
-  Django signing) plus Facebook login via django-allauth. Normalise every email
-  to lowercase at every entry point.
-- The Match state machine (`proposed → accepted / declined / expired`) and the
+  Django signing) plus Facebook login via django-allauth. `AUTH_USER_MODEL` is the
+  default Django `User`; custom attributes live on a separate `Account` model (1:1
+  FK to User) — admin users have a User but no Account. Normalise every email to
+  lowercase at every entry point.
+- Fixed choice values are `TextChoices` on the model with UPPER_CASE values;
+  constants generally are UPPER_CASE.
+- The Match state machine (`PROPOSED → ACCEPTED / DECLINED / EXPIRED`) and the
   matching engine (queue, assignment, eligibility) live in `matching/`. Drive
   transitions through service functions, not `post_save` signals. Contact details
-  are hidden until both parties accept.
+  are hidden until both parties accept. Match is modelled many:many internally
+  (unsuccessful matches are retained as history); a successful match is 1:1.
 - Every concrete model ships the full kit: `BaseModel` ancestry, explicit admin
   class, `to_string()` (with `__str__` delegating), `Meta.ordering`, a custom
   queryset, a factory, and tests.

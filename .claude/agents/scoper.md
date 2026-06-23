@@ -21,7 +21,7 @@ Concrete description of what a user does and sees. If there's a UI, describe the
 A bulleted list of testable conditions. Each one should be checkable as pass/fail. Aim for 3–7. Examples:
 - "A referee who opens a valid match-action link sees the accept/decline page without logging in"
 - "An expired match-action token shows the expiry message and offers to request a fresh link"
-- "A match where both parties accept transitions to `accepted` and reveals each party's contact details to the other"
+- "A match where both parties accept transitions to `ACCEPTED` and reveals each party's contact details to the other"
 
 ### Technical surface
 Which parts of the Ambassadeurs codebase this touches. Be specific:

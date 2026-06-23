@@ -3,7 +3,7 @@ name: audit
 description: |
   Run a security audit scoped to Ambassadeurs by invoking the security-auditor
   agent with the project's specific threat surface pre-loaded (signed-link
-  match-action/login tokens, Facebook OAuth via allauth, email-keyed accounts,
+  match-action/login tokens, Facebook OAuth via allauth, default-User + 1:1 Account,
   matchmaking abuse — PII reveal before mutual accept, self-matching,
   eligibility spoofing, fake registrations, match integrity — HTMX partials,
   split Django settings, Render single-service deploy) — no need to describe
@@ -45,17 +45,18 @@ surface pre-loaded, so you don't have to describe the stack each time.
    - **Facebook OAuth via django-allauth** — launch runs through the Verbier
      Facebook community. Check OAuth `state` (CSRF on the callback), redirect
      handling (open redirect on login/next), and account-linking — an
-     attacker linking a Facebook identity to someone else's email-keyed
+     attacker linking a Facebook identity to someone else's
      account, or hijacking via unverified email.
-   - **Email-keyed accounts + lowercase normalisation** — the custom user
-     model is keyed on a lowercase email. Check that every entry point
-     (registration, match accept, social login, admin) normalises to lowercase
-     before storage and lookup; a missed normalisation lets two records, or an
-     account-takeover via case variance, slip through.
+   - **Default User + Account split + lowercase normalisation** — auth uses the
+     default Django `User`; custom attributes live on a 1:1 `Account` (admin
+     users have no Account). Lookups key on a lowercase email. Check that every
+     entry point (registration, match accept, social login, admin) normalises to
+     lowercase before storage and lookup; a missed normalisation lets two
+     records, or an account-takeover via case variance, slip through.
    - **Matchmaking abuse** — the core domain risk. Lead with **PII exposure
      before mutual accept**: contact details (name, email, phone) must stay
      hidden until *both* parties accept; declines and expiry never reveal
-     them. Check that a `proposed` match never leaks the other party's PII
+     them. Check that a `PROPOSED` match never leaks the other party's PII
      into a page, response, HTMX swap, or match-status poll, and that a
      registrant cannot harvest contact data by registering and pulling match
      state without accepting. Then check **self-matching** (one person as both
@@ -63,7 +64,7 @@ surface pre-loaded, so you don't have to describe the stack each time.
      prior-holder or genuinely-new attestation to enter the pool), **fake /
      duplicate registrations** (draining the scarce ambassador pool or gaming
      the queue / priority), and **match integrity** (can a Match reach
-     `accepted` / reveal PII without both parties accepting? can the engine
+     `ACCEPTED` / reveal PII without both parties accepting? can the engine
      propose an ineligible pair? is 1:1-per-season enforced?).
    - **HTMX partials** — all fragment endpoints must be guarded by
      `require_htmx`; check for missing guards and CSRF exposure on

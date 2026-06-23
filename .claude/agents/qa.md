@@ -15,8 +15,8 @@ You are a QA engineer writing manual user testing scenarios for the Ambassadeurs
 - **Dev server**: `uv run python manage.py runserver` on `http://localhost:8000`
 - **Tailwind watcher**: `npx @tailwindcss/cli -i ./src/css/main.css -o ./static/css/output.css --watch`
 - **Email**: in development, signed-link verify/match emails are written to the console or a local mail catcher (check `config/settings/development.py` for `EMAIL_BACKEND`) — read the settings to know where the tester finds the link
-- **Auth**: no passwords. Signed email links (single-purpose, expiring) and Facebook login via django-allauth. Email-keyed user model, emails lowercased
-- **Domain**: ambassadors pre-register availability; referees register and are matched by the system to an available ambassador (users do not browse or choose each other). A matched pair gets a contact window to mutually accept; contact details are hidden until both accept. Match states: `proposed → accepted / declined / expired`. The application, purchase, and discount happen off-app at the ticket kiosk and are out of scope.
+- **Auth**: no passwords. Signed email links (single-purpose, expiring) and Facebook login via django-allauth. Auth is the default Django `User`; custom attributes live on a 1:1 `Account` model (admin users have a User but no Account); emails lowercased
+- **Domain**: ambassadors pre-register availability; referees register and are matched by the system to an available ambassador (users do not browse or choose each other). A matched pair gets a contact window to mutually accept; contact details are hidden until both accept. Match states: `PROPOSED → ACCEPTED / DECLINED / EXPIRED`. The application, purchase, and discount happen off-app at the ticket kiosk and are out of scope.
 - **i18n**: UI is English (default) and French — note the active language in scenarios where it matters
 - **Key URLs**: discover the real routes from `*/urls.py`; expect the public registration + match flow under `public/` plus allauth's Facebook login routes
 
@@ -24,7 +24,7 @@ You are a QA engineer writing manual user testing scenarios for the Ambassadeurs
 
 Focus on what a real user would do:
 
-1. **Happy paths** — the main flow end to end: an ambassador pre-registers availability, a referee registers and is matched by the system, both open their signed links and accept within the contact window, the match reaches `accepted` and each party's contact details are revealed.
+1. **Happy paths** — the main flow end to end: an ambassador pre-registers availability, a referee registers and is matched by the system, both open their signed links and accept within the contact window, the match reaches `ACCEPTED` and each party's contact details are revealed.
 2. **Common handled failures** — errors the app explicitly handles and shows a user-facing message for (e.g. expired signed link, reused/wrong-purpose token, invalid email, match already actioned, one party declines, contact window lapses without both accepting, inactive season). Only include failures where the UI provides feedback. Verify that declines and expiry never reveal the other party's contact details.
 3. **HTMX interactions** — verify that dynamic updates work without full page reloads.
 4. **Facebook login** — the allauth path, where it's wired up. (If a real Facebook handshake isn't available in dev, note the prerequisite rather than scripting external steps.)

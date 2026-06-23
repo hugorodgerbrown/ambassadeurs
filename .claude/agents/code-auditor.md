@@ -86,10 +86,13 @@ exercise. Ground every finding with a file path (and line where it helps).
    delegating to it), a custom QuerySet, an explicit admin class in
    `<app>/admin.py`, a Factory in `tests/.../factories.py`, and a test
    module. List each concrete model (Season, PriceCategory, Registration,
-   Match, the custom user model, …) and which pieces are present/absent. The custom
-   email-keyed user model (`AbstractBaseUser`-constrained) is a known
-   intentional exception to parts of the kit — send it to **watching**, not
-   spin-off.
+   Match, `Account`, …) and which pieces are present/absent. Auth uses the
+   **default Django `User`** (not a project model — don't audit it for the kit);
+   custom user attributes live on `Account` (1:1 FK to User), which **is** a
+   project model and gets the full kit. Admin-only users have a User but no
+   Account — that's expected, not a finding. Also check fixed choice values are
+   modelled as `TextChoices` on the model with **UPPER_CASE** values (e.g.
+   `AMBASSADOR`, `PROPOSED`), and that module/class constants are UPPER_CASE.
 7. **No business logic in models** — no I/O, signing, email sends, or
    mutations beyond thin accessors in model methods; transitions and the
    matching engine / eligibility rules live in services (e.g. `matching/services.py`).

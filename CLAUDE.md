@@ -44,8 +44,9 @@ Target app layout. Create apps as the domain needs them; don't pre-build empty s
 config/          Django project settings (split base/development/production)
 core/            Shared abstractions (BaseModel; abstract, no concrete tables),
                  HTTP-layer middleware, shared helpers
-accounts/        Custom email-keyed user model (AUTH_USER_MODEL), signed-link
-                 auth, and Facebook social login (django-allauth)
+accounts/        Signed-link auth, and Facebook social login (django-allauth);
+                 AUTH_USER_MODEL is the default Django model, with a 1:1 FK from the
+                 Account to the User - Account stores non-core attributes.
 matching/        The core domain — Season, Registration, Match, the matching
                  engine (queue + assignment) and the Match state machine
                  (proposed → accepted / declined / expired) and its services
@@ -69,19 +70,21 @@ logs/            Log files (gitignored except .gitkeep)
 - **PriceCategory** — an *ordered* category (child < … < adult < senior). The
   ordering drives match eligibility (see the price-category rule below). Per season.
 - **Registration** — a user's enrolment into a season's pool in one **role**
-  (`ambassador` or `referee`). Holds the role, price category, preferred ticket
+  (`AMBASSADOR` or `REFEREE`). Holds the role, price category, preferred ticket
   office / resort (a *soft* preference — used to rank matches, not to gate them),
-  eligibility attestation, `discount_eligible` (ambassadors; `false` for Mont 4 /
-  special-reduction holders), `status` (`waiting` → `matched` → `confirmed`, or
-  `withdrawn`), and the queue **priority** that asymmetric flaking handling adjusts.
+  eligibility attestation, `DISCOUNT_ELIGIBLE` (ambassadors; `false` for Mont 4 /
+  special-reduction holders), `status` (`WAITING` → `MATCHED` → `CONFIRMED`, or
+  `WITHDRAWN`), and the queue **priority** that asymmetric flaking handling adjusts.
 - **Match** — a system-created **1:1** link of one ambassador registration and one
-  referee registration in a season. State machine:
-  - `proposed` — the engine paired them; both are notified; **neither sees the
+  referee registration in a season. NB Although a succesful match is 1:1 -
+  within the system we model many:many as we track unsuccesful matches as well
+  as those that work out. State machine:
+  - `PROPOSED` — the engine paired them; both are notified; **neither sees the
     other's identity or contact details**.
   - each side accepts or declines within the contact window.
-  - both accept → `accepted` — contact details are revealed and the pair proceeds
+  - both accept → `ACCEPTED` — contact details are revealed and the pair proceeds
     to the off-app application. Terminal success; both leave the pool.
-  - one declines → `declined`; window lapses without both accepting → `expired`.
+  - one declines → `DECLINED`; window lapses without both accepting → `EXPIRED`.
     In both, the registrations re-queue with **asymmetric** priority: the party who
     accepted is boosted (kept near the front); the non-responder is penalised.
 
@@ -197,6 +200,8 @@ don't) — tox does not read `pyproject.toml` dependencies automatically.
   `logging.getLogger(__name__)` in every module.
 - **No Django signals for side effects** — save-time side effects are called
   inline from the relevant service function, never via `post_save`.
+- **TextChoices** - fixed choice values must be modelled as `TextChoices` within
+  the relevant model class, and the choice values must be UPPER_CASE.
 
 ### Models
 
@@ -232,7 +237,6 @@ No passwords. Two entry paths, both keyed on a lowercase email address:
 - **Facebook login** — via `django-allauth`, since launch happens through the
   Verbier Facebook community.
 
-The user model is custom and email-keyed (`AUTH_USER_MODEL` in `accounts/`).
 Normalise every email to lowercase at every entry point before storage and lookup.
 
 ## Frontend

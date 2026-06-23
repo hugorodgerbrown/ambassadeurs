@@ -53,8 +53,8 @@ def accept_match(token: str, now: datetime.datetime) -> Match:
         now: The current timezone-aware datetime, used to enforce the contact window.
 
     Returns:
-        The Match; transitions to `accepted` (revealing contact details) only once
-        both parties have accepted, otherwise stays `proposed`.
+        The Match; transitions to `ACCEPTED` (revealing contact details) only once
+        both parties have accepted, otherwise stays `PROPOSED`.
 
     Raises:
         MatchExpired: If the contact window has lapsed.

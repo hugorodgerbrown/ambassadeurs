@@ -177,6 +177,54 @@ def test_legal_unknown_page_404() -> None:
     assert response.status_code == 404
 
 
+def test_register_hides_facebook_button_without_provider() -> None:
+    """With no configured Facebook provider, the button is not rendered."""
+    SeasonFactory.create()
+    response = Client().get(reverse("public:register", args=["ambassador"]))
+    assert b"Continue with Facebook" not in response.content
+
+
+def test_register_authenticated_user_has_no_email_field() -> None:
+    """A signed-in user sees no email field and the signed-in banner."""
+    from tests.accounts.factories import UserFactory
+
+    SeasonFactory.create()
+    user = UserFactory.create(email="ada@example.com")
+    client = Client()
+    client.force_login(user)
+    response = client.get(reverse("public:register", args=["ambassador"]))
+    assert response.status_code == 200
+    assert b"Signed in as ada@example.com" in response.content
+    assert b'name="email"' not in response.content
+
+
+def test_register_authenticated_user_links_existing_account() -> None:
+    """A signed-in user registers without re-entering email; no new user."""
+    from django.contrib.auth.models import User
+
+    from tests.accounts.factories import UserFactory
+
+    season = SeasonFactory.create()
+    category = PriceCategoryFactory.create(season=season)
+    user = UserFactory.create(email="ada@example.com", first_name="Ada")
+    client = Client()
+    client.force_login(user)
+    response = client.post(
+        reverse("public:register", args=["referee"]),
+        {
+            "first_name": "Ada",
+            "last_name": "Lovelace",
+            "price_category": category.pk,
+            "attestation": True,
+        },
+    )
+    assert response.status_code == 302
+    assert User.objects.count() == 1
+    registration = Registration.objects.get()
+    assert registration.account.user == user
+    assert registration.role == Registration.Role.REFEREE
+
+
 def test_service_worker_served_as_javascript() -> None:
     """/sw.js returns 200 with a JavaScript content type (no 404)."""
     response = Client().get(reverse("public:service_worker"))

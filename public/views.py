@@ -74,23 +74,30 @@ def register(request: HttpRequest, role: str) -> HttpResponse:
             {"role": role, "role_value": role_value, "other_slug": other_slug},
         )
 
+    # A participant who has just signed in (e.g. with Facebook) is already
+    # identified, so we reuse their user instead of creating one.
+    user = request.user if request.user.is_authenticated else None
+
     if request.method == "POST":
-        form = RegistrationForm(role=role_value, season=season, data=request.POST)
+        form = RegistrationForm(
+            role=role_value, season=season, data=request.POST, user=user
+        )
         if form.is_valid():
             data = form.cleaned_data
             register_participant(
                 season=season,
                 role=role_value,
+                user=user,
                 first_name=data["first_name"],
                 last_name=data["last_name"],
-                email=data["email"],
+                email=data.get("email", ""),
                 price_category=data["price_category"],
                 preferred_location=data["preferred_location"],
                 preferred_language=data["preferred_language"],
             )
             return redirect("public:register_done", role=role)
     else:
-        form = RegistrationForm(role=role_value, season=season)
+        form = RegistrationForm(role=role_value, season=season, user=user)
 
     return render(
         request,

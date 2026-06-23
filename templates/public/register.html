@@ -58,6 +58,19 @@
             </div>
         {% endif %}
 
+        {% if user.is_authenticated %}
+            <div class="mb-6 rounded-md border border-border bg-surface p-3 text-sm text-text-2">
+                {% blocktranslate trimmed with email=user.email %}
+                    Signed in as {{ email }}. Just choose your options below to finish registering.
+                {% endblocktranslate %}
+            </div>
+        {% else %}
+            {% include "includes/_facebook_button.html" with next_url=request.path %}
+            <p class="my-4 text-center text-xs uppercase tracking-wide text-text-3">
+                {% translate "or register with your email" %}
+            </p>
+        {% endif %}
+
         <form method="post" novalidate>
             {% csrf_token %}
 

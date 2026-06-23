@@ -5,13 +5,13 @@
 
 {% block content %}
     <section class="mx-auto max-w-xl">
-        <div class="mb-6 rounded-md border border-border bg-surface p-3 text-sm text-text-2">
+        <div class="mb-6 rounded-md border border-line bg-page p-3 text-sm text-body">
             {% blocktranslate trimmed with email=user.email %}
                 Signed in as {{ email }}. Choose your role to finish registering.
             {% endblocktranslate %}
         </div>
 
-        <h1 class="mb-4 text-2xl font-bold text-text-1">{% translate "Which one are you?" %}</h1>
+        <h1 class="mb-4 text-2xl font-bold text-ink">{% translate "Which one are you?" %}</h1>
 
         {# Role chooser — selecting a role HTMX-loads its details form below. #}
         <div class="mb-6 grid gap-4 sm:grid-cols-2">
@@ -20,10 +20,10 @@
                 hx-get="{% url 'public:register_details_form' %}?role=ambassador"
                 hx-target="#details-form"
                 hx-swap="innerHTML"
-                class="rounded-card border border-border bg-card p-4 text-left transition hover:border-accent"
+                class="rounded-card border border-line bg-surface p-4 text-left transition hover:border-accent"
             >
-                <span class="block font-semibold text-text-1">{% translate "I'm an Ambassador" %}</span>
-                <span class="mt-1 block text-sm text-text-2">
+                <span class="block font-semibold text-ink">{% translate "I'm an Ambassador" %}</span>
+                <span class="mt-1 block text-sm text-body">
                     {% translate "I held a 4 Vallées pass in a recent season and want to refer someone." %}
                 </span>
             </button>
@@ -32,10 +32,10 @@
                 hx-get="{% url 'public:register_details_form' %}?role=referee"
                 hx-target="#details-form"
                 hx-swap="innerHTML"
-                class="rounded-card border border-border bg-card p-4 text-left transition hover:border-accent"
+                class="rounded-card border border-line bg-surface p-4 text-left transition hover:border-accent"
             >
-                <span class="block font-semibold text-text-1">{% translate "I'm a Referee" %}</span>
-                <span class="mt-1 block text-sm text-text-2">
+                <span class="block font-semibold text-ink">{% translate "I'm a Referee" %}</span>
+                <span class="mt-1 block text-sm text-body">
                     {% translate "I'm new to the 4 Vallées and need an Ambassador to refer me." %}
                 </span>
             </button>

@@ -5,8 +5,8 @@
 
 {% block content %}
     <section class="mx-auto max-w-md">
-        <h1 class="mb-2 text-2xl font-bold text-text-1">{% translate "Register" %}</h1>
-        <p class="mb-6 text-sm text-text-2">
+        <h1 class="mb-2 text-2xl font-bold text-ink">{% translate "Register" %}</h1>
+        <p class="mb-6 text-sm text-body">
             {% blocktranslate trimmed %}
                 First, confirm your email. We'll send you a link to continue — or you can use Facebook. You'll choose
                 your role and fill in your details next.
@@ -15,14 +15,14 @@
 
         {% url 'public:register_details' as register_next %}
         {% include "includes/_facebook_button.html" with next_url=register_next %}
-        <p class="my-4 text-center text-xs uppercase tracking-wide text-text-3">
+        <p class="my-4 text-center text-xs uppercase tracking-wide text-meta">
             {% translate "or continue with email" %}
         </p>
 
         <form method="post">
             {% csrf_token %}
             <div class="mb-4">
-                <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-text-1">
+                <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-ink">
                     {{ form.email.label }}
                 </label>
                 {{ form.email }}
@@ -32,7 +32,7 @@
             </div>
             <button
                 type="submit"
-                class="inline-flex w-full items-center justify-center rounded-pill bg-accent px-5 py-2.5 font-medium text-white transition hover:opacity-90"
+                class="inline-flex w-full items-center justify-center rounded-pill bg-accent px-5 py-2.5 font-medium text-on-accent transition hover:opacity-90"
             >
                 {% translate "Email me a link" %}
             </button>

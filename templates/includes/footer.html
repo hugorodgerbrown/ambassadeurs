@@ -1,18 +1,18 @@
 {% load i18n %}
-<footer class="mt-16 border-t border-border bg-card">
-    <div class="mx-auto flex max-w-3xl flex-col items-center gap-2 px-4 py-6 text-sm text-text-3 sm:flex-row sm:justify-between">
+<footer class="mt-16 border-t border-line bg-surface">
+    <div class="mx-auto flex max-w-3xl flex-col items-center gap-2 px-4 py-6 text-sm text-meta sm:flex-row sm:justify-between">
         <p>
             © {% now "Y" %}
             {% translate "4 Vallées Ambassadors Program" %}
         </p>
         <nav class="flex gap-4">
-            <a href="{% url 'public:legal' page='privacy' %}" class="hover:text-text-1">
+            <a href="{% url 'public:legal' page='privacy' %}" class="hover:text-ink">
                 {% translate "Privacy" %}
             </a>
-            <a href="{% url 'public:legal' page='cookies' %}" class="hover:text-text-1">
+            <a href="{% url 'public:legal' page='cookies' %}" class="hover:text-ink">
                 {% translate "Cookies" %}
             </a>
-            <a href="{% url 'public:legal' page='terms' %}" class="hover:text-text-1">
+            <a href="{% url 'public:legal' page='terms' %}" class="hover:text-ink">
                 {% translate "Terms" %}
             </a>
         </nav>

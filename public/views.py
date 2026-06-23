@@ -23,8 +23,12 @@ ROLE_BY_SLUG = {
 
 
 def home(request: HttpRequest) -> HttpResponse:
-    """Render the public landing page."""
-    return render(request, "public/home.html")
+    """Render the public landing page with the two role calls-to-action."""
+    return render(
+        request,
+        "public/home.html",
+        {"registration_open": Season.objects.active().exists()},
+    )
 
 
 def register(request: HttpRequest, role: str) -> HttpResponse:

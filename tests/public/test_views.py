@@ -18,6 +18,30 @@ def test_home_renders() -> None:
     assert "public/home.html" in [t.name for t in response.templates]
 
 
+def test_home_shows_both_role_ctas() -> None:
+    """The homepage links to both registration routes with disambiguation copy."""
+    SeasonFactory.create()
+    response = Client().get(reverse("public:home"))
+    content = response.content
+    assert reverse("public:register", args=["ambassador"]).encode() in content
+    assert reverse("public:register", args=["referee"]).encode() in content
+    assert b"I'm an Ambassador" in content
+    assert b"I'm a Referee" in content
+
+
+def test_home_shows_opens_soon_when_no_active_season() -> None:
+    """With no active season the homepage shows the opens-soon notice."""
+    response = Client().get(reverse("public:home"))
+    assert b"Registration opens soon" in response.content
+
+
+def test_home_hides_opens_soon_when_season_active() -> None:
+    """With an active season the opens-soon notice is hidden."""
+    SeasonFactory.create()
+    response = Client().get(reverse("public:home"))
+    assert b"Registration opens soon" not in response.content
+
+
 def test_register_get_renders_role_form() -> None:
     """The ambassador registration page renders the form with role copy."""
     SeasonFactory.create()

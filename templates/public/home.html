@@ -9,14 +9,79 @@
         <h1 class="mb-4 text-3xl font-bold text-text-1">
             {% translate "Find your season-pass partner" %}
         </h1>
-        <p class="mx-auto mb-8 max-w-xl text-text-2">
+        <p class="mx-auto mb-6 max-w-xl text-text-2">
             {% blocktranslate trimmed %}
-                Get matched with a partner so you can both claim the Ambassadors discount on the 4 Vallées annual pass.
-                No more scrambling in the Facebook group.
+                To claim the Ambassadors discount on the 4 Vallées annual pass, a returning holder and a new holder
+                have to apply together. We match you with a partner automatically — no more scrambling in the Facebook
+                group, no chasing people who vanish.
             {% endblocktranslate %}
         </p>
-        <p class="text-text-3">
-            {% translate "Registration flows are coming soon." %}
-        </p>
+
+        {% if not registration_open %}
+            <div class="mx-auto mb-8 max-w-xl rounded-md border border-border bg-card p-3 text-sm text-text-2">
+                {% translate "Registration opens soon — check back closer to the start of the season." %}
+            </div>
+        {% endif %}
+    </section>
+
+    {# How it works — set expectations before the user picks a role. #}
+    <section class="mt-10">
+        <h2 class="mb-4 text-center text-xl font-semibold text-text-1">
+            {% translate "How it works" %}
+        </h2>
+        <ol class="mx-auto max-w-xl list-decimal space-y-2 pl-5 text-text-2">
+            <li>{% translate "Register in the role that fits you — Ambassador or Referee." %}</li>
+            <li>
+                {% translate "We add you to the queue and match you with a partner automatically. You don't pick each other." %}
+            </li>
+            <li>{% translate "When you're matched, we email you. You have 72 hours to accept." %}</li>
+            <li>
+                {% translate "Once you both accept, we share contact details so you can meet and apply together." %}
+            </li>
+        </ol>
+    </section>
+
+    {# Two role cards — resolve the "am I referrer or referee?" confusion up front. #}
+    <section class="mt-10">
+        <h2 class="mb-4 text-center text-xl font-semibold text-text-1">
+            {% translate "Which one are you?" %}
+        </h2>
+        <div class="grid gap-6 sm:grid-cols-2">
+            <div class="flex flex-col rounded-card border border-border bg-card p-6">
+                <h3 class="mb-1 text-lg font-semibold text-text-1">
+                    {% translate "I'm an Ambassador" %}
+                </h3>
+                <p class="mb-4 grow text-sm text-text-2">
+                    {% blocktranslate trimmed %}
+                        You held a 4 Vallées seasonal or annual pass in a recent season and want to refer a new holder.
+                        You're the returning holder.
+                    {% endblocktranslate %}
+                </p>
+                <a
+                    href="{% url 'public:register' role='ambassador' %}"
+                    class="inline-flex items-center justify-center rounded-pill bg-accent px-5 py-2.5 font-medium text-white transition hover:opacity-90"
+                >
+                    {% translate "Register as an Ambassador" %}
+                </a>
+            </div>
+
+            <div class="flex flex-col rounded-card border border-border bg-card p-6">
+                <h3 class="mb-1 text-lg font-semibold text-text-1">
+                    {% translate "I'm a Referee" %}
+                </h3>
+                <p class="mb-4 grow text-sm text-text-2">
+                    {% blocktranslate trimmed %}
+                        You're new to the 4 Vallées — you didn't hold a pass in either of the two previous seasons
+                        — and need an Ambassador to refer you.
+                    {% endblocktranslate %}
+                </p>
+                <a
+                    href="{% url 'public:register' role='referee' %}"
+                    class="inline-flex items-center justify-center rounded-pill bg-accent px-5 py-2.5 font-medium text-white transition hover:opacity-90"
+                >
+                    {% translate "Register as a Referee" %}
+                </a>
+            </div>
+        </div>
     </section>
 {% endblock %}

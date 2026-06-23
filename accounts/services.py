@@ -2,6 +2,11 @@
 #
 # Profile updates and account deletion run inline here (no Django signals,
 # CLAUDE.md "Models"), each in a single transaction.
+#
+# Note: ``Account`` has been removed. Participant attributes (phone,
+# preferred_language) now live on ``matching.Registration``.
+# ``update_account`` writes onto the user's registration; if the user has no
+# registration the update is a no-op for those fields.
 
 from __future__ import annotations
 
@@ -10,8 +15,6 @@ import logging
 from allauth.account.models import EmailAddress
 from django.contrib.auth.models import User
 from django.db import transaction
-
-from .models import Account
 
 logger = logging.getLogger(__name__)
 
@@ -47,24 +50,34 @@ def update_account(
     last_name: str,
     phone: str = "",
     preferred_language: str = "",
-) -> Account:
-    """Update the user's name and their Account contact / preference fields."""
+) -> None:
+    """Update the user's name and, if they have a registration, their contact fields.
+
+    If the user has no registration (e.g. an admin user) the phone and
+    preferred_language update is silently skipped; only the name is saved.
+    """
     with transaction.atomic():
         user.first_name = first_name
         user.last_name = last_name
         user.save(update_fields=["first_name", "last_name"])
 
-        account, _ = Account.objects.get_or_create(user=user)
-        account.phone = phone
-        account.preferred_language = preferred_language
-        account.save(update_fields=["phone", "preferred_language", "updated_at"])
+        try:
+            registration = user.registration
+        except Exception:
+            registration = None
+
+        if registration is not None:
+            registration.phone = phone
+            registration.preferred_language = preferred_language
+            registration.save(
+                update_fields=["phone", "preferred_language", "updated_at"]
+            )
 
     logger.info("Updated account for %s", user.email)
-    return account
 
 
 def delete_account(user: User) -> None:
-    """Delete the user, cascading their Account and registrations."""
+    """Delete the user, cascading their registration and matches."""
     email = user.email
     with transaction.atomic():
         user.delete()

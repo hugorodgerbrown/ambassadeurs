@@ -16,6 +16,8 @@ from allauth.account.models import EmailAddress
 from django.contrib.auth.models import User
 from django.db import transaction
 
+from matching.models import Registration
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,7 +41,7 @@ def get_or_create_participant_user(email: str) -> User:
             email=email,
             defaults={"verified": True, "primary": True},
         )
-    logger.info("Verified participant email %s", email)
+    logger.info("Verified participant user pk=%s", user.pk)
     return user
 
 
@@ -63,7 +65,7 @@ def update_account(
 
         try:
             registration = user.registration
-        except Exception:
+        except Registration.DoesNotExist:
             registration = None
 
         if registration is not None:
@@ -73,12 +75,12 @@ def update_account(
                 update_fields=["phone", "preferred_language", "updated_at"]
             )
 
-    logger.info("Updated account for %s", user.email)
+    logger.info("Updated account for user pk=%s", user.pk)
 
 
 def delete_account(user: User) -> None:
     """Delete the user, cascading their registration and matches."""
-    email = user.email
+    user_pk = user.pk
     with transaction.atomic():
         user.delete()
-    logger.info("Deleted account for %s", email)
+    logger.info("Deleted account for user pk=%s", user_pk)

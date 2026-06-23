@@ -91,3 +91,41 @@ def test_register_done_unknown_role_404() -> None:
     """An unknown role slug on the confirmation page returns 404."""
     response = Client().get(reverse("public:register_done", args=["banana"]))
     assert response.status_code == 404
+
+
+def test_referee_get_renders_referee_copy_and_cross_link() -> None:
+    """The referee page shows the referee banner and the Ambassador cross-link."""
+    SeasonFactory.create()
+    response = Client().get(reverse("public:register", args=["referee"]))
+    assert response.status_code == 200
+    assert b"Referee registration" in response.content
+    assert b"genuinely new" in response.content
+    assert reverse("public:register", args=["ambassador"]).encode() in response.content
+
+
+def test_referee_post_creates_genuinely_new_registration() -> None:
+    """A referee POST creates a REFEREE registration with held_prior_pass False."""
+    season = SeasonFactory.create()
+    category = PriceCategoryFactory.create(season=season)
+    response = Client().post(
+        reverse("public:register", args=["referee"]),
+        {
+            "first_name": "Grace",
+            "last_name": "Hopper",
+            "email": "grace@example.com",
+            "price_category": category.pk,
+            "attestation": True,
+        },
+    )
+    assert response.status_code == 302
+    assert response.url == reverse("public:register_done", args=["referee"])
+    registration = Registration.objects.get()
+    assert registration.role == Registration.Role.REFEREE
+    assert registration.held_prior_pass is False
+
+
+def test_referee_done_renders_referee_copy() -> None:
+    """The referee confirmation page renders the referee message."""
+    response = Client().get(reverse("public:register_done", args=["referee"]))
+    assert response.status_code == 200
+    assert b"Ambassador" in response.content

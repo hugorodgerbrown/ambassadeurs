@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Registration closed" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-xl text-center">
+        <h1 class="mb-4 text-3xl font-bold text-text-1">
+            {% translate "Registration isn't open yet" %}
+        </h1>
+        <p class="text-text-2">
+            {% blocktranslate trimmed %}
+                There is no season open for registration right now. Please check back closer to the start of the season.
+            {% endblocktranslate %}
+        </p>
+        <p class="mt-6">
+            <a href="{% url 'public:home' %}" class="font-medium text-accent underline">
+                {% translate "Back to home" %}
+            </a>
+        </p>
+    </section>
+{% endblock %}

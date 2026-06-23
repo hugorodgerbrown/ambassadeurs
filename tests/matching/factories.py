@@ -4,7 +4,8 @@ from decimal import Decimal
 
 import factory
 
-from matching.models import PriceCategory, Season
+from matching.models import PriceCategory, Registration, Season
+from tests.accounts.factories import AccountFactory
 
 
 class SeasonFactory(factory.django.DjangoModelFactory[Season]):
@@ -32,3 +33,20 @@ class PriceCategoryFactory(factory.django.DjangoModelFactory[PriceCategory]):
     label = "Adult"
     full_price = Decimal("1400.00")
     discounted_price = Decimal("999.00")
+
+
+class RegistrationFactory(factory.django.DjangoModelFactory[Registration]):
+    """Factory for Registration (ambassador by default)."""
+
+    class Meta:
+        model = Registration
+
+    season = factory.SubFactory(SeasonFactory)
+    account = factory.SubFactory(AccountFactory)
+    price_category = factory.SubFactory(
+        PriceCategoryFactory, season=factory.SelfAttribute("..season")
+    )
+    role = Registration.Role.AMBASSADOR
+    held_prior_pass = True
+    discount_eligible = True
+    status = Registration.Status.WAITING

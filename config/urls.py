@@ -9,7 +9,10 @@ from django.urls import include, path
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # allauth's auth flows live under ``accounts/``; our self-service profile
+    # area lives under the singular ``account/`` to avoid colliding with them.
     path("accounts/", include("allauth.urls")),
+    path("account/", include("accounts.urls")),
     path("i18n/", include("django.conf.urls.i18n")),
     path("", include("public.urls")),
 ]

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Delete my account" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-xl">
+        <h1 class="mb-4 text-2xl font-bold text-text-1">{% translate "Delete my account" %}</h1>
+        <p class="mb-6 text-text-2">
+            {% blocktranslate trimmed %}
+                This permanently deletes your account, your profile and all your registrations. You'll be removed from
+                any queues. This cannot be undone.
+            {% endblocktranslate %}
+        </p>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="flex items-center gap-3">
+                <button
+                    type="submit"
+                    class="inline-flex items-center justify-center rounded-pill bg-accent px-5 py-2.5 font-medium text-white transition hover:opacity-90"
+                >
+                    {% translate "Yes, delete my account" %}
+                </button>
+                <a href="{% url 'accounts:detail' %}" class="text-sm font-medium text-text-2 underline">
+                    {% translate "Cancel" %}
+                </a>
+            </div>
+        </form>
+    </section>
+{% endblock %}

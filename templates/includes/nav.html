@@ -4,23 +4,37 @@
         <a href="{% url 'public:home' %}" class="font-semibold text-text-1">
             {% translate "4 Vallées Ambassadors" %}
         </a>
-        <form action="{% url 'set_language' %}" method="post" class="text-sm">
-            {% csrf_token %}
-            <input type="hidden" name="next" value="{{ request.path }}">
-            <select
-                name="language"
-                onchange="this.form.submit()"
-                class="rounded-sm border border-border bg-card px-2 py-1"
-                aria-label="{% translate 'Change language' %}"
-            >
-                {% get_current_language as current %}
-                {% get_available_languages as languages %}
-                {% for code, name in languages %}
-                    <option value="{{ code }}" {% if code == current %}selected{% endif %}>
-                        {{ name }}
-                    </option>
-                {% endfor %}
-            </select>
-        </form>
+        <div class="flex items-center gap-4 text-sm">
+            {% if user.is_authenticated %}
+                <a href="{% url 'accounts:detail' %}" class="font-medium text-text-1">
+                    {% translate "My account" %}
+                </a>
+                <a href="{% url 'account_logout' %}" class="text-text-2">
+                    {% translate "Log out" %}
+                </a>
+            {% else %}
+                <a href="{% url 'account_login' %}" class="font-medium text-text-1">
+                    {% translate "Log in" %}
+                </a>
+            {% endif %}
+            <form action="{% url 'set_language' %}" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <select
+                    name="language"
+                    onchange="this.form.submit()"
+                    class="rounded-sm border border-border bg-card px-2 py-1"
+                    aria-label="{% translate 'Change language' %}"
+                >
+                    {% get_current_language as current %}
+                    {% get_available_languages as languages %}
+                    {% for code, name in languages %}
+                        <option value="{{ code }}" {% if code == current %}selected{% endif %}>
+                            {{ name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
     </nav>
 </header>

@@ -1,10 +1,12 @@
 # Tests for the matching service functions.
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from django.contrib.auth.models import User
 from django.core import mail
 from django.db import transaction
-from django.test import override_settings
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from matching.models import Match, Registration
@@ -252,6 +254,74 @@ def test_propose_match_sets_expires_at() -> None:
     assert expected_hours * 3600 <= delta.total_seconds() <= expected_hours * 3600 + 5
 
 
+def test_propose_match_fifo_tiebreak_within_equal_priority() -> None:
+    """propose_match picks the earlier-created registration when priority is equal.
+
+    Two referees with equal priority at the same location: the one created first
+    (lower created_at) must be matched.
+    """
+    base_time = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+    earlier_referee = RegistrationFactory.create(
+        referee=True,
+        preferred_location="VERBIER",
+        priority=0,
+    )
+    # Use queryset update() to bypass auto_now_add and set created_at directly.
+    Registration.objects.filter(pk=earlier_referee.pk).update(created_at=base_time)
+
+    later_referee = RegistrationFactory.create(
+        referee=True,
+        preferred_location="VERBIER",
+        priority=0,
+    )
+    Registration.objects.filter(pk=later_referee.pk).update(
+        created_at=base_time + timedelta(hours=1)
+    )
+
+    ambassador = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        preferred_location="VERBIER",
+    )
+    with transaction.atomic():
+        match = propose_match(ambassador)
+
+    assert match is not None
+    assert match.referee_registration == earlier_referee
+    later_referee.refresh_from_db()
+    assert later_referee.status == Registration.Status.WAITING
+
+
+def test_propose_match_single_counterpart_matched_only_once() -> None:
+    """A waiting counterpart can be matched by at most one registration.
+
+    Two referees both attempt to match the same sole waiting ambassador.
+    Exactly one match is created; the other referee remains WAITING.
+    This is the deterministic equivalent of a concurrency safety test — both
+    referees call propose_match sequentially; the select_for_update lock on the
+    candidate set ensures the second call sees the ambassador already MATCHED.
+    """
+    RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+    )
+    referee_one = RegistrationFactory.create(referee=True, priority=10)
+    referee_two = RegistrationFactory.create(referee=True, priority=5)
+
+    with transaction.atomic():
+        match_one = propose_match(referee_one)
+    # After the first match, the ambassador is MATCHED; the second call must
+    # find no eligible counterpart.
+    with transaction.atomic():
+        match_two = propose_match(referee_two)
+
+    assert match_one is not None
+    assert match_two is None
+    assert Match.objects.count() == 1
+    referee_two.refresh_from_db()
+    assert referee_two.status == Registration.Status.WAITING
+
+
 def test_propose_match_skips_ineligible_ambassador() -> None:
     """propose_match does not match an ambassador with prior_pass=NONE."""
     RegistrationFactory.create(
@@ -366,20 +436,25 @@ def test_register_participant_creates_user_and_registration() -> None:
 
 
 def test_register_participant_triggers_match_when_counterpart_waiting() -> None:
-    """register_participant triggers propose_match when a counterpart waits."""
+    """register_participant triggers propose_match when a counterpart waits.
+
+    The notification email is deferred via transaction.on_commit so it only fires
+    on a successful commit; captureOnCommitCallbacks(execute=True) runs it here.
+    """
     # Pre-populate a waiting ambassador.
     RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
     )
-    # Registering a referee should trigger matching.
-    register_participant(
-        role=Registration.Role.REFEREE,
-        first_name="Grace",
-        last_name="Hopper",
-        email="grace@example.com",
-        prior_pass=Registration.PriorPass.NONE,
-    )
+    # Registering a referee should trigger matching and send notifications.
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        register_participant(
+            role=Registration.Role.REFEREE,
+            first_name="Grace",
+            last_name="Hopper",
+            email="grace@example.com",
+            prior_pass=Registration.PriorPass.NONE,
+        )
     assert Match.objects.count() == 1
     assert len(mail.outbox) == 2  # both parties notified
 

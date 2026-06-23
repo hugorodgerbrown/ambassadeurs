@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import cast
 
 from django.conf import settings
@@ -28,6 +29,8 @@ from core.decorators import require_htmx
 from matching.forms import RegistrationEmailForm, RegistrationForm
 from matching.models import Registration, Season
 from matching.services import register_participant
+
+logger = logging.getLogger(__name__)
 
 # Map the public URL slug to the stored Role value. Defining the valid slugs
 # here keeps unknown roles out of the view (404) and out of the templates.
@@ -82,6 +85,13 @@ def _send_verification_email(request: HttpRequest, email: str) -> None:
         "This link expires in 24 hours. If you didn't request it, ignore this email."
     ) % {"url": verify_url}
     send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [email])
+
+    # In development the email is written to the console, where the long verify
+    # URL is quoted-printable soft-wrapped (a stray ``=`` mid-token) and so is
+    # awkward to copy. Log the unwrapped link on a single line for convenience.
+    # Gated on DEBUG so the sensitive signed token never reaches production logs.
+    if settings.DEBUG:
+        logger.info("Verification link for %s: %s", email, verify_url)
 
 
 def register_start(request: HttpRequest) -> HttpResponse:

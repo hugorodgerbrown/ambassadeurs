@@ -1,94 +1,157 @@
-# Tests for the Season, PriceCategory and Registration models.
+# Tests for the Registration and Match models.
+
+from datetime import UTC, datetime
 
 import pytest
 from django.db import IntegrityError
 
-from matching.models import PriceCategory, Registration, Season
-from tests.accounts.factories import AccountFactory
-from tests.matching.factories import (
-    PriceCategoryFactory,
-    RegistrationFactory,
-    SeasonFactory,
-)
+from matching.models import Match, Registration
+from tests.accounts.factories import UserFactory
+from tests.matching.factories import MatchFactory, RegistrationFactory
 
 pytestmark = pytest.mark.django_db
 
 
-def test_season_to_string_is_the_name() -> None:
-    """Season.to_string returns the season name."""
-    season = SeasonFactory.create(name="2026/27")
-    assert str(season) == "2026/27"
+# ---------------------------------------------------------------------------
+# Registration
+# ---------------------------------------------------------------------------
 
 
-def test_active_returns_only_open_seasons() -> None:
-    """SeasonQuerySet.active filters to seasons open for registration."""
-    active = SeasonFactory.create(is_active=True)
-    SeasonFactory.create(is_active=False)
-    assert list(Season.objects.active()) == [active]
-
-
-def test_price_category_to_string() -> None:
-    """PriceCategory.to_string combines the season and category label."""
-    category = PriceCategoryFactory.create(
-        season=SeasonFactory.create(name="2026/27"),
-        code=PriceCategory.Code.ADULT,
-    )
-    assert str(category) == "2026/27 · Adult"
-
-
-def test_code_must_be_unique_per_season() -> None:
-    """A season cannot have two categories with the same code."""
-    season = SeasonFactory.create()
-    PriceCategoryFactory.create(season=season, code=PriceCategory.Code.ADULT, order=2)
-    with pytest.raises(IntegrityError):
-        PriceCategoryFactory.create(
-            season=season, code=PriceCategory.Code.ADULT, order=3
-        )
-
-
-def test_for_season_filters_categories() -> None:
-    """PriceCategoryQuerySet.for_season scopes to one season."""
-    season = SeasonFactory.create()
-    category = PriceCategoryFactory.create(season=season)
-    PriceCategoryFactory.create(season=SeasonFactory.create())
-    assert list(PriceCategory.objects.for_season(season)) == [category]
-
-
-def test_registration_to_string() -> None:
-    """Registration.to_string combines user, role and season."""
-    account = AccountFactory.create(user__first_name="Ada", user__last_name="Lovelace")
+def test_registration_to_string_contains_user_and_role() -> None:
+    """Registration.to_string contains the user identifier and role."""
+    user = UserFactory.create(username="ada@example.com")
     registration = RegistrationFactory.create(
-        account=account,
-        season=SeasonFactory.create(name="2026/27"),
+        user=user,
         role=Registration.Role.AMBASSADOR,
     )
-    assert "Ambassador" in str(registration)
-    assert "2026/27" in str(registration)
+    s = str(registration)
+    assert "ada@example.com" in s
+    assert "Ambassador" in s
 
 
-def test_one_registration_per_account_per_season() -> None:
-    """An account cannot register twice in the same season."""
-    account = AccountFactory.create()
-    season = SeasonFactory.create()
-    RegistrationFactory.create(account=account, season=season)
+def test_one_registration_per_user() -> None:
+    """A user cannot have two registrations (OneToOneField constraint)."""
+    user = UserFactory.create()
+    RegistrationFactory.create(user=user)
     with pytest.raises(IntegrityError):
-        RegistrationFactory.create(account=account, season=season)
+        RegistrationFactory.create(user=user)
 
 
-def test_registration_queryset_role_and_status_filters() -> None:
-    """The queryset helpers filter by role and pool status."""
-    season = SeasonFactory.create()
-    category = PriceCategoryFactory.create(season=season)
-    ambassador = RegistrationFactory.create(
-        season=season, price_category=category, role=Registration.Role.AMBASSADOR
+def test_registration_queryset_ambassadors_filter() -> None:
+    """RegistrationQuerySet.ambassadors returns only ambassador registrations."""
+    ambassador = RegistrationFactory.create(role=Registration.Role.AMBASSADOR)
+    RegistrationFactory.create(referee=True)
+    assert list(Registration.objects.ambassadors()) == [ambassador]
+
+
+def test_registration_queryset_referees_filter() -> None:
+    """RegistrationQuerySet.referees returns only referee registrations."""
+    RegistrationFactory.create(role=Registration.Role.AMBASSADOR)
+    referee = RegistrationFactory.create(referee=True)
+    assert list(Registration.objects.referees()) == [referee]
+
+
+def test_registration_queryset_waiting_filter() -> None:
+    """RegistrationQuerySet.waiting returns only WAITING registrations."""
+    waiting = RegistrationFactory.create(status=Registration.Status.WAITING)
+    RegistrationFactory.create(status=Registration.Status.MATCHED)
+    assert list(Registration.objects.waiting()) == [waiting]
+
+
+def test_eligible_ambassadors_excludes_none_prior_pass() -> None:
+    """eligible_ambassadors excludes ambassadors with prior_pass=NONE."""
+    RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.NONE,
     )
-    referee = RegistrationFactory.create(
-        season=season,
-        price_category=category,
+    eligible = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+    )
+    assert list(Registration.objects.eligible_ambassadors()) == [eligible]
+
+
+def test_eligible_ambassadors_includes_all_valid_prior_passes() -> None:
+    """eligible_ambassadors includes SEASONAL, ANNUAL and MONT4."""
+    seasonal = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+    )
+    annual = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.ANNUAL,
+    )
+    mont4 = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.MONT4,
+    )
+    result = set(Registration.objects.eligible_ambassadors())
+    assert {seasonal, annual, mont4} == result
+
+
+def test_eligible_referees_excludes_non_none_prior_pass() -> None:
+    """eligible_referees excludes referees who hold a prior pass."""
+    RegistrationFactory.create(
         role=Registration.Role.REFEREE,
-        held_prior_pass=False,
+        prior_pass=Registration.PriorPass.SEASONAL,
     )
-    for_season = Registration.objects.for_season(season)
-    assert list(for_season.ambassadors()) == [ambassador]
-    assert list(for_season.referees()) == [referee]
-    assert set(for_season.waiting()) == {ambassador, referee}
+    eligible = RegistrationFactory.create(referee=True)
+    assert list(Registration.objects.eligible_referees()) == [eligible]
+
+
+def test_eligible_ambassadors_excludes_non_waiting() -> None:
+    """eligible_ambassadors excludes matched/confirmed ambassadors."""
+    RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    assert not Registration.objects.eligible_ambassadors().exists()
+
+
+# ---------------------------------------------------------------------------
+# Match
+# ---------------------------------------------------------------------------
+
+
+def test_match_to_string_references_both_parties() -> None:
+    """Match.to_string references both the ambassador and referee."""
+    match = MatchFactory.create()
+    s = str(match)
+    assert match.ambassador_registration.user.username in s
+    assert match.referee_registration.user.username in s
+
+
+def test_match_proposed_queryset() -> None:
+    """MatchQuerySet.proposed returns only PROPOSED matches."""
+    proposed = MatchFactory.create(status=Match.Status.PROPOSED)
+    MatchFactory.create(status=Match.Status.EXPIRED)
+    assert list(Match.objects.proposed()) == [proposed]
+
+
+def test_match_active_excludes_declined_and_expired() -> None:
+    """MatchQuerySet.active excludes DECLINED and EXPIRED."""
+    proposed = MatchFactory.create(status=Match.Status.PROPOSED)
+    accepted = MatchFactory.create(status=Match.Status.ACCEPTED)
+    MatchFactory.create(status=Match.Status.DECLINED)
+    MatchFactory.create(status=Match.Status.EXPIRED)
+    assert set(Match.objects.active()) == {proposed, accepted}
+
+
+def test_multiple_matches_per_registration_allowed() -> None:
+    """There is no unique constraint — a registration can appear in multiple matches."""
+    ambassador = RegistrationFactory.create(role=Registration.Role.AMBASSADOR)
+    ref1 = RegistrationFactory.create(referee=True)
+    ref2 = RegistrationFactory.create(referee=True)
+    expires = datetime(2099, 1, 1, tzinfo=UTC)
+    Match.objects.create(
+        ambassador_registration=ambassador,
+        referee_registration=ref1,
+        expires_at=expires,
+    )
+    Match.objects.create(
+        ambassador_registration=ambassador,
+        referee_registration=ref2,
+        expires_at=expires,
+    )
+    assert Match.objects.count() == 2

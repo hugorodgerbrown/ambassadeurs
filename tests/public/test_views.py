@@ -3,13 +3,12 @@
 import pytest
 from django.contrib.auth.models import User
 from django.core import mail
-from django.test import Client
+from django.test import Client, override_settings
 from django.urls import reverse
 
 from accounts.tokens import make_email_verification_token
 from matching.models import Registration
 from tests.accounts.factories import UserFactory
-from tests.matching.factories import PriceCategoryFactory, SeasonFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -23,7 +22,6 @@ def test_home_renders() -> None:
 
 def test_home_shows_both_role_ctas() -> None:
     """The homepage links to the register entry with each role hint."""
-    SeasonFactory.create()
     response = Client().get(reverse("public:home"))
     content = response.content
     register = reverse("public:register").encode()
@@ -33,22 +31,24 @@ def test_home_shows_both_role_ctas() -> None:
     assert b"I'm a Referee" in content
 
 
-def test_home_shows_opens_soon_when_no_active_season() -> None:
-    """With no active season the homepage shows the opens-soon notice."""
+@override_settings(
+    REGISTRATION_OPENS_AT="2020-01-01T00:00:00+00:00",
+    REGISTRATION_CLOSES_AT="2020-12-31T23:59:59+00:00",
+)
+def test_home_shows_opens_soon_when_registration_closed() -> None:
+    """With registration closed the homepage shows the opens-soon notice."""
     response = Client().get(reverse("public:home"))
     assert b"Registration opens soon" in response.content
 
 
-def test_home_hides_opens_soon_when_season_active() -> None:
-    """With an active season the opens-soon notice is hidden."""
-    SeasonFactory.create()
+def test_home_hides_opens_soon_when_registration_open() -> None:
+    """With registration open (dev default) the opens-soon notice is hidden."""
     response = Client().get(reverse("public:home"))
     assert b"Registration opens soon" not in response.content
 
 
 def test_register_start_renders_email_form() -> None:
     """The entry page asks for an email before anything role-specific."""
-    SeasonFactory.create()
     response = Client().get(reverse("public:register"))
     assert response.status_code == 200
     assert "public/register_start.html" in [t.name for t in response.templates]
@@ -57,21 +57,23 @@ def test_register_start_renders_email_form() -> None:
 
 def test_register_start_seeds_role_hint_in_session() -> None:
     """A ?role= hint from the homepage CTA is remembered in the session."""
-    SeasonFactory.create()
     client = Client()
     client.get(reverse("public:register") + "?role=ambassador")
     assert client.session["register_role"] == "ambassador"
 
 
-def test_register_start_closed_when_no_active_season() -> None:
-    """With no active season the closed-registration page is shown."""
+@override_settings(
+    REGISTRATION_OPENS_AT="2020-01-01T00:00:00+00:00",
+    REGISTRATION_CLOSES_AT="2020-12-31T23:59:59+00:00",
+)
+def test_register_start_closed_when_registration_closed() -> None:
+    """With registration closed the closed-registration page is shown."""
     response = Client().get(reverse("public:register"))
     assert "public/register_closed.html" in [t.name for t in response.templates]
 
 
 def test_register_start_authenticated_redirects_to_details() -> None:
     """An already-signed-in user skips straight to the details step."""
-    SeasonFactory.create()
     client = Client()
     client.force_login(UserFactory.create())
     response = client.get(reverse("public:register"))
@@ -81,7 +83,6 @@ def test_register_start_authenticated_redirects_to_details() -> None:
 
 def test_register_start_post_sends_verification_email() -> None:
     """Submitting an email sends a verification link and shows the sent page."""
-    SeasonFactory.create()
     response = Client().post(reverse("public:register"), {"email": "ADA@example.com"})
     assert response.status_code == 302
     assert response.url == reverse("public:register_email_sent")
@@ -92,7 +93,6 @@ def test_register_start_post_sends_verification_email() -> None:
 
 def test_register_start_post_invalid_email_redisplays() -> None:
     """An invalid email re-renders the entry page and sends nothing."""
-    SeasonFactory.create()
     response = Client().post(reverse("public:register"), {"email": "not-an-email"})
     assert response.status_code == 200
     assert len(mail.outbox) == 0
@@ -107,7 +107,6 @@ def test_register_email_sent_renders() -> None:
 
 def test_register_verify_valid_token_logs_in_and_creates_user() -> None:
     """A valid token creates the user, logs them in and goes to details."""
-    SeasonFactory.create()
     token = make_email_verification_token("ada@example.com")
     client = Client()
     response = client.get(reverse("public:register_verify", args=[token]))
@@ -126,7 +125,6 @@ def test_register_verify_invalid_token_returns_400() -> None:
 
 def test_register_details_requires_login() -> None:
     """Anonymous users are redirected away from the details step."""
-    SeasonFactory.create()
     response = Client().get(reverse("public:register_details"))
     assert response.status_code == 302
     assert reverse("account_login") in response.url
@@ -134,7 +132,6 @@ def test_register_details_requires_login() -> None:
 
 def test_register_details_renders_role_chooser() -> None:
     """The details page offers the role choice to a signed-in user."""
-    SeasonFactory.create()
     client = Client()
     client.force_login(UserFactory.create())
     response = client.get(reverse("public:register_details"))
@@ -142,8 +139,12 @@ def test_register_details_renders_role_chooser() -> None:
     assert b"Which one are you?" in response.content
 
 
-def test_register_details_closed_without_season() -> None:
-    """With no active season the details step shows the closed page."""
+@override_settings(
+    REGISTRATION_OPENS_AT="2020-01-01T00:00:00+00:00",
+    REGISTRATION_CLOSES_AT="2020-12-31T23:59:59+00:00",
+)
+def test_register_details_closed_without_open_window() -> None:
+    """With registration closed the details step shows the closed page."""
     client = Client()
     client.force_login(UserFactory.create())
     response = client.get(reverse("public:register_details"))
@@ -151,8 +152,12 @@ def test_register_details_closed_without_season() -> None:
     assert "public/register_closed.html" in [t.name for t in response.templates]
 
 
-def test_details_form_fragment_closed_without_season_404() -> None:
-    """The fragment endpoint 404s when no season is open."""
+@override_settings(
+    REGISTRATION_OPENS_AT="2020-01-01T00:00:00+00:00",
+    REGISTRATION_CLOSES_AT="2020-12-31T23:59:59+00:00",
+)
+def test_details_form_fragment_closed_without_open_window_404() -> None:
+    """The fragment endpoint 404s when registration is closed."""
     client = Client()
     client.force_login(UserFactory.create())
     response = client.get(
@@ -164,7 +169,6 @@ def test_details_form_fragment_closed_without_season_404() -> None:
 
 def test_details_form_fragment_requires_htmx() -> None:
     """The details form fragment rejects a plain (non-HTMX) request."""
-    SeasonFactory.create()
     client = Client()
     client.force_login(UserFactory.create())
     response = client.get(reverse("public:register_details_form") + "?role=ambassador")
@@ -173,8 +177,6 @@ def test_details_form_fragment_requires_htmx() -> None:
 
 def test_details_form_fragment_returns_role_form() -> None:
     """An HTMX request returns the role-specific form fragment."""
-    season = SeasonFactory.create()
-    PriceCategoryFactory.create(season=season)
     client = Client()
     client.force_login(UserFactory.create())
     response = client.get(
@@ -188,7 +190,6 @@ def test_details_form_fragment_returns_role_form() -> None:
 
 def test_details_form_fragment_unknown_role_404() -> None:
     """An unknown role on the fragment endpoint returns 404."""
-    SeasonFactory.create()
     client = Client()
     client.force_login(UserFactory.create())
     response = client.get(
@@ -200,8 +201,6 @@ def test_details_form_fragment_unknown_role_404() -> None:
 
 def test_register_details_post_creates_registration() -> None:
     """A valid details POST creates the registration linked to the user."""
-    season = SeasonFactory.create()
-    category = PriceCategoryFactory.create(season=season)
     user = UserFactory.create(email="ada@example.com")
     client = Client()
     client.force_login(user)
@@ -211,7 +210,6 @@ def test_register_details_post_creates_registration() -> None:
             "role": "referee",
             "first_name": "Ada",
             "last_name": "Lovelace",
-            "price_category": category.pk,
             "attestation": True,
         },
     )
@@ -219,15 +217,13 @@ def test_register_details_post_creates_registration() -> None:
     assert response.url == reverse("public:register_done", args=["referee"])
     assert User.objects.count() == 1
     registration = Registration.objects.get()
-    assert registration.account.user == user
+    assert registration.user == user
     assert registration.role == Registration.Role.REFEREE
-    assert registration.held_prior_pass is False
+    assert registration.prior_pass == Registration.PriorPass.NONE
 
 
 def test_register_details_post_invalid_redisplays() -> None:
     """An invalid details POST (no attestation) re-renders, creates nothing."""
-    season = SeasonFactory.create()
-    category = PriceCategoryFactory.create(season=season)
     client = Client()
     client.force_login(UserFactory.create())
     response = client.post(
@@ -236,7 +232,7 @@ def test_register_details_post_invalid_redisplays() -> None:
             "role": "ambassador",
             "first_name": "Ada",
             "last_name": "Lovelace",
-            "price_category": category.pk,
+            "prior_pass": Registration.PriorPass.SEASONAL,
         },
     )
     assert response.status_code == 200
@@ -245,7 +241,6 @@ def test_register_details_post_invalid_redisplays() -> None:
 
 def test_register_details_post_unknown_role_404() -> None:
     """A details POST with an unknown role returns 404."""
-    SeasonFactory.create()
     client = Client()
     client.force_login(UserFactory.create())
     response = client.post(reverse("public:register_details"), {"role": "banana"})
@@ -254,7 +249,6 @@ def test_register_details_post_unknown_role_404() -> None:
 
 def test_register_start_hides_facebook_button_without_provider() -> None:
     """With no configured Facebook provider, the button is not rendered."""
-    SeasonFactory.create()
     response = Client().get(reverse("public:register"))
     assert b"Continue with Facebook" not in response.content
 

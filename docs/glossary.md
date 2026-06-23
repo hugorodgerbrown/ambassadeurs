@@ -16,3 +16,5 @@ implement it. Add a row when a term gains a symbol.
 | Queue priority | `Registration.priority` | `matching/models.py` |
 | Account profile | `accounts.models.Account` | `accounts/models.py` |
 | Register a participant | `matching.services.register_participant` | `matching/services.py` |
+| Update own profile | `accounts.services.update_account` | `accounts/services.py` |
+| Delete own account | `accounts.services.delete_account` | `accounts/services.py` |

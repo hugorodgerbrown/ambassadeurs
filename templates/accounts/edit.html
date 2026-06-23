@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Edit my details" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-xl">
+        <h1 class="mb-6 text-2xl font-bold text-text-1">{% translate "Edit my details" %}</h1>
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+            {% for field in form %}
+                <div class="mb-4">
+                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-text-1">
+                        {{ field.label }}{% if field.field.required %} *{% endif %}
+                    </label>
+                    {{ field }}
+                    {% for error in field.errors %}
+                        <p class="mt-1 text-xs text-accent">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+
+            <p class="mb-4 text-xs text-text-3">
+                {% translate "Your role and email can't be changed here." %}
+            </p>
+
+            <div class="flex items-center gap-3">
+                <button
+                    type="submit"
+                    class="inline-flex items-center justify-center rounded-pill bg-accent px-5 py-2.5 font-medium text-white transition hover:opacity-90"
+                >
+                    {% translate "Save changes" %}
+                </button>
+                <a href="{% url 'accounts:detail' %}" class="text-sm font-medium text-text-2 underline">
+                    {% translate "Cancel" %}
+                </a>
+            </div>
+        </form>
+    </section>
+{% endblock %}

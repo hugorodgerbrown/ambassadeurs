@@ -494,6 +494,20 @@ def test_register_participant_without_accepted_terms_leaves_fields_empty() -> No
     assert registration.terms_accepted_at is None
 
 
+def test_register_participant_empty_accepted_terms_leaves_timestamp_unset() -> None:
+    """An explicit empty accepted_terms list records no acceptance timestamp."""
+    registration = register_participant(
+        role=Registration.Role.AMBASSADOR,
+        first_name="Ada",
+        last_name="Lovelace",
+        email="ada4@example.com",
+        prior_pass=Registration.PriorPass.SEASONAL,
+        accepted_terms=[],
+    )
+    assert registration.accepted_terms == []
+    assert registration.terms_accepted_at is None
+
+
 def test_register_participant_triggers_match_when_counterpart_waiting() -> None:
     """register_participant triggers propose_match when a counterpart waits.
 

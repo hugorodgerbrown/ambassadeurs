@@ -157,8 +157,8 @@ class RegistrationForm(forms.Form):
 
         Resolves lazy translation strings to plain ``str`` under the active language.
         The eligibility declaration comes first; the T&C acceptance comes second.
-        Call after ``is_valid()`` — the labels are set in ``__init__`` and do not
-        depend on ``cleaned_data``.
+        The labels are set in ``__init__`` and do not depend on ``cleaned_data``,
+        so this is safe to call at any point after construction.
         """
         eligibility_label = str(self.fields["prior_pass_attestation"].label)
         terms_label = str(self.fields["terms_accepted"].label)

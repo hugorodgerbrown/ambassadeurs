@@ -255,8 +255,8 @@ def register_participant(
             phone=phone,
             preferred_location=preferred_location,
             preferred_language=preferred_language,
-            accepted_terms=accepted_terms if accepted_terms is not None else [],
-            terms_accepted_at=timezone.now() if accepted_terms is not None else None,
+            accepted_terms=accepted_terms or [],
+            terms_accepted_at=timezone.now() if accepted_terms else None,
         )
 
         propose_match(registration)

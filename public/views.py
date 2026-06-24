@@ -30,7 +30,6 @@ from django.utils.translation import gettext as _
 from accounts.services import get_or_create_participant_user
 from accounts.tokens import (
     make_email_verification_token,
-    make_match_access_token,
     read_email_verification_token,
     read_match_access_token,
 )
@@ -280,7 +279,9 @@ def register_done(request: HttpRequest, role: str) -> HttpResponse:
 # Display states for the match page — computed from match status + window.
 _STATE_ACTIONABLE = "actionable"  # PROPOSED, within window, this side not yet responded
 _STATE_WAITING = "waiting"  # PROPOSED but this side already accepted
-_STATE_TERMINAL = "terminal"  # ACCEPTED / DECLINED / EXPIRED / ABANDONED, or window lapsed
+_STATE_TERMINAL = (
+    "terminal"  # ACCEPTED / DECLINED / EXPIRED / ABANDONED, or window lapsed
+)
 
 
 def _resolve_match_token(
@@ -323,9 +324,7 @@ def _resolve_match_token(
     return match, registration, side
 
 
-def _compute_match_display_state(
-    match: Match, side: Match.Side
-) -> str:
+def _compute_match_display_state(match: Match, side: Match.Side) -> str:
     """Return the display state for a match page, from the viewer's perspective.
 
     Returns one of the module-level ``_STATE_*`` constants.

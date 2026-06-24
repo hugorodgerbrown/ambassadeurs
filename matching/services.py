@@ -330,13 +330,10 @@ def send_match_confirmed_email(match: Match) -> None:
         match: A Match whose ``status`` is ``ACCEPTED``.
     """
     # Reload to ensure we have the latest related objects.
-    match = (
-        Match.objects.select_related(
-            "ambassador_registration__user",
-            "referee_registration__user",
-        )
-        .get(pk=match.pk)
-    )
+    match = Match.objects.select_related(
+        "ambassador_registration__user",
+        "referee_registration__user",
+    ).get(pk=match.pk)
 
     registrations = (
         match.ambassador_registration,
@@ -350,6 +347,9 @@ def send_match_confirmed_email(match: Match) -> None:
     for registration in registrations:
         counterpart = counterparts[registration.pk]
         lang = registration.preferred_language or settings.LANGUAGE_CODE
+        full_name = (
+            f"{counterpart.user.first_name} {counterpart.user.last_name}".strip()
+        )
         with translation.override(lang):
             subject = _("Match confirmed — contact your partner")
             body = _(
@@ -362,7 +362,7 @@ def send_match_confirmed_email(match: Match) -> None:
                 "the ticket office.\n\n"
                 "Good luck!"
             ) % {
-                "name": f"{counterpart.user.first_name} {counterpart.user.last_name}".strip(),
+                "name": full_name,
                 "email": counterpart.user.email,
                 "phone": counterpart.phone,
             }
@@ -376,7 +376,7 @@ def send_match_confirmed_email(match: Match) -> None:
 
 
 def accept_match(match: Match, registration: Registration) -> Match:
-    """Record an acceptance by ``registration`` and send a confirmed email on mutual accept.
+    """Record an acceptance and send a confirmed email on mutual accept.
 
     Calls ``record_acceptance``; if the returned match has reached
     ``ACCEPTED`` status (both parties have now accepted), queues

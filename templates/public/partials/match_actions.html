@@ -66,9 +66,33 @@ Context:
         <p class="font-semibold text-ink">{% translate "Match accepted" %}</p>
         <p class="mt-1 text-sm text-body">
             {% blocktranslate trimmed %}
-                Both parties have accepted. See your partner's contact details above.
+                Both parties have accepted. Here are your partner's contact details.
             {% endblocktranslate %}
         </p>
+        {% if counterpart %}
+            <dl class="mt-3 space-y-2 text-sm">
+                <div class="flex gap-2">
+                    <dt class="w-20 shrink-0 font-medium text-ink">{% translate "Name" %}</dt>
+                    <dd class="text-body">{{ counterpart.user.first_name }} {{ counterpart.user.last_name }}</dd>
+                </div>
+                <div class="flex gap-2">
+                    <dt class="w-20 shrink-0 font-medium text-ink">{% translate "Email" %}</dt>
+                    <dd class="text-body">
+                        <a href="mailto:{{ counterpart.user.email }}" class="text-accent underline">
+                            {{ counterpart.user.email }}
+                        </a>
+                    </dd>
+                </div>
+                <div class="flex gap-2">
+                    <dt class="w-20 shrink-0 font-medium text-ink">{% translate "Phone" %}</dt>
+                    <dd class="text-body">
+                        <a href="tel:{{ counterpart.phone }}" class="text-accent underline">
+                            {{ counterpart.phone }}
+                        </a>
+                    </dd>
+                </div>
+            </dl>
+        {% endif %}
     {% elif match.status == 'DECLINED' %}
         <p class="font-semibold text-ink">{% translate "Match declined" %}</p>
         <p class="mt-1 text-sm text-body">

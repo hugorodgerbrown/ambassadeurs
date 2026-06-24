@@ -51,12 +51,18 @@ def test_match_access_token_expired_is_rejected() -> None:
 
 
 def test_match_access_token_rejects_email_verification_token() -> None:
-    """An email-verification token is rejected by read_match_access_token (wrong salt)."""
+    """An email-verification token is rejected by read_match_access_token.
+
+    The salt mismatch prevents cross-purpose token replay (Invariant 6).
+    """
     email_token = make_email_verification_token("ada@example.com")
     assert read_match_access_token(email_token) is None
 
 
 def test_email_verification_token_rejects_match_access_token() -> None:
-    """A match-access token is rejected by read_email_verification_token (wrong salt)."""
+    """A match-access token is rejected by read_email_verification_token.
+
+    The salt mismatch prevents cross-purpose token replay (Invariant 6).
+    """
     match_token = make_match_access_token(1, 1)
     assert read_email_verification_token(match_token) is None

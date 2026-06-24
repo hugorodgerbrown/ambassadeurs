@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Link invalid" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-md text-center">
+        <h1 class="mb-4 text-2xl font-bold text-ink">{% translate "This link is invalid or has expired" %}</h1>
+        <p class="text-body">
+            {% blocktranslate trimmed %}
+                Match links expire when the contact window closes. If you received this link recently, please contact us
+                for help.
+            {% endblocktranslate %}
+        </p>
+        <p class="mt-6">
+            <a href="{% url 'public:home' %}" class="font-medium text-accent underline">
+                {% translate "Go to the homepage" %}
+            </a>
+        </p>
+    </section>
+{% endblock %}

@@ -1,16 +1,20 @@
 # Tests for the public site views.
 
+from unittest.mock import patch
+
 import pytest
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import mail
-from django.test import Client, override_settings
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from accounts.tokens import make_email_verification_token
-from matching.models import Registration
+from accounts.tokens import make_email_verification_token, make_match_access_token
+from matching.models import Match, Registration
+from matching.services import accept_match
 from public.models import FormDownload
 from tests.accounts.factories import UserFactory
+from tests.matching.factories import MatchFactory, RegistrationFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -502,3 +506,301 @@ def test_download_application_form_redirects_to_configured_url() -> None:
     response = Client().get(reverse("public:application_form"))
     assert response.status_code == 302
     assert response.url == settings.APPLICATION_FORM_URL
+
+
+# ---------------------------------------------------------------------------
+# Match detail view (VERB-19)
+# ---------------------------------------------------------------------------
+
+
+def _make_match_url(match: Match, registration: Registration) -> str:
+    """Return the /match/<token>/ URL for the given registration on the match."""
+    token = make_match_access_token(match.pk, registration.pk)
+    return reverse("public:match", args=[token])
+
+
+def test_match_detail_valid_token_renders_match_page() -> None:
+    """A valid token returns 200 and uses the public/match.html template."""
+    match = MatchFactory.create()
+    url = _make_match_url(match, match.ambassador_registration)
+    response = Client().get(url)
+    assert response.status_code == 200
+    assert "public/match.html" in [t.name for t in response.templates]
+
+
+def test_match_detail_bad_token_returns_400_and_invalid_template() -> None:
+    """A tampered token returns 400 and the match_invalid template."""
+    response = Client().get(reverse("public:match", args=["not-a-token"]))
+    assert response.status_code == 400
+    assert "public/match_invalid.html" in [t.name for t in response.templates]
+
+
+def test_match_detail_expired_token_returns_400() -> None:
+    """An expired token returns 400 with the match_invalid template.
+
+    ``read_match_access_token`` is patched to return ``None`` (the same value it
+    returns for an expired token) so the view's expiry-gate code path is exercised
+    without needing to manipulate the system clock.
+    """
+    match = MatchFactory.create()
+    token = make_match_access_token(match.pk, match.ambassador_registration_id)
+    with patch("public.views.read_match_access_token", return_value=None):
+        response = Client().get(reverse("public:match", args=[token]))
+    assert response.status_code == 400
+    assert "public/match_invalid.html" in [t.name for t in response.templates]
+
+
+def test_match_detail_registration_not_on_match_returns_400() -> None:
+    """A token with a registration_pk not on the match returns 400."""
+    match = MatchFactory.create()
+    # Create a registration that is not on this match.
+    other_reg = RegistrationFactory.create()
+    token = make_match_access_token(match.pk, other_reg.pk)
+    response = Client().get(reverse("public:match", args=[token]))
+    assert response.status_code == 400
+    assert "public/match_invalid.html" in [t.name for t in response.templates]
+
+
+def test_match_detail_actionable_state_shows_accept_decline_buttons() -> None:
+    """A PROPOSED match within the window shows Accept and Decline buttons."""
+    match = MatchFactory.create()  # default: PROPOSED, far-future expires_at
+    url = _make_match_url(match, match.ambassador_registration)
+    response = Client().get(url)
+    content = response.content
+    assert b"Accept" in content
+    assert b"Decline" in content
+
+
+def test_match_detail_no_counterpart_pii_before_accept() -> None:
+    """A PROPOSED match must not reveal the counterpart's name, email, or phone."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        phone="+41790009999",
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        phone="+41790008888",
+        status=Registration.Status.MATCHED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    url = _make_match_url(match, ambassador_reg)
+    response = Client().get(url)
+    content = response.content.decode()
+    # Referee's phone must not appear in the ambassador's view (not yet accepted).
+    assert "+41790008888" not in content
+    assert referee_reg.user.email not in content
+
+
+def test_match_detail_accepted_reveals_counterpart_pii() -> None:
+    """After mutual accept the counterpart's contact details are shown."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        phone="+41790009999",
+        status=Registration.Status.CONFIRMED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        phone="+41790008888",
+        status=Registration.Status.CONFIRMED,
+    )
+    match = MatchFactory.create(
+        accepted=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    url = _make_match_url(match, ambassador_reg)
+    response = Client().get(url)
+    content = response.content.decode()
+    # Referee's PII should now be visible to the ambassador.
+    assert referee_reg.phone in content
+    assert referee_reg.user.email in content
+
+
+def test_match_detail_terminal_match_shows_no_action_buttons() -> None:
+    """A terminal match (DECLINED) renders no Accept or Decline buttons."""
+    match = MatchFactory.create(declined=True)
+    # Use the ambassador side (declined_by=AMBASSADOR by default, but we just
+    # need any party's view).
+    url = _make_match_url(match, match.ambassador_registration)
+    response = Client().get(url)
+    content = response.content
+    assert b'name="action"' not in content
+    # The page should not contain the action form buttons.
+    assert b"Accept" not in content or b"<button" not in content
+
+
+def test_match_detail_htmx_accept_transitions_to_waiting_state() -> None:
+    """HTMX accept by first party → waiting state, no counterpart PII in response."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        phone="+41790009999",
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        phone="+41790008888",
+        status=Registration.Status.MATCHED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    token = make_match_access_token(match.pk, ambassador_reg.pk)
+    url = reverse("public:match_accept", args=[token])
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        response = Client().post(url, headers={"hx-request": "true"})
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    # Waiting state: no action buttons, no counterpart PII.
+    assert "Waiting for your partner to respond" in content
+    assert "+41790008888" not in content
+
+
+def test_match_detail_htmx_second_accept_shows_accepted_state_and_pii() -> None:
+    """HTMX second accept → ACCEPTED state; counterpart PII is revealed."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        phone="+41790009999",
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        phone="+41790008888",
+        status=Registration.Status.MATCHED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    # First accept — ambassador side (outside HTMX; use the service directly).
+    with TestCase.captureOnCommitCallbacks(execute=False):
+        accept_match(match, ambassador_reg)
+
+    match.refresh_from_db()
+    assert match.status == Match.Status.PROPOSED
+
+    # Second accept — referee via HTMX.
+    token = make_match_access_token(match.pk, referee_reg.pk)
+    url = reverse("public:match_accept", args=[token])
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        response = Client().post(url, headers={"hx-request": "true"})
+
+    assert response.status_code == 200
+    match.refresh_from_db()
+    assert match.status == Match.Status.ACCEPTED
+
+    content = response.content.decode()
+    # Counterpart PII (ambassador's phone) is present for the referee.
+    assert "+41790009999" in content
+
+
+def test_match_detail_htmx_decline_shows_declined_state() -> None:
+    """HTMX decline → DECLINED state; both parties re-queued."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+        priority=0,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+        priority=0,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    token = make_match_access_token(match.pk, ambassador_reg.pk)
+    url = reverse("public:match_decline", args=[token])
+    response = Client().post(url, headers={"hx-request": "true"})
+
+    assert response.status_code == 200
+    match.refresh_from_db()
+    assert match.status == Match.Status.DECLINED
+
+    # Re-queue side effects: decliner back, other front.
+    ambassador_reg.refresh_from_db()
+    referee_reg.refresh_from_db()
+    assert ambassador_reg.status == Registration.Status.WAITING
+    assert ambassador_reg.priority == -1
+    assert referee_reg.status == Registration.Status.WAITING
+    assert referee_reg.priority == 1
+
+    content = response.content.decode()
+    assert "declined" in content.lower()
+
+
+def test_match_accept_requires_htmx() -> None:
+    """match_accept returns 400 for a plain (non-HTMX) POST (Invariant 7)."""
+    match = MatchFactory.create()
+    token = make_match_access_token(match.pk, match.ambassador_registration_id)
+    url = reverse("public:match_accept", args=[token])
+    response = Client().post(url)
+    assert response.status_code == 400
+
+
+def test_match_decline_requires_htmx() -> None:
+    """match_decline returns 400 for a plain (non-HTMX) POST (Invariant 7)."""
+    match = MatchFactory.create()
+    token = make_match_access_token(match.pk, match.ambassador_registration_id)
+    url = reverse("public:match_decline", args=[token])
+    response = Client().post(url)
+    assert response.status_code == 400
+
+
+def test_match_detail_post_fallback_accept_redirects() -> None:
+    """A no-JS POST with action=accept performs PRG redirect back to the match page."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    token = make_match_access_token(match.pk, ambassador_reg.pk)
+    url = reverse("public:match", args=[token])
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        response = Client().post(url, {"action": "accept"})
+
+    assert response.status_code == 302
+    assert response.url == url
+
+
+def test_match_detail_post_fallback_decline_redirects() -> None:
+    """A no-JS POST with action=decline performs PRG redirect back to the match page."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    token = make_match_access_token(match.pk, ambassador_reg.pk)
+    url = reverse("public:match", args=[token])
+    response = Client().post(url, {"action": "decline"})
+
+    assert response.status_code == 302
+    assert response.url == url

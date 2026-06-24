@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Your match" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-md">
+        <p class="eyebrow mb-3" style="color: var(--role)">{% translate "Match" %}</p>
+        <h1 class="mb-4 text-ink">{% translate "Your match" %}</h1>
+
+        <div class="card mb-6">
+            <h2 class="mb-2 text-h3 text-ink">{% translate "Match status" %}</h2>
+            <p class="text-body">{{ match.get_status_display }}</p>
+            <p class="mt-1 text-sm text-meta">
+                {% blocktranslate trimmed with deadline=match.expires_at %}
+                    Contact window closes: {{ deadline }}
+                {% endblocktranslate %}
+            </p>
+        </div>
+
+        {% comment %}
+            Contact details are revealed ONLY when both parties have accepted
+            (Invariant 1). The counterpart context variable is absent until then.
+        {% endcomment %}
+        {% if counterpart %}
+            <div class="card mb-6">
+                <h2 class="mb-3 text-h3 text-ink">{% translate "Your partner's contact details" %}</h2>
+                <dl class="space-y-2 text-sm">
+                    <div class="flex gap-2">
+                        <dt class="w-20 shrink-0 font-medium text-ink">{% translate "Name" %}</dt>
+                        <dd class="text-body">{{ counterpart.user.first_name }} {{ counterpart.user.last_name }}</dd>
+                    </div>
+                    <div class="flex gap-2">
+                        <dt class="w-20 shrink-0 font-medium text-ink">{% translate "Email" %}</dt>
+                        <dd class="text-body">
+                            <a href="mailto:{{ counterpart.user.email }}" class="text-accent underline">
+                                {{ counterpart.user.email }}
+                            </a>
+                        </dd>
+                    </div>
+                    <div class="flex gap-2">
+                        <dt class="w-20 shrink-0 font-medium text-ink">{% translate "Phone" %}</dt>
+                        <dd class="text-body">
+                            <a href="tel:{{ counterpart.phone }}" class="text-accent underline">
+                                {{ counterpart.phone }}
+                            </a>
+                        </dd>
+                    </div>
+                </dl>
+                <p class="mt-4 text-sm text-meta">
+                    {% blocktranslate trimmed %}
+                        Please get in touch with your partner to arrange buying your passes together at the ticket
+                        office.
+                    {% endblocktranslate %}
+                </p>
+            </div>
+        {% endif %}
+
+        <div class="card">
+            <h2 class="mb-4 text-h3 text-ink">{% translate "Your response" %}</h2>
+            <div id="match-actions">
+                {% include "public/partials/match_actions.html" %}
+            </div>
+        </div>
+
+        <p class="mt-6 text-center">
+            <a href="{% url 'public:home' %}" class="font-medium text-meta underline">
+                {% translate "Back to home" %}
+            </a>
+        </p>
+    </section>
+{% endblock %}

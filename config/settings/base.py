@@ -83,6 +83,11 @@ TEMPLATES = [
 # on ``matching.Registration`` (1:1 via OneToOneField to User). Admin users
 # have a User but no Registration.
 
+# Absolute base URL for the site (no trailing slash). Used to build absolute
+# links in emails sent from background tasks where no request object is available
+# (e.g. send_match_notification runs inside transaction.on_commit).
+BASE_URL: str = config("BASE_URL", default="http://localhost:8000")
+
 CONTACT_WINDOW_HOURS: int = config("CONTACT_WINDOW_HOURS", default=72, cast=int)
 # Registration window bounds are dates (YYYY-MM-DD); time and timezone are
 # ignored. Both bounds are inclusive — registration is open on the closing date.

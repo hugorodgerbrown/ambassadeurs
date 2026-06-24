@@ -8,6 +8,7 @@ from django.urls import reverse
 
 from accounts.tokens import make_email_verification_token
 from matching.models import Registration
+from public.models import FormDownload
 from tests.accounts.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -439,3 +440,64 @@ def test_favicon_redirects_to_static_icon() -> None:
     response = Client().get(reverse("public:favicon"))
     assert response.status_code in (301, 302)
     assert response.url.endswith("favicon.svg")
+
+
+# ---------------------------------------------------------------------------
+# How it works page
+# ---------------------------------------------------------------------------
+
+
+def test_how_it_works_renders_for_anonymous_user() -> None:
+    """The how-it-works page returns 200 with the correct template (anonymous)."""
+    response = Client().get(reverse("public:how_it_works"))
+    assert response.status_code == 200
+    assert "public/how_it_works.html" in [t.name for t in response.templates]
+
+
+def test_how_it_works_contains_section_markers() -> None:
+    """The how-it-works page includes key section headings."""
+    response = Client().get(reverse("public:how_it_works"))
+    content = response.content
+    assert b"What is the 4 Vall" in content
+    assert b"Who is an Ambassador" in content
+    assert b"How does the match work?" in content
+    assert b"What happens next?" in content
+
+
+def test_how_it_works_contains_contact_email() -> None:
+    """The how-it-works page shows the customer contact email address."""
+    response = Client().get(reverse("public:how_it_works"))
+    assert b"customer@televerbier.ch" in response.content
+
+
+def test_how_it_works_contains_application_form_link() -> None:
+    """The how-it-works page contains a link to the application-form download."""
+    response = Client().get(reverse("public:how_it_works"))
+    application_form_url = reverse("public:application_form").encode()
+    assert application_form_url in response.content
+
+
+def test_how_it_works_link_in_footer() -> None:
+    """The footer on the how-it-works page includes the 'How it works' link."""
+    response = Client().get(reverse("public:how_it_works"))
+    how_it_works_url = reverse("public:how_it_works").encode()
+    assert how_it_works_url in response.content
+
+
+# ---------------------------------------------------------------------------
+# Application-form download view
+# ---------------------------------------------------------------------------
+
+
+def test_download_application_form_creates_form_download_row() -> None:
+    """Requesting the download view creates exactly one FormDownload row."""
+    assert FormDownload.objects.count() == 0
+    Client().get(reverse("public:application_form"))
+    assert FormDownload.objects.count() == 1
+
+
+def test_download_application_form_redirects_to_pdf() -> None:
+    """The download view redirects (302) to a URL ending application-form.pdf."""
+    response = Client().get(reverse("public:application_form"))
+    assert response.status_code == 302
+    assert response.url.endswith("application-form.pdf")

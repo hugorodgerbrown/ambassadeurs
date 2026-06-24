@@ -17,13 +17,11 @@ from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.translation import gettext as _
 
-from django.templatetags.static import static
-
 from accounts.services import get_or_create_participant_user
-from public.models import FormDownload
 from accounts.tokens import (
     make_email_verification_token,
     read_email_verification_token,
@@ -32,6 +30,7 @@ from core.decorators import require_htmx
 from matching.forms import RegistrationEmailForm, RegistrationForm
 from matching.models import Registration
 from matching.services import is_registration_open, register_participant
+from public.models import FormDownload
 
 logger = logging.getLogger(__name__)
 

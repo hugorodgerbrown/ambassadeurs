@@ -456,17 +456,18 @@ def test_how_it_works_renders_for_anonymous_user() -> None:
 
 
 def test_how_it_works_contains_section_markers() -> None:
-    """The how-it-works page includes all eight section headings."""
+    """The how-it-works page renders its section headings."""
     response = Client().get(reverse("public:how_it_works"))
     content = response.content
     assert b"What is the 4 Vall\xc3\xa9es Ambassadors Program?" in content
     assert b"Who is an Ambassador and who is a Referee?" in content
     assert b"How do I apply?" in content
-    assert b"What is the process?" in content
+    assert b"What is the approval process?" in content
     assert b"What are the requirements?" in content
-    assert b"What does this site do \xe2\x80\x94 and not do?" in content
+    assert b"So what does this site do?" in content
+    assert b"What does this site not do?" in content
     assert b"How does the match work?" in content
-    assert b"What happens next?" in content
+    assert b"What happens then?" in content
 
 
 def test_how_it_works_contains_contact_email() -> None:

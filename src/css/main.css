@@ -236,4 +236,18 @@
   .nav { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px 32px; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
   .wordmark { font-family: var(--font-display); font-weight: 700; font-size: 18px; letter-spacing: -0.02em; color: var(--color-ink); }
   .wordmark em { font-style: normal; color: var(--color-accent); }
+
+  /* Requirements callout — eligibility checklist hoisted out of the form.
+     Sits between the role <select> and the form card. Default = accent
+     (Ambassador) tone; add .req-callout--referee for the Referee tone. */
+  .req-callout { --req: var(--color-accent); --req-tint: var(--color-accent-tint); --req-ink: var(--color-accent-ink); background: var(--req-tint); border: 1px solid color-mix(in srgb, var(--req) 22%, transparent); border-radius: var(--radius-card); padding: 24px 26px; }
+  .req-callout--referee { --req: var(--color-secondary); --req-tint: var(--color-secondary-tint); --req-ink: var(--color-secondary-ink); }
+  .req-callout__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .req-callout__title { display: flex; align-items: center; gap: 9px; margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 1.12rem; letter-spacing: -0.01em; color: var(--req-ink); }
+  .req-callout__title svg { flex: none; color: var(--req); }
+  .req-callout__badge { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.10em; text-transform: uppercase; color: var(--req); white-space: nowrap; background: var(--color-surface); border: 1px solid color-mix(in srgb, var(--req) 25%, transparent); padding: 4px 9px; border-radius: var(--radius-pill); }
+  .req-callout__list { display: flex; flex-direction: column; gap: 13px; margin: 0; padding: 0; list-style: none; }
+  .req-callout__item { display: flex; gap: 11px; font-size: 0.96rem; line-height: 1.5; color: var(--req-ink); }
+  .req-callout__item svg { flex: none; margin-top: 2px; color: var(--req); }
+  .req-callout__danger { color: var(--color-danger); font-weight: 600; }
 }

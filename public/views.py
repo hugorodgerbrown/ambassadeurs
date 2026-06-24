@@ -71,8 +71,11 @@ def service_worker(request: HttpRequest) -> HttpResponse:
     return HttpResponse(_SERVICE_WORKER_BODY, content_type="application/javascript")
 
 
-def _send_verification_email(request: HttpRequest, email: str) -> None:
-    """Email a single-purpose, expiring signed link that verifies ``email``."""
+def _send_verification_email(request: HttpRequest, email: str) -> str:
+    """Email a single-purpose, expiring signed link that verifies ``email``.
+
+    Returns the verify URL so the caller can surface it in development.
+    """
     token = make_email_verification_token(email)
     verify_url = request.build_absolute_uri(
         reverse("public:register_verify", args=[token])
@@ -92,6 +95,8 @@ def _send_verification_email(request: HttpRequest, email: str) -> None:
     # Gated on DEBUG so the sensitive signed token never reaches production logs.
     if settings.DEBUG:
         logger.info("Verification link for %s: %s", email, verify_url)
+
+    return verify_url
 
 
 def register_start(request: HttpRequest) -> HttpResponse:
@@ -114,7 +119,12 @@ def register_start(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         form = RegistrationEmailForm(request.POST)
         if form.is_valid():
-            _send_verification_email(request, form.cleaned_data["email"])
+            verify_url = _send_verification_email(request, form.cleaned_data["email"])
+            # In development, carry the link to the confirmation page so a tester
+            # can click straight through without opening the console/inbox. Never
+            # stashed outside DEBUG so the signed token stays out of production.
+            if settings.DEBUG:
+                request.session["debug_verify_url"] = verify_url
             return redirect("public:register_email_sent")
     else:
         form = RegistrationEmailForm()
@@ -123,8 +133,19 @@ def register_start(request: HttpRequest) -> HttpResponse:
 
 
 def register_email_sent(request: HttpRequest) -> HttpResponse:
-    """Confirmation that the verification email has been sent."""
-    return render(request, "public/register_email_sent.html")
+    """Confirmation that the verification email has been sent.
+
+    In development the verify link is shown on the page (pulled from the
+    session) so a tester can click through without opening the inbox.
+    """
+    debug_verify_url = None
+    if settings.DEBUG:
+        debug_verify_url = request.session.pop("debug_verify_url", None)
+    return render(
+        request,
+        "public/register_email_sent.html",
+        {"debug_verify_url": debug_verify_url},
+    )
 
 
 def register_verify(request: HttpRequest, token: str) -> HttpResponse:

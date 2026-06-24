@@ -105,6 +105,34 @@ def test_register_email_sent_renders() -> None:
     assert "public/register_email_sent.html" in [t.name for t in response.templates]
 
 
+@override_settings(DEBUG=True)
+def test_register_email_sent_shows_verify_link_in_debug() -> None:
+    """In DEBUG the sent page surfaces the verify link for click-through testing."""
+    client = Client()
+    response = client.post(
+        reverse("public:register"), {"email": "ada@example.com"}, follow=True
+    )
+    assert response.status_code == 200
+    assert b"Development shortcut" in response.content
+    assert b"register/verify/" in response.content
+    # The one-shot value is popped, so a reload no longer shows the link.
+    assert "debug_verify_url" not in client.session
+    reload = client.get(reverse("public:register_email_sent"))
+    assert b"Development shortcut" not in reload.content
+
+
+@override_settings(DEBUG=False)
+def test_register_email_sent_hides_verify_link_outside_debug() -> None:
+    """Outside DEBUG the verify link is never stashed or shown."""
+    client = Client()
+    response = client.post(
+        reverse("public:register"), {"email": "ada@example.com"}, follow=True
+    )
+    assert response.status_code == 200
+    assert b"Development shortcut" not in response.content
+    assert "debug_verify_url" not in client.session
+
+
 def test_register_verify_valid_token_logs_in_and_creates_user() -> None:
     """A valid token creates the user, logs them in and goes to details."""
     token = make_email_verification_token("ada@example.com")
@@ -131,12 +159,122 @@ def test_register_details_requires_login() -> None:
 
 
 def test_register_details_renders_role_chooser() -> None:
-    """The details page offers the role choice to a signed-in user."""
+    """The details page renders the role select to a signed-in user."""
     client = Client()
     client.force_login(UserFactory.create())
     response = client.get(reverse("public:register_details"))
     assert response.status_code == 200
-    assert b"Which one are you?" in response.content
+    assert b"Confirm your role" in response.content
+    assert b"<select" in response.content
+    assert b'name="role"' in response.content
+
+
+def test_register_details_get_with_ambassador_hint_preselects_ambassador() -> None:
+    """A session role hint of 'ambassador' pre-selects the ambassador option."""
+    client = Client()
+    client.force_login(UserFactory.create())
+    session = client.session
+    session["register_role"] = "ambassador"
+    session.save()
+    response = client.get(reverse("public:register_details"))
+    assert response.status_code == 200
+    content = response.content
+    # The ambassador option must be selected; the referee option must not be.
+    assert b'value="ambassador"' in content
+    assert b'value="referee"' in content
+    # djangofmt renders selected as an attribute on the option line
+    ambassador_idx = content.index(b'value="ambassador"')
+    referee_idx = content.index(b'value="referee"')
+    ambassador_block = content[ambassador_idx : ambassador_idx + 200]
+    referee_block = content[referee_idx : referee_idx + 200]
+    assert b"selected" in ambassador_block
+    assert b"selected" not in referee_block
+
+
+def test_register_details_get_with_referee_hint_preselects_referee() -> None:
+    """A session role hint of 'referee' pre-selects the referee option."""
+    client = Client()
+    client.force_login(UserFactory.create())
+    session = client.session
+    session["register_role"] = "referee"
+    session.save()
+    response = client.get(reverse("public:register_details"))
+    assert response.status_code == 200
+    content = response.content
+    ambassador_idx = content.index(b'value="ambassador"')
+    referee_idx = content.index(b'value="referee"')
+    ambassador_block = content[ambassador_idx : ambassador_idx + 200]
+    referee_block = content[referee_idx : referee_idx + 200]
+    assert b"selected" not in ambassador_block
+    assert b"selected" in referee_block
+
+
+def test_register_details_get_no_hint_shows_blank_prompt() -> None:
+    """With no session hint the blank 'Choose your role…' prompt is selected."""
+    client = Client()
+    client.force_login(UserFactory.create())
+    response = client.get(reverse("public:register_details"))
+    assert response.status_code == 200
+    content = response.content
+    assert b"Choose your role" in content
+    # Neither role option should be selected.
+    ambassador_idx = content.index(b'value="ambassador"')
+    referee_idx = content.index(b'value="referee"')
+    ambassador_block = content[ambassador_idx : ambassador_idx + 200]
+    referee_block = content[referee_idx : referee_idx + 200]
+    assert b"selected" not in ambassador_block
+    assert b"selected" not in referee_block
+
+
+def test_details_form_fragment_ambassador_contains_qualifying_criteria() -> None:
+    """The ambassador fragment lists the ambassador qualifying criteria."""
+    client = Client()
+    client.force_login(UserFactory.create())
+    response = client.get(
+        reverse("public:register_details_form") + "?role=ambassador",
+        headers={"hx-request": "true"},
+    )
+    assert response.status_code == 200
+    assert b"To qualify as an Ambassador you must:" in response.content
+    assert b"No retroactive refund." in response.content
+    # Mont 4 Card clause is ambassador-specific.
+    assert b"Mont 4 Card" in response.content
+
+
+def test_details_form_fragment_referee_contains_qualifying_criteria() -> None:
+    """The referee fragment lists the referee qualifying criteria."""
+    client = Client()
+    client.force_login(UserFactory.create())
+    response = client.get(
+        reverse("public:register_details_form") + "?role=referee",
+        headers={"hx-request": "true"},
+    )
+    assert response.status_code == 200
+    assert b"To qualify as a Referee you must:" in response.content
+    assert b"No retroactive refund." in response.content
+    # The buy-together / no-online clause is referee-specific.
+    assert b"cannot be bought online" in response.content
+
+
+def test_register_details_post_invalid_reflects_bound_role_as_selected() -> None:
+    """A failed POST re-renders with the submitted role pre-selected in the dropdown."""
+    client = Client()
+    client.force_login(UserFactory.create())
+    response = client.post(
+        reverse("public:register_details"),
+        {
+            "role": "ambassador",
+            "first_name": "Ada",
+            "last_name": "Lovelace",
+            "prior_pass": Registration.PriorPass.SEASONAL,
+            # attestation omitted — causes validation failure
+        },
+    )
+    assert response.status_code == 200
+    content = response.content
+    ambassador_idx = content.index(b'value="ambassador"')
+    ambassador_block = content[ambassador_idx : ambassador_idx + 200]
+    assert b"selected" in ambassador_block
 
 
 @override_settings(
@@ -185,7 +323,7 @@ def test_details_form_fragment_returns_role_form() -> None:
     )
     assert response.status_code == 200
     assert b"Referee details" in response.content
-    assert b"genuinely new" in response.content
+    assert b"To qualify as a Referee you must:" in response.content
 
 
 def test_details_form_fragment_unknown_role_404() -> None:

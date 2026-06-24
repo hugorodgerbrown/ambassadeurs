@@ -109,6 +109,34 @@ def test_eligible_ambassadors_excludes_non_waiting() -> None:
     assert not Registration.objects.eligible_ambassadors().exists()
 
 
+def test_flake_count_defaults_to_zero() -> None:
+    """Registration.flake_count defaults to 0 on creation."""
+    reg = RegistrationFactory.create()
+    assert reg.flake_count == 0
+
+
+def test_suspended_is_a_valid_status() -> None:
+    """SUSPENDED is a valid choice for Registration.Status."""
+    reg = RegistrationFactory.create(suspended=True)
+    assert reg.status == Registration.Status.SUSPENDED
+
+
+def test_eligible_ambassadors_excludes_suspended() -> None:
+    """eligible_ambassadors excludes SUSPENDED registrations."""
+    RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        suspended=True,
+    )
+    assert not Registration.objects.eligible_ambassadors().exists()
+
+
+def test_eligible_referees_excludes_suspended() -> None:
+    """eligible_referees excludes SUSPENDED registrations."""
+    RegistrationFactory.create(referee=True, suspended=True)
+    assert not Registration.objects.eligible_referees().exists()
+
+
 # ---------------------------------------------------------------------------
 # Match
 # ---------------------------------------------------------------------------

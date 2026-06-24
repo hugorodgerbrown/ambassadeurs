@@ -29,6 +29,7 @@ from core.decorators import require_htmx
 from matching.forms import RegistrationEmailForm, RegistrationForm
 from matching.models import Registration
 from matching.services import is_registration_open, register_participant
+from public.models import FormDownload
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,22 @@ def legal_page(request: HttpRequest, page: str) -> HttpResponse:
     if page not in LEGAL_PAGES:
         raise Http404("Unknown legal page.")
     return render(request, f"public/legal/{page}.html")
+
+
+def how_it_works(request: HttpRequest) -> HttpResponse:
+    """Render the 'How it works' informational page (no queries)."""
+    return render(request, "public/how_it_works.html")
+
+
+def download_application_form(request: HttpRequest) -> HttpResponse:
+    """Record a form download and redirect to the application-form PDF.
+
+    Creates one FormDownload row per request (the conversion metric) then
+    issues a redirect to the externally-hosted PDF (``APPLICATION_FORM_URL``).
+    No PII is stored.
+    """
+    FormDownload.objects.create()
+    return redirect(settings.APPLICATION_FORM_URL)
 
 
 # A no-op service worker served at the origin root so browsers stop 404-ing on

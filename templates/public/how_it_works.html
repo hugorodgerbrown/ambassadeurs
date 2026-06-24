@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "How it works" %}{% endblock %}
+
+{% block content %}
+    <article class="mx-auto max-w-2xl space-y-4 text-body">
+        <h1 class="text-2xl font-bold text-ink">{% translate "How it works" %}</h1>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">
+            {% translate "What is the 4 Vallées Ambassadors Program?" %}
+        </h2>
+        <p>
+            {% blocktranslate trimmed %}
+                The 4 Vallées Ambassadors Program is a referral scheme that lets a returning season-pass holder (an
+                Ambassador) bring a new person (a Referee) into the programme. Both apply together and, if eligible,
+                both receive a discount on their seasonal pass.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">
+            {% translate "Who is an Ambassador and who is a Referee?" %}
+        </h2>
+        <p>
+            {% blocktranslate trimmed %}
+                An Ambassador is someone who held a 4 Vallées seasonal or annual pass in either of the last two seasons
+                (2024/25 or 2025/26). A Referee is someone who did not hold a season pass in either of the last two
+                seasons. Each Ambassador can sponsor exactly one Referee; the Referee must be applying for a pass in an
+                equal or higher price category than the Ambassador (e.g. an adult can't support a child, but the reverse
+                is possible).
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "How do I apply?" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                Download the application form, fill it in together with your partner, and email it to
+                customer@televerbier.ch. Both parties must sign the form and provide proof of identity (passport or
+                national ID card) at the point of application. If applying by email this can be a photograph attachment.
+            {% endblocktranslate %}
+        </p>
+        <p>
+            <a href="{% url 'public:application_form' %}" class="btn btn--primary" target="_blank" rel="noopener">
+                {% translate "Download application form" %}
+            </a>
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "What is the approval process?" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                Once the application form is received it will be assessed for approval. If approved, you will receive a
+                confirmation email that includes payment details, and once payment is made you will receive instructions
+                on how to pick up your pass. (This is typically from the Medran ticket office, although you may be able
+                to pick up elsewhere if you request it?)
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "What are the requirements?" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                Both the Ambassador and the Referee must sign the application form and provide a valid passport or
+                national identity card. Both must attest to the fact that they have or have not had a qualifying pass
+                (as appropriate); this will be checked during the application process.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">
+            {% translate "So what does this site do?" %}
+        </h2>
+        <p>
+            {% blocktranslate trimmed %}
+                The biggest challenge for Ambassadors is finding someone who wants to buy a Season pass for the first
+                time. The current process is chaotic - everyone joins the Verbier Community Facebook group and battles
+                it out to match up with someone. People are let down, ghosted, and it's hard to manage. Last year I
+                'lost' three potential matches in 24 hours and people scrambled to find someone. This site handles that
+                matchmaking process. If you're an Ambassador we'll find you a Referee, and vice versa.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">
+            {% translate "What does this site not do?" %}
+        </h2>
+        <p>
+            {% blocktranslate trimmed %}
+                This site handles only the matchmaking: it connects an Ambassador with a Referee so they can apply
+                together. It does not collect the full application details (date of birth, address, photo ID, keycard,
+                or insurance) and it is not connected to the ticket-office purchase system. Filling in the form and
+                applying are unchanged. We'll introduce you to a partner, you can then take it from there.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "How does the match work?" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                When you register, the system places you in a queue and pairs you with an eligible partner as soon as
+                one becomes available. You do not browse or choose — the system assigns a match. Once proposed, both
+                parties have a fixed time window to accept. Neither side sees the other's contact details until both
+                have accepted the match.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "How long does it take to find a match?" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                The match is done on registration if a partner is available. Ambassadors typically outnumber Referees,
+                so if you register as a Referee you may be matched instantly. If you register as an Ambassador you may
+                have to wait until you reach the front of the queue. The queue is chronological, and you can see where
+                you are in the queue from your status page.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "What happens then?" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                Once both parties accept the match, each receives the other's contact details. They then arrange to fill
+                in the application form and submit the application. If either party declines or the acceptance window
+                lapses, both re-enter the queue and the system proposes a new match.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">
+            {% translate "What happens if I miss the match confirmation window?" %}
+        </h2>
+        <p>
+            {% blocktranslate trimmed %}
+                If you are matched but you miss the confirmation window, then the match is cancelled, and you will go to
+                the back of the queue.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">
+            {% translate "What happens if my partner misses the confirmation window?" %}
+        </h2>
+        <p>
+            {% blocktranslate trimmed %}
+                If you are matched but your partner misses the confirmation window, then the match is cancelled, and you
+                will go to the front of the queue.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "How long is the confirmation window?" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                The confirmation window is variable - as we get closer to the season start things get more frantic, and
+                the window will shorten. It will start at 72hrs (covers a weekend not looking at your email), and it'll
+                reduce down to 24hrs, possibly even shorter if it's really busy in December. The current window will be
+                shown in the match email notifications.
+            {% endblocktranslate %}
+        </p>
+    </article>
+{% endblock %}

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-24 13:15+0200\n"
+"POT-Creation-Date: 2026-06-24 15:18+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -171,11 +171,11 @@ msgid ""
 "If you did not register for this programme, please ignore this email."
 msgstr ""
 
-#: public/views.py:83
+#: public/views.py:100
 msgid "Confirm your email to register"
 msgstr ""
 
-#: public/views.py:85
+#: public/views.py:102
 #, python-format
 msgid ""
 "Click the link below to confirm your email and continue registering for the "
@@ -321,6 +321,11 @@ msgstr ""
 msgid "Terms"
 msgstr ""
 
+#: templates/includes/footer.html:19 templates/public/home.html:30
+#: templates/public/how_it_works.html:4 templates/public/how_it_works.html:8
+msgid "How it works"
+msgstr "Comment ça fonctionne"
+
 #: templates/includes/nav.html:20
 msgid "Log in"
 msgstr ""
@@ -343,10 +348,6 @@ msgstr ""
 
 #: templates/public/home.html:22
 msgid "Registration opens soon — check back closer to the start of the season."
-msgstr ""
-
-#: templates/public/home.html:30
-msgid "How it works"
 msgstr ""
 
 #: templates/public/home.html:33
@@ -400,6 +401,173 @@ msgstr ""
 #: templates/public/home.html:82
 msgid "Register as a Referee"
 msgstr ""
+
+#: templates/public/how_it_works.html:11
+msgid "What is the 4 Vallées Ambassadors Program?"
+msgstr "Qu'est-ce que le programme Ambassadeurs des 4 Vallées ?"
+
+#: templates/public/how_it_works.html:14
+msgid ""
+"The 4 Vallées Ambassadors Program is a referral scheme that lets a returning "
+"season-pass holder (an Ambassador) bring a new person (a Referee) into the "
+"programme. Both apply together and, if eligible, both receive a discount on "
+"their seasonal pass."
+msgstr "Le programme Ambassadeurs des 4 Vallées est un système de parrainage qui permet à un détenteur d'un abonnement de saison déjà client (un Ambassadeur) de faire entrer une nouvelle personne (un Filleul) dans le programme. Les deux postulent ensemble et, s'ils sont éligibles, bénéficient tous deux d'une réduction sur leur abonnement de saison."
+
+#: templates/public/how_it_works.html:22
+msgid "Who is an Ambassador and who is a Referee?"
+msgstr "Qui est Ambassadeur et qui est Filleul ?"
+
+#: templates/public/how_it_works.html:25
+msgid ""
+"An Ambassador is someone who held a 4 Vallées seasonal or annual pass in "
+"either of the last two seasons (2024/25 or 2025/26). A Referee is someone "
+"who did not hold a season pass in either of the last two seasons. Each "
+"Ambassador can sponsor exactly one Referee; the Referee must be applying for "
+"a pass in an equal or higher price category than the Ambassador (e.g. an "
+"adult can't support a child, but the reverse is possible)."
+msgstr "Un Ambassadeur est une personne qui a détenu un abonnement de saison ou annuel des 4 Vallées lors de l'une des deux dernières saisons (2024/25 ou 2025/26). Un Filleul est une personne qui n'a détenu aucun abonnement de saison lors des deux dernières saisons. Chaque Ambassadeur peut parrainer exactement un Filleul ; le Filleul doit demander un abonnement d'une catégorie de prix égale ou supérieure à celle de l'Ambassadeur (par exemple, un adulte ne peut pas parrainer un enfant, mais l'inverse est possible)."
+
+#: templates/public/how_it_works.html:34
+msgid "How do I apply?"
+msgstr "Comment postuler ?"
+
+#: templates/public/how_it_works.html:36
+msgid ""
+"Download the application form, fill it in together with your partner, and "
+"email it to customer@televerbier.ch. Both parties must sign the form and "
+"provide proof of identity (passport or national ID card) at the point of "
+"application. If applying by email this can be a photograph attachment."
+msgstr "Téléchargez le formulaire de demande, remplissez-le avec votre partenaire et envoyez-le par e-mail à customer@televerbier.ch. Les deux parties doivent signer le formulaire et fournir une pièce d'identité (passeport ou carte d'identité nationale) au moment de la demande. En cas d'envoi par e-mail, il peut s'agir d'une photo en pièce jointe."
+
+#: templates/public/how_it_works.html:44
+msgid "Download application form"
+msgstr "Télécharger le formulaire de demande"
+
+#: templates/public/how_it_works.html:48
+msgid "What is the approval process?"
+msgstr "Comment se déroule l'approbation ?"
+
+#: templates/public/how_it_works.html:50
+msgid ""
+"Once the application form is received it will be assessed for approval. If "
+"approved, you will receive a confirmation email that includes payment "
+"details, and once payment is made you will receive instructions on how to "
+"pick up your pass. (This is typically from the Medran ticket office, "
+"although you may be able to pick up elsewhere if you request it?)"
+msgstr "Une fois le formulaire de demande reçu, il sera examiné en vue de son approbation. S'il est approuvé, vous recevrez un e-mail de confirmation contenant les modalités de paiement et, une fois le paiement effectué, vous recevrez les instructions pour retirer votre abonnement. (En général au guichet de Médran, mais vous pourrez peut-être le retirer ailleurs sur demande.)"
+
+#: templates/public/how_it_works.html:58
+msgid "What are the requirements?"
+msgstr "Quelles sont les conditions ?"
+
+#: templates/public/how_it_works.html:60
+msgid ""
+"Both the Ambassador and the Referee must sign the application form and "
+"provide a valid passport or national identity card. Both must attest to the "
+"fact that they have or have not had a qualifying pass (as appropriate); this "
+"will be checked during the application process."
+msgstr "L'Ambassadeur et le Filleul doivent tous deux signer le formulaire de demande et présenter un passeport ou une carte d'identité nationale en cours de validité. Chacun doit attester avoir ou ne pas avoir détenu un abonnement qualifiant (selon le cas) ; cela sera vérifié au cours de la procédure."
+
+#: templates/public/how_it_works.html:68
+msgid "So what does this site do?"
+msgstr "Alors, que fait ce site ?"
+
+#: templates/public/how_it_works.html:71
+msgid ""
+"The biggest challenge for Ambassadors is finding someone who wants to buy a "
+"Season pass for the first time. The current process is chaotic - everyone "
+"joins the Verbier Community Facebook group and battles it out to match up "
+"with someone. People are let down, ghosted, and it's hard to manage. Last "
+"year I 'lost' three potential matches in 24 hours and people scrambled to "
+"find someone. This site handles that matchmaking process. If you're an "
+"Ambassador we'll find you a Referee, and vice versa."
+msgstr "Le plus grand défi pour les Ambassadeurs est de trouver quelqu'un qui souhaite acheter un abonnement de saison pour la première fois. Le processus actuel est chaotique : tout le monde rejoint le groupe Facebook de la communauté de Verbier et se démène pour trouver un partenaire. Les gens sont laissés tomber, ignorés, et c'est difficile à gérer. L'an dernier, j'ai « perdu » trois partenaires potentiels en 24 heures et chacun s'est démené pour retrouver quelqu'un. Ce site prend en charge cette mise en relation. Si vous êtes Ambassadeur, nous vous trouverons un Filleul, et inversement."
+
+#: templates/public/how_it_works.html:81
+msgid "What does this site not do?"
+msgstr "Que ne fait pas ce site ?"
+
+#: templates/public/how_it_works.html:84
+msgid ""
+"This site handles only the matchmaking: it connects an Ambassador with a "
+"Referee so they can apply together. It does not collect the full application "
+"details (date of birth, address, photo ID, keycard, or insurance) and it is "
+"not connected to the ticket-office purchase system. Filling in the form and "
+"applying are unchanged. We'll introduce you to a partner, you can then take "
+"it from there."
+msgstr "Ce site ne gère que la mise en relation : il met en contact un Ambassadeur et un Filleul afin qu'ils puissent postuler ensemble. Il ne collecte pas les informations complètes de la demande (date de naissance, adresse, pièce d'identité, keycard ou assurance) et n'est pas relié au système d'achat des guichets. Le remplissage du formulaire et la demande restent inchangés. Nous vous présentons un partenaire, puis c'est à vous de jouer."
+
+#: templates/public/how_it_works.html:92
+msgid "How does the match work?"
+msgstr "Comment fonctionne la mise en relation ?"
+
+#: templates/public/how_it_works.html:94
+msgid ""
+"When you register, the system places you in a queue and pairs you with an "
+"eligible partner as soon as one becomes available. You do not browse or "
+"choose — the system assigns a match. Once proposed, both parties have a "
+"fixed time window to accept. Neither side sees the other's contact details "
+"until both have accepted the match."
+msgstr "Lors de votre inscription, le système vous place dans une file d'attente et vous associe à un partenaire éligible dès qu'il y en a un de disponible. Vous ne parcourez pas et ne choisissez pas — le système attribue la mise en relation. Une fois proposée, les deux parties disposent d'un délai déterminé pour l'accepter. Aucune des parties ne voit les coordonnées de l'autre tant que toutes deux n'ont pas accepté."
+
+#: templates/public/how_it_works.html:102
+msgid "How long does it take to find a match?"
+msgstr "Combien de temps faut-il pour trouver un partenaire ?"
+
+#: templates/public/how_it_works.html:104
+msgid ""
+"The match is done on registration if a partner is available. Ambassadors "
+"typically outnumber Referees, so if you register as a Referee you may be "
+"matched instantly. If you register as an Ambassador you may have to wait "
+"until you reach the front of the queue. The queue is chronological, and you "
+"can see where you are in the queue from your status page."
+msgstr "La mise en relation a lieu dès l'inscription si un partenaire est disponible. Les Ambassadeurs sont généralement plus nombreux que les Filleuls : si vous vous inscrivez comme Filleul, vous pourriez être associé immédiatement. Si vous vous inscrivez comme Ambassadeur, vous devrez peut-être attendre d'arriver en tête de file. La file est chronologique et vous pouvez voir votre position depuis votre page de statut."
+
+#: templates/public/how_it_works.html:112
+msgid "What happens then?"
+msgstr "Que se passe-t-il ensuite ?"
+
+#: templates/public/how_it_works.html:114
+msgid ""
+"Once both parties accept the match, each receives the other's contact "
+"details. They then arrange to fill in the application form and submit the "
+"application. If either party declines or the acceptance window lapses, both "
+"re-enter the queue and the system proposes a new match."
+msgstr "Une fois que les deux parties ont accepté la mise en relation, chacune reçoit les coordonnées de l'autre. Elles s'organisent ensuite pour remplir le formulaire de demande et soumettre la demande. Si l'une des parties refuse ou si le délai d'acceptation expire, toutes deux retournent dans la file et le système propose une nouvelle mise en relation."
+
+#: templates/public/how_it_works.html:122
+msgid "What happens if I miss the match confirmation window?"
+msgstr "Que se passe-t-il si je manque le délai de confirmation ?"
+
+#: templates/public/how_it_works.html:125
+msgid ""
+"If you are matched but you miss the confirmation window, then the match is "
+"cancelled, and you will go to the back of the queue."
+msgstr "Si vous êtes associé mais que vous manquez le délai de confirmation, la mise en relation est annulée et vous repassez en fin de file."
+
+#: templates/public/how_it_works.html:132
+msgid "What happens if my partner misses the confirmation window?"
+msgstr "Que se passe-t-il si mon partenaire manque le délai de confirmation ?"
+
+#: templates/public/how_it_works.html:135
+msgid ""
+"If you are matched but your partner misses the confirmation window, then the "
+"match is cancelled, and you will go to the front of the queue."
+msgstr "Si vous êtes associé mais que votre partenaire manque le délai de confirmation, la mise en relation est annulée et vous passez en tête de file."
+
+#: templates/public/how_it_works.html:141
+msgid "How long is the confirmation window?"
+msgstr "Quelle est la durée du délai de confirmation ?"
+
+#: templates/public/how_it_works.html:143
+msgid ""
+"The confirmation window is variable - as we get closer to the season start "
+"things get more frantic, and the window will shorten. It will start at 72hrs "
+"(covers a weekend not looking at your email), and it'll reduce down to "
+"24hrs, possibly even shorter if it's really busy in December. The current "
+"window will be shown in the match email notifications."
+msgstr "Le délai de confirmation est variable : à l'approche du début de la saison, l'activité s'intensifie et le délai se raccourcit. Il commencera à 72 h (de quoi couvrir un week-end sans consulter vos e-mails) puis se réduira à 24 h, voire moins si l'affluence est forte en décembre. Le délai en vigueur sera indiqué dans les e-mails de notification de mise en relation."
 
 #: templates/public/legal/cookies.html:4 templates/public/legal/cookies.html:8
 msgid "Cookie Policy"

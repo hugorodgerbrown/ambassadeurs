@@ -139,6 +139,22 @@ class Registration(BaseModel):
         default=0,
         help_text="Queue priority; higher is nearer the front. Adjusted by flaking.",
     )
+    accepted_terms = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "Ordered list of consent statement texts accepted at registration "
+            "(eligibility declaration first, then T&C). Stored as displayed under "
+            "the active language at the time of registration."
+        ),
+    )
+    terms_accepted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Tz-aware timestamp at which the participant accepted the statements."
+        ),
+    )
 
     objects = RegistrationQuerySet.as_manager()
 

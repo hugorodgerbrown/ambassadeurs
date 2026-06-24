@@ -205,7 +205,7 @@ Referees do not see this field — their prior_pass resolves to NONE in the serv
         {% endif %}
 
         {% for field in form %}
-            {% if field.name != 'attestation' %}
+            {% if field.name != 'prior_pass_attestation' and field.name != 'terms_accepted' %}
                 <div class="mb-4">
                     <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-ink">
                         {{ field.label }}{% if field.field.required %} *{% endif %}
@@ -221,28 +221,36 @@ Referees do not see this field — their prior_pass resolves to NONE in the serv
             {% endif %}
         {% endfor %}
 
-        {# Mandatory prior-season attestation — wording set per role. #}
-        <fieldset class="mb-6 rounded-md border border-line bg-page p-4">
-            <p class="mb-2 text-sm text-body">
-                {% if role_value == 'AMBASSADOR' %}
-                    {% blocktranslate trimmed %}
-                        I confirm that I held a seasonal or annual 4 Vallées pass in 2024-25 or 2025-26. I understand
-                        this will be checked against my keycard when we apply together.
-                    {% endblocktranslate %}
-                {% else %}
-                    {% blocktranslate trimmed %}
-                        I confirm that I did NOT hold a mid-season, seasonal or annual 4 Vallées pass in 2024-25 or
-                        2025-26.
-                    {% endblocktranslate %}
-                {% endif %}
-            </p>
-            <label class="flex items-start gap-2 text-sm text-ink">
-                {{ form.attestation }}
-                <span>{{ form.attestation.label }}</span>
-            </label>
-            {% for error in form.attestation.errors %}
-                <p class="mt-1 text-xs text-accent">{{ error }}</p>
-            {% endfor %}
+        {% comment %}
+            Confirmation checkboxes: role-specific eligibility declaration followed
+            by Terms of Use acceptance with an inline link. Both are required.
+        {% endcomment %}
+        <fieldset class="mb-6 rounded-md border border-line bg-page p-4 space-y-3">
+            <legend class="sr-only">{% translate "Confirmations" %}</legend>
+            <div>
+                <label class="flex items-start gap-2 text-sm text-ink">
+                    {{ form.prior_pass_attestation }}
+                    <span>{{ form.prior_pass_attestation.label }}</span>
+                </label>
+                {% for error in form.prior_pass_attestation.errors %}
+                    <p class="mt-1 text-xs text-accent">{{ error }}</p>
+                {% endfor %}
+            </div>
+            <div>
+                <label class="flex items-start gap-2 text-sm text-ink">
+                    {{ form.terms_accepted }}
+                    <span>
+                        {% url 'public:legal' 'terms' as terms_url %}
+                        {% blocktranslate trimmed with terms_url=terms_url %}
+                            I have read and agree to the <a href="{{ terms_url }}" target="_blank" rel="noopener"
+                            >Terms of Use</a>.
+                        {% endblocktranslate %}
+                    </span>
+                </label>
+                {% for error in form.terms_accepted.errors %}
+                    <p class="mt-1 text-xs text-accent">{{ error }}</p>
+                {% endfor %}
+            </div>
         </fieldset>
 
         <button

@@ -429,6 +429,15 @@ def test_send_match_notification_respects_preferred_language() -> None:
 # ---------------------------------------------------------------------------
 
 
+_AMBASSADOR_STATEMENTS = [
+    (
+        "I have held a seasonal or annual pass from one of the 4 Vallées"
+        " companies in 2024-25 or 2025-26."
+    ),
+    "I have read and agree to the Terms of Use",
+]
+
+
 def test_register_participant_creates_user_and_registration() -> None:
     """register_participant creates a passwordless user and a Registration."""
     registration = register_participant(
@@ -440,6 +449,7 @@ def test_register_participant_creates_user_and_registration() -> None:
         preferred_location="VERBIER",
         preferred_language="fr",
         phone="+41790000001",
+        accepted_terms=_AMBASSADOR_STATEMENTS,
     )
 
     user = User.objects.get(username="ada@example.com")
@@ -450,6 +460,52 @@ def test_register_participant_creates_user_and_registration() -> None:
     assert registration.preferred_location == "VERBIER"
     assert registration.preferred_language == "fr"
     assert registration.phone == "+41790000001"
+
+
+def test_register_participant_persists_accepted_terms_and_timestamp() -> None:
+    """register_participant saves accepted_terms and a tz-aware terms_accepted_at."""
+    before = timezone.now()
+    registration = register_participant(
+        role=Registration.Role.AMBASSADOR,
+        first_name="Ada",
+        last_name="Lovelace",
+        email="ada2@example.com",
+        prior_pass=Registration.PriorPass.SEASONAL,
+        accepted_terms=_AMBASSADOR_STATEMENTS,
+    )
+    after = timezone.now()
+
+    assert registration.accepted_terms == _AMBASSADOR_STATEMENTS
+    assert registration.terms_accepted_at is not None
+    assert registration.terms_accepted_at.tzinfo is not None
+    assert before <= registration.terms_accepted_at <= after
+
+
+def test_register_participant_without_accepted_terms_leaves_fields_empty() -> None:
+    """Omitting accepted_terms stores an empty list and None timestamp."""
+    registration = register_participant(
+        role=Registration.Role.AMBASSADOR,
+        first_name="Ada",
+        last_name="Lovelace",
+        email="ada3@example.com",
+        prior_pass=Registration.PriorPass.SEASONAL,
+    )
+    assert registration.accepted_terms == []
+    assert registration.terms_accepted_at is None
+
+
+def test_register_participant_empty_accepted_terms_leaves_timestamp_unset() -> None:
+    """An explicit empty accepted_terms list records no acceptance timestamp."""
+    registration = register_participant(
+        role=Registration.Role.AMBASSADOR,
+        first_name="Ada",
+        last_name="Lovelace",
+        email="ada4@example.com",
+        prior_pass=Registration.PriorPass.SEASONAL,
+        accepted_terms=[],
+    )
+    assert registration.accepted_terms == []
+    assert registration.terms_accepted_at is None
 
 
 def test_register_participant_triggers_match_when_counterpart_waiting() -> None:
@@ -471,6 +527,11 @@ def test_register_participant_triggers_match_when_counterpart_waiting() -> None:
             last_name="Hopper",
             email="grace@example.com",
             prior_pass=Registration.PriorPass.NONE,
+            accepted_terms=[
+                "I have not held a mid-season, seasonal or annual pass from one of"
+                " the 4 Vallées companies in 2024-25 or 2025-26.",
+                "I have read and agree to the Terms of Use",
+            ],
         )
     assert Match.objects.count() == 1
     assert len(mail.outbox) == 2  # both parties notified
@@ -485,6 +546,11 @@ def test_register_participant_with_existing_user_reuses_it() -> None:
         first_name="Ada",
         last_name="Lovelace",
         prior_pass=Registration.PriorPass.NONE,
+        accepted_terms=[
+            "I have not held a mid-season, seasonal or annual pass from one of"
+            " the 4 Vallées companies in 2024-25 or 2025-26.",
+            "I have read and agree to the Terms of Use",
+        ],
     )
     assert User.objects.count() == 1
     user.refresh_from_db()
@@ -501,6 +567,7 @@ def test_register_participant_existing_user_matching_names_no_update() -> None:
         first_name="Ada",
         last_name="Lovelace",
         prior_pass=Registration.PriorPass.SEASONAL,
+        accepted_terms=_AMBASSADOR_STATEMENTS,
     )
     # Should not raise; user is unchanged.
     user.refresh_from_db()

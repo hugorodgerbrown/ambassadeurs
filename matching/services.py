@@ -212,6 +212,7 @@ def register_participant(
     preferred_location: str = "",
     preferred_language: str = "",
     phone: str = "",
+    accepted_terms: list[str] | None = None,
 ) -> Registration:
     """Enrol a participant in the pool and return the Registration.
 
@@ -219,6 +220,10 @@ def register_participant(
     reused, keyed on the lowercased email as username. With a ``user`` (e.g. one
     that just signed in with Facebook) that user is reused and their name kept
     current.
+
+    ``accepted_terms`` is the ordered list of consent statement texts accepted by
+    the participant (eligibility declaration first, then T&C); it is persisted on
+    ``Registration.accepted_terms`` alongside ``terms_accepted_at``.
 
     After creating the registration, calls ``propose_match`` to attempt an
     immediate pairing. The whole function runs inside a single transaction;
@@ -250,6 +255,8 @@ def register_participant(
             phone=phone,
             preferred_location=preferred_location,
             preferred_language=preferred_language,
+            accepted_terms=accepted_terms or [],
+            terms_accepted_at=timezone.now() if accepted_terms else None,
         )
 
         propose_match(registration)

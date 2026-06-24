@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-24 12:44+0200\n"
+"POT-Creation-Date: 2026-06-24 13:15+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -15,23 +15,24 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
-#: accounts/forms.py:24 matching/forms.py:61
+
+#: accounts/forms.py:24 matching/forms.py:68
 msgid "First name"
 msgstr ""
 
-#: accounts/forms.py:29 matching/forms.py:66
+#: accounts/forms.py:29 matching/forms.py:73
 msgid "Last name"
 msgstr ""
 
-#: accounts/forms.py:34 matching/forms.py:75 templates/accounts/detail.html:32
+#: accounts/forms.py:34 matching/forms.py:82 templates/accounts/detail.html:32
 msgid "Phone"
 msgstr ""
 
-#: accounts/forms.py:40 matching/forms.py:87
+#: accounts/forms.py:40 matching/forms.py:94
 msgid "Preferred language"
 msgstr ""
 
-#: accounts/forms.py:42 matching/forms.py:83 matching/forms.py:89
+#: accounts/forms.py:42 matching/forms.py:90 matching/forms.py:96
 msgid "No preference"
 msgstr ""
 
@@ -43,23 +44,35 @@ msgstr ""
 msgid "Your account has been deleted."
 msgstr ""
 
-#: matching/forms.py:38 matching/forms.py:71 templates/accounts/detail.html:29
+#: matching/forms.py:38 matching/forms.py:78 templates/accounts/detail.html:29
 msgid "Email"
 msgstr ""
 
-#: matching/forms.py:81
+#: matching/forms.py:88
 msgid "Preferred resort / ticket office"
 msgstr ""
 
-#: matching/forms.py:93
+#: matching/forms.py:100
 msgid "Prior-season pass type"
 msgstr ""
 
-#: matching/forms.py:99
-msgid "I confirm the statement above is true"
+#: matching/forms.py:111
+msgid "I have read and agree to the Terms of Use"
 msgstr ""
 
-#: matching/forms.py:159
+#: matching/forms.py:137
+msgid ""
+"I have held a seasonal or annual pass from one of the 4 Vallées companies in "
+"2024-25 or 2025-26."
+msgstr ""
+
+#: matching/forms.py:142
+msgid ""
+"I have not held a mid-season, seasonal or annual pass from one of the 4 "
+"Vallées companies in 2024-25 or 2025-26."
+msgstr ""
+
+#: matching/forms.py:195
 msgid "You are already registered for the current season."
 msgstr ""
 
@@ -127,19 +140,19 @@ msgstr ""
 msgid "Mont 4 Card / special reduction"
 msgstr ""
 
-#: matching/models.py:183
+#: matching/models.py:199
 msgid "Proposed"
 msgstr ""
 
-#: matching/models.py:184
+#: matching/models.py:200
 msgid "Accepted"
 msgstr ""
 
-#: matching/models.py:185
+#: matching/models.py:201
 msgid "Declined"
 msgstr ""
 
-#: matching/models.py:186
+#: matching/models.py:202
 msgid "Expired"
 msgstr ""
 
@@ -630,20 +643,18 @@ msgstr ""
 msgid "Referee details"
 msgstr ""
 
-#: templates/public/partials/register_details_form.html:228
-msgid ""
-"I confirm that I held a seasonal or annual 4 Vallées pass in 2024-25 or "
-"2025-26. I understand this will be checked against my keycard when we apply "
-"together."
+#: templates/public/partials/register_details_form.html:230
+msgid "Confirmations"
 msgstr ""
 
-#: templates/public/partials/register_details_form.html:233
+#: templates/public/partials/register_details_form.html:245
+#, python-format
 msgid ""
-"I confirm that I did NOT hold a mid-season, seasonal or annual 4 Vallées "
-"pass in 2024-25 or 2025-26."
+"I have read and agree to the <a href=\"%(terms_url)s\" target=\"_blank\" "
+"rel=\"noopener\" >Terms of Use</a>."
 msgstr ""
 
-#: templates/public/partials/register_details_form.html:252
+#: templates/public/partials/register_details_form.html:261
 msgid "Register and join the queue"
 msgstr ""
 

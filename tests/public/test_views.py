@@ -348,7 +348,8 @@ def test_register_details_post_creates_registration() -> None:
             "role": "referee",
             "first_name": "Ada",
             "last_name": "Lovelace",
-            "attestation": True,
+            "prior_pass_attestation": True,
+            "terms_accepted": True,
         },
     )
     assert response.status_code == 302

@@ -89,6 +89,16 @@ CONTACT_WINDOW_HOURS: int = config("CONTACT_WINDOW_HOURS", default=72, cast=int)
 REGISTRATION_OPENS_AT: str = config("REGISTRATION_OPENS_AT", default="2020-01-01")
 REGISTRATION_CLOSES_AT: str = config("REGISTRATION_CLOSES_AT", default="2099-12-31")
 
+# External application-form PDF (hosted off-app by the 4 Vallées). The download
+# view redirects here; kept in config so the URL can change without a deploy.
+APPLICATION_FORM_URL: str = config(
+    "APPLICATION_FORM_URL",
+    default=(
+        "https://verbier4vallees.ch/V4V-Website/Documents/Parrainage/"
+        "AMBASSADOR_V4V_26_27.pdf"
+    ),
+)
+
 # --- Authentication -------------------------------------------------------
 # AUTH_USER_MODEL stays the default Django ``auth.User``.
 

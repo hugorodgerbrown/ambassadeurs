@@ -129,16 +129,20 @@ them across a match before mutual accept (see Invariants).
 
 ### Open questions (resolve before building the relevant slice)
 
-- **Asymmetric flaking specifics** — the shape is decided (the responder keeps
-  their place; the non-responder goes to the back of the queue). Still open: whether
-  repeated no-shows lead to suspension, and at what threshold.
 - **Eligibility verification depth** — pure self-attestation, or some up-front check
   (e.g. keycard / prior-pass lookup) before a registration enters the pool.
-- **Completion + post-accept no-shows** — does the app track whether the pair
-  actually applied, and does an ambassador free up if the referee vanishes *after*
-  mutual accept?
-- **Notifications** — channel for "you've been matched" / "accept by …" (email via
-  signed link is the assumed default; confirm push/SMS aren't required for launch).
+
+Resolved (see [ADR 0007](docs/decisions/0007-post-match-confirmation-workflow.md),
+VERB-16):
+
+- **Asymmetric flaking specifics** — non-responder/decliner to the back, kept-faith
+  party to the front; a **flake** (non-response or post-accept no-show, *not* a
+  decline) is recorded, and **2 flakes auto-suspends** the registration.
+- **Completion + post-accept no-shows** — a confirmed party can **report** the other
+  as a no-show; the report is trusted immediately, the reporter re-queues to the
+  front, and the reported party is **removed from the pool** (`SUSPENDED`). The app
+  does not otherwise track whether the off-app application happened.
+- **Notifications** — **email + signed links only** for launch; no SMS/push.
 
 Operating entity on the 24/25 form: **Groupe Télé-Thyon SA** (back-office contact
 caissier@tele-thyon.ch). Public branding is **4 Vallées-neutral** (the program spans
@@ -354,8 +358,8 @@ feature docs are written:
 | Domain term → code symbol map | [`docs/glossary.md`](docs/glossary.md) |
 | Accepted architectural decisions | [`docs/decisions/`](docs/decisions/) |
 | Matching engine (queue, assignment, eligibility) | _to be written_ |
-| Match lifecycle (states, contact window, reveal-on-accept) | _to be written_ |
-| Flaking / priority handling | _to be written_ |
+| Match lifecycle (states, contact window, reveal-on-accept) | [ADR 0007](docs/decisions/0007-post-match-confirmation-workflow.md) |
+| Flaking / priority handling | [ADR 0007](docs/decisions/0007-post-match-confirmation-workflow.md) |
 | Authentication (signed links + Facebook) | _to be written_ |
 | Internationalisation | _to be written_ |
 | Deployment (Render single-service) | _to be written_ |

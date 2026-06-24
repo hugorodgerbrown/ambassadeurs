@@ -33,7 +33,13 @@ the nav.
             </p>
         </div>
 
-        <div class="flex gap-14">
+        <div class="flex flex-wrap gap-14">
+            <div>
+                <p class="label mb-3">{% translate "Program" %}</p>
+                <a href="{% url 'public:how_it_works' %}" class="block text-sm text-body hover:text-ink">
+                    {% translate "How it works" %}
+                </a>
+            </div>
             <div>
                 <p class="label mb-3">{% translate "Legal" %}</p>
                 <a href="{% url 'public:legal' page='privacy' %}" class="mb-2 block text-sm text-body hover:text-ink">

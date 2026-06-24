@@ -22,6 +22,8 @@ urlpatterns = [
     ),
     path("register/done/<slug:role>/", views.register_done, name="register_done"),
     path("legal/<slug:page>/", views.legal_page, name="legal"),
+    path("how-it-works/", views.how_it_works, name="how_it_works"),
+    path("application-form/", views.download_application_form, name="application_form"),
     # Well-known root requests served to avoid excess 404s (VERB-7).
     path("sw.js", views.service_worker, name="service_worker"),
     path(

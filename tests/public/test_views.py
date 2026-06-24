@@ -1,6 +1,7 @@
 # Tests for the public site views.
 
 import pytest
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import mail
 from django.test import Client, override_settings
@@ -8,6 +9,7 @@ from django.urls import reverse
 
 from accounts.tokens import make_email_verification_token
 from matching.models import Registration
+from public.models import FormDownload
 from tests.accounts.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -433,3 +435,70 @@ def test_favicon_redirects_to_static_icon() -> None:
     response = Client().get(reverse("public:favicon"))
     assert response.status_code in (301, 302)
     assert response.url.endswith("favicon.svg")
+
+
+# ---------------------------------------------------------------------------
+# How it works page
+# ---------------------------------------------------------------------------
+
+
+def test_how_it_works_renders_for_anonymous_user() -> None:
+    """The how-it-works page returns 200 with the correct template (anonymous)."""
+    response = Client().get(reverse("public:how_it_works"))
+    assert response.status_code == 200
+    assert "public/how_it_works.html" in [t.name for t in response.templates]
+
+
+def test_how_it_works_contains_section_markers() -> None:
+    """The how-it-works page renders its section headings."""
+    response = Client().get(reverse("public:how_it_works"))
+    content = response.content
+    assert b"What is the 4 Vall\xc3\xa9es Ambassadors Program?" in content
+    assert b"Who is an Ambassador and who is a Referee?" in content
+    assert b"How do I apply?" in content
+    assert b"What is the approval process?" in content
+    assert b"What are the requirements?" in content
+    assert b"So what does this site do?" in content
+    assert b"What does this site not do?" in content
+    assert b"How does the match work?" in content
+    assert b"What happens then?" in content
+
+
+def test_how_it_works_contains_contact_email() -> None:
+    """The how-it-works page shows the customer contact email address."""
+    response = Client().get(reverse("public:how_it_works"))
+    assert b"customer@televerbier.ch" in response.content
+
+
+def test_how_it_works_contains_application_form_link() -> None:
+    """The how-it-works page contains a link to the application-form download."""
+    response = Client().get(reverse("public:how_it_works"))
+    application_form_url = reverse("public:application_form").encode()
+    assert application_form_url in response.content
+
+
+def test_how_it_works_link_in_footer() -> None:
+    """The footer on the how-it-works page includes the 'How it works' link."""
+    response = Client().get(reverse("public:how_it_works"))
+    how_it_works_url = reverse("public:how_it_works").encode()
+    assert how_it_works_url in response.content
+
+
+# ---------------------------------------------------------------------------
+# Application-form download view
+# ---------------------------------------------------------------------------
+
+
+def test_download_application_form_creates_form_download_row() -> None:
+    """Requesting the download view creates exactly one FormDownload row."""
+    assert FormDownload.objects.count() == 0
+    Client().get(reverse("public:application_form"))
+    assert FormDownload.objects.count() == 1
+
+
+@override_settings(APPLICATION_FORM_URL="https://example.test/form.pdf")
+def test_download_application_form_redirects_to_configured_url() -> None:
+    """The download view redirects (302) to the configured APPLICATION_FORM_URL."""
+    response = Client().get(reverse("public:application_form"))
+    assert response.status_code == 302
+    assert response.url == settings.APPLICATION_FORM_URL

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-24 13:36+0200\n"
+"POT-Creation-Date: 2026-06-24 15:18+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -409,9 +409,9 @@ msgstr ""
 #: templates/public/how_it_works.html:14
 msgid ""
 "The 4 Vallées Ambassadors Program is a referral scheme that lets a returning "
-"season-pass holder (an Ambassador) bring a genuinely new holder (a Referee) "
-"into the programme. Both apply together and, if eligible, both receive a "
-"discount on their seasonal pass."
+"season-pass holder (an Ambassador) bring a new person (a Referee) into the "
+"programme. Both apply together and, if eligible, both receive a discount on "
+"their seasonal pass."
 msgstr ""
 
 #: templates/public/how_it_works.html:22
@@ -420,87 +420,153 @@ msgstr ""
 
 #: templates/public/how_it_works.html:25
 msgid ""
-"An Ambassador is someone who held a 4 Vallées seasonal or annual pass (or a "
-"Mont 4 Card) in a prior season. A Referee is someone who has never held such "
-"a pass — they are genuinely new to the 4 Vallées programme. Each Ambassador "
-"sponsors exactly one Referee."
-msgstr ""
-
-#: templates/public/how_it_works.html:32
-msgid "How do I apply?"
+"An Ambassador is someone who held a 4 Vallées seasonal or annual pass in "
+"either of the last two seasons (2024/25 or 2025/26). A Referee is someone "
+"who did not hold a season pass in either of the last two seasons. Each "
+"Ambassador can sponsor exactly one Referee; the Referee must be applying for "
+"a pass in an equal or higher price category than the Ambassador (e.g. an "
+"adult can't support a child, but the reverse is possible)."
 msgstr ""
 
 #: templates/public/how_it_works.html:34
-msgid ""
-"Download the application form, fill it in together with your partner, and "
-"email it to customer@televerbier.ch. You and your partner must sign the form "
-"and both be present at the ticket office to purchase your passes together."
+msgid "How do I apply?"
 msgstr ""
 
-#: templates/public/how_it_works.html:42
+#: templates/public/how_it_works.html:36
+msgid ""
+"Download the application form, fill it in together with your partner, and "
+"email it to customer@televerbier.ch. Both parties must sign the form and "
+"provide proof of identity (passport or national ID card) at the point of "
+"application. If applying by email this can be a photograph attachment."
+msgstr ""
+
+#: templates/public/how_it_works.html:44
 msgid "Download application form"
 msgstr ""
 
-#: templates/public/how_it_works.html:46
-msgid "What is the process?"
-msgstr ""
-
 #: templates/public/how_it_works.html:48
-msgid ""
-"Once matched, both the Ambassador and the Referee fill in the application "
-"form together and email it to customer@televerbier.ch. They then visit the "
-"ticket office together to sign the form in person and purchase their passes "
-"at the kiosk."
+msgid "What is the approval process?"
 msgstr ""
 
-#: templates/public/how_it_works.html:55
+#: templates/public/how_it_works.html:50
+msgid ""
+"Once the application form is received it will be assessed for approval. If "
+"approved, you will receive a confirmation email that includes payment "
+"details, and once payment is made you will receive instructions on how to "
+"pick up your pass. (This is typically from the Medran ticket office, "
+"although you may be able to pick up elsewhere if you request it?)"
+msgstr ""
+
+#: templates/public/how_it_works.html:58
 msgid "What are the requirements?"
 msgstr ""
 
-#: templates/public/how_it_works.html:57
+#: templates/public/how_it_works.html:60
 msgid ""
 "Both the Ambassador and the Referee must sign the application form and "
-"provide a valid passport or national identity card at the ticket office. The "
-"Referee must not have held a 4 Vallées seasonal or annual pass in any prior "
-"season — this is self-attested on the form and verified at the kiosk."
-msgstr ""
-
-#: templates/public/how_it_works.html:65
-msgid "What does this site do — and not do?"
+"provide a valid passport or national identity card. Both must attest to the "
+"fact that they have or have not had a qualifying pass (as appropriate); this "
+"will be checked during the application process."
 msgstr ""
 
 #: templates/public/how_it_works.html:68
+msgid "So what does this site do?"
+msgstr ""
+
+#: templates/public/how_it_works.html:71
+msgid ""
+"The biggest challenge for Ambassadors is finding someone who wants to buy a "
+"Season pass for the first time. The current process is chaotic - everyone "
+"joins the Verbier Community Facebook group and battles it out to match up "
+"with someone. People are let down, ghosted, and it's hard to manage. Last "
+"year I 'lost' three potential matches in 24 hours and people scrambled to "
+"find someone. This site handles that matchmaking process. If you're an "
+"Ambassador we'll find you a Referee, and vice versa."
+msgstr ""
+
+#: templates/public/how_it_works.html:81
+msgid "What does this site not do?"
+msgstr ""
+
+#: templates/public/how_it_works.html:84
 msgid ""
 "This site handles only the matchmaking: it connects an Ambassador with a "
 "Referee so they can apply together. It does not collect the full application "
 "details (date of birth, address, photo ID, keycard, or insurance) and it is "
 "not connected to the ticket-office purchase system. Filling in the form and "
-"buying at the kiosk happen off-app and are unchanged."
+"applying are unchanged. We'll introduce you to a partner, you can then take "
+"it from there."
 msgstr ""
 
-#: templates/public/how_it_works.html:76
+#: templates/public/how_it_works.html:92
 msgid "How does the match work?"
 msgstr ""
 
-#: templates/public/how_it_works.html:78
+#: templates/public/how_it_works.html:94
 msgid ""
 "When you register, the system places you in a queue and pairs you with an "
 "eligible partner as soon as one becomes available. You do not browse or "
 "choose — the system assigns a match. Once proposed, both parties have a "
-"fixed window to accept. Neither side sees the other's contact details until "
-"both have accepted."
+"fixed time window to accept. Neither side sees the other's contact details "
+"until both have accepted the match."
 msgstr ""
 
-#: templates/public/how_it_works.html:86
-msgid "What happens next?"
+#: templates/public/how_it_works.html:102
+msgid "How long does it take to find a match?"
 msgstr ""
 
-#: templates/public/how_it_works.html:88
+#: templates/public/how_it_works.html:104
+msgid ""
+"The match is done on registration if a partner is available. Ambassadors "
+"typically outnumber Referees, so if you register as a Referee you may be "
+"matched instantly. If you register as an Ambassador you may have to wait "
+"until you reach the front of the queue. The queue is chronological, and you "
+"can see where you are in the queue from your status page."
+msgstr ""
+
+#: templates/public/how_it_works.html:112
+msgid "What happens then?"
+msgstr ""
+
+#: templates/public/how_it_works.html:114
 msgid ""
 "Once both parties accept the match, each receives the other's contact "
-"details. They then arrange to fill in the application form and visit the "
-"ticket office together. If either party declines or the acceptance window "
-"lapses, both re-enter the queue and the system proposes a new match."
+"details. They then arrange to fill in the application form and submit the "
+"application. If either party declines or the acceptance window lapses, both "
+"re-enter the queue and the system proposes a new match."
+msgstr ""
+
+#: templates/public/how_it_works.html:122
+msgid "What happens if I miss the match confirmation window?"
+msgstr ""
+
+#: templates/public/how_it_works.html:125
+msgid ""
+"If you are matched but you miss the confirmation window, then the match is "
+"cancelled, and you will go to the back of the queue."
+msgstr ""
+
+#: templates/public/how_it_works.html:132
+msgid "What happens if my partner misses the confirmation window?"
+msgstr ""
+
+#: templates/public/how_it_works.html:135
+msgid ""
+"If you are matched but your partner misses the confirmation window, then the "
+"match is cancelled, and you will go to the front of the queue."
+msgstr ""
+
+#: templates/public/how_it_works.html:141
+msgid "How long is the confirmation window?"
+msgstr ""
+
+#: templates/public/how_it_works.html:143
+msgid ""
+"The confirmation window is variable - as we get closer to the season start "
+"things get more frantic, and the window will shorten. It will start at 72hrs "
+"(covers a weekend not looking at your email), and it'll reduce down to "
+"24hrs, possibly even shorter if it's really busy in December. The current "
+"window will be shown in the match email notifications."
 msgstr ""
 
 #: templates/public/legal/cookies.html:4 templates/public/legal/cookies.html:8

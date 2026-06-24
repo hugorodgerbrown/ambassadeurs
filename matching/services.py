@@ -408,7 +408,5 @@ def confirm_registration(registration: Registration) -> Registration:
 
         propose_match(registration)
 
-    logger.info(
-        "Confirmed registration pk=%s: PENDING → WAITING", registration.pk
-    )
+    logger.info("Confirmed registration pk=%s: PENDING → WAITING", registration.pk)
     return registration

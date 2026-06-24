@@ -13,7 +13,6 @@
 from __future__ import annotations
 
 import logging
-from typing import cast
 
 from django.conf import settings
 from django.contrib.auth import login
@@ -26,9 +25,7 @@ from django.utils.translation import gettext as _
 
 from accounts.services import mark_email_verified
 from accounts.tokens import (
-    make_email_verification_token,
     make_registration_confirmation_token,
-    read_email_verification_token,
     read_registration_confirmation_token,
 )
 from core.decorators import require_htmx
@@ -154,8 +151,9 @@ def register(request: HttpRequest) -> HttpResponse:
         # Derive the display slug from the validated role value so an unknown
         # ?role= param falls back gracefully to ambassador.
         role_slug = SLUG_BY_ROLE[role_value]
-        user = cast(User, request.user) if request.user.is_authenticated else None
-        form = RegistrationForm(role=role_value, user=user)
+        # After is_authenticated, Django stubs narrow request.user to User.
+        anon_user: User | None = request.user if request.user.is_authenticated else None
+        form = RegistrationForm(role=role_value, user=anon_user)
         return render(
             request,
             "public/register_details.html",
@@ -164,20 +162,22 @@ def register(request: HttpRequest) -> HttpResponse:
 
     # POST path.
     role_slug = request.POST.get("role", "")
-    role_value = ROLE_BY_SLUG.get(role_slug)
-    if role_value is None:
+    post_role_value = ROLE_BY_SLUG.get(role_slug)
+    if post_role_value is None:
         raise Http404("Unknown registration role.")
+    role_value = post_role_value
 
     if request.user.is_authenticated:
         # Defensive authenticated path (not reachable from the standard UI but
         # handled for completeness). Create a WAITING registration immediately.
-        user = cast(User, request.user)
-        form = RegistrationForm(role=role_value, data=request.POST, user=user)
+        # Django stubs narrow request.user to User after is_authenticated.
+        auth_user: User = request.user
+        form = RegistrationForm(role=role_value, data=request.POST, user=auth_user)
         if form.is_valid():
             data = form.cleaned_data
             register_participant(
                 role=role_value,
-                user=user,
+                user=auth_user,
                 first_name=data["first_name"],
                 last_name=data["last_name"],
                 prior_pass=data["prior_pass"],
@@ -280,7 +280,9 @@ def register_confirm(request: HttpRequest, token: str) -> HttpResponse:
         backend="django.contrib.auth.backends.ModelBackend",
     )
 
-    role_slug = SLUG_BY_ROLE.get(registration.role, "ambassador")
+    # Derive the slug from the registration role. SLUG_BY_ROLE keys are
+    # Role enum values; cast the stored str through the enum for lookup.
+    role_slug = SLUG_BY_ROLE.get(Registration.Role(registration.role), "ambassador")
     return redirect("public:register_done", role=role_slug)
 
 
@@ -312,8 +314,9 @@ def register_details_form(request: HttpRequest) -> HttpResponse:
     role_value = ROLE_BY_SLUG.get(role)
     if role_value is None:
         raise Http404("Unknown registration role.")
-    user = cast(User, request.user) if request.user.is_authenticated else None
-    form = RegistrationForm(role=role_value, user=user)
+    # After is_authenticated, Django stubs narrow request.user to User.
+    htmx_user: User | None = request.user if request.user.is_authenticated else None
+    form = RegistrationForm(role=role_value, user=htmx_user)
     return render(
         request,
         "public/partials/register_surface.html",

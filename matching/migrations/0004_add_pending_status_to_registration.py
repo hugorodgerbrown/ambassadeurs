@@ -4,15 +4,25 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('matching', '0003_registration_flake_count_alter_registration_status'),
+        ("matching", "0003_registration_flake_count_alter_registration_status"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='registration',
-            name='status',
-            field=models.CharField(choices=[('PENDING', 'Pending'), ('WAITING', 'Waiting'), ('MATCHED', 'Matched'), ('CONFIRMED', 'Confirmed'), ('WITHDRAWN', 'Withdrawn'), ('SUSPENDED', 'Suspended')], default='WAITING', max_length=16),
+            model_name="registration",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("PENDING", "Pending"),
+                    ("WAITING", "Waiting"),
+                    ("MATCHED", "Matched"),
+                    ("CONFIRMED", "Confirmed"),
+                    ("WITHDRAWN", "Withdrawn"),
+                    ("SUSPENDED", "Suspended"),
+                ],
+                default="WAITING",
+                max_length=16,
+            ),
         ),
     ]

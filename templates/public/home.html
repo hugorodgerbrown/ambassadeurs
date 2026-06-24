@@ -1,15 +1,21 @@
 {% extends "base.html" %}
 {% load i18n %}
 
+{% comment %}
+Homepage — the neutral dual-tone "lobby". It shows both roles, so it does NOT
+take a single .role-theme: the wordmark is neutral ink, the brand identity lives
+in the cable-car hero (teal terminus + sienna terminus), and the two role cards
+use the FIXED role tones directly (Ambassador = accent/teal, Referee =
+secondary/sienna) as the user's first preview of the palette they'll enter.
+{% endcomment %}
+
 {% block content %}
     <section class="text-center">
-        <p class="mb-2 text-sm font-medium uppercase tracking-wide text-meta">
-            {% translate "4 Vallées Ambassadors Program" %}
-        </p>
-        <h1 class="mb-4 text-3xl font-bold text-ink">
+        <p class="eyebrow mb-5">{% translate "4 Vallées Ambassadors Program" %}</p>
+        <h1 class="mb-5 text-h1 text-ink">
             {% translate "Find your season-pass partner" %}
         </h1>
-        <p class="mx-auto mb-6 max-w-xl text-body">
+        <p class="mx-auto max-w-xl text-lead text-body">
             {% blocktranslate trimmed %}
                 To claim the Ambassadors discount on the 4 Vallées annual pass, a returning holder and a new holder
                 have to apply together. We match you with a partner automatically — no more scrambling in the Facebook
@@ -17,69 +23,179 @@
             {% endblocktranslate %}
         </p>
 
+        {% comment %}Dual-tone brand graphic: the lift line joining a teal terminus and a sienna terminus — the two halves of a match.{% endcomment %}
+        <svg
+            viewBox="0 0 600 132"
+            width="100%"
+            class="mx-auto my-8 block max-w-md overflow-visible"
+            aria-hidden="true"
+        >
+            <line x1="76" y1="110" x2="76" y2="54" stroke="#aebfc4" stroke-width="2.5" stroke-linecap="round" />
+            <line x1="524" y1="110" x2="524" y2="46" stroke="#aebfc4" stroke-width="2.5" stroke-linecap="round" />
+            <path
+                d="M76,52 Q300,96 524,44"
+                fill="none"
+                stroke="var(--color-accent)"
+                stroke-width="2.5"
+                stroke-linecap="round"
+            />
+            <circle cx="76" cy="52" r="5" fill="var(--color-accent)" />
+            <circle cx="524" cy="44" r="5" fill="var(--color-secondary)" />
+            <line
+                x1="300"
+                y1="73"
+                x2="300"
+                y2="90"
+                stroke="var(--color-accent)"
+                stroke-width="2"
+                stroke-linecap="round"
+                opacity="0.55"
+            />
+            <text x="300" y="118" font-size="30" text-anchor="middle">🚡</text>
+        </svg>
+
         {% if not registration_open %}
-            <div class="mx-auto mb-8 max-w-xl rounded-md border border-line bg-surface p-3 text-sm text-body">
+            <div class="announce">
+                <span class="announce__dot"></span>
                 {% translate "Registration opens soon — check back closer to the start of the season." %}
             </div>
         {% endif %}
     </section>
 
     {# How it works — set expectations before the user picks a role. #}
-    <section class="mt-10">
-        <h2 class="mb-4 text-center text-xl font-semibold text-ink">
-            {% translate "How it works" %}
-        </h2>
-        <ol class="mx-auto max-w-xl list-decimal space-y-2 pl-5 text-body">
-            <li>{% translate "Register in the role that fits you — Ambassador or Referee." %}</li>
-            <li>
-                {% translate "We add you to the queue and match you with a partner automatically. You don't pick each other." %}
-            </li>
-            <li>{% translate "When you're matched, we email you. You have 72 hours to accept." %}</li>
-            <li>
-                {% translate "Once you both accept, we share contact details so you can meet and apply together." %}
-            </li>
-        </ol>
+    <section class="mt-12">
+        <h2 class="mb-8 text-center text-h2 text-ink">{% translate "How it works" %}</h2>
+        <div class="grid gap-4 sm:grid-cols-2">
+            <div class="card flex gap-4">
+                <div class="flex h-9 w-9 flex-none items-center justify-center rounded-pill bg-accent-tint font-mono text-[13px] font-semibold text-accent">
+                    01
+                </div>
+                <div>
+                    <p class="mb-1 font-semibold text-ink">{% translate "Register in the role that fits you" %}</p>
+                    <p class="text-sm text-body">
+                        {% translate "Ambassador or Referee — whichever describes you." %}
+                    </p>
+                </div>
+            </div>
+            <div class="card flex gap-4">
+                <div class="flex h-9 w-9 flex-none items-center justify-center rounded-pill bg-accent-tint font-mono text-[13px] font-semibold text-accent">
+                    02
+                </div>
+                <div>
+                    <p class="mb-1 font-semibold text-ink">{% translate "We match you automatically" %}</p>
+                    <p class="text-sm text-body">
+                        {% translate "We add you to the queue and pair you up. You don't pick each other." %}
+                    </p>
+                </div>
+            </div>
+            <div class="card flex gap-4">
+                <div class="flex h-9 w-9 flex-none items-center justify-center rounded-pill bg-accent-tint font-mono text-[13px] font-semibold text-accent">
+                    03
+                </div>
+                <div>
+                    <p class="mb-1 font-semibold text-ink">{% translate "We email you when matched" %}</p>
+                    <p class="text-sm text-body">{% translate "You'll have 72 hours to accept the match." %}</p>
+                </div>
+            </div>
+            <div class="card flex gap-4">
+                <div class="flex h-9 w-9 flex-none items-center justify-center rounded-pill bg-accent-tint font-mono text-[13px] font-semibold text-accent">
+                    04
+                </div>
+                <div>
+                    <p class="mb-1 font-semibold text-ink">{% translate "Meet and apply together" %}</p>
+                    <p class="text-sm text-body">
+                        {% translate "Once you both accept, we share contact details so you can apply together." %}
+                    </p>
+                </div>
+            </div>
+        </div>
     </section>
 
-    {# Two role cards — resolve the "am I referrer or referee?" confusion up front. #}
-    <section class="mt-10">
-        <h2 class="mb-4 text-center text-xl font-semibold text-ink">
-            {% translate "Which one are you?" %}
-        </h2>
+    {# Which one are you? — the two role cards previewing the teal vs sienna palettes. #}
+    <section class="mt-12">
+        <h2 class="mb-8 text-center text-h2 text-ink">{% translate "Which one are you?" %}</h2>
         <div class="grid gap-6 sm:grid-cols-2">
-            <div class="flex flex-col rounded-card border border-line bg-surface p-6">
-                <h3 class="mb-1 text-lg font-semibold text-ink">
-                    {% translate "I'm an Ambassador" %}
-                </h3>
-                <p class="mb-4 grow text-sm text-body">
+            <div class="role-card flex flex-col">
+                <p class="eyebrow mb-3 inline-flex items-center gap-2">
+                    <svg
+                        width="15"
+                        height="15"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="m8.5 12 2.5 2.5 4.5-5" />
+                    </svg>
+                    {% translate "Returning holder" %}
+                </p>
+                <h3 class="mb-3 text-h3 text-ink">{% translate "I'm an Ambassador" %}</h3>
+                <p class="mb-6 grow text-body">
                     {% blocktranslate trimmed %}
                         You held a 4 Vallées seasonal or annual pass in a recent season and want to refer a new holder.
                         You're the returning holder.
                     {% endblocktranslate %}
                 </p>
-                <a
-                    href="{% url 'public:register' %}?role=ambassador"
-                    class="inline-flex items-center justify-center rounded-pill bg-accent px-5 py-2.5 font-medium text-on-accent transition hover:opacity-90"
-                >
+                <a href="{% url 'public:register' %}?role=ambassador" class="btn btn--primary btn--block">
                     {% translate "Register as an Ambassador" %}
+                    <svg
+                        width="17"
+                        height="17"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <path d="M5 12h14" />
+                        <path d="m13 5 7 7-7 7" />
+                    </svg>
                 </a>
             </div>
 
-            <div class="flex flex-col rounded-card border border-line bg-surface p-6">
-                <h3 class="mb-1 text-lg font-semibold text-ink">
-                    {% translate "I'm a Referee" %}
-                </h3>
-                <p class="mb-4 grow text-sm text-body">
+            <div class="role-card role-card--referee flex flex-col">
+                <p class="eyebrow mb-3 inline-flex items-center gap-2 text-secondary">
+                    <svg
+                        width="15"
+                        height="15"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 8v8M8 12h8" />
+                    </svg>
+                    {% translate "New holder" %}
+                </p>
+                <h3 class="mb-3 text-h3 text-ink">{% translate "I'm a Referee" %}</h3>
+                <p class="mb-6 grow text-body">
                     {% blocktranslate trimmed %}
                         You're new to the 4 Vallées — you didn't hold a pass in either of the two previous seasons
                         — and need an Ambassador to refer you.
                     {% endblocktranslate %}
                 </p>
-                <a
-                    href="{% url 'public:register' %}?role=referee"
-                    class="inline-flex items-center justify-center rounded-pill bg-accent px-5 py-2.5 font-medium text-on-accent transition hover:opacity-90"
-                >
+                <a href="{% url 'public:register' %}?role=referee" class="btn btn--secondary btn--block">
                     {% translate "Register as a Referee" %}
+                    <svg
+                        width="17"
+                        height="17"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <path d="M5 12h14" />
+                        <path d="m13 5 7 7-7 7" />
+                    </svg>
                 </a>
             </div>
         </div>

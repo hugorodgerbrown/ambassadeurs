@@ -159,18 +159,19 @@ def test_register_details_requires_login() -> None:
 
 
 def test_register_details_renders_role_chooser() -> None:
-    """The details page renders the role select to a signed-in user."""
+    """The details page renders the role-select dropdown to a signed-in user."""
     client = Client()
     client.force_login(UserFactory.create())
     response = client.get(reverse("public:register_details"))
     assert response.status_code == 200
-    assert b"Confirm your role" in response.content
-    assert b"<select" in response.content
+    # The themed surface and its role-select dropdown are present.
+    assert b'id="reg-surface"' in response.content
+    assert b"role-select__trigger" in response.content
     assert b'name="role"' in response.content
 
 
-def test_register_details_get_with_ambassador_hint_preselects_ambassador() -> None:
-    """A session role hint of 'ambassador' pre-selects the ambassador option."""
+def test_register_details_get_with_ambassador_hint_themes_ambassador() -> None:
+    """A session role hint of 'ambassador' themes the surface for the ambassador."""
     client = Client()
     client.force_login(UserFactory.create())
     session = client.session
@@ -179,20 +180,15 @@ def test_register_details_get_with_ambassador_hint_preselects_ambassador() -> No
     response = client.get(reverse("public:register_details"))
     assert response.status_code == 200
     content = response.content
-    # The ambassador option must be selected; the referee option must not be.
-    assert b'value="ambassador"' in content
-    assert b'value="referee"' in content
-    # djangofmt renders selected as an attribute on the option line
-    ambassador_idx = content.index(b'value="ambassador"')
-    referee_idx = content.index(b'value="referee"')
-    ambassador_block = content[ambassador_idx : ambassador_idx + 200]
-    referee_block = content[referee_idx : referee_idx + 200]
-    assert b"selected" in ambassador_block
-    assert b"selected" not in referee_block
+    # Ambassador is the default (teal) tone: the referee modifier is absent and
+    # the trigger shows the ambassador eyebrow and details heading.
+    assert b"role-theme--referee" not in content
+    assert b"Returning holder" in content
+    assert b"Ambassador details" in content
 
 
-def test_register_details_get_with_referee_hint_preselects_referee() -> None:
-    """A session role hint of 'referee' pre-selects the referee option."""
+def test_register_details_get_with_referee_hint_themes_referee() -> None:
+    """A session role hint of 'referee' themes the surface for the referee."""
     client = Client()
     client.force_login(UserFactory.create())
     session = client.session
@@ -201,29 +197,23 @@ def test_register_details_get_with_referee_hint_preselects_referee() -> None:
     response = client.get(reverse("public:register_details"))
     assert response.status_code == 200
     content = response.content
-    ambassador_idx = content.index(b'value="ambassador"')
-    referee_idx = content.index(b'value="referee"')
-    ambassador_block = content[ambassador_idx : ambassador_idx + 200]
-    referee_block = content[referee_idx : referee_idx + 200]
-    assert b"selected" not in ambassador_block
-    assert b"selected" in referee_block
+    # Referee tone (sienna): the referee modifier class is applied and the
+    # trigger shows the referee eyebrow and details heading.
+    assert b"role-theme--referee" in content
+    assert b"New holder" in content
+    assert b"Referee details" in content
 
 
-def test_register_details_get_no_hint_shows_blank_prompt() -> None:
-    """With no session hint the blank 'Choose your role…' prompt is selected."""
+def test_register_details_get_no_hint_defaults_to_ambassador() -> None:
+    """With no session hint the surface defaults to the ambassador (teal) tone."""
     client = Client()
     client.force_login(UserFactory.create())
     response = client.get(reverse("public:register_details"))
     assert response.status_code == 200
     content = response.content
-    assert b"Choose your role" in content
-    # Neither role option should be selected.
-    ambassador_idx = content.index(b'value="ambassador"')
-    referee_idx = content.index(b'value="referee"')
-    ambassador_block = content[ambassador_idx : ambassador_idx + 200]
-    referee_block = content[referee_idx : referee_idx + 200]
-    assert b"selected" not in ambassador_block
-    assert b"selected" not in referee_block
+    assert b"role-theme--referee" not in content
+    assert b"Returning holder" in content
+    assert b"Ambassador details" in content
 
 
 def test_details_form_fragment_ambassador_contains_qualifying_criteria() -> None:
@@ -235,7 +225,8 @@ def test_details_form_fragment_ambassador_contains_qualifying_criteria() -> None
         headers={"hx-request": "true"},
     )
     assert response.status_code == 200
-    assert b"To qualify as an Ambassador you must:" in response.content
+    assert b"What you'll need to qualify" in response.content
+    assert b"Eligibility \xc2\xb7 Ambassador" in response.content
     assert b"No retroactive refund." in response.content
     # Mont 4 Card clause is ambassador-specific.
     assert b"Mont 4 Card" in response.content
@@ -250,7 +241,8 @@ def test_details_form_fragment_referee_contains_qualifying_criteria() -> None:
         headers={"hx-request": "true"},
     )
     assert response.status_code == 200
-    assert b"To qualify as a Referee you must:" in response.content
+    assert b"What you'll need to qualify" in response.content
+    assert b"Eligibility \xc2\xb7 Referee" in response.content
     assert b"No retroactive refund." in response.content
     # The buy-together / no-online clause is referee-specific.
     assert b"cannot be bought online" in response.content
@@ -272,9 +264,11 @@ def test_register_details_post_invalid_reflects_bound_role_as_selected() -> None
     )
     assert response.status_code == 200
     content = response.content
-    ambassador_idx = content.index(b'value="ambassador"')
-    ambassador_block = content[ambassador_idx : ambassador_idx + 200]
-    assert b"selected" in ambassador_block
+    # The surface re-renders themed for the submitted (ambassador) role: the
+    # referee modifier is absent and the ambassador option is marked selected.
+    assert b"role-theme--referee" not in content
+    assert b'aria-selected="true"' in content
+    assert b"Ambassador details" in content
 
 
 @override_settings(
@@ -323,7 +317,7 @@ def test_details_form_fragment_returns_role_form() -> None:
     )
     assert response.status_code == 200
     assert b"Referee details" in response.content
-    assert b"To qualify as a Referee you must:" in response.content
+    assert b"What you'll need to qualify" in response.content
 
 
 def test_details_form_fragment_unknown_role_404() -> None:

@@ -10,11 +10,10 @@ from django import forms
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
-# Tailwind utility classes applied to text-like inputs and selects.
-_INPUT_CLASSES = (
-    "mt-1 block w-full rounded-md border border-border bg-card px-3 py-2 "
-    "text-text-1 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-)
+# Design-system class applied to text-like inputs and selects. ``.input``
+# (src/css/main.css) carries the height, border, radius and role-toned focus
+# ring; the focus colour follows the surrounding .role-theme.
+_INPUT_CLASSES = "input"
 
 
 class AccountForm(forms.Form):

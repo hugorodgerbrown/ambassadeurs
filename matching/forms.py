@@ -50,11 +50,18 @@ class RegistrationEmailForm(forms.Form):
 class RegistrationForm(forms.Form):
     """Collect the participant details needed to enrol them in the pool.
 
-    Built with ``role`` (Registration.Role). ``attestation`` is the mandatory
-    prior-season confirmation whose wording is set per role in the template.
+    Built with ``role`` (Registration.Role). Two required checkboxes are
+    rendered at submission:
+
+    - ``prior_pass_attestation``: a role-specific eligibility declaration
+      (ambassador or referee wording, set in ``__init__``).
+    - ``terms_accepted``: acceptance of the Terms of Use.
 
     For ambassadors, a ``prior_pass`` select is rendered (SEASONAL / ANNUAL /
     MONT4). For referees the field is hidden and resolves to NONE in ``clean``.
+
+    ``accepted_statements()`` returns the ordered list of resolved consent
+    statement texts, ready to be persisted on ``Registration.accepted_terms``.
     """
 
     first_name = forms.CharField(
@@ -95,8 +102,13 @@ class RegistrationForm(forms.Form):
         required=False,
         widget=forms.Select(attrs={"class": _INPUT_CLASSES}),
     )
-    attestation = forms.BooleanField(
-        label=_("I confirm the statement above is true"),
+    prior_pass_attestation = forms.BooleanField(
+        # Label is role-specific; set in __init__.
+        required=True,
+    )
+    terms_accepted = forms.BooleanField(
+        # Label displayed in the template via {% blocktranslate %} with an inline link.
+        label=_("I have read and agree to the Terms of Use"),
         required=True,
     )
 
@@ -119,6 +131,18 @@ class RegistrationForm(forms.Form):
         self.user = user
         super().__init__(data=data)
 
+        # Set the role-specific eligibility declaration label.
+        if role == Registration.Role.AMBASSADOR:
+            self.fields["prior_pass_attestation"].label = _(
+                "I have held a seasonal or annual pass from one of the 4 Vallées"
+                " companies in 2024-25 or 2025-26."
+            )
+        else:
+            self.fields["prior_pass_attestation"].label = _(
+                "I have not held a mid-season, seasonal or annual pass from one of"
+                " the 4 Vallées companies in 2024-25 or 2025-26."
+            )
+
         if role != Registration.Role.AMBASSADOR:
             # Referees do not choose a prior pass; it resolves to NONE in clean.
             del self.fields["prior_pass"]
@@ -127,6 +151,18 @@ class RegistrationForm(forms.Form):
             del self.fields["email"]
             self.fields["first_name"].initial = user.first_name
             self.fields["last_name"].initial = user.last_name
+
+    def accepted_statements(self) -> list[str]:
+        """Return the ordered list of consent statement texts the participant accepted.
+
+        Resolves lazy translation strings to plain ``str`` under the active language.
+        The eligibility declaration comes first; the T&C acceptance comes second.
+        Call after ``is_valid()`` — the labels are set in ``__init__`` and do not
+        depend on ``cleaned_data``.
+        """
+        eligibility_label = str(self.fields["prior_pass_attestation"].label)
+        terms_label = str(self.fields["terms_accepted"].label)
+        return [eligibility_label, terms_label]
 
     def clean_email(self) -> str:
         """Normalise the email to lowercase (CLAUDE.md invariant 5)."""

@@ -5,18 +5,18 @@
 
 {% block content %}
     <section class="mx-auto max-w-xl">
+        <h1 class="mb-4 text-2xl font-bold text-ink">{% translate "Confirm your role" %}</h1>
         <div class="mb-6 rounded-md border border-line bg-page p-3 text-sm text-body">
             {% blocktranslate trimmed with email=user.email %}
-                Signed in as {{ email }}. Choose your role to finish registering.
+                Confirm registration for <strong>{{ email }}</strong>.
             {% endblocktranslate %}
         </div>
 
-        <h1 class="mb-4 text-2xl font-bold text-ink">{% translate "Confirm your role" %}</h1>
 
         {# Role selector — changing the select HTMX-loads the role-specific details form below. #}
         <div class="mb-2">
             <label for="id_role" class="block text-sm font-medium text-ink">
-                {% translate "Your role" %}
+                {% translate "Register as" %}
             </label>
             <select
                 id="id_role"
@@ -49,7 +49,7 @@
             </select>
         </div>
         <p class="mb-6 text-sm text-body">
-            {% translate "Your role can't be changed after you register, so choose carefully." %}
+            {% translate "Role can't be changed after registration." %}
         </p>
 
         <div id="details-form">

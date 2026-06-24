@@ -185,6 +185,16 @@ class MatchQuerySet(BaseQuerySet):
         """Return matches currently in the PROPOSED state."""
         return self.filter(status=Match.Status.PROPOSED)
 
+    def lapsed(self) -> MatchQuerySet:
+        """Return PROPOSED matches whose contact window has expired.
+
+        Shorthand for the expiry-sweep candidate set: proposed() filtered
+        to those whose expires_at is at or before the current instant.
+        """
+        from django.utils import timezone
+
+        return self.proposed().filter(expires_at__lte=timezone.now())
+
     def active(self) -> MatchQuerySet:
         """Return non-terminal matches (PROPOSED and ACCEPTED).
 

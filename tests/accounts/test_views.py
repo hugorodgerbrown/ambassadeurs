@@ -1,6 +1,7 @@
 # Tests for the account self-service views.
 
 import pytest
+from django.contrib.auth import SESSION_KEY
 from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import reverse
@@ -125,7 +126,7 @@ def test_logout_via_post_logs_out_and_redirects() -> None:
     response = client.post(reverse("account_logout"))
     assert response.status_code == 302
     assert response.url == "/"
-    assert "_auth_user_id" not in client.session
+    assert SESSION_KEY not in client.session
 
 
 def test_logout_get_renders_styled_page() -> None:

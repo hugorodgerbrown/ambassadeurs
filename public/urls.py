@@ -10,11 +10,14 @@ app_name = "public"
 
 urlpatterns = [
     path("", views.home, name="home"),
-    # Streamlined, verify-first registration flow (VERB-9).
-    path("register/", views.register_start, name="register"),
+    # Combined single-step registration flow (VERB-24).
+    path("register/", views.register, name="register"),
     path("register/sent/", views.register_email_sent, name="register_email_sent"),
-    path("register/verify/<str:token>/", views.register_verify, name="register_verify"),
-    path("register/details/", views.register_details, name="register_details"),
+    path(
+        "register/confirm/<str:token>/",
+        views.register_confirm,
+        name="register_confirm",
+    ),
     path(
         "register/details/form/",
         views.register_details_form,

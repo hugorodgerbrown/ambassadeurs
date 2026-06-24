@@ -45,6 +45,23 @@ def get_or_create_participant_user(email: str) -> User:
     return user
 
 
+def mark_email_verified(user: User) -> None:
+    """Record the allauth EmailAddress for ``user`` as verified and primary.
+
+    Called at registration-confirmation time (combined-form flow) so that the
+    allauth email state is consistent with the social-login path.  Mirrors what
+    ``get_or_create_participant_user`` does at email-verification time.  If the
+    EmailAddress row already exists with ``verified=True`` this is a no-op.
+    """
+    email = user.email.lower()
+    EmailAddress.objects.update_or_create(
+        user=user,
+        email=email,
+        defaults={"verified": True, "primary": True},
+    )
+    logger.info("Marked email verified for user pk=%s (%s)", user.pk, email)
+
+
 def update_account(
     *,
     user: User,

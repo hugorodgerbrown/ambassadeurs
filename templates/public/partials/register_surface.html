@@ -234,7 +234,7 @@ Context:
             {% endif %}
         </h2>
 
-        <form method="post" action="{% url 'public:register_details' %}">
+        <form method="post" action="{% url 'public:register' %}">
             {% csrf_token %}
             <input type="hidden" name="role" value="{{ role }}">
 

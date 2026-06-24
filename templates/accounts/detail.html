@@ -81,17 +81,6 @@
         {# Security #}
         <div class="card">
             <h2 class="mb-3 text-h3 text-ink">{% translate "Security" %}</h2>
-            <p class="mb-4 text-sm text-body">
-                {% blocktranslate trimmed %}
-                    Link your Facebook profile so you can sign in with it, or remove the connection.
-                {% endblocktranslate %}
-            </p>
-            <a href="{% url 'socialaccount_connections' %}" class="btn btn--ghost">
-                {% translate "Manage Facebook connection" %}
-            </a>
-
-            <hr class="my-5 border-line">
-
             <h3 class="mb-2 text-sm font-semibold text-danger">{% translate "Delete account" %}</h3>
             <p class="mb-3 text-sm text-body">
                 {% blocktranslate trimmed %}

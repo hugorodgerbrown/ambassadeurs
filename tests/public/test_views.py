@@ -513,6 +513,20 @@ def test_details_form_fragment_returns_role_form() -> None:
     assert b"Referee details" in response.content
 
 
+def test_details_form_fragment_pushes_canonical_role_url() -> None:
+    """The role options push the canonical full-page URL so a refresh keeps the
+    selected role (the swap targets the htmx-only fragment endpoint, which a
+    refresh must never land on)."""
+    register_url = reverse("public:register")
+    response = Client().get(
+        reverse("public:register_details_form") + "?role=ambassador",
+        headers={"hx-request": "true"},
+    )
+    content = response.content
+    assert f'hx-push-url="{register_url}?role=ambassador"'.encode() in content
+    assert f'hx-push-url="{register_url}?role=referee"'.encode() in content
+
+
 def test_details_form_fragment_unknown_role_404() -> None:
     """An unknown role on the fragment endpoint returns 404."""
     response = Client().get(

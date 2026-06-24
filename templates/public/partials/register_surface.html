@@ -123,6 +123,7 @@ Context:
                     hx-get="{% url 'public:register_details_form' %}?role=ambassador"
                     hx-target="#reg-surface"
                     hx-swap="outerHTML"
+                    hx-push-url="{% url 'public:register' %}?role=ambassador"
                 >
                     <span class="role-select__option-badge role-select__option-badge--amb">
                         <svg
@@ -169,6 +170,7 @@ Context:
                     hx-get="{% url 'public:register_details_form' %}?role=referee"
                     hx-target="#reg-surface"
                     hx-swap="outerHTML"
+                    hx-push-url="{% url 'public:register' %}?role=referee"
                 >
                     <span class="role-select__option-badge role-select__option-badge--ref">
                         <svg

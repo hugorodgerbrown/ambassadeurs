@@ -47,6 +47,8 @@
   --color-success-ink:    #0f5132;
   --color-warning:        #b06a08;
   --color-danger:         #b42318;
+  --color-danger-tint:    #fbe9e7;
+  --color-danger-ink:     #8a2c22;
 
   /* Fonts */
   --font-display: "Bricolage Grotesque", system-ui, sans-serif;
@@ -134,6 +136,10 @@
   --color-success-tint:   #123524;
   --color-success-ink:    #bde9cf;
 
+  --color-danger:         #f08579;
+  --color-danger-tint:    #381512;
+  --color-danger-ink:     #f4b6ae;
+
   --shadow-pop: 0 24px 60px -30px rgb(0 0 0 / 0.6);
 }
 
@@ -145,6 +151,15 @@
     --dur-fast:  .15s;
     --dur-base:  .3s;
     --dur-glide: .9s;
+
+    /* Role-theme defaults — point at the accent (Ambassador) family so any
+       role-following component (.input focus ring, .btn--role, …) has a sane
+       colour even outside an explicit .role-theme region. .role-theme and
+       .role-theme--referee re-point these per surface. */
+    --role:      var(--color-accent);
+    --role-deep: var(--color-accent-hover);
+    --role-tint: var(--color-accent-tint);
+    --role-ink:  var(--color-accent-ink);
   }
 
   body {
@@ -154,7 +169,15 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /* Headings carry the display face, colour and type-scale sizes by default so
+     a bare <h1>/<h2>/<h3> renders at the intended size (Tailwind's preflight
+     otherwise resets headings to inherit). Explicit text-* utilities still win
+     (utilities sort after @layer base), so pages that size headings inline are
+     unaffected. */
   h1, h2, h3 { font-family: var(--font-display); color: var(--color-ink); }
+  h1 { font-size: var(--text-h1); line-height: var(--text-h1--line-height); letter-spacing: var(--text-h1--letter-spacing); font-weight: var(--text-h1--font-weight); }
+  h2 { font-size: var(--text-h2); line-height: var(--text-h2--line-height); letter-spacing: var(--text-h2--letter-spacing); font-weight: var(--text-h2--font-weight); }
+  h3 { font-size: var(--text-h3); line-height: var(--text-h3--line-height); letter-spacing: var(--text-h3--letter-spacing); font-weight: var(--text-h3--font-weight); }
 }
 
 /* ── Component classes ───────────────────────────────────────────────────── */
@@ -234,8 +257,10 @@
   /* Nav + wordmark. border uses --color-line (was --color-border),
      --color-ink (was --color-text-1). */
   .nav { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px 32px; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
+  /* Wordmark text is always neutral ink — "Ambassadors" is the programme name,
+     not the role. Colour in the wordmark is carried by the peak glyph only
+     (see nav.html / footer.html), so there is no accent on the text itself. */
   .wordmark { font-family: var(--font-display); font-weight: 700; font-size: 18px; letter-spacing: -0.02em; color: var(--color-ink); }
-  .wordmark em { font-style: normal; color: var(--color-accent); }
 
   /* Requirements callout — eligibility checklist hoisted out of the form.
      Sits between the role <select> and the form card. Default = accent
@@ -250,4 +275,142 @@
   .req-callout__item { display: flex; gap: 11px; font-size: 0.96rem; line-height: 1.5; color: var(--req-ink); }
   .req-callout__item svg { flex: none; margin-top: 2px; color: var(--req); }
   .req-callout__danger { color: var(--color-danger); font-weight: 600; }
+
+  /* ════════════════════════════════════════════════════════════════════════
+     ROLE THEME — region-scoped accent for the registration / authenticated
+     journey. Wrap a post-role-selection surface in .role-theme to tone the
+     whole region in one role's colour; add .role-theme--referee to flip it to
+     the secondary (Referee) tone. Descendants follow var(--role*) rather than
+     choosing accent-vs-secondary themselves, so switching role is a one-class
+     change and dark mode inverts automatically via the underlying tokens.
+     Ported from tokens/components.css (variable names reconciled to @theme).
+     ════════════════════════════════════════════════════════════════════════ */
+  .role-theme {
+    --role:      var(--color-accent);
+    --role-deep: var(--color-accent-hover);
+    --role-tint: var(--color-accent-tint);
+    --role-ink:  var(--color-accent-ink);
+  }
+  .role-theme--referee {
+    --role:      var(--color-secondary);
+    --role-deep: var(--color-secondary-hover);
+    --role-tint: var(--color-secondary-tint);
+    --role-ink:  var(--color-secondary-ink);
+  }
+
+  /* 4px role-coloured band — pin to the top of a themed surface as a tone cue. */
+  .role-band { height: 4px; background: var(--role); }
+
+  /* Role-following button: the primary action, toned to the active role.
+     (Use .btn .btn--primary for a fixed-accent button; this one follows --role.) */
+  .btn--role       { background: var(--role); color: #fff; }
+  .btn--role:hover { background: var(--role-deep); }
+
+  /* Role-following announcement / status pill (cf. fixed-tone .announce / .status). */
+  .announce--role { background: var(--role-tint); border-color: color-mix(in srgb, var(--role) 20%, transparent); color: var(--role-ink); }
+  .announce--role .announce__dot { background: var(--role); }
+
+  /* ── Form controls ──────────────────────────────────────────────────────
+     Text inputs, labels, hints. The focus ring follows --role, so a field
+     inside a .role-theme picks up the role colour with no extra markup.
+     Variable names reconciled: --color-text-1 → --color-ink, --color-text-3 →
+     --color-meta, --color-border-strong → --color-line-strong, --text-small-size
+     → --text-small, --weight-semibold → 600, --space-4 → 1rem, --space-3 → 12px. */
+  .field        { margin-bottom: 1rem; }
+  .field__label { display: block; font-size: var(--text-small); font-weight: 600; color: var(--color-ink); margin-bottom: 7px; }
+  .field__req   { color: var(--color-danger); }
+  .field__hint  { font-size: 0.82rem; line-height: 1.45; color: var(--color-meta); margin-top: 7px; }
+  .field-row    { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .input {
+    width: 100%; height: 48px; padding: 0 14px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-control);
+    font-family: var(--font-sans); font-size: 1rem; color: var(--color-ink);
+    outline: none;
+    transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+  }
+  .input::placeholder { color: var(--color-meta); opacity: .75; }
+  .input:focus { border-color: var(--role); box-shadow: 0 0 0 3px var(--role-tint); }
+
+  /* ── Role select ────────────────────────────────────────────────────────
+     The "Your role" dropdown that drives .role-theme. The trigger follows
+     --role; the two options in the open menu keep FIXED per-role badges
+     (accent for Ambassador, secondary for Referee) so both read true while the
+     menu is open. Built on <details>/<summary> for no-JS open/close: the caret
+     rotates and the menu shows when the <details> is [open]. Sits in a
+     .role-zone — a tinted container between the lead copy and the eligibility
+     callout. */
+  .role-zone        { background: var(--role-tint); border: 1px solid transparent; border-radius: var(--radius-card); padding: 22px 22px 24px; }
+  .role-zone--plain { background: var(--color-surface); border-color: var(--color-line); }
+
+  .role-select { position: relative; }
+  .role-select__trigger {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    width: 100%; padding: 14px 16px;
+    background: var(--color-surface);
+    border: 2px solid var(--role);
+    border-radius: var(--radius-control);
+    font-family: var(--font-sans); cursor: pointer; text-align: left;
+    list-style: none;
+  }
+  .role-select__trigger::-webkit-details-marker { display: none; }
+  .role-select__id    { display: flex; align-items: center; gap: 12px; }
+  .role-select__badge { flex: none; width: 34px; height: 34px; border-radius: var(--radius-pill); background: var(--role-tint); color: var(--role); display: flex; align-items: center; justify-content: center; }
+  .role-select__text  { display: flex; flex-direction: column; gap: 1px; }
+  .role-select__name  { font-size: 1.05rem; font-weight: 600; color: var(--color-ink); }
+  .role-select__role  { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--role-ink); }
+  .role-select__caret { flex: none; color: var(--color-meta); transition: transform var(--dur-base) ease; }
+  .role-select[open] .role-select__caret { transform: rotate(180deg); }
+
+  .role-select__menu {
+    position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 30;
+    background: var(--color-surface);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-control); overflow: hidden;
+    box-shadow: var(--shadow-pop);
+  }
+  .role-select__option {
+    display: flex; align-items: flex-start; gap: 12px;
+    width: 100%; padding: 14px 16px;
+    background: var(--color-surface); border: none; cursor: pointer; text-align: left;
+    font-family: var(--font-sans);
+  }
+  .role-select__option + .role-select__option { border-top: 1px solid var(--color-line); }
+  .role-select__option[aria-selected="true"]  { background: var(--color-surface-2); }
+  .role-select__option-badge { flex: none; width: 30px; height: 30px; border-radius: var(--radius-pill); display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+  .role-select__option-badge--amb { background: var(--color-accent-tint);    color: var(--color-accent); }
+  .role-select__option-badge--ref { background: var(--color-secondary-tint); color: var(--color-secondary); }
+  .role-select__option-body  { flex: 1; }
+  .role-select__option-title { display: block; font-size: 1rem; font-weight: 600; color: var(--color-ink); }
+  .role-select__option-desc  { display: block; font-size: 0.86rem; line-height: 1.4; color: var(--color-body); margin-top: 1px; }
+  .role-select__check      { flex: none; margin-top: 3px; }
+  .role-select__check--amb { color: var(--color-accent); }
+  .role-select__check--ref { color: var(--color-secondary); }
+
+  /* ── Eligibility callout (numbered, editorial) ──────────────────────────
+     The pre-form "what you'll need to qualify" gate. A white card with a role
+     top-accent and mono numbering — the calmer sibling of the tinted,
+     check-marked .req-callout. Follows --role. */
+  .eligibility          { background: var(--color-surface); border: 1px solid var(--color-line); border-top: 3px solid var(--role); border-radius: var(--radius-card); padding: 24px 24px 26px; }
+  .eligibility__eyebrow { color: var(--role); margin-bottom: 6px; }
+  .eligibility__item    { display: flex; gap: 15px; padding: 15px 0; border-top: 1px solid var(--color-line); }
+  .eligibility__num     { flex: none; font-family: var(--font-mono); font-weight: 600; font-size: 13px; color: var(--role); padding-top: 2px; }
+  .eligibility__text    { flex: 1; font-size: 0.97rem; line-height: 1.5; color: var(--color-body); }
+
+  /* Danger chip — inline emphasis such as "No retroactive refund". */
+  .chip-danger {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--color-danger-tint);
+    border: 1px solid color-mix(in srgb, var(--color-danger) 22%, transparent);
+    color: var(--color-danger);
+    font-size: 12px; font-weight: 600;
+    padding: 4px 10px; border-radius: var(--radius-tag);
+  }
+
+  /* ── Icon medallion ─────────────────────────────────────────────────────
+     A large role-tinted circle holding one line icon. Confirmation / success
+     screen headers (e.g. "Confirm your email", "You're in the queue"). */
+  .medallion { width: 64px; height: 64px; border-radius: var(--radius-pill); background: var(--role-tint); color: var(--role); display: flex; align-items: center; justify-content: center; }
 }

@@ -1,20 +1,66 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "Check your inbox" %}{% endblock %}
+{% block title %}{% translate "Confirm your email" %}{% endblock %}
+
+{% block topband %}
+    <div class="role-theme">
+        <div class="role-band"></div>
+    </div>
+{% endblock %}
 
 {% block content %}
-    <section class="mx-auto max-w-md text-center">
-        <h1 class="mb-4 text-2xl font-bold text-ink">{% translate "Check your inbox" %}</h1>
-        <p class="text-body">
+    <section class="role-theme mx-auto max-w-md text-center">
+        <div class="medallion mx-auto mb-6">
+            <svg
+                width="30"
+                height="30"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            >
+                <rect x="2" y="4" width="20" height="16" rx="3" />
+                <path d="m3 7 9 6 9-6" />
+            </svg>
+        </div>
+        <p class="eyebrow mb-3" style="color: var(--role)">{% translate "Almost there" %}</p>
+        <h1 class="mb-4 text-ink">{% translate "Confirm your email" %}</h1>
+        <p class="mx-auto max-w-sm text-lead text-body">
             {% blocktranslate trimmed %}
-                We've emailed you a link to confirm your address and continue registering. The link expires in 24 hours.
+                We've emailed you a link to confirm your address and continue registering. Open it to verify your
+                address — then we start finding your partner.
             {% endblocktranslate %}
         </p>
+
+        <div class="card mt-8 flex items-start gap-3 text-left">
+            <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="mt-0.5 shrink-0 text-meta"
+            >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4M12 8h.01" />
+            </svg>
+            <p class="text-sm text-body">
+                {% blocktranslate trimmed %}
+                    The link expires in 24 hours. If it doesn't arrive in a few minutes, check your spam folder.
+                {% endblocktranslate %}
+            </p>
+        </div>
+
         {% if debug_verify_url %}
             {# Development only: the view only populates this under DEBUG so the
                signed link can be clicked directly without opening the inbox. #}
-            <div class="mt-6 rounded-md border border-line bg-page p-3 text-left text-sm">
+            <div class="card mt-4 text-left text-sm">
                 <p class="mb-2 font-semibold text-ink">{% translate "Development shortcut" %}</p>
                 <a href="{{ debug_verify_url }}" class="break-all font-medium text-accent underline">
                     {{ debug_verify_url }}

@@ -3,23 +3,30 @@
 
 {% block title %}{% translate "My account" %}{% endblock %}
 
+{% block topband %}
+    <div class="role-theme{% if registration and registration.role != 'AMBASSADOR' %} role-theme--referee{% endif %}">
+        <div class="role-band"></div>
+    </div>
+{% endblock %}
+
 {% block content %}
-    <section class="mx-auto max-w-xl">
-        <h1 class="mb-6 text-2xl font-bold text-ink">{% translate "My account" %}</h1>
+    <section class="role-theme{% if registration and registration.role != 'AMBASSADOR' %} role-theme--referee{% endif %} mx-auto max-w-xl">
+        <p class="eyebrow mb-2" style="color: var(--role)">{% translate "Your account" %}</p>
+        <h1 class="mb-6 text-ink">{% translate "My account" %}</h1>
 
         {% if messages %}
             {% for message in messages %}
-                <div class="mb-4 rounded-md border border-line bg-surface p-3 text-sm text-body">
+                <div class="mb-4 rounded-control border border-line bg-surface p-3 text-sm text-body">
                     {{ message }}
                 </div>
             {% endfor %}
         {% endif %}
 
         {# Profile #}
-        <div class="mb-6 rounded-card border border-line bg-surface p-6">
+        <div class="card mb-6">
             <div class="mb-4 flex items-center justify-between">
-                <h2 class="text-lg font-semibold text-ink">{% translate "Your details" %}</h2>
-                <a href="{% url 'accounts:edit' %}" class="text-sm font-medium text-accent underline">
+                <h2 class="text-h3 text-ink">{% translate "Your details" %}</h2>
+                <a href="{% url 'accounts:edit' %}" class="text-sm font-medium underline" style="color: var(--role)">
                     {% translate "Edit" %}
                 </a>
             </div>
@@ -39,15 +46,24 @@
             </dl>
         </div>
 
-        {# Registration — role is read-only. #}
-        <div class="mb-6 rounded-card border border-line bg-surface p-6">
-            <h2 class="mb-3 text-lg font-semibold text-ink">{% translate "Your registration" %}</h2>
+        {# Registration — role is read-only. Role identity uses the .role-zone tone;
+           the match status keeps the semantic .status tokens. #}
+        <div class="card mb-6">
+            <h2 class="mb-4 text-h3 text-ink">{% translate "Your registration" %}</h2>
             {% if registration %}
-                <dl class="grid grid-cols-3 gap-2 text-sm">
-                    <dt class="text-meta">{% translate "Role" %}</dt>
-                    <dd class="col-span-2 text-ink">{{ registration.get_role_display }}</dd>
+                <div class="role-zone mb-4">
+                    <p class="label mb-1">{% translate "Your role" %}</p>
+                    <p class="role-select__name">{{ registration.get_role_display }}</p>
+                </div>
+                <dl class="grid grid-cols-3 items-center gap-2 text-sm">
                     <dt class="text-meta">{% translate "Status" %}</dt>
-                    <dd class="col-span-2 text-ink">{{ registration.get_status_display }}</dd>
+                    <dd class="col-span-2">
+                        <span
+                            class="status {% if registration.status == 'MATCHED' %}status--action{% elif registration.status == 'CONFIRMED' %}status--done{% else %}status--queue{% endif %}"
+                        >
+                            {{ registration.get_status_display }}
+                        </span>
+                    </dd>
                 </dl>
                 <p class="mt-3 text-xs text-meta">
                     {% blocktranslate trimmed %}
@@ -56,33 +72,27 @@
                 </p>
             {% else %}
                 <p class="text-sm text-body">{% translate "You have no registration yet." %}</p>
-                <a
-                    href="{% url 'public:register' %}"
-                    class="mt-3 inline-flex items-center justify-center rounded-pill bg-accent px-5 py-2.5 text-sm font-medium text-on-accent transition hover:opacity-90"
-                >
+                <a href="{% url 'public:register' %}" class="btn btn--role mt-4">
                     {% translate "Register now" %}
                 </a>
             {% endif %}
         </div>
 
         {# Security #}
-        <div class="rounded-card border border-line bg-surface p-6">
-            <h2 class="mb-3 text-lg font-semibold text-ink">{% translate "Security" %}</h2>
+        <div class="card">
+            <h2 class="mb-3 text-h3 text-ink">{% translate "Security" %}</h2>
             <p class="mb-4 text-sm text-body">
                 {% blocktranslate trimmed %}
                     Link your Facebook profile so you can sign in with it, or remove the connection.
                 {% endblocktranslate %}
             </p>
-            <a
-                href="{% url 'socialaccount_connections' %}"
-                class="inline-flex items-center justify-center rounded-pill border border-line bg-surface px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-page"
-            >
+            <a href="{% url 'socialaccount_connections' %}" class="btn btn--ghost">
                 {% translate "Manage Facebook connection" %}
             </a>
 
             <hr class="my-5 border-line">
 
-            <h3 class="mb-2 text-sm font-semibold text-accent">{% translate "Delete account" %}</h3>
+            <h3 class="mb-2 text-sm font-semibold text-danger">{% translate "Delete account" %}</h3>
             <p class="mb-3 text-sm text-body">
                 {% blocktranslate trimmed %}
                     Permanently delete your account and all your registrations. This cannot be undone.
@@ -90,7 +100,7 @@
             </p>
             <a
                 href="{% url 'accounts:delete' %}"
-                class="inline-flex items-center justify-center rounded-pill border border-accent px-5 py-2.5 text-sm font-medium text-accent transition hover:bg-accent/5"
+                class="btn btn--ghost border-danger text-danger hover:border-danger"
             >
                 {% translate "Delete my account" %}
             </a>

@@ -17,11 +17,10 @@ from django.utils.translation import gettext_lazy as _
 
 from .models import Registration, Resort
 
-# Tailwind utility classes applied to text-like inputs and selects.
-_INPUT_CLASSES = (
-    "mt-1 block w-full rounded-md border border-line bg-surface px-3 py-2 "
-    "text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-)
+# Design-system class applied to text-like inputs and selects. ``.input``
+# (src/css/main.css) carries the height, border, radius and role-toned focus
+# ring; the focus colour follows the surrounding .role-theme.
+_INPUT_CLASSES = "input"
 
 # prior_pass choices available to ambassadors (must hold one of these).
 _AMBASSADOR_PRIOR_PASS_CHOICES = [

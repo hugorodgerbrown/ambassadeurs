@@ -1,23 +1,87 @@
 {% load i18n %}
-<footer class="mt-16 border-t border-line bg-surface">
-    <div class="mx-auto flex max-w-3xl flex-col items-center gap-2 px-4 py-6 text-sm text-meta sm:flex-row sm:justify-between">
-        <p>
-            © {% now "Y" %}
-            {% translate "4 Vallées Ambassadors Program" %}
-        </p>
-        <nav class="flex gap-4">
-            <a href="{% url 'public:legal' page='privacy' %}" class="hover:text-ink">
-                {% translate "Privacy" %}
-            </a>
-            <a href="{% url 'public:legal' page='cookies' %}" class="hover:text-ink">
-                {% translate "Cookies" %}
-            </a>
-            <a href="{% url 'public:legal' page='terms' %}" class="hover:text-ink">
-                {% translate "Terms" %}
-            </a>
-            <a href="{% url 'public:how_it_works' %}" class="hover:text-ink">
-                {% translate "How it works" %}
-            </a>
-        </nav>
+{% comment %}
+Site footer (design handoff). Brand block + link columns + a bottom meta bar.
+The wordmark text stays neutral ink; the peak glyph follows var(--role) (teal on
+public pages, the signed-in user's role on authenticated pages) — same rule as
+the nav.
+{% endcomment %}
+<footer class="role-theme{% if user.is_authenticated and user.registration.role == 'REFEREE' %} role-theme--referee{% endif %} mt-16 border-t border-line bg-surface">
+    <div class="mx-auto flex max-w-3xl flex-wrap justify-between gap-10 px-4 pb-8 pt-10">
+        <div class="max-w-xs">
+            <div class="flex items-center gap-2">
+                <span class="shrink-0" style="color: var(--role)">
+                    <svg width="20" height="20" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+                        <path
+                            d="M11 3.5 L18.5 18 L3.5 18 Z"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linejoin="round"
+                        />
+                        <path
+                            d="M8.4 12.8 L11 8.2 L13.6 12.8"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linejoin="round"
+                            stroke-linecap="round"
+                        />
+                    </svg>
+                </span>
+                <span class="wordmark">{% translate "4 Vallées Ambassadors" %}</span>
+            </div>
+            <p class="mt-4 text-sm text-meta">
+                {% translate "An independent way to find your season-pass partner for the 4 Vallées." %}
+            </p>
+        </div>
+
+        <div class="flex flex-wrap gap-14">
+            <div>
+                <p class="label mb-3">{% translate "Program" %}</p>
+                <a href="{% url 'public:how_it_works' %}" class="block text-sm text-body hover:text-ink">
+                    {% translate "How it works" %}
+                </a>
+            </div>
+            <div>
+                <p class="label mb-3">{% translate "Legal" %}</p>
+                <a href="{% url 'public:legal' page='privacy' %}" class="mb-2 block text-sm text-body hover:text-ink">
+                    {% translate "Privacy" %}
+                </a>
+                <a href="{% url 'public:legal' page='cookies' %}" class="mb-2 block text-sm text-body hover:text-ink">
+                    {% translate "Cookies" %}
+                </a>
+                <a href="{% url 'public:legal' page='terms' %}" class="block text-sm text-body hover:text-ink">
+                    {% translate "Terms" %}
+                </a>
+            </div>
+            <div>
+                <p class="label mb-3">{% translate "Account" %}</p>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'accounts:detail' %}" class="mb-2 block text-sm text-body hover:text-ink">
+                        {% translate "My account" %}
+                    </a>
+                    <form method="post" action="{% url 'account_logout' %}">
+                        {% csrf_token %}
+                        <button
+                            type="submit"
+                            class="cursor-pointer border-0 bg-transparent p-0 text-sm text-body hover:text-ink"
+                        >
+                            {% translate "Log out" %}
+                        </button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'account_login' %}" class="mb-2 block text-sm text-body hover:text-ink">
+                        {% translate "Log in" %}
+                    </a>
+                    <a href="{% url 'public:register' %}" class="block text-sm text-body hover:text-ink">
+                        {% translate "Register" %}
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="mx-auto flex max-w-3xl flex-wrap justify-between gap-2 border-t border-line px-4 py-5 font-mono text-xs text-meta">
+        <span
+        >{% translate "Independent project — not affiliated with the official 4 Vallées pass operator." %}</span>
+        <span>© {% now "Y" %}</span>
     </div>
 </footer>

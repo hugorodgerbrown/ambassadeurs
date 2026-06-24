@@ -207,20 +207,31 @@ def register_details(request: HttpRequest) -> HttpResponse:
         return render(
             request,
             "public/register_details.html",
-            {"bound_form": form, "bound_role": role, "bound_role_value": role_value},
+            {"form": form, "role": role, "role_value": role_value},
         )
 
+    # On first load the surface is themed for the role the participant hinted at
+    # on the homepage (carried in the session), defaulting to Ambassador — the
+    # dropdown re-themes the surface to the other role on demand via HTMX.
+    role = request.session.get("register_role") or "ambassador"
+    role_value = ROLE_BY_SLUG.get(role, Registration.Role.AMBASSADOR)
+    form = RegistrationForm(role=role_value, user=user)
     return render(
         request,
         "public/register_details.html",
-        {"role_hint": request.session.get("register_role")},
+        {"form": form, "role": role, "role_value": role_value},
     )
 
 
 @login_required
 @require_htmx
 def register_details_form(request: HttpRequest) -> HttpResponse:
-    """Return the role-specific details form fragment (HTMX, step 5)."""
+    """Return the themed registration surface for a role (HTMX, step 5).
+
+    Drives the "Your role" dropdown: selecting a role swaps the whole
+    ``#reg-surface`` so the eyebrow, lead copy, eligibility callout, form and
+    submit button all re-tone to the chosen role.
+    """
     if not is_registration_open():
         raise Http404("Registration is closed.")
     role = request.GET.get("role", "")
@@ -231,8 +242,8 @@ def register_details_form(request: HttpRequest) -> HttpResponse:
     form = RegistrationForm(role=role_value, user=user)
     return render(
         request,
-        "public/partials/register_details_form.html",
-        {"form": form, "role": role, "role_value": role_value},
+        "public/partials/register_surface.html",
+        {"form": form, "role": role, "role_value": role_value, "is_htmx": True},
     )
 
 

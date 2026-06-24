@@ -72,7 +72,11 @@ def account_edit(request: HttpRequest) -> HttpResponse:
                 ),
             }
         )
-    return render(request, "accounts/edit.html", {"form": form})
+    return render(
+        request,
+        "accounts/edit.html",
+        {"form": form, "registration": registration},
+    )
 
 
 @login_required

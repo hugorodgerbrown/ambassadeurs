@@ -1,28 +1,61 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "Registration received" %}{% endblock %}
+{% block title %}{% translate "You're in the queue" %}{% endblock %}
+
+{% block topband %}
+    <div
+        id="topband"
+        class="role-theme{% if role_value != 'AMBASSADOR' %} role-theme--referee{% endif %}"
+    >
+        <div class="role-band"></div>
+    </div>
+{% endblock %}
 
 {% block content %}
-    <section class="mx-auto max-w-xl text-center">
-        <h1 class="mb-4 text-3xl font-bold text-ink">
-            {% translate "You're in the queue" %}
-        </h1>
-        <p class="mb-6 text-body">
+    <section class="role-theme{% if role_value != 'AMBASSADOR' %} role-theme--referee{% endif %} mx-auto max-w-md text-center">
+        <div class="medallion mx-auto mb-6">
+            <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            >
+                <circle cx="12" cy="12" r="9" />
+                <path d="m8.5 12 2.5 2.5 4.5-5" />
+            </svg>
+        </div>
+        <p class="eyebrow mb-3" style="color: var(--role)">{% translate "Registration complete" %}</p>
+        <h1 class="mb-4 text-ink">{% translate "You're in the queue" %}</h1>
+        <p class="mx-auto mb-6 max-w-sm text-body">
             {% if role_value == 'AMBASSADOR' %}
                 {% blocktranslate trimmed %}
-                    Thanks for offering to refer a new holder. We'll match you with a referee and email you when it
-                    happens.
+                    Thanks for offering to refer a new holder. We've added you to the matching queue and will email you
+                    the moment we pair you with your Referee.
                 {% endblocktranslate %}
             {% else %}
                 {% blocktranslate trimmed %}
-                    Thanks for registering. We'll match you with an Ambassador and email you when it happens.
+                    Thanks for registering. We've added you to the matching queue and will email you the moment we pair
+                    you with your Ambassador.
                 {% endblocktranslate %}
             {% endif %}
         </p>
 
-        <div class="rounded-card border border-line bg-surface p-6 text-left">
-            <h2 class="mb-2 text-lg font-semibold text-ink">{% translate "Your responsibilities" %}</h2>
+        <div class="announce announce--role mb-8">
+            <span class="announce__dot"></span>
+            {% if role_value == 'AMBASSADOR' %}
+                {% translate "Looking for your Referee" %}
+            {% else %}
+                {% translate "Looking for your Ambassador" %}
+            {% endif %}
+        </div>
+
+        <div class="card mb-6 text-left">
+            <h2 class="mb-2 text-h3 text-ink">{% translate "Your responsibilities" %}</h2>
             <ul class="list-disc space-y-2 pl-5 text-sm text-body">
                 <li>{% translate "Watch your inbox — we contact you by email." %}</li>
                 <li>{% translate "When matched, accept (or decline) within 72 hours." %}</li>
@@ -35,8 +68,24 @@
             </ul>
         </div>
 
-        <p class="mt-6">
-            <a href="{% url 'public:home' %}" class="font-medium text-accent underline">
+        <a href="{% url 'accounts:detail' %}" class="btn btn--role btn--block">
+            {% translate "Go to my account" %}
+            <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            >
+                <path d="M5 12h14" />
+                <path d="m13 5 7 7-7 7" />
+            </svg>
+        </a>
+        <p class="mt-4">
+            <a href="{% url 'public:home' %}" class="font-medium text-meta underline">
                 {% translate "Back to home" %}
             </a>
         </p>

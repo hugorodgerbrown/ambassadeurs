@@ -1,0 +1,15 @@
+{% comment %}
+Single form field rendered with the design-system .field / .input classes.
+The widget itself carries the .input class (set in the form's widget attrs), so
+this template only supplies the label, required marker, hint and errors.
+
+Context: field — a bound form field.
+{% endcomment %}
+<div class="field">
+    <label class="field__label" for="{{ field.id_for_label }}">
+        {{ field.label }}{% if field.field.required %} <span class="field__req">*</span>{% endif %}
+    </label>
+    {{ field }}
+    {% if field.help_text %}<p class="field__hint">{{ field.help_text }}</p>{% endif %}
+    {% for error in field.errors %}<p class="field__hint text-danger">{{ error }}</p>{% endfor %}
+</div>

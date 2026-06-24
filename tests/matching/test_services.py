@@ -14,8 +14,12 @@ from matching.services import (
     is_eligible_pair,
     is_registration_open,
     propose_match,
+    record_flake_and_requeue,
     register_participant,
+    requeue_to_back,
+    requeue_to_front,
     send_match_notification,
+    suspend_for_no_show,
 )
 from tests.accounts.factories import UserFactory
 from tests.matching.factories import MatchFactory, RegistrationFactory
@@ -602,3 +606,217 @@ def test_propose_match_skips_matched_registration() -> None:
         result = propose_match(already_matched)
     assert result is None
     assert Match.objects.count() == 0
+
+
+# ---------------------------------------------------------------------------
+# requeue_to_front
+# ---------------------------------------------------------------------------
+
+
+def test_requeue_to_front_sets_waiting_and_increments_priority() -> None:
+    """requeue_to_front sets status=WAITING and increments priority by 1."""
+    reg = RegistrationFactory.create(
+        status=Registration.Status.MATCHED,
+        priority=0,
+        flake_count=1,
+    )
+    requeue_to_front(reg)
+
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.WAITING
+    assert reg.priority == 1
+    assert reg.flake_count == 1  # unchanged
+
+
+def test_requeue_to_front_syncs_in_memory_instance() -> None:
+    """requeue_to_front syncs the passed-in instance's fields to the DB values."""
+    reg = RegistrationFactory.create(
+        status=Registration.Status.MATCHED,
+        priority=5,
+    )
+    requeue_to_front(reg)
+
+    # In-memory fields must match DB without an extra refresh.
+    assert reg.status == Registration.Status.WAITING
+    assert reg.priority == 6
+
+
+# ---------------------------------------------------------------------------
+# requeue_to_back
+# ---------------------------------------------------------------------------
+
+
+def test_requeue_to_back_sets_waiting_and_decrements_priority() -> None:
+    """requeue_to_back sets status=WAITING and decrements priority by 1."""
+    reg = RegistrationFactory.create(
+        status=Registration.Status.MATCHED,
+        priority=0,
+        flake_count=0,
+    )
+    requeue_to_back(reg)
+
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.WAITING
+    assert reg.priority == -1
+    assert reg.flake_count == 0  # unchanged
+
+
+def test_requeue_to_back_syncs_in_memory_instance() -> None:
+    """requeue_to_back syncs the passed-in instance's fields to the DB values."""
+    reg = RegistrationFactory.create(
+        status=Registration.Status.MATCHED,
+        priority=3,
+    )
+    requeue_to_back(reg)
+
+    assert reg.status == Registration.Status.WAITING
+    assert reg.priority == 2
+
+
+# ---------------------------------------------------------------------------
+# record_flake_and_requeue
+# ---------------------------------------------------------------------------
+
+
+def test_record_flake_first_flake_requeues_to_back() -> None:
+    """record_flake_and_requeue: first flake (count 0→1) requeues to back."""
+    reg = RegistrationFactory.create(
+        status=Registration.Status.MATCHED,
+        priority=0,
+        flake_count=0,
+    )
+    record_flake_and_requeue(reg)
+
+    reg.refresh_from_db()
+    assert reg.flake_count == 1
+    assert reg.status == Registration.Status.WAITING
+    assert reg.priority == -1
+
+
+def test_record_flake_boundary_suspends_at_two() -> None:
+    """record_flake_and_requeue: second flake (count 1→2) suspends.
+
+    Priority must not be decremented on the suspend branch.
+    """
+    starting_priority = 5
+    reg = RegistrationFactory.create(
+        status=Registration.Status.MATCHED,
+        priority=starting_priority,
+        flake_count=1,
+    )
+    record_flake_and_requeue(reg)
+
+    reg.refresh_from_db()
+    assert reg.flake_count == 2
+    assert reg.status == Registration.Status.SUSPENDED
+    assert reg.priority == starting_priority  # must not be decremented
+
+
+def test_record_flake_lost_update_guard() -> None:
+    """record_flake_and_requeue reads the locked DB row, not the stale instance.
+
+    The in-memory instance shows flake_count=0 but the DB already has 1.
+    The function must read 1 from DB, increment to 2, and suspend.
+    """
+    reg = RegistrationFactory.create(
+        status=Registration.Status.MATCHED,
+        priority=0,
+        flake_count=1,  # DB value is 1
+    )
+    # Simulate a stale in-memory instance by overwriting the Python attribute.
+    reg.flake_count = 0  # stale — must NOT be used by the service
+
+    record_flake_and_requeue(reg)
+
+    # DB must reflect the correct incremented value from the locked row.
+    reg.refresh_from_db()
+    assert reg.flake_count == 2
+    assert reg.status == Registration.Status.SUSPENDED
+
+
+def test_record_flake_lost_update_guard_syncs_instance() -> None:
+    """record_flake_and_requeue syncs the passed-in instance after the DB write."""
+    reg = RegistrationFactory.create(
+        status=Registration.Status.MATCHED,
+        priority=0,
+        flake_count=1,
+    )
+    reg.flake_count = 0  # stale
+
+    record_flake_and_requeue(reg)
+
+    # In-memory instance must be synced (no extra refresh needed).
+    assert reg.flake_count == 2
+    assert reg.status == Registration.Status.SUSPENDED
+
+
+# ---------------------------------------------------------------------------
+# suspend_for_no_show
+# ---------------------------------------------------------------------------
+
+
+def test_suspend_for_no_show_sets_suspended_and_increments_flake() -> None:
+    """suspend_for_no_show sets status=SUSPENDED and increments flake_count."""
+    reg = RegistrationFactory.create(
+        status=Registration.Status.MATCHED,
+        flake_count=0,
+    )
+    suspend_for_no_show(reg)
+
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.SUSPENDED
+    assert reg.flake_count == 1
+
+
+def test_suspend_for_no_show_syncs_in_memory_instance() -> None:
+    """suspend_for_no_show syncs the passed-in instance's fields to the DB values."""
+    reg = RegistrationFactory.create(
+        status=Registration.Status.MATCHED,
+        flake_count=0,
+    )
+    suspend_for_no_show(reg)
+
+    assert reg.status == Registration.Status.SUSPENDED
+    assert reg.flake_count == 1
+
+
+# ---------------------------------------------------------------------------
+# Engine exclusion — SUSPENDED registrations must never enter matching
+# ---------------------------------------------------------------------------
+
+
+def test_suspended_ambassador_excluded_from_eligible_ambassadors() -> None:
+    """A SUSPENDED ambassador does not appear in eligible_ambassadors()."""
+    RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        suspended=True,
+    )
+    assert not Registration.objects.eligible_ambassadors().exists()
+
+
+def test_suspended_referee_excluded_from_eligible_referees() -> None:
+    """A SUSPENDED referee does not appear in eligible_referees()."""
+    RegistrationFactory.create(referee=True, suspended=True)
+    assert not Registration.objects.eligible_referees().exists()
+
+
+def test_is_eligible_pair_returns_false_when_ambassador_suspended() -> None:
+    """is_eligible_pair returns False when the ambassador is SUSPENDED."""
+    ambassador = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        suspended=True,
+    )
+    referee = RegistrationFactory.create(referee=True)
+    assert is_eligible_pair(ambassador, referee) is False
+
+
+def test_is_eligible_pair_returns_false_when_referee_suspended() -> None:
+    """is_eligible_pair returns False when the referee is SUSPENDED."""
+    ambassador = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+    )
+    referee = RegistrationFactory.create(referee=True, suspended=True)
+    assert is_eligible_pair(ambassador, referee) is False

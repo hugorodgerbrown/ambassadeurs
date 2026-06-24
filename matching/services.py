@@ -170,6 +170,108 @@ def propose_match(registration: Registration) -> Match | None:
     return match
 
 
+def requeue_to_front(registration: Registration) -> None:
+    """Re-queue a kept-faith / wronged party: status=WAITING, priority += 1.
+
+    Used after a counterpart declines or a match expires where this party had
+    already accepted (or the window lapsed without action from the other side).
+    Not a flake — does not touch flake_count.
+
+    Runs inside a transaction with a SELECT FOR UPDATE to prevent lost updates.
+    Syncs the passed-in instance's in-memory fields after the DB write.
+    """
+    with transaction.atomic():
+        locked = Registration.objects.select_for_update().get(pk=registration.pk)
+        locked.status = Registration.Status.WAITING
+        locked.priority += 1
+        locked.save(update_fields=["status", "priority"])
+        registration.status = locked.status
+        registration.priority = locked.priority
+    logger.info(
+        "Re-queued registration pk=%s to front (priority=%s)",
+        registration.pk,
+        registration.priority,
+    )
+
+
+def requeue_to_back(registration: Registration) -> None:
+    """Re-queue a decliner: status=WAITING, priority -= 1.
+
+    Used after this party explicitly declines a match. Not a flake — does not
+    touch flake_count.
+
+    Runs inside a transaction with a SELECT FOR UPDATE to prevent lost updates.
+    Syncs the passed-in instance's in-memory fields after the DB write.
+    """
+    with transaction.atomic():
+        locked = Registration.objects.select_for_update().get(pk=registration.pk)
+        locked.status = Registration.Status.WAITING
+        locked.priority -= 1
+        locked.save(update_fields=["status", "priority"])
+        registration.status = locked.status
+        registration.priority = locked.priority
+    logger.info(
+        "Re-queued registration pk=%s to back (priority=%s)",
+        registration.pk,
+        registration.priority,
+    )
+
+
+def record_flake_and_requeue(registration: Registration) -> None:
+    """Record a non-response flake and re-queue or suspend the registration.
+
+    Increments flake_count from the current DB value (lost-update guard via
+    SELECT FOR UPDATE). When the new count reaches 2 the registration is
+    SUSPENDED and priority is left untouched; below 2 it is re-queued to the
+    back (WAITING, priority -= 1).
+
+    Syncs the passed-in instance's in-memory fields (status, priority,
+    flake_count) after the DB write.
+    """
+    with transaction.atomic():
+        locked = Registration.objects.select_for_update().get(pk=registration.pk)
+        locked.flake_count += 1
+        if locked.flake_count >= 2:
+            locked.status = Registration.Status.SUSPENDED
+            locked.save(update_fields=["status", "flake_count"])
+        else:
+            locked.status = Registration.Status.WAITING
+            locked.priority -= 1
+            locked.save(update_fields=["status", "priority", "flake_count"])
+        registration.status = locked.status
+        registration.priority = locked.priority
+        registration.flake_count = locked.flake_count
+    logger.info(
+        "Recorded flake for registration pk=%s: flake_count=%s, status=%s",
+        registration.pk,
+        registration.flake_count,
+        registration.status,
+    )
+
+
+def suspend_for_no_show(registration: Registration) -> None:
+    """Suspend a registration following a post-accept no-show report.
+
+    Sets status=SUSPENDED and increments flake_count unconditionally (even if
+    flake_count was already ≥ 2, the suspension still records the incident).
+
+    Runs inside a transaction with a SELECT FOR UPDATE to prevent lost updates.
+    Syncs the passed-in instance's in-memory fields after the DB write.
+    """
+    with transaction.atomic():
+        locked = Registration.objects.select_for_update().get(pk=registration.pk)
+        locked.status = Registration.Status.SUSPENDED
+        locked.flake_count += 1
+        locked.save(update_fields=["status", "flake_count"])
+        registration.status = locked.status
+        registration.flake_count = locked.flake_count
+    logger.info(
+        "Suspended registration pk=%s for no-show (flake_count=%s)",
+        registration.pk,
+        registration.flake_count,
+    )
+
+
 def send_match_notification(match: Match) -> None:
     """Send a "you've been matched" notification to both parties.
 

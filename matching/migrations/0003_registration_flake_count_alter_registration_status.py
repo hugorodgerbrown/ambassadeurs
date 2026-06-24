@@ -4,20 +4,32 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('matching', '0002_add_accepted_terms_to_registration'),
+        ("matching", "0002_add_accepted_terms_to_registration"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='registration',
-            name='flake_count',
-            field=models.IntegerField(default=0, help_text='Recorded flakes (non-responses and post-accept no-shows; not declines). 2 auto-suspends.'),
+            model_name="registration",
+            name="flake_count",
+            field=models.IntegerField(
+                default=0,
+                help_text="Recorded flakes (non-responses and post-accept no-shows; not declines). 2 auto-suspends.",
+            ),
         ),
         migrations.AlterField(
-            model_name='registration',
-            name='status',
-            field=models.CharField(choices=[('WAITING', 'Waiting'), ('MATCHED', 'Matched'), ('CONFIRMED', 'Confirmed'), ('WITHDRAWN', 'Withdrawn'), ('SUSPENDED', 'Suspended')], default='WAITING', max_length=16),
+            model_name="registration",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("WAITING", "Waiting"),
+                    ("MATCHED", "Matched"),
+                    ("CONFIRMED", "Confirmed"),
+                    ("WITHDRAWN", "Withdrawn"),
+                    ("SUSPENDED", "Suspended"),
+                ],
+                default="WAITING",
+                max_length=16,
+            ),
         ),
     ]

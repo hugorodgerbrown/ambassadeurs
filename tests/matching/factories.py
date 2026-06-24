@@ -32,6 +32,7 @@ class RegistrationFactory(factory.django.DjangoModelFactory[Registration]):
     preferred_location = ""
     status = Registration.Status.WAITING
     priority = 0
+    flake_count = 0
     accepted_terms = factory.LazyFunction(lambda: list(_DEFAULT_ACCEPTED_TERMS))
     terms_accepted_at = factory.LazyFunction(
         lambda: datetime(2026, 9, 1, 10, 0, 0, tzinfo=UTC)
@@ -43,6 +44,9 @@ class RegistrationFactory(factory.django.DjangoModelFactory[Registration]):
         referee = factory.Trait(
             role=Registration.Role.REFEREE,
             prior_pass=Registration.PriorPass.NONE,
+        )
+        suspended = factory.Trait(
+            status=Registration.Status.SUSPENDED,
         )
 
 

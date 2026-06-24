@@ -1,19 +1,19 @@
 {% load i18n %}
-<header class="border-b border-border bg-card">
+<header class="border-b border-line bg-surface">
     <nav class="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-        <a href="{% url 'public:home' %}" class="font-semibold text-text-1">
+        <a href="{% url 'public:home' %}" class="font-semibold text-ink">
             {% translate "4 Vallées Ambassadors" %}
         </a>
         <div class="flex items-center gap-4 text-sm">
             {% if user.is_authenticated %}
-                <a href="{% url 'accounts:detail' %}" class="font-medium text-text-1">
+                <a href="{% url 'accounts:detail' %}" class="font-medium text-ink">
                     {% translate "My account" %}
                 </a>
-                <a href="{% url 'account_logout' %}" class="text-text-2">
+                <a href="{% url 'account_logout' %}" class="text-body">
                     {% translate "Log out" %}
                 </a>
             {% else %}
-                <a href="{% url 'account_login' %}" class="font-medium text-text-1">
+                <a href="{% url 'account_login' %}" class="font-medium text-ink">
                     {% translate "Log in" %}
                 </a>
             {% endif %}
@@ -23,7 +23,7 @@
                 <select
                     name="language"
                     onchange="this.form.submit()"
-                    class="rounded-sm border border-border bg-card px-2 py-1"
+                    class="rounded-control border border-line bg-surface px-2 py-1"
                     aria-label="{% translate 'Change language' %}"
                 >
                     {% get_current_language as current %}

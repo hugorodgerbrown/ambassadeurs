@@ -5,13 +5,13 @@
 
 {% block content %}
     <section class="mx-auto max-w-xl">
-        <h1 class="mb-6 text-2xl font-bold text-text-1">{% translate "Edit my details" %}</h1>
+        <h1 class="mb-6 text-2xl font-bold text-ink">{% translate "Edit my details" %}</h1>
 
         <form method="post" novalidate>
             {% csrf_token %}
             {% for field in form %}
                 <div class="mb-4">
-                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-text-1">
+                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-ink">
                         {{ field.label }}{% if field.field.required %} *{% endif %}
                     </label>
                     {{ field }}
@@ -21,18 +21,18 @@
                 </div>
             {% endfor %}
 
-            <p class="mb-4 text-xs text-text-3">
+            <p class="mb-4 text-xs text-meta">
                 {% translate "Your role and email can't be changed here." %}
             </p>
 
             <div class="flex items-center gap-3">
                 <button
                     type="submit"
-                    class="inline-flex items-center justify-center rounded-pill bg-accent px-5 py-2.5 font-medium text-white transition hover:opacity-90"
+                    class="inline-flex items-center justify-center rounded-pill bg-accent px-5 py-2.5 font-medium text-on-accent transition hover:opacity-90"
                 >
                     {% translate "Save changes" %}
                 </button>
-                <a href="{% url 'accounts:detail' %}" class="text-sm font-medium text-text-2 underline">
+                <a href="{% url 'accounts:detail' %}" class="text-sm font-medium text-body underline">
                     {% translate "Cancel" %}
                 </a>
             </div>

@@ -1,24 +1,239 @@
-/* Tailwind CSS v4 source.
+/* Tailwind CSS v4 source — "Alpine" design system for 4 Vallées Ambassadors.
  *
  * Compiled to static/css/output.css by the @tailwindcss/cli (see package.json
  * and CLAUDE.md "Frontend"). Lives outside static/ so WhiteNoise never
- * post-processes it. Define design tokens in @theme; templates use the
- * generated utilities (bg-surface, text-text-1, rounded-card, …) rather than
- * raw palette values. */
+ * post-processes it. Design tokens are defined in @theme; templates use the
+ * generated utilities (bg-page, text-ink, rounded-card, …) rather than raw
+ * palette values.
+ *
+ * Token vocabulary follows tailwind/theme.css from the Alpine export.
+ * Component classes in @layer components are ported from tokens/components.css
+ * with variable names reconciled to the @theme vocabulary (see rename table
+ * in docs/ and the plan comment in VERB-11). */
 
 @import "tailwindcss";
 
-@theme {
-  --color-surface: #f4f6f9;
-  --color-card: #ffffff;
-  --color-border: #e2e8f0;
-  --color-text-1: #0f172a;
-  --color-text-2: #475569;
-  --color-text-3: #94a3b8;
-  --color-accent: #e2001a; /* 4 Vallées red */
+@custom-variant dark (&:where(.dark, .dark *));
 
-  --radius-sm: 0.375rem;
-  --radius-card: 0.75rem;
-  --radius-tag: 0.5rem;
-  --radius-pill: 9999px;
+/* ── Design tokens → Tailwind theme ─────────────────────────────────────── */
+@theme {
+  /* Colour (light values; overridden under .dark below) */
+  --color-page:           #eef2f4;
+  --color-page-sunken:    #e3eaed;
+  --color-surface:        #ffffff;
+  --color-surface-2:      #f6f9fa;
+
+  --color-ink:            #0f2329;   /* headings        */
+  --color-body:           #44565d;   /* body text       */
+  --color-meta:           #5f7178;   /* meta / tertiary */
+
+  --color-line:           rgb(15 35 41 / 0.10);
+  --color-line-strong:    rgb(15 35 41 / 0.18);
+
+  --color-accent:         #0e7490;   /* glacier teal · primary + Ambassador */
+  --color-accent-hover:   #0c5e75;
+  --color-accent-tint:    #dcedf1;
+  --color-accent-ink:     #0a4250;
+  --color-on-accent:      #ffffff;
+
+  --color-secondary:      #c2671c;   /* warm sienna · secondary + Referee */
+  --color-secondary-hover:#a5560f;
+  --color-secondary-tint: #f6e6d3;
+  --color-secondary-ink:  #7a3f0c;
+  --color-on-secondary:   #ffffff;
+
+  --color-success:        #1c7d4d;
+  --color-success-tint:   #dcefe2;
+  --color-success-ink:    #0f5132;
+  --color-warning:        #b06a08;
+  --color-danger:         #b42318;
+
+  /* Fonts */
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+  --font-sans:    "Hanken Grotesk", system-ui, -apple-system, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Font sizes (with paired line-height / tracking / weight) */
+  --text-eyebrow: 0.75rem;
+  --text-eyebrow--letter-spacing: 0.18em;
+  --text-label: 0.6875rem;
+  --text-label--letter-spacing: 0.12em;
+
+  --text-h1: clamp(2.4rem, 3.6vw, 3.5rem);
+  --text-h1--line-height: 1.03;
+  --text-h1--letter-spacing: -0.03em;
+  --text-h1--font-weight: 700;
+
+  --text-h2: 1.9rem;
+  --text-h2--line-height: 1.15;
+  --text-h2--letter-spacing: -0.02em;
+  --text-h2--font-weight: 700;
+
+  --text-h3: 1.5rem;
+  --text-h3--line-height: 1.2;
+  --text-h3--letter-spacing: -0.02em;
+  --text-h3--font-weight: 700;
+
+  --text-lead: 1.15rem;
+  --text-lead--line-height: 1.6;
+  --text-body: 1rem;
+  --text-body--line-height: 1.55;
+  --text-small: 0.9rem;
+  --text-small--line-height: 1.5;
+
+  /* Radius */
+  --radius-card:    18px;
+  --radius-control: 12px;
+  --radius-tag:     8px;
+  --radius-pill:    999px;
+
+  /* Elevation (flat by default; pop = elevated surfaces only) */
+  --shadow-pop: 0 24px 60px -34px rgb(15 35 41 / 0.32);
+
+  /* Motion */
+  --ease-glide: cubic-bezier(0.45, 0.05, 0.25, 1);
+
+  /* Breakpoints → tablet: / desktop: */
+  --breakpoint-tablet:  600px;
+  --breakpoint-desktop: 960px;
+
+  /* Containers → max-w-content / max-w-narrow / max-w-grid */
+  --container-content: 760px;
+  --container-narrow:  560px;
+  --container-grid:    1100px;
+}
+
+/* ── Dark mode — same warm-cool family, inverted ────────────────────────── */
+/* Re-points the theme variables; every colour utility + shadow-pop flips.   */
+.dark {
+  --color-page:           #0c1417;
+  --color-page-sunken:    #0f1c20;
+  --color-surface:        #152228;
+  --color-surface-2:      #19272d;
+
+  --color-ink:            #eaf3f4;
+  --color-body:           #a7bcc1;
+  --color-meta:           #7e9298;
+
+  --color-line:           rgb(255 255 255 / 0.10);
+  --color-line-strong:    rgb(255 255 255 / 0.20);
+
+  --color-accent:         #2bb6d4;
+  --color-accent-hover:   #52c8e0;
+  --color-accent-tint:    #10333c;
+  --color-accent-ink:     #bce9f2;
+  --color-on-accent:      #06222a;   /* dark text on bright teal */
+
+  --color-secondary:      #e8994c;
+  --color-secondary-hover:#f0ad6a;
+  --color-secondary-tint: #36281a;
+  --color-secondary-ink:  #f1cda3;
+  --color-on-secondary:   #1c1208;
+
+  --color-success:        #5fcf95;
+  --color-success-tint:   #123524;
+  --color-success-ink:    #bde9cf;
+
+  --shadow-pop: 0 24px 60px -30px rgb(0 0 0 / 0.6);
+}
+
+/* ── Base layer ──────────────────────────────────────────────────────────── */
+/* Motion timing variables live on :root as plain custom properties (not      */
+/* exposed as utilities — decided in VERB-11; see docs/decisions/).            */
+@layer base {
+  :root {
+    --dur-fast:  .15s;
+    --dur-base:  .3s;
+    --dur-glide: .9s;
+  }
+
+  body {
+    background-color: var(--color-page);
+    color: var(--color-body);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 { font-family: var(--font-display); color: var(--color-ink); }
+}
+
+/* ── Component classes ───────────────────────────────────────────────────── */
+/* Ported from tokens/components.css. Variable names are reconciled to the    */
+/* @theme vocabulary: --color-text-1 → --color-ink, --color-text-3 →          */
+/* --color-meta, --color-border → --color-line, --color-border-strong →        */
+/* --color-line-strong, --text-eyebrow-size → --text-eyebrow,                  */
+/* --text-eyebrow-tracking → --text-eyebrow--letter-spacing,                   */
+/* --text-label-size → --text-label, --text-label-tracking →                   */
+/* --text-label--letter-spacing, --space-6 → literal 1.5rem.                   */
+@layer components {
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 22px;
+    border: none;
+    border-radius: var(--radius-control);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background var(--dur-fast) ease, transform var(--dur-fast) ease;
+  }
+
+  .btn--primary { background: var(--color-accent); color: var(--color-on-accent); }
+  .btn--primary:hover { background: var(--color-accent-hover); }
+
+  .btn--secondary { background: var(--color-secondary); color: var(--color-on-secondary); }
+  .btn--secondary:hover { background: var(--color-secondary-hover); }
+
+  /* Ghost: bordered, no fill. Uses --color-line-strong (was --color-border-strong)
+     and --color-ink (was --color-text-1). */
+  .btn--ghost { background: transparent; color: var(--color-ink); border: 1px solid var(--color-line-strong); }
+  .btn--ghost:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
+  .btn--block { width: 100%; }
+  .btn:disabled { opacity: .5; cursor: default; }
+
+  /* Card */
+  /* border uses --color-line (was --color-border); padding uses 1.5rem (was --space-6). */
+  .card { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-card); padding: 1.5rem; }
+  .card--pop { box-shadow: var(--shadow-pop); }
+
+  /* Role card — set --role to --color-accent (Ambassador) or --color-secondary (Referee). */
+  /* border uses --color-line (was --color-border). */
+  .role-card { --role: var(--color-accent); background: var(--color-surface); border: 1px solid var(--color-line); border-top: 3px solid var(--role); border-radius: var(--radius-card); padding: 30px; }
+  .role-card--referee { --role: var(--color-secondary); }
+
+  /* Eyebrow + label (mono type). Uses --text-eyebrow (was --text-eyebrow-size),
+     --text-eyebrow--letter-spacing (was --text-eyebrow-tracking),
+     --text-label (was --text-label-size), --text-label--letter-spacing (was --text-label-tracking),
+     --color-meta (was --color-text-3). */
+  .eyebrow { font-family: var(--font-mono); font-size: var(--text-eyebrow); letter-spacing: var(--text-eyebrow--letter-spacing); text-transform: uppercase; color: var(--color-accent); }
+  .label   { font-family: var(--font-mono); font-size: var(--text-label); letter-spacing: var(--text-label--letter-spacing); text-transform: uppercase; color: var(--color-meta); }
+
+  /* Chip / language switch. Uses --color-line-strong (was --color-border-strong),
+     --color-ink (was --color-text-1). */
+  .chip { display: inline-flex; align-items: center; gap: 8px; padding: 7px 13px; border: 1px solid var(--color-line-strong); border-radius: var(--radius-pill); font-size: 13px; font-weight: 500; color: var(--color-ink); background: transparent; }
+
+  /* Announcement / inline callout. */
+  .announce { display: inline-flex; align-items: center; gap: 10px; padding: 12px 20px; background: var(--color-accent-tint); border: 1px solid rgb(14 116 144 / 0.20); border-radius: var(--radius-pill); color: var(--color-accent-ink); font-size: 14px; font-weight: 500; }
+  .announce__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent); flex: none; }
+
+  /* Status pill — tone via modifier. */
+  .status { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: var(--radius-control); font-size: 14px; font-weight: 500; }
+  .status--queue  { background: var(--color-accent-tint);    color: var(--color-accent-ink); }
+  .status--action { background: var(--color-secondary-tint); color: var(--color-secondary-ink); }
+  .status--done   { background: var(--color-success-tint);   color: var(--color-success-ink); }
+
+  /* Nav + wordmark. border uses --color-line (was --color-border),
+     --color-ink (was --color-text-1). */
+  .nav { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px 32px; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
+  .wordmark { font-family: var(--font-display); font-weight: 700; font-size: 18px; letter-spacing: -0.02em; color: var(--color-ink); }
+  .wordmark em { font-style: normal; color: var(--color-accent); }
 }

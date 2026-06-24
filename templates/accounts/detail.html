@@ -5,34 +5,34 @@
 
 {% block content %}
     <section class="mx-auto max-w-xl">
-        <h1 class="mb-6 text-2xl font-bold text-text-1">{% translate "My account" %}</h1>
+        <h1 class="mb-6 text-2xl font-bold text-ink">{% translate "My account" %}</h1>
 
         {% if messages %}
             {% for message in messages %}
-                <div class="mb-4 rounded-md border border-border bg-card p-3 text-sm text-text-2">
+                <div class="mb-4 rounded-md border border-line bg-surface p-3 text-sm text-body">
                     {{ message }}
                 </div>
             {% endfor %}
         {% endif %}
 
         {# Profile #}
-        <div class="mb-6 rounded-card border border-border bg-card p-6">
+        <div class="mb-6 rounded-card border border-line bg-surface p-6">
             <div class="mb-4 flex items-center justify-between">
-                <h2 class="text-lg font-semibold text-text-1">{% translate "Your details" %}</h2>
+                <h2 class="text-lg font-semibold text-ink">{% translate "Your details" %}</h2>
                 <a href="{% url 'accounts:edit' %}" class="text-sm font-medium text-accent underline">
                     {% translate "Edit" %}
                 </a>
             </div>
             <dl class="grid grid-cols-3 gap-2 text-sm">
-                <dt class="text-text-3">{% translate "Name" %}</dt>
-                <dd class="col-span-2 text-text-1">{{ user.get_full_name|default:"—" }}</dd>
-                <dt class="text-text-3">{% translate "Email" %}</dt>
-                <dd class="col-span-2 text-text-1">{{ user.email }}</dd>
+                <dt class="text-meta">{% translate "Name" %}</dt>
+                <dd class="col-span-2 text-ink">{{ user.get_full_name|default:"—" }}</dd>
+                <dt class="text-meta">{% translate "Email" %}</dt>
+                <dd class="col-span-2 text-ink">{{ user.email }}</dd>
                 {% if registration %}
-                    <dt class="text-text-3">{% translate "Phone" %}</dt>
-                    <dd class="col-span-2 text-text-1">{{ registration.phone|default:"—" }}</dd>
-                    <dt class="text-text-3">{% translate "Language" %}</dt>
-                    <dd class="col-span-2 text-text-1">
+                    <dt class="text-meta">{% translate "Phone" %}</dt>
+                    <dd class="col-span-2 text-ink">{{ registration.phone|default:"—" }}</dd>
+                    <dt class="text-meta">{% translate "Language" %}</dt>
+                    <dd class="col-span-2 text-ink">
                         {{ registration.get_preferred_language_display|default:"—" }}
                     </dd>
                 {% endif %}
@@ -40,25 +40,25 @@
         </div>
 
         {# Registration — role is read-only. #}
-        <div class="mb-6 rounded-card border border-border bg-card p-6">
-            <h2 class="mb-3 text-lg font-semibold text-text-1">{% translate "Your registration" %}</h2>
+        <div class="mb-6 rounded-card border border-line bg-surface p-6">
+            <h2 class="mb-3 text-lg font-semibold text-ink">{% translate "Your registration" %}</h2>
             {% if registration %}
                 <dl class="grid grid-cols-3 gap-2 text-sm">
-                    <dt class="text-text-3">{% translate "Role" %}</dt>
-                    <dd class="col-span-2 text-text-1">{{ registration.get_role_display }}</dd>
-                    <dt class="text-text-3">{% translate "Status" %}</dt>
-                    <dd class="col-span-2 text-text-1">{{ registration.get_status_display }}</dd>
+                    <dt class="text-meta">{% translate "Role" %}</dt>
+                    <dd class="col-span-2 text-ink">{{ registration.get_role_display }}</dd>
+                    <dt class="text-meta">{% translate "Status" %}</dt>
+                    <dd class="col-span-2 text-ink">{{ registration.get_status_display }}</dd>
                 </dl>
-                <p class="mt-3 text-xs text-text-3">
+                <p class="mt-3 text-xs text-meta">
                     {% blocktranslate trimmed %}
                         Your role is fixed. To register in the other role you must delete your account and start again.
                     {% endblocktranslate %}
                 </p>
             {% else %}
-                <p class="text-sm text-text-2">{% translate "You have no registration yet." %}</p>
+                <p class="text-sm text-body">{% translate "You have no registration yet." %}</p>
                 <a
                     href="{% url 'public:register' %}"
-                    class="mt-3 inline-flex items-center justify-center rounded-pill bg-accent px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+                    class="mt-3 inline-flex items-center justify-center rounded-pill bg-accent px-5 py-2.5 text-sm font-medium text-on-accent transition hover:opacity-90"
                 >
                     {% translate "Register now" %}
                 </a>
@@ -66,24 +66,24 @@
         </div>
 
         {# Security #}
-        <div class="rounded-card border border-border bg-card p-6">
-            <h2 class="mb-3 text-lg font-semibold text-text-1">{% translate "Security" %}</h2>
-            <p class="mb-4 text-sm text-text-2">
+        <div class="rounded-card border border-line bg-surface p-6">
+            <h2 class="mb-3 text-lg font-semibold text-ink">{% translate "Security" %}</h2>
+            <p class="mb-4 text-sm text-body">
                 {% blocktranslate trimmed %}
                     Link your Facebook profile so you can sign in with it, or remove the connection.
                 {% endblocktranslate %}
             </p>
             <a
                 href="{% url 'socialaccount_connections' %}"
-                class="inline-flex items-center justify-center rounded-pill border border-border bg-card px-5 py-2.5 text-sm font-medium text-text-1 transition hover:bg-surface"
+                class="inline-flex items-center justify-center rounded-pill border border-line bg-surface px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-page"
             >
                 {% translate "Manage Facebook connection" %}
             </a>
 
-            <hr class="my-5 border-border">
+            <hr class="my-5 border-line">
 
             <h3 class="mb-2 text-sm font-semibold text-accent">{% translate "Delete account" %}</h3>
-            <p class="mb-3 text-sm text-text-2">
+            <p class="mb-3 text-sm text-body">
                 {% blocktranslate trimmed %}
                     Permanently delete your account and all your registrations. This cannot be undone.
                 {% endblocktranslate %}

@@ -3,7 +3,7 @@ Reusable card container.
 Params: title (optional); body rendered via the "card_body" block by the caller,
 or pass `body` text.
 {% endcomment %}
-<div class="rounded-card border border-border bg-card p-6 shadow-sm">
-    {% if title %}<h2 class="mb-2 text-lg font-semibold text-text-1">{{ title }}</h2>{% endif %}
-    <div class="text-text-2">{{ body }}</div>
+<div class="card">
+    {% if title %}<h2 class="mb-2 text-lg font-semibold text-ink">{{ title }}</h2>{% endif %}
+    <div class="text-body">{{ body }}</div>
 </div>

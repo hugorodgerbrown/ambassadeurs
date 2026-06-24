@@ -5,10 +5,10 @@
 
 {% block content %}
     <section class="mx-auto max-w-xl text-center">
-        <h1 class="mb-4 text-3xl font-bold text-text-1">
+        <h1 class="mb-4 text-3xl font-bold text-ink">
             {% translate "You're in the queue" %}
         </h1>
-        <p class="mb-6 text-text-2">
+        <p class="mb-6 text-body">
             {% if role_value == 'AMBASSADOR' %}
                 {% blocktranslate trimmed %}
                     Thanks for offering to refer a new holder. We'll match you with a referee and email you when it
@@ -21,9 +21,9 @@
             {% endif %}
         </p>
 
-        <div class="rounded-card border border-border bg-card p-6 text-left">
-            <h2 class="mb-2 text-lg font-semibold text-text-1">{% translate "Your responsibilities" %}</h2>
-            <ul class="list-disc space-y-2 pl-5 text-sm text-text-2">
+        <div class="rounded-card border border-line bg-surface p-6 text-left">
+            <h2 class="mb-2 text-lg font-semibold text-ink">{% translate "Your responsibilities" %}</h2>
+            <ul class="list-disc space-y-2 pl-5 text-sm text-body">
                 <li>{% translate "Watch your inbox — we contact you by email." %}</li>
                 <li>{% translate "When matched, accept (or decline) within 72 hours." %}</li>
                 <li>

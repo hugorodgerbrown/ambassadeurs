@@ -7,8 +7,8 @@ Context: form (RegistrationForm), role (slug), role_value (Role value).
 For ambassadors, the form renders a prior_pass select (SEASONAL / ANNUAL / MONT4).
 Referees do not see this field — their prior_pass resolves to NONE in the service.
 {% endcomment %}
-<div class="rounded-card border border-border bg-card p-6">
-    <h2 class="mb-1 text-lg font-semibold text-text-1">
+<div class="rounded-card border border-line bg-surface p-6">
+    <h2 class="mb-1 text-lg font-semibold text-ink">
         {% if role_value == 'AMBASSADOR' %}
             {% translate "Ambassador details" %}
         {% else %}
@@ -17,7 +17,7 @@ Referees do not see this field — their prior_pass resolves to NONE in the serv
     </h2>
 
     {% if role_value == 'REFEREE' %}
-        <p class="mb-4 text-sm text-text-2">
+        <p class="mb-4 text-sm text-body">
             {% blocktranslate trimmed %}
                 To qualify you must be genuinely new: you must not have held a mid-season, seasonal or annual 4 Vallées
                 pass in either of the two previous seasons.
@@ -38,12 +38,12 @@ Referees do not see this field — their prior_pass resolves to NONE in the serv
         {% for field in form %}
             {% if field.name != 'attestation' %}
                 <div class="mb-4">
-                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-text-1">
+                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-ink">
                         {{ field.label }}{% if field.field.required %} *{% endif %}
                     </label>
                     {{ field }}
                     {% if field.help_text %}
-                        <p class="mt-1 text-xs text-text-3">{{ field.help_text }}</p>
+                        <p class="mt-1 text-xs text-meta">{{ field.help_text }}</p>
                     {% endif %}
                     {% for error in field.errors %}
                         <p class="mt-1 text-xs text-accent">{{ error }}</p>
@@ -53,8 +53,8 @@ Referees do not see this field — their prior_pass resolves to NONE in the serv
         {% endfor %}
 
         {# Mandatory prior-season attestation — wording set per role. #}
-        <fieldset class="mb-6 rounded-md border border-border bg-surface p-4">
-            <p class="mb-2 text-sm text-text-2">
+        <fieldset class="mb-6 rounded-md border border-line bg-page p-4">
+            <p class="mb-2 text-sm text-body">
                 {% if role_value == 'AMBASSADOR' %}
                     {% blocktranslate trimmed %}
                         I confirm that I held a seasonal or annual 4 Vallées pass in one of the two previous seasons. I
@@ -67,7 +67,7 @@ Referees do not see this field — their prior_pass resolves to NONE in the serv
                     {% endblocktranslate %}
                 {% endif %}
             </p>
-            <label class="flex items-start gap-2 text-sm text-text-1">
+            <label class="flex items-start gap-2 text-sm text-ink">
                 {{ form.attestation }}
                 <span>{{ form.attestation.label }}</span>
             </label>
@@ -78,7 +78,7 @@ Referees do not see this field — their prior_pass resolves to NONE in the serv
 
         <button
             type="submit"
-            class="inline-flex items-center justify-center rounded-pill bg-accent px-5 py-2.5 font-medium text-white transition hover:opacity-90"
+            class="inline-flex items-center justify-center rounded-pill bg-accent px-5 py-2.5 font-medium text-on-accent transition hover:opacity-90"
         >
             {% translate "Register and join the queue" %}
         </button>

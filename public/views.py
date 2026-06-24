@@ -17,7 +17,6 @@ from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
-from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.translation import gettext as _
 
@@ -72,10 +71,11 @@ def download_application_form(request: HttpRequest) -> HttpResponse:
     """Record a form download and redirect to the application-form PDF.
 
     Creates one FormDownload row per request (the conversion metric) then
-    issues a redirect to the static PDF. No PII is stored.
+    issues a redirect to the externally-hosted PDF (``APPLICATION_FORM_URL``).
+    No PII is stored.
     """
     FormDownload.objects.create()
-    return redirect(static("docs/application-form.pdf"))
+    return redirect(settings.APPLICATION_FORM_URL)
 
 
 # A no-op service worker served at the origin root so browsers stop 404-ing on

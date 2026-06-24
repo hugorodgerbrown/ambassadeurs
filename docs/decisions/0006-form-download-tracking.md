@@ -33,7 +33,8 @@ Three options were considered:
 
 Use option 2: a `FormDownload(BaseModel)` model with no fields beyond the
 `BaseModel` timestamps. The download view at `/application-form/` creates one
-row then redirects to the static PDF.
+row then redirects to the application-form PDF, which is hosted off-app by the
+4 Vallées and configured via the `APPLICATION_FORM_URL` setting.
 
 ### Key choices
 
@@ -49,11 +50,11 @@ if the numbers become unreliable.
 **`created_at` is the metric.** The admin `date_hierarchy` on `created_at`
 lets staff browse download counts by day with no additional tooling.
 
-**Redirect, not streaming.** The view redirects to the WhiteNoise-served static
-file rather than streaming the PDF itself. This keeps the response fast, avoids
-loading the file into memory, and means the row is created before the browser
-follows the redirect — so even if the download is aborted, the intent is
-recorded.
+**Redirect, not streaming.** The view redirects to the externally-hosted PDF
+(`APPLICATION_FORM_URL`, kept in config so the URL can change without a deploy)
+rather than streaming the file itself. This keeps the response fast, avoids
+proxying the file, and means the row is created before the browser follows the
+redirect — so even if the download is aborted, the intent is recorded.
 
 ---
 

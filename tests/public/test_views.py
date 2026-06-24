@@ -1,6 +1,7 @@
 # Tests for the public site views.
 
 import pytest
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import mail
 from django.test import Client, override_settings
@@ -500,8 +501,9 @@ def test_download_application_form_creates_form_download_row() -> None:
     assert FormDownload.objects.count() == 1
 
 
-def test_download_application_form_redirects_to_pdf() -> None:
-    """The download view redirects (302) to a URL ending application-form.pdf."""
+@override_settings(APPLICATION_FORM_URL="https://example.test/form.pdf")
+def test_download_application_form_redirects_to_configured_url() -> None:
+    """The download view redirects (302) to the configured APPLICATION_FORM_URL."""
     response = Client().get(reverse("public:application_form"))
     assert response.status_code == 302
-    assert response.url.endswith("application-form.pdf")
+    assert response.url == settings.APPLICATION_FORM_URL

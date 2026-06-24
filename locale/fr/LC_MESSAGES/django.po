@@ -6,11 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-<<<<<<< HEAD
 "POT-Creation-Date: 2026-06-24 13:15+0200\n"
-=======
-"POT-Creation-Date: 2026-06-24 13:12+0200\n"
->>>>>>> c8cdf5f (VERB-15: add FormDownload model, how-it-works page, PDF download view)
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -20,11 +16,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-<<<<<<< HEAD
 #: accounts/forms.py:24 matching/forms.py:68
-=======
-#: accounts/forms.py:24 matching/forms.py:61
->>>>>>> c8cdf5f (VERB-15: add FormDownload model, how-it-works page, PDF download view)
 msgid "First name"
 msgstr ""
 
@@ -179,11 +171,11 @@ msgid ""
 "If you did not register for this programme, please ignore this email."
 msgstr ""
 
-#: public/views.py:101
+#: public/views.py:83
 msgid "Confirm your email to register"
 msgstr ""
 
-#: public/views.py:103
+#: public/views.py:85
 #, python-format
 msgid ""
 "Click the link below to confirm your email and continue registering for the "
@@ -329,11 +321,6 @@ msgstr ""
 msgid "Terms"
 msgstr ""
 
-#: templates/includes/footer.html:19 templates/public/home.html:30
-#: templates/public/how_it_works.html:4 templates/public/how_it_works.html:8
-msgid "How it works"
-msgstr "Comment ça fonctionne"
-
 #: templates/includes/nav.html:20
 msgid "Log in"
 msgstr ""
@@ -356,6 +343,10 @@ msgstr ""
 
 #: templates/public/home.html:22
 msgid "Registration opens soon — check back closer to the start of the season."
+msgstr ""
+
+#: templates/public/home.html:30
+msgid "How it works"
 msgstr ""
 
 #: templates/public/home.html:33
@@ -409,147 +400,6 @@ msgstr ""
 #: templates/public/home.html:82
 msgid "Register as a Referee"
 msgstr ""
-
-#: templates/public/how_it_works.html:11
-msgid "What is the 4 Vallées Ambassadors Program?"
-msgstr "Qu'est-ce que le programme Ambassadeurs des 4 Vallées ?"
-
-#: templates/public/how_it_works.html:14
-msgid ""
-"The 4 Vallées Ambassadors Program is a referral scheme that lets a returning "
-"season-pass holder (an Ambassador) bring a genuinely new holder (a Referee) "
-"into the programme. Both apply together and, if eligible, both receive a "
-"discount on their seasonal pass."
-msgstr ""
-"Le programme Ambassadeurs des 4 Vallées est un système de parrainage qui "
-"permet à un détenteur de forfait saisonnier (un Ambassadeur) d'accueillir un "
-"nouveau détenteur (un Parrainé) dans le programme. Les deux font la demande "
-"ensemble et, s'ils sont éligibles, bénéficient tous les deux d'une réduction "
-"sur leur forfait saisonnier."
-
-#: templates/public/how_it_works.html:22
-msgid "Who is an Ambassador and who is a Referee?"
-msgstr "Qui est Ambassadeur et qui est Parrainé ?"
-
-#: templates/public/how_it_works.html:25
-msgid ""
-"An Ambassador is someone who held a 4 Vallées seasonal or annual pass (or a "
-"Mont 4 Card) in a prior season. A Referee is someone who has never held such "
-"a pass — they are genuinely new to the 4 Vallées programme. Each Ambassador "
-"sponsors exactly one Referee."
-msgstr ""
-"Un Ambassadeur est une personne qui détenait un forfait saisonnier ou annuel "
-"des 4 Vallées (ou une carte Mont 4) lors d'une saison précédente. Un Parrainé "
-"est une personne qui n'a jamais détenu un tel forfait — il est véritablement "
-"nouveau au programme des 4 Vallées. Chaque Ambassadeur parraine exactement "
-"un Parrainé."
-
-#: templates/public/how_it_works.html:32
-msgid "How do I apply?"
-msgstr "Comment faire la demande ?"
-
-#: templates/public/how_it_works.html:34
-msgid ""
-"Download the application form, fill it in together with your partner, and "
-"email it to customer@televerbier.ch. You and your partner must sign the form "
-"and both be present at the ticket office to purchase your passes together."
-msgstr ""
-"Téléchargez le formulaire de demande, remplissez-le avec votre partenaire et "
-"envoyez-le par e-mail à customer@televerbier.ch. Vous et votre partenaire "
-"devez signer le formulaire et être tous les deux présents au guichet pour "
-"acheter vos forfaits ensemble."
-
-#: templates/public/how_it_works.html:42
-msgid "Download application form"
-msgstr "Télécharger le formulaire de demande"
-
-#: templates/public/how_it_works.html:46
-msgid "What is the process?"
-msgstr "Quel est le processus ?"
-
-#: templates/public/how_it_works.html:48
-msgid ""
-"Once matched, both the Ambassador and the Referee fill in the application "
-"form together and email it to customer@televerbier.ch. They then visit the "
-"ticket office together to sign the form in person and purchase their passes "
-"at the kiosk."
-msgstr ""
-"Une fois jumelés, l'Ambassadeur et le Parrainé remplissent ensemble le "
-"formulaire de demande et l'envoient par e-mail à customer@televerbier.ch. "
-"Ils se rendent ensuite ensemble au guichet pour signer le formulaire en "
-"personne et acheter leurs forfaits au kiosque."
-
-#: templates/public/how_it_works.html:55
-msgid "What are the requirements?"
-msgstr "Quelles sont les conditions requises ?"
-
-#: templates/public/how_it_works.html:57
-msgid ""
-"Both the Ambassador and the Referee must sign the application form and "
-"provide a valid passport or national identity card at the ticket office. The "
-"Referee must not have held a 4 Vallées seasonal or annual pass in any prior "
-"season — this is self-attested on the form and verified at the kiosk."
-msgstr ""
-"L'Ambassadeur et le Parrainé doivent tous les deux signer le formulaire de "
-"demande et présenter un passeport ou une carte d'identité nationale valide au "
-"guichet. Le Parrainé ne doit pas avoir détenu de forfait saisonnier ou annuel "
-"des 4 Vallées lors d'une saison précédente — cela est déclaré sur l'honneur "
-"sur le formulaire et vérifié au kiosque."
-
-#: templates/public/how_it_works.html:65
-msgid "What does this site do — and not do?"
-msgstr "Que fait ce site — et que ne fait-il pas ?"
-
-#: templates/public/how_it_works.html:68
-msgid ""
-"This site handles only the matchmaking: it connects an Ambassador with a "
-"Referee so they can apply together. It does not collect the full application "
-"details (date of birth, address, photo ID, keycard, or insurance) and it is "
-"not connected to the ticket-office purchase system. Filling in the form and "
-"buying at the kiosk happen off-app and are unchanged."
-msgstr ""
-"Ce site ne gère que la mise en relation : il connecte un Ambassadeur avec un "
-"Parrainé pour qu'ils puissent faire la demande ensemble. Il ne collecte pas "
-"les informations complètes de la demande (date de naissance, adresse, pièce "
-"d'identité, carte de ski, assurance) et n'est pas connecté au système "
-"d'achat du guichet. Le remplissage du formulaire et l'achat au kiosque se "
-"font en dehors de l'application et restent inchangés."
-
-#: templates/public/how_it_works.html:76
-msgid "How does the match work?"
-msgstr "Comment fonctionne le jumelage ?"
-
-#: templates/public/how_it_works.html:78
-msgid ""
-"When you register, the system places you in a queue and pairs you with an "
-"eligible partner as soon as one becomes available. You do not browse or "
-"choose — the system assigns a match. Once proposed, both parties have a "
-"fixed window to accept. Neither side sees the other's contact details until "
-"both have accepted."
-msgstr ""
-"Lorsque vous vous inscrivez, le système vous place dans une file d'attente "
-"et vous associe à un partenaire éligible dès qu'un est disponible. Vous ne "
-"parcourez pas les profils et ne choisissez pas — le système attribue un "
-"jumelage. Une fois proposé, les deux parties disposent d'une fenêtre fixe "
-"pour accepter. Aucune des deux parties ne voit les coordonnées de l'autre "
-"avant que toutes les deux aient accepté."
-
-#: templates/public/how_it_works.html:86
-msgid "What happens next?"
-msgstr "Que se passe-t-il ensuite ?"
-
-#: templates/public/how_it_works.html:88
-msgid ""
-"Once both parties accept the match, each receives the other's contact "
-"details. They then arrange to fill in the application form and visit the "
-"ticket office together. If either party declines or the acceptance window "
-"lapses, both re-enter the queue and the system proposes a new match."
-msgstr ""
-"Une fois que les deux parties acceptent le jumelage, chacune reçoit les "
-"coordonnées de l'autre. Elles s'organisent ensuite pour remplir le formulaire "
-"de demande et se rendre ensemble au guichet. Si l'une des parties refuse ou "
-"si la fenêtre d'acceptation expire, les deux réintègrent la file d'attente "
-"et le système propose un nouveau jumelage."
 
 #: templates/public/legal/cookies.html:4 templates/public/legal/cookies.html:8
 msgid "Cookie Policy"

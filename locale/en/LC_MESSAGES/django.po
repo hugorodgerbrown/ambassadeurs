@@ -6,11 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-<<<<<<< HEAD
 "POT-Creation-Date: 2026-06-24 13:15+0200\n"
-=======
-"POT-Creation-Date: 2026-06-24 13:12+0200\n"
->>>>>>> c8cdf5f (VERB-15: add FormDownload model, how-it-works page, PDF download view)
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -20,11 +16,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-<<<<<<< HEAD
 #: accounts/forms.py:24 matching/forms.py:68
-=======
-#: accounts/forms.py:24 matching/forms.py:61
->>>>>>> c8cdf5f (VERB-15: add FormDownload model, how-it-works page, PDF download view)
 msgid "First name"
 msgstr ""
 
@@ -179,11 +171,11 @@ msgid ""
 "If you did not register for this programme, please ignore this email."
 msgstr ""
 
-#: public/views.py:101
+#: public/views.py:83
 msgid "Confirm your email to register"
 msgstr ""
 
-#: public/views.py:103
+#: public/views.py:85
 #, python-format
 msgid ""
 "Click the link below to confirm your email and continue registering for the "
@@ -329,11 +321,6 @@ msgstr ""
 msgid "Terms"
 msgstr ""
 
-#: templates/includes/footer.html:19 templates/public/home.html:30
-#: templates/public/how_it_works.html:4 templates/public/how_it_works.html:8
-msgid "How it works"
-msgstr ""
-
 #: templates/includes/nav.html:20
 msgid "Log in"
 msgstr ""
@@ -356,6 +343,10 @@ msgstr ""
 
 #: templates/public/home.html:22
 msgid "Registration opens soon — check back closer to the start of the season."
+msgstr ""
+
+#: templates/public/home.html:30
+msgid "How it works"
 msgstr ""
 
 #: templates/public/home.html:33
@@ -408,107 +399,6 @@ msgstr ""
 
 #: templates/public/home.html:82
 msgid "Register as a Referee"
-msgstr ""
-
-#: templates/public/how_it_works.html:11
-msgid "What is the 4 Vallées Ambassadors Program?"
-msgstr ""
-
-#: templates/public/how_it_works.html:14
-msgid ""
-"The 4 Vallées Ambassadors Program is a referral scheme that lets a returning "
-"season-pass holder (an Ambassador) bring a genuinely new holder (a Referee) "
-"into the programme. Both apply together and, if eligible, both receive a "
-"discount on their seasonal pass."
-msgstr ""
-
-#: templates/public/how_it_works.html:22
-msgid "Who is an Ambassador and who is a Referee?"
-msgstr ""
-
-#: templates/public/how_it_works.html:25
-msgid ""
-"An Ambassador is someone who held a 4 Vallées seasonal or annual pass (or a "
-"Mont 4 Card) in a prior season. A Referee is someone who has never held such "
-"a pass — they are genuinely new to the 4 Vallées programme. Each Ambassador "
-"sponsors exactly one Referee."
-msgstr ""
-
-#: templates/public/how_it_works.html:32
-msgid "How do I apply?"
-msgstr ""
-
-#: templates/public/how_it_works.html:34
-msgid ""
-"Download the application form, fill it in together with your partner, and "
-"email it to customer@televerbier.ch. You and your partner must sign the form "
-"and both be present at the ticket office to purchase your passes together."
-msgstr ""
-
-#: templates/public/how_it_works.html:42
-msgid "Download application form"
-msgstr ""
-
-#: templates/public/how_it_works.html:46
-msgid "What is the process?"
-msgstr ""
-
-#: templates/public/how_it_works.html:48
-msgid ""
-"Once matched, both the Ambassador and the Referee fill in the application "
-"form together and email it to customer@televerbier.ch. They then visit the "
-"ticket office together to sign the form in person and purchase their passes "
-"at the kiosk."
-msgstr ""
-
-#: templates/public/how_it_works.html:55
-msgid "What are the requirements?"
-msgstr ""
-
-#: templates/public/how_it_works.html:57
-msgid ""
-"Both the Ambassador and the Referee must sign the application form and "
-"provide a valid passport or national identity card at the ticket office. The "
-"Referee must not have held a 4 Vallées seasonal or annual pass in any prior "
-"season — this is self-attested on the form and verified at the kiosk."
-msgstr ""
-
-#: templates/public/how_it_works.html:65
-msgid "What does this site do — and not do?"
-msgstr ""
-
-#: templates/public/how_it_works.html:68
-msgid ""
-"This site handles only the matchmaking: it connects an Ambassador with a "
-"Referee so they can apply together. It does not collect the full application "
-"details (date of birth, address, photo ID, keycard, or insurance) and it is "
-"not connected to the ticket-office purchase system. Filling in the form and "
-"buying at the kiosk happen off-app and are unchanged."
-msgstr ""
-
-#: templates/public/how_it_works.html:76
-msgid "How does the match work?"
-msgstr ""
-
-#: templates/public/how_it_works.html:78
-msgid ""
-"When you register, the system places you in a queue and pairs you with an "
-"eligible partner as soon as one becomes available. You do not browse or "
-"choose — the system assigns a match. Once proposed, both parties have a "
-"fixed window to accept. Neither side sees the other's contact details until "
-"both have accepted."
-msgstr ""
-
-#: templates/public/how_it_works.html:86
-msgid "What happens next?"
-msgstr ""
-
-#: templates/public/how_it_works.html:88
-msgid ""
-"Once both parties accept the match, each receives the other's contact "
-"details. They then arrange to fill in the application form and visit the "
-"ticket office together. If either party declines or the acceptance window "
-"lapses, both re-enter the queue and the system proposes a new match."
 msgstr ""
 
 #: templates/public/legal/cookies.html:4 templates/public/legal/cookies.html:8

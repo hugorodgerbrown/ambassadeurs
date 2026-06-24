@@ -395,7 +395,8 @@
      check-marked .req-callout. Follows --role. */
   .eligibility          { background: var(--color-surface); border: 1px solid var(--color-line); border-top: 3px solid var(--role); border-radius: var(--radius-card); padding: 24px 24px 26px; }
   .eligibility__eyebrow { color: var(--role); margin-bottom: 6px; }
-  .eligibility__item    { display: flex; gap: 15px; padding: 15px 0; border-top: 1px solid var(--color-line); }
+  .eligibility h2       { margin-bottom: 18px; }
+  .eligibility__item    { display: flex; gap: 15px; padding: 18px 0; border-top: 1px solid var(--color-line); }
   .eligibility__num     { flex: none; font-family: var(--font-mono); font-weight: 600; font-size: 13px; color: var(--role); padding-top: 2px; }
   .eligibility__text    { flex: 1; font-size: 0.97rem; line-height: 1.5; color: var(--color-body); }
 

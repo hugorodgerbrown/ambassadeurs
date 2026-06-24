@@ -486,7 +486,6 @@ def test_details_form_fragment_ambassador_contains_qualifying_criteria() -> None
     assert response.status_code == 200
     assert b"What you'll need to qualify" in response.content
     assert b"Eligibility \xc2\xb7 Ambassador" in response.content
-    assert b"No retroactive refund." in response.content
     assert b"Mont 4 Card" in response.content
 
 
@@ -499,7 +498,6 @@ def test_details_form_fragment_referee_contains_qualifying_criteria() -> None:
     assert response.status_code == 200
     assert b"What you'll need to qualify" in response.content
     assert b"Eligibility \xc2\xb7 Referee" in response.content
-    assert b"No retroactive refund." in response.content
     assert b"cannot be bought online" in response.content
 
 

@@ -229,11 +229,7 @@ Context:
     {# ── Form card. ── #}
     <div class="card mt-6">
         <h2 class="mb-5 text-h3 text-ink">
-            {% if role_value == 'AMBASSADOR' %}
-                {% translate "Ambassador details" %}
-            {% else %}
-                {% translate "Referee details" %}
-            {% endif %}
+            {% translate "Your details" %}
         </h2>
 
         <form method="post" action="{% url 'public:register' %}">

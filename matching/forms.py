@@ -1,9 +1,12 @@
-# Registration form shared by the ambassador and referee flows.
+# Registration form for the combined single-step flow (VERB-24).
 #
 # The form is role-parameterised. prior_pass is role-aware: ambassadors choose
 # from SEASONAL / ANNUAL / MONT4; referees have no select and it resolves to
 # NONE. Account/User/Registration creation happens in services.register_participant,
 # never in the form.
+#
+# RegistrationEmailForm has been removed (was VERB-9 step-2 capture); the
+# email field is now part of RegistrationForm itself.
 
 from __future__ import annotations
 
@@ -28,22 +31,6 @@ _AMBASSADOR_PRIOR_PASS_CHOICES = [
     (Registration.PriorPass.ANNUAL, Registration.PriorPass.ANNUAL.label),
     (Registration.PriorPass.MONT4, Registration.PriorPass.MONT4.label),
 ]
-
-
-class RegistrationEmailForm(forms.Form):
-    """Capture the email to verify before registration begins (VERB-9 step 2)."""
-
-    email = forms.EmailField(
-        label=_("Email"),
-        widget=forms.EmailInput(
-            attrs={"class": _INPUT_CLASSES, "autocomplete": "email"}
-        ),
-    )
-
-    def clean_email(self) -> str:
-        """Normalise the email to lowercase (CLAUDE.md invariant 5)."""
-        email: str = self.cleaned_data["email"]
-        return email.lower()
 
 
 class RegistrationForm(forms.Form):
@@ -180,14 +167,23 @@ class RegistrationForm(forms.Form):
         if self.role != Registration.Role.AMBASSADOR:
             cleaned["prior_pass"] = Registration.PriorPass.NONE
 
-        # Duplicate-registration guard: one registration per user.
+        # Duplicate-registration guard: one non-PENDING registration per user.
+        # PENDING rows are excluded so that a re-submit for the same email is
+        # handled by the view (resend the confirmation link) rather than
+        # surfacing a validation error here.
         already_registered = False
         if self.user is not None:
-            already_registered = Registration.objects.filter(user=self.user).exists()
+            already_registered = (
+                Registration.objects.filter(user=self.user)
+                .exclude(status=Registration.Status.PENDING)
+                .exists()
+            )
         else:
             email = cleaned.get("email")
-            already_registered = (
-                bool(email) and Registration.objects.filter(user__email=email).exists()
+            already_registered = bool(email) and (
+                Registration.objects.filter(user__email=email)
+                .exclude(status=Registration.Status.PENDING)
+                .exists()
             )
         if already_registered:
             raise forms.ValidationError(

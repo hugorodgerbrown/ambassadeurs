@@ -1,43 +1,47 @@
-# Public-facing views: the landing page, the streamlined registration flow
-# (VERB-9), and the match accept/decline flow (VERB-19).
+# Public-facing views: the landing page, the single-step registration flow
+# (VERB-24), and the match accept/decline flow (VERB-19).
 #
-# Registration flow: capture + verify the email (signed-link or Facebook) ->
-# choose a role -> fill the role-specific details (loaded on demand via HTMX) ->
-# done. The User/Registration creation lives in the matching app services.
+# Registration flow (VERB-24): the homepage role buttons open a combined form
+# directly — no login required. The form includes an email field. On submit,
+# a Registration is created with status PENDING and a signed confirmation link
+# is emailed. Clicking the link transitions PENDING → WAITING, triggers
+# matching, logs the user in, and redirects to register_done. Facebook-login
+# references have been removed from the UI (VERB-24 P2); the allauth backend
+# and URL mount remain untouched in config/.
 #
-# Match flow: a signed email link carries the participant to /match/<token>/
-# where they can accept or decline. No @login_required — the signed token IS
-# the authentication. HTMX partial views for accept/decline are guarded with
-# require_htmx (Invariant 7). Contact PII is revealed ONLY on ACCEPTED status
-# (Invariant 1).
+# Match flow (VERB-19): a signed email link carries the participant to
+# /match/<token>/ where they can accept or decline. No @login_required — the
+# signed token IS the authentication. HTMX partial views for accept/decline are
+# guarded with require_htmx (Invariant 7). Contact PII is revealed ONLY when
+# match.status == ACCEPTED (Invariant 1).
 
 from __future__ import annotations
 
 import logging
-from typing import cast
 
 from django.conf import settings
 from django.contrib.auth import login
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
+from django.db import IntegrityError, transaction
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from accounts.services import get_or_create_participant_user
+from accounts.services import mark_email_verified
 from accounts.tokens import (
-    make_email_verification_token,
-    read_email_verification_token,
+    make_registration_confirmation_token,
     read_match_access_token,
+    read_registration_confirmation_token,
 )
 from core.decorators import require_htmx
-from matching.forms import RegistrationEmailForm, RegistrationForm
+from matching.forms import RegistrationForm
 from matching.models import Match, Registration
 from matching.services import (
     accept_match,
+    confirm_registration,
     decline_match,
     is_registration_open,
     register_participant,
@@ -53,6 +57,8 @@ ROLE_BY_SLUG = {
     "referee": Registration.Role.REFEREE,
 }
 
+# Reverse map: stored Role value → URL slug, for confirm-redirect construction.
+SLUG_BY_ROLE = {v: k for k, v in ROLE_BY_SLUG.items()}
 
 # The legal documents, keyed by URL slug. Validating against this set keeps
 # unknown pages out of the view (404) and out of template lookups.
@@ -101,71 +107,172 @@ def service_worker(request: HttpRequest) -> HttpResponse:
     return HttpResponse(_SERVICE_WORKER_BODY, content_type="application/javascript")
 
 
-def _send_verification_email(request: HttpRequest, email: str) -> str:
-    """Email a single-purpose, expiring signed link that verifies ``email``.
+def _send_confirmation_email(request: HttpRequest, registration: Registration) -> str:
+    """Email a signed confirmation link for ``registration``.
 
-    Returns the verify URL so the caller can surface it in development.
+    The token carries ``registration.pk`` scoped to the single-purpose salt
+    ``accounts.registration-confirm`` (Invariant 6). Returns the confirm URL
+    so the caller can stash it for the DEBUG shortcut.
     """
-    token = make_email_verification_token(email)
-    verify_url = request.build_absolute_uri(
-        reverse("public:register_verify", args=[token])
+    token = make_registration_confirmation_token(registration.pk)
+    confirm_url = request.build_absolute_uri(
+        reverse("public:register_confirm", args=[token])
     )
-    subject = _("Confirm your email to register")
+    subject = _("Confirm your email to join the queue")
     body = _(
-        "Click the link below to confirm your email and continue registering "
+        "Click the link below to confirm your email and join the matching queue "
         "for the 4 Vallées Ambassadors Program:\n\n"
         "%(url)s\n\n"
         "This link expires in 24 hours. If you didn't request it, ignore this email."
-    ) % {"url": verify_url}
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [email])
+    ) % {"url": confirm_url}
+    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [registration.user.email])
 
-    # In development the email is written to the console, where the long verify
-    # URL is quoted-printable soft-wrapped (a stray ``=`` mid-token) and so is
-    # awkward to copy. Log the unwrapped link on a single line for convenience.
-    # Gated on DEBUG so the sensitive signed token never reaches production logs.
+    # In development the email is written to the console, where the long confirm
+    # URL is quoted-printable soft-wrapped and awkward to copy. Log the
+    # unwrapped link on a single line for convenience. Gated on DEBUG so the
+    # signed token never reaches production logs.
     if settings.DEBUG:
-        logger.info("Verification link for %s: %s", email, verify_url)
+        logger.info(
+            "Confirmation link for registration pk=%s: %s",
+            registration.pk,
+            confirm_url,
+        )
 
-    return verify_url
+    return confirm_url
 
 
-def register_start(request: HttpRequest) -> HttpResponse:
-    """Step 1-3: capture the email and send a verification link (or use Facebook).
+def register(request: HttpRequest) -> HttpResponse:
+    """Combined registration form — no login required.
 
-    A ``?role=`` hint from the homepage CTA is remembered in the session and
-    pre-selected at the details step. An already-authenticated user skips
-    straight to the details step.
+    GET: render the form themed for ``?role=`` (default ambassador).
+    POST (anonymous): validate, create a PENDING registration (or resend if one
+        already exists for the email), send a confirmation email, redirect to
+        ``register_email_sent``.
+    POST (authenticated, defensive): complete the registration immediately at
+        WAITING status and redirect to ``register_done``.
     """
-    role_hint = request.GET.get("role")
-    if role_hint in ROLE_BY_SLUG:
-        request.session["register_role"] = role_hint
-
     if not is_registration_open():
         return render(request, "public/register_closed.html")
 
+    role_slug = request.GET.get("role", "ambassador")
+    role_value = ROLE_BY_SLUG.get(role_slug, Registration.Role.AMBASSADOR)
+
+    if request.method == "GET":
+        # Derive the display slug from the validated role value so an unknown
+        # ?role= param falls back gracefully to ambassador.
+        role_slug = SLUG_BY_ROLE[role_value]
+        # After is_authenticated, Django stubs narrow request.user to User.
+        anon_user: User | None = request.user if request.user.is_authenticated else None
+        form = RegistrationForm(role=role_value, user=anon_user)
+        return render(
+            request,
+            "public/register_details.html",
+            {"form": form, "role": role_slug, "role_value": role_value},
+        )
+
+    # POST path.
+    role_slug = request.POST.get("role", "")
+    post_role_value = ROLE_BY_SLUG.get(role_slug)
+    if post_role_value is None:
+        raise Http404("Unknown registration role.")
+    role_value = post_role_value
+
     if request.user.is_authenticated:
-        return redirect("public:register_details")
-
-    if request.method == "POST":
-        form = RegistrationEmailForm(request.POST)
+        # Defensive authenticated path (not reachable from the standard UI but
+        # handled for completeness). Create a WAITING registration immediately.
+        # Django stubs narrow request.user to User after is_authenticated.
+        auth_user: User = request.user
+        form = RegistrationForm(role=role_value, data=request.POST, user=auth_user)
         if form.is_valid():
-            verify_url = _send_verification_email(request, form.cleaned_data["email"])
-            # In development, carry the link to the confirmation page so a tester
-            # can click straight through without opening the console/inbox. Never
-            # stashed outside DEBUG so the signed token stays out of production.
-            if settings.DEBUG:
-                request.session["debug_verify_url"] = verify_url
-            return redirect("public:register_email_sent")
-    else:
-        form = RegistrationEmailForm()
+            data = form.cleaned_data
+            register_participant(
+                role=role_value,
+                user=auth_user,
+                first_name=data["first_name"],
+                last_name=data["last_name"],
+                prior_pass=data["prior_pass"],
+                phone=data.get("phone", ""),
+                preferred_location=data.get("preferred_location", ""),
+                preferred_language=data.get("preferred_language", ""),
+                accepted_terms=form.accepted_statements(),
+            )
+            return redirect("public:register_done", role=role_slug)
+        return render(
+            request,
+            "public/register_details.html",
+            {"form": form, "role": role_slug, "role_value": role_value},
+        )
 
-    return render(request, "public/register_start.html", {"form": form})
+    # Anonymous path: validate, create PENDING or resend.
+    form = RegistrationForm(role=role_value, data=request.POST)
+    if not form.is_valid():
+        return render(
+            request,
+            "public/register_details.html",
+            {"form": form, "role": role_slug, "role_value": role_value},
+        )
+
+    data = form.cleaned_data
+    email: str = data["email"]
+
+    # Check for an existing PENDING registration for this email. If one exists,
+    # resend the confirmation link without creating a second row.
+    #
+    # The lookup and create run inside a single atomic block to guard against a
+    # TOCTOU race: if a concurrent request confirms the registration between the
+    # DoesNotExist branch and the register_participant call, the OneToOne
+    # constraint would raise IntegrityError. We catch that and fall back to
+    # resending for whatever row now exists for that email.
+    try:
+        with transaction.atomic():
+            try:
+                pending_reg = Registration.objects.select_for_update().get(
+                    user__email=email, status=Registration.Status.PENDING
+                )
+                confirm_url = _send_confirmation_email(request, pending_reg)
+            except Registration.DoesNotExist:
+                registration = register_participant(
+                    role=role_value,
+                    first_name=data["first_name"],
+                    last_name=data["last_name"],
+                    email=email,
+                    prior_pass=data["prior_pass"],
+                    phone=data.get("phone", ""),
+                    preferred_location=data.get("preferred_location", ""),
+                    preferred_language=data.get("preferred_language", ""),
+                    accepted_terms=form.accepted_statements(),
+                    status=Registration.Status.PENDING,
+                )
+                confirm_url = _send_confirmation_email(request, registration)
+    except IntegrityError:
+        # A concurrent request created/confirmed a registration for this email
+        # between our DoesNotExist branch and our create attempt. Resend for
+        # whichever row now exists with a PENDING status; if none exists (it was
+        # already confirmed), fall through to a generic resend.
+        logger.warning(
+            "IntegrityError on registration create for %s — resending for existing row",
+            email,
+        )
+        try:
+            existing = Registration.objects.get(
+                user__email=email, status=Registration.Status.PENDING
+            )
+            confirm_url = _send_confirmation_email(request, existing)
+        except Registration.DoesNotExist:
+            # The race winner already confirmed: redirect without sending so the
+            # user proceeds to login normally.
+            return redirect("public:register_email_sent")
+
+    if settings.DEBUG:
+        request.session["debug_verify_url"] = confirm_url
+
+    return redirect("public:register_email_sent")
 
 
 def register_email_sent(request: HttpRequest) -> HttpResponse:
-    """Confirmation that the verification email has been sent.
+    """Confirmation that the registration confirmation email has been sent.
 
-    In development the verify link is shown on the page (pulled from the
+    In development the confirm link is shown on the page (pulled from the
     session) so a tester can click through without opening the inbox.
     """
     debug_verify_url = None
@@ -178,86 +285,41 @@ def register_email_sent(request: HttpRequest) -> HttpResponse:
     )
 
 
-def register_verify(request: HttpRequest, token: str) -> HttpResponse:
-    """Step 3a: consume the signed link, log the user in, go to the details step."""
-    email = read_email_verification_token(token)
-    if email is None:
-        return render(request, "public/register_invalid.html", status=400)
-    user = get_or_create_participant_user(email)
-    login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-    return redirect("public:register_details")
+def register_confirm(request: HttpRequest, token: str) -> HttpResponse:
+    """Consume the registration confirmation token.
 
+    Reads the token, loads the Registration, transitions PENDING → WAITING,
+    marks the email verified in allauth, logs the user in, and redirects to
+    ``register_done`` for the appropriate role.
 
-@login_required
-def register_details(request: HttpRequest) -> HttpResponse:
-    """Step 4-5: choose a role and submit the role-specific details."""
-    if not is_registration_open():
-        return render(request, "public/register_closed.html")
-
-    user = cast(User, request.user)
-
-    if request.method == "POST":
-        role = request.POST.get("role", "")
-        role_value = ROLE_BY_SLUG.get(role)
-        if role_value is None:
-            raise Http404("Unknown registration role.")
-        form = RegistrationForm(role=role_value, data=request.POST, user=user)
-        if form.is_valid():
-            data = form.cleaned_data
-            register_participant(
-                role=role_value,
-                user=user,
-                first_name=data["first_name"],
-                last_name=data["last_name"],
-                prior_pass=data["prior_pass"],
-                phone=data.get("phone", ""),
-                preferred_location=data.get("preferred_location", ""),
-                preferred_language=data.get("preferred_language", ""),
-                accepted_terms=form.accepted_statements(),
-            )
-            request.session.pop("register_role", None)
-            return redirect("public:register_done", role=role)
-        return render(
-            request,
-            "public/register_details.html",
-            {"form": form, "role": role, "role_value": role_value},
-        )
-
-    # On first load the surface is themed for the role the participant hinted at
-    # on the homepage (carried in the session), defaulting to Ambassador — the
-    # dropdown re-themes the surface to the other role on demand via HTMX.
-    role = request.session.get("register_role") or "ambassador"
-    role_value = ROLE_BY_SLUG.get(role, Registration.Role.AMBASSADOR)
-    form = RegistrationForm(role=role_value, user=user)
-    return render(
-        request,
-        "public/register_details.html",
-        {"form": form, "role": role, "role_value": role_value},
-    )
-
-
-@login_required
-@require_htmx
-def register_details_form(request: HttpRequest) -> HttpResponse:
-    """Return the themed registration surface for a role (HTMX, step 5).
-
-    Drives the "Your role" dropdown: selecting a role swaps the whole
-    ``#reg-surface`` so the eyebrow, lead copy, eligibility callout, form and
-    submit button all re-tone to the chosen role.
+    Returns 400 on a bad/expired token or a non-PENDING registration (used or
+    invalid link).
     """
-    if not is_registration_open():
-        raise Http404("Registration is closed.")
-    role = request.GET.get("role", "")
-    role_value = ROLE_BY_SLUG.get(role)
-    if role_value is None:
-        raise Http404("Unknown registration role.")
-    user = cast(User, request.user)
-    form = RegistrationForm(role=role_value, user=user)
-    return render(
+    pk = read_registration_confirmation_token(token)
+    if pk is None:
+        return render(request, "public/register_invalid.html", status=400)
+
+    try:
+        registration = Registration.objects.select_related("user").get(pk=pk)
+    except Registration.DoesNotExist:
+        return render(request, "public/register_invalid.html", status=400)
+
+    if registration.status != Registration.Status.PENDING:
+        # Already confirmed or in an unexpected state — treat as invalid link.
+        return render(request, "public/register_invalid.html", status=400)
+
+    registration = confirm_registration(registration)
+    mark_email_verified(registration.user)
+    login(
         request,
-        "public/partials/register_surface.html",
-        {"form": form, "role": role, "role_value": role_value, "is_htmx": True},
+        registration.user,
+        backend="django.contrib.auth.backends.ModelBackend",
     )
+
+    # Derive the slug from the registration role. SLUG_BY_ROLE keys are
+    # Role enum values; cast the stored str through the enum for lookup.
+    role_slug = SLUG_BY_ROLE.get(Registration.Role(registration.role), "ambassador")
+    return redirect("public:register_done", role=role_slug)
 
 
 def register_done(request: HttpRequest, role: str) -> HttpResponse:
@@ -269,6 +331,32 @@ def register_done(request: HttpRequest, role: str) -> HttpResponse:
         request,
         "public/register_done.html",
         {"role": role, "role_value": role_value},
+    )
+
+
+@require_htmx
+def register_details_form(request: HttpRequest) -> HttpResponse:
+    """Return the themed registration surface for a role (HTMX, role swap).
+
+    Drives the "Your role" dropdown: selecting a role swaps the whole
+    ``#reg-surface`` so the eyebrow, lead copy, eligibility callout, form and
+    submit button all re-tone to the chosen role.
+
+    No login required: the combined form is anonymous.
+    """
+    if not is_registration_open():
+        raise Http404("Registration is closed.")
+    role = request.GET.get("role", "")
+    role_value = ROLE_BY_SLUG.get(role)
+    if role_value is None:
+        raise Http404("Unknown registration role.")
+    # After is_authenticated, Django stubs narrow request.user to User.
+    htmx_user: User | None = request.user if request.user.is_authenticated else None
+    form = RegistrationForm(role=role_value, user=htmx_user)
+    return render(
+        request,
+        "public/partials/register_surface.html",
+        {"form": form, "role": role, "role_value": role_value, "is_htmx": True},
     )
 
 

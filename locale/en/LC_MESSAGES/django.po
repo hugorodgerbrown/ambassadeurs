@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-24 19:00+0200\n"
+"POT-Creation-Date: 2026-06-24 22:41+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -16,25 +16,25 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: accounts/forms.py:23 matching/forms.py:67
+#: accounts/forms.py:23 matching/forms.py:54
 msgid "First name"
 msgstr ""
 
-#: accounts/forms.py:28 matching/forms.py:72
+#: accounts/forms.py:28 matching/forms.py:59
 msgid "Last name"
 msgstr ""
 
-#: accounts/forms.py:33 matching/forms.py:81 templates/accounts/detail.html:39
+#: accounts/forms.py:33 matching/forms.py:68 templates/accounts/detail.html:39
 #: templates/public/match.html:43
 #: templates/public/partials/match_actions.html:87
 msgid "Phone"
 msgstr ""
 
-#: accounts/forms.py:39 matching/forms.py:93
+#: accounts/forms.py:39 matching/forms.py:80
 msgid "Preferred language"
 msgstr ""
 
-#: accounts/forms.py:41 matching/forms.py:89 matching/forms.py:95
+#: accounts/forms.py:41 matching/forms.py:76 matching/forms.py:82
 msgid "No preference"
 msgstr ""
 
@@ -46,137 +46,141 @@ msgstr ""
 msgid "Your account has been deleted."
 msgstr ""
 
-#: matching/forms.py:37 matching/forms.py:77 templates/accounts/detail.html:36
+#: matching/forms.py:64 templates/accounts/detail.html:36
 #: templates/public/match.html:35
 #: templates/public/partials/match_actions.html:79
 msgid "Email"
 msgstr ""
 
-#: matching/forms.py:87
+#: matching/forms.py:74
 msgid "Preferred resort / ticket office"
 msgstr ""
 
-#: matching/forms.py:99
+#: matching/forms.py:86
 msgid "Prior-season pass type"
 msgstr ""
 
-#: matching/forms.py:110
+#: matching/forms.py:97
 msgid "I have read and agree to the Terms of Use"
 msgstr ""
 
-#: matching/forms.py:136
+#: matching/forms.py:123
 msgid ""
 "I have held a seasonal or annual pass from one of the 4 Vallées companies in "
 "2024-25 or 2025-26."
 msgstr ""
 
-#: matching/forms.py:141
+#: matching/forms.py:128
 msgid ""
 "I have not held a mid-season, seasonal or annual pass from one of the 4 "
 "Vallées companies in 2024-25 or 2025-26."
 msgstr ""
 
-#: matching/forms.py:194
+#: matching/forms.py:190
 msgid "You are already registered for the current season."
 msgstr ""
 
-#: matching/models.py:26
+#: matching/models.py:27
 msgid "Verbier"
 msgstr ""
 
-#: matching/models.py:27
+#: matching/models.py:28
 msgid "Thyon"
 msgstr ""
 
-#: matching/models.py:28
+#: matching/models.py:29
 msgid "Nendaz"
 msgstr ""
 
-#: matching/models.py:29
+#: matching/models.py:30
 msgid "Veysonnaz"
 msgstr ""
 
-#: matching/models.py:30
+#: matching/models.py:31
 msgid "La Tzoumaz"
 msgstr ""
 
-#: matching/models.py:31
+#: matching/models.py:32
 msgid "Bruson"
 msgstr ""
 
-#: matching/models.py:79 matching/models.py:242
+#: matching/models.py:80 matching/models.py:256
 #: templates/public/partials/register_surface.html:88
 #: templates/public/partials/register_surface.html:143
 msgid "Ambassador"
 msgstr ""
 
-#: matching/models.py:80 matching/models.py:243
+#: matching/models.py:81 matching/models.py:257
 #: templates/public/partials/register_surface.html:90
 #: templates/public/partials/register_surface.html:189
 msgid "Referee"
 msgstr ""
 
-#: matching/models.py:85
+#: matching/models.py:90
+msgid "Pending"
+msgstr ""
+
+#: matching/models.py:91
 msgid "Waiting"
 msgstr ""
 
-#: matching/models.py:86
+#: matching/models.py:92
 msgid "Matched"
 msgstr ""
 
-#: matching/models.py:87
+#: matching/models.py:93
 msgid "Confirmed"
 msgstr ""
 
-#: matching/models.py:88
+#: matching/models.py:94
 msgid "Withdrawn"
 msgstr ""
 
-#: matching/models.py:89
+#: matching/models.py:95
 msgid "Suspended"
 msgstr ""
 
-#: matching/models.py:99
+#: matching/models.py:105
 msgid "None — I did not hold a prior pass"
 msgstr ""
 
-#: matching/models.py:100
+#: matching/models.py:106
 msgid "Seasonal pass (4 Vallées)"
 msgstr ""
 
-#: matching/models.py:101
+#: matching/models.py:107
 msgid "Annual pass (4 Vallées)"
 msgstr ""
 
-#: matching/models.py:102
+#: matching/models.py:108
 msgid "Mont 4 Card / special reduction"
 msgstr ""
 
-#: matching/models.py:228
+#: matching/models.py:242
 msgid "Proposed"
 msgstr ""
 
-#: matching/models.py:229
+#: matching/models.py:243
 msgid "Accepted"
 msgstr ""
 
-#: matching/models.py:230
+#: matching/models.py:244
 msgid "Declined"
 msgstr ""
 
-#: matching/models.py:231
+#: matching/models.py:245
 msgid "Expired"
 msgstr ""
 
-#: matching/models.py:232
+#: matching/models.py:246
 msgid "Abandoned"
 msgstr ""
 
-#: matching/services.py:303
+#: matching/services.py:306
 msgid "You have been matched — 4 Vallées Ambassadors Program"
 msgstr ""
 
-#: matching/services.py:305
+#: matching/services.py:308
 #, python-format
 msgid ""
 "Good news — the matching system has found you a partner for the 4 Vallées "
@@ -190,11 +194,11 @@ msgid ""
 "If you did not register for this programme, please ignore this email."
 msgstr ""
 
-#: matching/services.py:354
+#: matching/services.py:357
 msgid "Match confirmed — contact your partner"
 msgstr ""
 
-#: matching/services.py:356
+#: matching/services.py:359
 #, python-format
 msgid ""
 "Great news — your match has been confirmed!\n"
@@ -211,15 +215,15 @@ msgid ""
 "Good luck!"
 msgstr ""
 
-#: public/views.py:113
-msgid "Confirm your email to register"
+#: public/views.py:121
+msgid "Confirm your email to join the queue"
 msgstr ""
 
-#: public/views.py:115
+#: public/views.py:123
 #, python-format
 msgid ""
-"Click the link below to confirm your email and continue registering for the "
-"4 Vallées Ambassadors Program:\n"
+"Click the link below to confirm your email and join the matching queue for "
+"the 4 Vallées Ambassadors Program:\n"
 "\n"
 "%(url)s\n"
 "\n"
@@ -237,7 +241,7 @@ msgid "Are you sure you want to log out?"
 msgstr ""
 
 #: templates/accounts/delete.html:4 templates/accounts/delete.html:8
-#: templates/accounts/detail.html:105
+#: templates/accounts/detail.html:94
 msgid "Delete my account"
 msgstr ""
 
@@ -312,21 +316,11 @@ msgstr ""
 msgid "Security"
 msgstr ""
 
-#: templates/accounts/detail.html:85
-msgid ""
-"Link your Facebook profile so you can sign in with it, or remove the "
-"connection."
-msgstr ""
-
-#: templates/accounts/detail.html:90
-msgid "Manage Facebook connection"
-msgstr ""
-
-#: templates/accounts/detail.html:95
+#: templates/accounts/detail.html:84
 msgid "Delete account"
 msgstr ""
 
-#: templates/accounts/detail.html:97
+#: templates/accounts/detail.html:86
 msgid ""
 "Permanently delete your account and all your registrations. This cannot be "
 "undone."
@@ -347,10 +341,6 @@ msgstr ""
 #: templates/base.html:7 templates/includes/footer.html:29
 #: templates/includes/nav.html:29
 msgid "4 Vallées Ambassadors"
-msgstr ""
-
-#: templates/includes/_facebook_button.html:14
-msgid "Continue with Facebook"
 msgstr ""
 
 #: templates/includes/footer.html:32
@@ -393,8 +383,6 @@ msgstr ""
 #: templates/includes/footer.html:75
 #: templates/public/partials/register_surface.html:32
 #: templates/public/register_details.html:4
-#: templates/public/register_start.html:4
-#: templates/public/register_start.html:15
 msgid "Register"
 msgstr ""
 
@@ -421,8 +409,8 @@ msgstr ""
 msgid ""
 "To claim the Ambassadors discount on the 4 Vallées annual pass, a returning "
 "holder and a new holder have to apply together. We match you with a partner "
-"automatically — no more scrambling in the Facebook group, no chasing people "
-"who vanish."
+"automatically — no more scrambling for a partner, no chasing people who "
+"vanish."
 msgstr ""
 
 #: templates/public/home.html:61
@@ -578,12 +566,12 @@ msgstr ""
 #: templates/public/how_it_works.html:71
 msgid ""
 "The biggest challenge for Ambassadors is finding someone who wants to buy a "
-"Season pass for the first time. The current process is chaotic - everyone "
-"joins the Verbier Community Facebook group and battles it out to match up "
-"with someone. People are let down, ghosted, and it's hard to manage. Last "
-"year I 'lost' three potential matches in 24 hours and people scrambled to "
-"find someone. This site handles that matchmaking process. If you're an "
-"Ambassador we'll find you a Referee, and vice versa."
+"Season pass for the first time. The current process is chaotic — everyone "
+"scrambles in a community group to match up with someone. People are let "
+"down, ghosted, and it's hard to manage. Last year I 'lost' three potential "
+"matches in 24 hours and people scrambled to find someone. This site handles "
+"that matchmaking process. If you're an Ambassador we'll find you a Referee, "
+"and vice versa."
 msgstr ""
 
 #: templates/public/how_it_works.html:81
@@ -1035,7 +1023,6 @@ msgid ""
 msgstr ""
 
 #: templates/public/partials/register_surface.html:31
-#: templates/public/register_start.html:14
 msgid "Registration"
 msgstr ""
 
@@ -1173,8 +1160,8 @@ msgstr ""
 
 #: templates/public/register_email_sent.html:32
 msgid ""
-"We've emailed you a link to confirm your address and continue registering. "
-"Open it to verify your address — then we start finding your partner."
+"We've emailed you a confirmation link. Click it to confirm your address and "
+"join the matching queue — then we start finding your partner."
 msgstr ""
 
 #: templates/public/register_email_sent.html:54
@@ -1199,18 +1186,4 @@ msgstr ""
 
 #: templates/public/register_invalid.html:16
 msgid "Start again"
-msgstr ""
-
-#: templates/public/register_start.html:17
-msgid ""
-"First, confirm your email. We'll send you a link to continue — or you can "
-"use Facebook. You'll choose your role and fill in your details next."
-msgstr ""
-
-#: templates/public/register_start.html:27
-msgid "or continue with email"
-msgstr ""
-
-#: templates/public/register_start.html:34
-msgid "Email me a link"
 msgstr ""

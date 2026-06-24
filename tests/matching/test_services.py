@@ -13,6 +13,7 @@ from core.models import StateTransitionLog
 from matching.models import Match, Registration
 from matching.services import (
     accept_match,
+    confirm_registration,
     decline_match,
     is_eligible_pair,
     is_registration_open,
@@ -890,6 +891,118 @@ def test_is_eligible_pair_returns_false_when_referee_suspended() -> None:
 
 
 # ---------------------------------------------------------------------------
+# register_participant — PENDING status (VERB-24)
+# ---------------------------------------------------------------------------
+
+
+def test_register_participant_pending_creates_pending_registration() -> None:
+    """register_participant with status=PENDING creates a PENDING registration."""
+    registration = register_participant(
+        role=Registration.Role.REFEREE,
+        first_name="Grace",
+        last_name="Hopper",
+        email="grace@example.com",
+        prior_pass=Registration.PriorPass.NONE,
+        status=Registration.Status.PENDING,
+    )
+    assert registration.status == Registration.Status.PENDING
+
+
+def test_register_participant_pending_does_not_propose_match() -> None:
+    """A PENDING registration must never trigger propose_match (Invariant 2)."""
+    RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.WAITING,
+    )
+    register_participant(
+        role=Registration.Role.REFEREE,
+        first_name="Grace",
+        last_name="Hopper",
+        email="grace@example.com",
+        prior_pass=Registration.PriorPass.NONE,
+        status=Registration.Status.PENDING,
+    )
+    assert Match.objects.count() == 0
+
+
+def test_register_participant_waiting_still_proposes_match() -> None:
+    """The default (WAITING) path still calls propose_match (regression guard)."""
+    RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.WAITING,
+    )
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        register_participant(
+            role=Registration.Role.REFEREE,
+            first_name="Grace",
+            last_name="Hopper",
+            email="grace2@example.com",
+            prior_pass=Registration.PriorPass.NONE,
+        )
+    assert Match.objects.count() == 1
+
+
+# ---------------------------------------------------------------------------
+# confirm_registration (VERB-24)
+# ---------------------------------------------------------------------------
+
+
+def test_confirm_registration_transitions_pending_to_waiting() -> None:
+    """confirm_registration transitions a PENDING registration to WAITING."""
+    reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.PENDING,
+    )
+    result = confirm_registration(reg)
+    assert result.status == Registration.Status.WAITING
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.WAITING
+
+
+def test_confirm_registration_proposes_match_after_flip() -> None:
+    """confirm_registration calls propose_match after transitioning to WAITING."""
+    RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.WAITING,
+    )
+    reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.PENDING,
+    )
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        confirm_registration(reg)
+    assert Match.objects.count() == 1
+
+
+def test_confirm_registration_non_pending_is_noop() -> None:
+    """confirm_registration on a non-PENDING registration is a no-op."""
+    reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.WAITING,
+    )
+    result = confirm_registration(reg)
+    # Status unchanged; no match created (no counterpart anyway).
+    assert result.status == Registration.Status.WAITING
+    assert Match.objects.count() == 0
+
+
+def test_confirm_registration_syncs_in_memory_instance() -> None:
+    """confirm_registration syncs the passed-in instance's status field."""
+    reg = RegistrationFactory.create(
+        status=Registration.Status.PENDING,
+    )
+    result = confirm_registration(reg)
+    # Must be synced without a separate refresh.
+    assert result.status == Registration.Status.WAITING
+    assert reg.status == Registration.Status.WAITING
+
+
+# ---------------------------------------------------------------------------
 # record_acceptance
 # ---------------------------------------------------------------------------
 
@@ -1198,8 +1311,7 @@ def test_send_match_confirmed_email_contains_counterpart_details() -> None:
     assert ambassador_reg.user.email in ref_body
     assert ambassador_reg.phone in ref_body
     assert (
-        ambassador_reg.user.first_name in ref_body
-        or not ambassador_reg.user.first_name
+        ambassador_reg.user.first_name in ref_body or not ambassador_reg.user.first_name
     )
 
 

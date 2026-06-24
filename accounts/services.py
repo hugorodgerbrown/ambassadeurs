@@ -21,28 +21,21 @@ from matching.models import Registration
 logger = logging.getLogger(__name__)
 
 
-def get_or_create_participant_user(email: str) -> User:
-    """Return the passwordless user for a verified ``email``, creating if needed.
+def mark_email_verified(user: User) -> None:
+    """Record the allauth EmailAddress for ``user`` as verified and primary.
 
-    Keyed on the lowercased email as username. The matching allauth
-    ``EmailAddress`` is recorded as verified so the user's email state is
-    consistent with the social-login flow.
+    Called at registration-confirmation time (combined-form flow) so that the
+    allauth email state is consistent with the social-login path.  Mirrors what
+    ``get_or_create_participant_user`` does at email-verification time.  If the
+    EmailAddress row already exists with ``verified=True`` this is a no-op.
     """
-    email = email.lower()
-    with transaction.atomic():
-        user, created = User.objects.get_or_create(
-            username=email, defaults={"email": email}
-        )
-        if created:
-            user.set_unusable_password()
-            user.save(update_fields=["password"])
-        EmailAddress.objects.get_or_create(
-            user=user,
-            email=email,
-            defaults={"verified": True, "primary": True},
-        )
-    logger.info("Verified participant user pk=%s", user.pk)
-    return user
+    email = user.email.lower()
+    EmailAddress.objects.update_or_create(
+        user=user,
+        email=email,
+        defaults={"verified": True, "primary": True},
+    )
+    logger.info("Marked email verified for user pk=%s (%s)", user.pk, email)
 
 
 def update_account(

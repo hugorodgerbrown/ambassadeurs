@@ -1,45 +1,51 @@
-# Signed-link tokens for passwordless email verification and match access.
+# Signed-link tokens for registration confirmation and match access.
 #
 # Tokens are single-purpose (scoped by a dedicated salt) and expiring
 # (``max_age``), per CLAUDE.md invariant 6. They carry only the minimum payload
-# needed for each action; the user is created/looked up when the token is
-# consumed.
+# needed for each action; the object is looked up when the token is consumed.
 
 from __future__ import annotations
 
 from django.conf import settings
 from django.core import signing
 
-# Salt scopes the email-verification token to that one action; a token minted
-# here cannot be replayed against any other signing use.
-_SALT = "accounts.register-verify"
+# Salt for the combined-form registration confirmation token. Scopes the token
+# to a single action so it cannot be replayed against other signing uses.
+_CONFIRM_SALT = "accounts.registration-confirm"
 
 # Tokens expire after 24 hours.
 MAX_AGE_SECONDS = 60 * 60 * 24
 
-# Salt for match-access tokens; separate from the verification salt so the two
+# Salt for match-access tokens; separate from the confirmation salt so the two
 # cannot be replayed against each other (Invariant 6).
 _MATCH_SALT = "accounts.match-access"
 
 
-def make_email_verification_token(email: str) -> str:
-    """Return a signed, single-purpose token that verifies ``email``."""
-    return signing.dumps({"email": email.lower()}, salt=_SALT)
+def make_registration_confirmation_token(registration_pk: int) -> str:
+    """Return a signed, single-purpose token carrying ``registration_pk``.
+
+    Used in the combined-form flow: the token is emailed to the registrant and
+    consumed by ``register_confirm`` to transition the registration from
+    PENDING to WAITING. Salt is distinct from the match-access salt
+    (Invariant 6).
+    """
+    return signing.dumps({"registration_pk": registration_pk}, salt=_CONFIRM_SALT)
 
 
-def read_email_verification_token(
+def read_registration_confirmation_token(
     token: str, max_age: int = MAX_AGE_SECONDS
-) -> str | None:
-    """Return the verified email for a valid token, else ``None``.
+) -> int | None:
+    """Return the registration pk for a valid confirmation token, else ``None``.
 
-    Returns ``None`` for a tampered, malformed, or expired token.
+    Returns ``None`` for a tampered, malformed, expired token, or one whose
+    payload is not a valid integer.
     """
     try:
-        data = signing.loads(token, salt=_SALT, max_age=max_age)
+        data = signing.loads(token, salt=_CONFIRM_SALT, max_age=max_age)
     except signing.BadSignature:
         return None
-    email = data.get("email")
-    return email if isinstance(email, str) else None
+    pk = data.get("registration_pk")
+    return pk if isinstance(pk, int) else None
 
 
 def make_match_access_token(match_pk: int, registration_pk: int) -> str:
@@ -47,8 +53,8 @@ def make_match_access_token(match_pk: int, registration_pk: int) -> str:
 
     The token carries the match and registration primary keys so the view can
     load and validate the correct objects without embedding any PII in the URL.
-    Scoped by ``_MATCH_SALT`` so it cannot be replayed as an email-verification
-    token (Invariant 6).
+    Scoped by ``_MATCH_SALT`` so it cannot be replayed as a registration
+    confirmation token (Invariant 6).
 
     Args:
         match_pk: Primary key of the Match the token grants access to.

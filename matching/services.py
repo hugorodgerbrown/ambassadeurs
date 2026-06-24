@@ -457,19 +457,25 @@ def register_participant(
     preferred_language: str = "",
     phone: str = "",
     accepted_terms: list[str] | None = None,
+    status: str = Registration.Status.WAITING,
 ) -> Registration:
     """Enrol a participant in the pool and return the Registration.
 
-    With no ``user`` (the email-only flow) a passwordless ``User`` is created or
-    reused, keyed on the lowercased email as username. With a ``user`` (e.g. one
-    that just signed in with Facebook) that user is reused and their name kept
+    With no ``user`` (the combined-form flow) a passwordless ``User`` is
+    created or reused, keyed on the lowercased email as username. With a
+    ``user`` (authenticated path) that user is reused and their name kept
     current.
 
-    ``accepted_terms`` is the ordered list of consent statement texts accepted by
-    the participant (eligibility declaration first, then T&C); it is persisted on
-    ``Registration.accepted_terms`` alongside ``terms_accepted_at``.
+    ``accepted_terms`` is the ordered list of consent statement texts accepted
+    by the participant (eligibility declaration first, then T&C); it is
+    persisted on ``Registration.accepted_terms`` alongside ``terms_accepted_at``.
 
-    After creating the registration, calls ``propose_match`` to attempt an
+    ``status`` defaults to WAITING (immediate matching). Pass
+    ``status=Registration.Status.PENDING`` for the combined-form path where the
+    registration must be email-confirmed before it enters the pool — a PENDING
+    registration is *never* matched (Invariant 2).
+
+    After creating a WAITING registration, calls ``propose_match`` to attempt an
     immediate pairing. The whole function runs inside a single transaction;
     ``propose_match`` uses ``select_for_update`` for concurrency safety.
     """
@@ -501,11 +507,50 @@ def register_participant(
             preferred_language=preferred_language,
             accepted_terms=accepted_terms or [],
             terms_accepted_at=timezone.now() if accepted_terms else None,
+            status=status,
         )
+
+        # Only propose a match for WAITING registrations; PENDING rows must
+        # never enter the matching engine (Invariant 2).
+        if status == Registration.Status.WAITING:
+            propose_match(registration)
+
+    logger.info("Registered user pk=%s as %s (status=%s)", user.pk, role, status)
+    return registration
+
+
+def confirm_registration(registration: Registration) -> Registration:
+    """Transition a PENDING registration to WAITING and trigger matching.
+
+    Runs inside ``transaction.atomic()`` with a ``select_for_update()`` to
+    prevent duplicate confirms under concurrency. If the registration is not
+    PENDING (already confirmed, or an invalid state), the function is a no-op
+    and returns the unchanged row — the caller is responsible for treating a
+    non-PENDING result as an invalid/used token.
+
+    After the status flip, ``propose_match`` is called to attempt an immediate
+    pairing. The in-memory instance is synced and returned.
+    """
+    with transaction.atomic():
+        locked = Registration.objects.select_for_update().get(pk=registration.pk)
+        if locked.status != Registration.Status.PENDING:
+            # Already confirmed or in an unexpected state; no-op.
+            logger.info(
+                "confirm_registration called on non-PENDING registration pk=%s "
+                "(status=%s); no-op.",
+                registration.pk,
+                locked.status,
+            )
+            registration.status = locked.status
+            return registration
+
+        locked.status = Registration.Status.WAITING
+        locked.save(update_fields=["status", "updated_at"])
+        registration.status = locked.status
 
         propose_match(registration)
 
-    logger.info("Registered user pk=%s as %s", user.pk, role)
+    logger.info("Confirmed registration pk=%s: PENDING → WAITING", registration.pk)
     return registration
 
 

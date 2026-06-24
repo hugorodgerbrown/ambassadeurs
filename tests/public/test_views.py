@@ -1,15 +1,26 @@
 # Tests for the public site views.
+#
+# Covers the combined single-step registration flow (VERB-24): anonymous POST
+# creates a PENDING registration and emails a confirmation link; confirming
+# the link transitions PENDING → WAITING, logs the user in, and redirects to
+# register_done. Facebook references are absent from all rendered pages.
+#
+# Also covers the match accept/decline flow (VERB-19): signed token grants
+# access to the match page; HTMX partials for accept/decline are guarded by
+# require_htmx; contact PII is only revealed after mutual accept.
 
 from unittest.mock import patch
 
 import pytest
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.core import mail
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from accounts.tokens import make_email_verification_token, make_match_access_token
+from accounts.tokens import (
+    make_match_access_token,
+    make_registration_confirmation_token,
+)
 from matching.models import Match, Registration
 from matching.services import accept_match
 from public.models import FormDownload
@@ -53,55 +64,220 @@ def test_home_hides_opens_soon_when_registration_open() -> None:
     assert b"Registration opens soon" not in response.content
 
 
-def test_register_start_renders_email_form() -> None:
-    """The entry page asks for an email before anything role-specific."""
+# ---------------------------------------------------------------------------
+# Combined registration form (anonymous GET)
+# ---------------------------------------------------------------------------
+
+
+def test_register_get_renders_form_without_login() -> None:
+    """GET /register/ returns 200 and the combined form without requiring login."""
     response = Client().get(reverse("public:register"))
     assert response.status_code == 200
-    assert "public/register_start.html" in [t.name for t in response.templates]
+    assert "public/register_details.html" in [t.name for t in response.templates]
+    # Email field is rendered for anonymous users.
     assert b'name="email"' in response.content
 
 
-def test_register_start_seeds_role_hint_in_session() -> None:
-    """A ?role= hint from the homepage CTA is remembered in the session."""
-    client = Client()
-    client.get(reverse("public:register") + "?role=ambassador")
-    assert client.session["register_role"] == "ambassador"
+def test_register_get_with_ambassador_role_hint() -> None:
+    """GET /register/?role=ambassador themes the form for the ambassador."""
+    response = Client().get(reverse("public:register") + "?role=ambassador")
+    assert response.status_code == 200
+    assert b"Ambassador details" in response.content
+    assert b"role-theme--referee" not in response.content
+
+
+def test_register_get_with_referee_role_hint() -> None:
+    """GET /register/?role=referee themes the form for the referee."""
+    response = Client().get(reverse("public:register") + "?role=referee")
+    assert response.status_code == 200
+    assert b"Referee details" in response.content
+    assert b"role-theme--referee" in response.content
+
+
+def test_register_get_defaults_to_ambassador_on_unknown_role() -> None:
+    """GET /register/?role=banana silently falls back to the ambassador form."""
+    response = Client().get(reverse("public:register") + "?role=banana")
+    assert response.status_code == 200
+    assert b"Ambassador details" in response.content
 
 
 @override_settings(
     REGISTRATION_OPENS_AT="2020-01-01T00:00:00+00:00",
     REGISTRATION_CLOSES_AT="2020-12-31T23:59:59+00:00",
 )
-def test_register_start_closed_when_registration_closed() -> None:
-    """With registration closed the closed-registration page is shown."""
+def test_register_closed_when_registration_closed() -> None:
+    """With registration closed the register page shows the closed page."""
     response = Client().get(reverse("public:register"))
     assert "public/register_closed.html" in [t.name for t in response.templates]
 
 
-def test_register_start_authenticated_redirects_to_details() -> None:
-    """An already-signed-in user skips straight to the details step."""
-    client = Client()
-    client.force_login(UserFactory.create())
-    response = client.get(reverse("public:register"))
-    assert response.status_code == 302
-    assert response.url == reverse("public:register_details")
+# ---------------------------------------------------------------------------
+# Combined registration form (anonymous POST — creates PENDING)
+# ---------------------------------------------------------------------------
 
 
-def test_register_start_post_sends_verification_email() -> None:
-    """Submitting an email sends a verification link and shows the sent page."""
-    response = Client().post(reverse("public:register"), {"email": "ADA@example.com"})
+def _valid_ambassador_post() -> dict[str, object]:
+    """Return a minimal valid ambassador POST payload."""
+    return {
+        "role": "ambassador",
+        "first_name": "Ada",
+        "last_name": "Lovelace",
+        "email": "ada@example.com",
+        "prior_pass": Registration.PriorPass.SEASONAL,
+        "prior_pass_attestation": True,
+        "terms_accepted": True,
+    }
+
+
+def _valid_referee_post() -> dict[str, object]:
+    """Return a minimal valid referee POST payload."""
+    return {
+        "role": "referee",
+        "first_name": "Grace",
+        "last_name": "Hopper",
+        "email": "grace@example.com",
+        "prior_pass_attestation": True,
+        "terms_accepted": True,
+    }
+
+
+def test_register_post_creates_pending_registration() -> None:
+    """A valid anonymous POST creates a PENDING registration (not WAITING)."""
+    response = Client().post(reverse("public:register"), _valid_referee_post())
     assert response.status_code == 302
     assert response.url == reverse("public:register_email_sent")
+    assert Registration.objects.count() == 1
+    reg = Registration.objects.get()
+    assert reg.status == Registration.Status.PENDING
+    assert reg.role == Registration.Role.REFEREE
+
+
+def test_register_post_sends_confirmation_email() -> None:
+    """A valid anonymous POST sends a confirmation email to the supplied address."""
+    Client().post(reverse("public:register"), _valid_referee_post())
     assert len(mail.outbox) == 1
-    assert "register/verify/" in mail.outbox[0].body
-    assert mail.outbox[0].to == ["ada@example.com"]
+    assert mail.outbox[0].to == ["grace@example.com"]
+    # The confirmation link must point to the confirm endpoint, not verify.
+    assert "register/confirm/" in mail.outbox[0].body
 
 
-def test_register_start_post_invalid_email_redisplays() -> None:
-    """An invalid email re-renders the entry page and sends nothing."""
-    response = Client().post(reverse("public:register"), {"email": "not-an-email"})
+def test_register_post_pending_not_matched() -> None:
+    """A PENDING registration must never trigger a match (Invariant 2)."""
+    # Pre-populate a waiting ambassador — if matching ran, a Match would be created.
+    RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.WAITING,
+    )
+    Client().post(reverse("public:register"), _valid_referee_post())
+    from matching.models import Match
+
+    assert Match.objects.count() == 0
+    reg = Registration.objects.filter(role=Registration.Role.REFEREE).get()
+    assert reg.status == Registration.Status.PENDING
+
+
+def test_register_post_invalid_redisplays_form() -> None:
+    """An invalid POST (missing attestation) re-renders the form and creates nothing."""
+    payload = _valid_referee_post()
+    del payload["prior_pass_attestation"]
+    response = Client().post(reverse("public:register"), payload)
     assert response.status_code == 200
-    assert len(mail.outbox) == 0
+    assert not Registration.objects.exists()
+
+
+def test_register_post_unknown_role_404() -> None:
+    """A POST with an unknown role returns 404."""
+    response = Client().post(reverse("public:register"), {"role": "banana"})
+    assert response.status_code == 404
+
+
+def test_register_post_resends_for_existing_pending() -> None:
+    """A re-submit for an email with a PENDING registration resends the link.
+
+    No second Registration row is created; exactly one confirmation email is
+    sent (plus the initial one that was sent when the row was created by the
+    factory — we reset outbox before the second POST).
+    """
+    # Simulate an existing PENDING row for this email.
+    user = UserFactory.create(username="grace@example.com", email="grace@example.com")
+    RegistrationFactory.create(
+        user=user,
+        role=Registration.Role.REFEREE,
+        prior_pass=Registration.PriorPass.NONE,
+        status=Registration.Status.PENDING,
+    )
+    mail.outbox.clear()
+
+    Client().post(reverse("public:register"), _valid_referee_post())
+
+    assert Registration.objects.filter(role=Registration.Role.REFEREE).count() == 1
+    assert len(mail.outbox) == 1
+    assert "register/confirm/" in mail.outbox[0].body
+
+
+def test_register_post_duplicate_waiting_shows_validation_error() -> None:
+    """Submitting for an email with an existing WAITING registration shows an error."""
+    user = UserFactory.create(username="grace@example.com", email="grace@example.com")
+    RegistrationFactory.create(
+        user=user,
+        role=Registration.Role.REFEREE,
+        prior_pass=Registration.PriorPass.NONE,
+        status=Registration.Status.WAITING,
+    )
+
+    response = Client().post(reverse("public:register"), _valid_referee_post())
+    assert response.status_code == 200
+    assert b"already registered" in response.content
+
+
+def test_register_post_race_integrity_error_does_not_500() -> None:
+    """An IntegrityError from a concurrent create must not propagate as a 500.
+
+    Simulates the TOCTOU window: form validation passes (no existing
+    registration found), but by the time the view calls register_participant
+    a concurrent request has created the row and the OneToOne constraint fires.
+    The view must catch that and redirect gracefully rather than 500-ing.
+    """
+    from unittest.mock import patch
+
+    from django.db import IntegrityError
+
+    # Patch register_participant to simulate the race condition: form validation
+    # passes (no existing row), but the create inside the view raises
+    # IntegrityError as if a concurrent request won the race.
+    with patch(
+        "public.views.register_participant",
+        side_effect=IntegrityError("unique violation"),
+    ):
+        # Use an email that has no existing registration so form validation
+        # passes; the IntegrityError is raised by the mock at create time.
+        response = Client().post(reverse("public:register"), _valid_referee_post())
+
+    # Must redirect to email-sent (no crash), not 500.
+    assert response.status_code == 302
+    assert response.url == reverse("public:register_email_sent")
+
+
+@override_settings(DEBUG=True)
+def test_register_post_stashes_confirm_url_in_debug() -> None:
+    """In DEBUG the confirm URL is stashed in the session for the shortcut page."""
+    client = Client()
+    client.post(reverse("public:register"), _valid_referee_post())
+    assert "debug_verify_url" in client.session
+
+
+@override_settings(DEBUG=False)
+def test_register_post_does_not_stash_url_outside_debug() -> None:
+    """Outside DEBUG the confirm URL must not be stashed in the session."""
+    client = Client()
+    client.post(reverse("public:register"), _valid_referee_post())
+    assert "debug_verify_url" not in client.session
+
+
+# ---------------------------------------------------------------------------
+# register_email_sent
+# ---------------------------------------------------------------------------
 
 
 def test_register_email_sent_renders() -> None:
@@ -111,16 +287,22 @@ def test_register_email_sent_renders() -> None:
     assert "public/register_email_sent.html" in [t.name for t in response.templates]
 
 
+def test_register_email_sent_copy_mentions_joining_queue() -> None:
+    """The email-sent page explicitly says the user joins the queue after confirming."""
+    response = Client().get(reverse("public:register_email_sent"))
+    assert b"join the matching queue" in response.content
+
+
 @override_settings(DEBUG=True)
-def test_register_email_sent_shows_verify_link_in_debug() -> None:
-    """In DEBUG the sent page surfaces the verify link for click-through testing."""
+def test_register_email_sent_shows_confirm_link_in_debug() -> None:
+    """In DEBUG the confirm link is shown on the sent page for click-through testing."""
     client = Client()
     response = client.post(
-        reverse("public:register"), {"email": "ada@example.com"}, follow=True
+        reverse("public:register"), _valid_referee_post(), follow=True
     )
     assert response.status_code == 200
     assert b"Development shortcut" in response.content
-    assert b"register/verify/" in response.content
+    assert b"register/confirm/" in response.content
     # The one-shot value is popped, so a reload no longer shows the link.
     assert "debug_verify_url" not in client.session
     reload = client.get(reverse("public:register_email_sent"))
@@ -128,105 +310,176 @@ def test_register_email_sent_shows_verify_link_in_debug() -> None:
 
 
 @override_settings(DEBUG=False)
-def test_register_email_sent_hides_verify_link_outside_debug() -> None:
-    """Outside DEBUG the verify link is never stashed or shown."""
+def test_register_email_sent_hides_confirm_link_outside_debug() -> None:
+    """Outside DEBUG the confirm link is never stashed or shown."""
     client = Client()
     response = client.post(
-        reverse("public:register"), {"email": "ada@example.com"}, follow=True
+        reverse("public:register"), _valid_referee_post(), follow=True
     )
     assert response.status_code == 200
     assert b"Development shortcut" not in response.content
     assert "debug_verify_url" not in client.session
 
 
-def test_register_verify_valid_token_logs_in_and_creates_user() -> None:
-    """A valid token creates the user, logs them in and goes to details."""
-    token = make_email_verification_token("ada@example.com")
+# ---------------------------------------------------------------------------
+# register_confirm
+# ---------------------------------------------------------------------------
+
+
+def test_register_confirm_valid_token_transitions_to_waiting() -> None:
+    """A valid confirm token transitions the registration PENDING → WAITING."""
+    user = UserFactory.create(username="ada@example.com", email="ada@example.com")
+    reg = RegistrationFactory.create(
+        user=user,
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.PENDING,
+    )
+    token = make_registration_confirmation_token(reg.pk)
     client = Client()
-    response = client.get(reverse("public:register_verify", args=[token]))
+    response = client.get(reverse("public:register_confirm", args=[token]))
+
     assert response.status_code == 302
-    assert response.url == reverse("public:register_details")
-    assert User.objects.filter(username="ada@example.com").exists()
+    assert response.url == reverse("public:register_done", args=["ambassador"])
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.WAITING
+
+
+def test_register_confirm_logs_user_in() -> None:
+    """Confirming a registration logs the user in."""
+    user = UserFactory.create(username="ada@example.com", email="ada@example.com")
+    reg = RegistrationFactory.create(
+        user=user,
+        role=Registration.Role.REFEREE,
+        prior_pass=Registration.PriorPass.NONE,
+        status=Registration.Status.PENDING,
+    )
+    token = make_registration_confirmation_token(reg.pk)
+    client = Client()
+    client.get(reverse("public:register_confirm", args=[token]))
     assert "_auth_user_id" in client.session
+    assert int(client.session["_auth_user_id"]) == user.pk
 
 
-def test_register_verify_invalid_token_returns_400() -> None:
-    """A tampered or expired token shows the invalid-link page with 400."""
-    response = Client().get(reverse("public:register_verify", args=["not-a-token"]))
+def test_register_confirm_triggers_matching() -> None:
+    """Confirming a PENDING registration proposes a match if a counterpart waits."""
+    RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.WAITING,
+    )
+    user = UserFactory.create(username="grace@example.com", email="grace@example.com")
+    reg = RegistrationFactory.create(
+        user=user,
+        role=Registration.Role.REFEREE,
+        prior_pass=Registration.PriorPass.NONE,
+        status=Registration.Status.PENDING,
+    )
+    token = make_registration_confirmation_token(reg.pk)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        Client().get(reverse("public:register_confirm", args=[token]))
+
+    from matching.models import Match
+
+    assert Match.objects.count() == 1
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.MATCHED
+
+
+def test_register_confirm_invalid_token_returns_400() -> None:
+    """A tampered or expired confirm token shows the invalid-link page with 400."""
+    response = Client().get(reverse("public:register_confirm", args=["bad-token"]))
     assert response.status_code == 400
     assert "public/register_invalid.html" in [t.name for t in response.templates]
 
 
-def test_register_details_requires_login() -> None:
-    """Anonymous users are redirected away from the details step."""
-    response = Client().get(reverse("public:register_details"))
-    assert response.status_code == 302
-    assert reverse("account_login") in response.url
+def test_register_confirm_tampered_token_returns_400() -> None:
+    """A tampered token shows the invalid-link page with status 400."""
+    user = UserFactory.create(username="ada@example.com", email="ada@example.com")
+    reg = RegistrationFactory.create(
+        user=user,
+        status=Registration.Status.PENDING,
+    )
+    token = make_registration_confirmation_token(reg.pk)
+    response = Client().get(reverse("public:register_confirm", args=[token + "x"]))
+    assert response.status_code == 400
+    assert "public/register_invalid.html" in [t.name for t in response.templates]
 
 
-def test_register_details_renders_role_chooser() -> None:
-    """The details page renders the role-select dropdown to a signed-in user."""
-    client = Client()
-    client.force_login(UserFactory.create())
-    response = client.get(reverse("public:register_details"))
+def test_register_confirm_expired_token_returns_400() -> None:
+    """A well-formed but expired confirm token shows the invalid-link page with 400.
+
+    The token is valid (correct signature) but is read with max_age=-1 to
+    simulate expiry. The registration must remain PENDING (unchanged).
+    """
+    from unittest.mock import patch
+
+    from accounts.tokens import read_registration_confirmation_token
+
+    user = UserFactory.create(username="ada@example.com", email="ada@example.com")
+    reg = RegistrationFactory.create(
+        user=user,
+        status=Registration.Status.PENDING,
+    )
+    token = make_registration_confirmation_token(reg.pk)
+
+    # Wrap the real reader so it is called with max_age=-1 (always expired).
+    def _expired_reader(t: str, max_age: int = -1) -> None:  # type: ignore[override]
+        return read_registration_confirmation_token(t, max_age=-1)
+
+    with patch("public.views.read_registration_confirmation_token", _expired_reader):
+        response = Client().get(reverse("public:register_confirm", args=[token]))
+
+    assert response.status_code == 400
+    assert "public/register_invalid.html" in [t.name for t in response.templates]
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.PENDING
+
+
+def test_register_confirm_already_confirmed_returns_400() -> None:
+    """A confirm link for a non-PENDING registration returns 400 (used/replayed)."""
+    user = UserFactory.create(username="ada@example.com", email="ada@example.com")
+    reg = RegistrationFactory.create(
+        user=user,
+        status=Registration.Status.WAITING,  # already confirmed
+    )
+    token = make_registration_confirmation_token(reg.pk)
+    response = Client().get(reverse("public:register_confirm", args=[token]))
+    assert response.status_code == 400
+
+
+def test_register_confirm_nonexistent_pk_returns_400() -> None:
+    """A confirm token for a pk that does not exist returns 400."""
+    token = make_registration_confirmation_token(99999)
+    response = Client().get(reverse("public:register_confirm", args=[token]))
+    assert response.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# register_details_form (HTMX role swap — no login required)
+# ---------------------------------------------------------------------------
+
+
+def test_details_form_fragment_requires_htmx() -> None:
+    """The details form fragment rejects a plain (non-HTMX) request."""
+    response = Client().get(
+        reverse("public:register_details_form") + "?role=ambassador"
+    )
+    assert response.status_code == 400
+
+
+def test_details_form_fragment_anonymous_allowed() -> None:
+    """An anonymous HTMX request to the role-swap endpoint is allowed."""
+    response = Client().get(
+        reverse("public:register_details_form") + "?role=ambassador",
+        headers={"hx-request": "true"},
+    )
     assert response.status_code == 200
-    # The themed surface and its role-select dropdown are present.
-    assert b'id="reg-surface"' in response.content
-    assert b"role-select__trigger" in response.content
-    assert b'name="role"' in response.content
-
-
-def test_register_details_get_with_ambassador_hint_themes_ambassador() -> None:
-    """A session role hint of 'ambassador' themes the surface for the ambassador."""
-    client = Client()
-    client.force_login(UserFactory.create())
-    session = client.session
-    session["register_role"] = "ambassador"
-    session.save()
-    response = client.get(reverse("public:register_details"))
-    assert response.status_code == 200
-    content = response.content
-    # Ambassador is the default (teal) tone: the referee modifier is absent and
-    # the trigger shows the ambassador eyebrow and details heading.
-    assert b"role-theme--referee" not in content
-    assert b"Returning holder" in content
-    assert b"Ambassador details" in content
-
-
-def test_register_details_get_with_referee_hint_themes_referee() -> None:
-    """A session role hint of 'referee' themes the surface for the referee."""
-    client = Client()
-    client.force_login(UserFactory.create())
-    session = client.session
-    session["register_role"] = "referee"
-    session.save()
-    response = client.get(reverse("public:register_details"))
-    assert response.status_code == 200
-    content = response.content
-    # Referee tone (sienna): the referee modifier class is applied and the
-    # trigger shows the referee eyebrow and details heading.
-    assert b"role-theme--referee" in content
-    assert b"New holder" in content
-    assert b"Referee details" in content
-
-
-def test_register_details_get_no_hint_defaults_to_ambassador() -> None:
-    """With no session hint the surface defaults to the ambassador (teal) tone."""
-    client = Client()
-    client.force_login(UserFactory.create())
-    response = client.get(reverse("public:register_details"))
-    assert response.status_code == 200
-    content = response.content
-    assert b"role-theme--referee" not in content
-    assert b"Returning holder" in content
-    assert b"Ambassador details" in content
 
 
 def test_details_form_fragment_ambassador_contains_qualifying_criteria() -> None:
     """The ambassador fragment lists the ambassador qualifying criteria."""
-    client = Client()
-    client.force_login(UserFactory.create())
-    response = client.get(
+    response = Client().get(
         reverse("public:register_details_form") + "?role=ambassador",
         headers={"hx-request": "true"},
     )
@@ -234,15 +487,12 @@ def test_details_form_fragment_ambassador_contains_qualifying_criteria() -> None
     assert b"What you'll need to qualify" in response.content
     assert b"Eligibility \xc2\xb7 Ambassador" in response.content
     assert b"No retroactive refund." in response.content
-    # Mont 4 Card clause is ambassador-specific.
     assert b"Mont 4 Card" in response.content
 
 
 def test_details_form_fragment_referee_contains_qualifying_criteria() -> None:
     """The referee fragment lists the referee qualifying criteria."""
-    client = Client()
-    client.force_login(UserFactory.create())
-    response = client.get(
+    response = Client().get(
         reverse("public:register_details_form") + "?role=referee",
         headers={"hx-request": "true"},
     )
@@ -250,44 +500,26 @@ def test_details_form_fragment_referee_contains_qualifying_criteria() -> None:
     assert b"What you'll need to qualify" in response.content
     assert b"Eligibility \xc2\xb7 Referee" in response.content
     assert b"No retroactive refund." in response.content
-    # The buy-together / no-online clause is referee-specific.
     assert b"cannot be bought online" in response.content
 
 
-def test_register_details_post_invalid_reflects_bound_role_as_selected() -> None:
-    """A failed POST re-renders with the submitted role pre-selected in the dropdown."""
-    client = Client()
-    client.force_login(UserFactory.create())
-    response = client.post(
-        reverse("public:register_details"),
-        {
-            "role": "ambassador",
-            "first_name": "Ada",
-            "last_name": "Lovelace",
-            "prior_pass": Registration.PriorPass.SEASONAL,
-            # attestation omitted — causes validation failure
-        },
+def test_details_form_fragment_returns_role_form() -> None:
+    """An HTMX request returns the role-specific form fragment."""
+    response = Client().get(
+        reverse("public:register_details_form") + "?role=referee",
+        headers={"hx-request": "true"},
     )
     assert response.status_code == 200
-    content = response.content
-    # The surface re-renders themed for the submitted (ambassador) role: the
-    # referee modifier is absent and the ambassador option is marked selected.
-    assert b"role-theme--referee" not in content
-    assert b'aria-selected="true"' in content
-    assert b"Ambassador details" in content
+    assert b"Referee details" in response.content
 
 
-@override_settings(
-    REGISTRATION_OPENS_AT="2020-01-01T00:00:00+00:00",
-    REGISTRATION_CLOSES_AT="2020-12-31T23:59:59+00:00",
-)
-def test_register_details_closed_without_open_window() -> None:
-    """With registration closed the details step shows the closed page."""
-    client = Client()
-    client.force_login(UserFactory.create())
-    response = client.get(reverse("public:register_details"))
-    assert response.status_code == 200
-    assert "public/register_closed.html" in [t.name for t in response.templates]
+def test_details_form_fragment_unknown_role_404() -> None:
+    """An unknown role on the fragment endpoint returns 404."""
+    response = Client().get(
+        reverse("public:register_details_form") + "?role=banana",
+        headers={"hx-request": "true"},
+    )
+    assert response.status_code == 404
 
 
 @override_settings(
@@ -296,100 +528,16 @@ def test_register_details_closed_without_open_window() -> None:
 )
 def test_details_form_fragment_closed_without_open_window_404() -> None:
     """The fragment endpoint 404s when registration is closed."""
-    client = Client()
-    client.force_login(UserFactory.create())
-    response = client.get(
+    response = Client().get(
         reverse("public:register_details_form") + "?role=ambassador",
         headers={"hx-request": "true"},
     )
     assert response.status_code == 404
 
 
-def test_details_form_fragment_requires_htmx() -> None:
-    """The details form fragment rejects a plain (non-HTMX) request."""
-    client = Client()
-    client.force_login(UserFactory.create())
-    response = client.get(reverse("public:register_details_form") + "?role=ambassador")
-    assert response.status_code == 400
-
-
-def test_details_form_fragment_returns_role_form() -> None:
-    """An HTMX request returns the role-specific form fragment."""
-    client = Client()
-    client.force_login(UserFactory.create())
-    response = client.get(
-        reverse("public:register_details_form") + "?role=referee",
-        headers={"hx-request": "true"},
-    )
-    assert response.status_code == 200
-    assert b"Referee details" in response.content
-    assert b"What you'll need to qualify" in response.content
-
-
-def test_details_form_fragment_unknown_role_404() -> None:
-    """An unknown role on the fragment endpoint returns 404."""
-    client = Client()
-    client.force_login(UserFactory.create())
-    response = client.get(
-        reverse("public:register_details_form") + "?role=banana",
-        headers={"hx-request": "true"},
-    )
-    assert response.status_code == 404
-
-
-def test_register_details_post_creates_registration() -> None:
-    """A valid details POST creates the registration linked to the user."""
-    user = UserFactory.create(email="ada@example.com")
-    client = Client()
-    client.force_login(user)
-    response = client.post(
-        reverse("public:register_details"),
-        {
-            "role": "referee",
-            "first_name": "Ada",
-            "last_name": "Lovelace",
-            "prior_pass_attestation": True,
-            "terms_accepted": True,
-        },
-    )
-    assert response.status_code == 302
-    assert response.url == reverse("public:register_done", args=["referee"])
-    assert User.objects.count() == 1
-    registration = Registration.objects.get()
-    assert registration.user == user
-    assert registration.role == Registration.Role.REFEREE
-    assert registration.prior_pass == Registration.PriorPass.NONE
-
-
-def test_register_details_post_invalid_redisplays() -> None:
-    """An invalid details POST (no attestation) re-renders, creates nothing."""
-    client = Client()
-    client.force_login(UserFactory.create())
-    response = client.post(
-        reverse("public:register_details"),
-        {
-            "role": "ambassador",
-            "first_name": "Ada",
-            "last_name": "Lovelace",
-            "prior_pass": Registration.PriorPass.SEASONAL,
-        },
-    )
-    assert response.status_code == 200
-    assert not Registration.objects.exists()
-
-
-def test_register_details_post_unknown_role_404() -> None:
-    """A details POST with an unknown role returns 404."""
-    client = Client()
-    client.force_login(UserFactory.create())
-    response = client.post(reverse("public:register_details"), {"role": "banana"})
-    assert response.status_code == 404
-
-
-def test_register_start_hides_facebook_button_without_provider() -> None:
-    """With no configured Facebook provider, the button is not rendered."""
-    response = Client().get(reverse("public:register"))
-    assert b"Continue with Facebook" not in response.content
+# ---------------------------------------------------------------------------
+# register_done
+# ---------------------------------------------------------------------------
 
 
 def test_register_done_renders() -> None:
@@ -403,6 +551,46 @@ def test_register_done_unknown_role_404() -> None:
     """An unknown role slug on the confirmation page returns 404."""
     response = Client().get(reverse("public:register_done", args=["banana"]))
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Facebook removal — no Facebook references on any rendered page
+# ---------------------------------------------------------------------------
+
+
+def test_home_contains_no_facebook_reference() -> None:
+    """The homepage must not mention Facebook."""
+    response = Client().get(reverse("public:home"))
+    assert b"Facebook" not in response.content
+    assert b"facebook" not in response.content
+
+
+def test_how_it_works_contains_no_facebook_reference() -> None:
+    """The how-it-works page must not mention Facebook."""
+    response = Client().get(reverse("public:how_it_works"))
+    assert b"Facebook" not in response.content
+    assert b"facebook" not in response.content
+
+
+def test_register_form_contains_no_facebook_reference() -> None:
+    """The combined registration form must not mention Facebook."""
+    response = Client().get(reverse("public:register"))
+    assert b"Facebook" not in response.content
+    assert b"facebook" not in response.content
+
+
+def test_account_detail_contains_no_facebook_reference() -> None:
+    """The account detail page must not mention Facebook."""
+    client = Client()
+    client.force_login(UserFactory.create())
+    response = client.get(reverse("accounts:detail"))
+    assert b"Facebook" not in response.content
+    assert b"facebook" not in response.content
+
+
+# ---------------------------------------------------------------------------
+# Legal pages
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -425,20 +613,6 @@ def test_legal_unknown_page_404() -> None:
     """An unknown legal slug returns 404."""
     response = Client().get(reverse("public:legal", args=["banana"]))
     assert response.status_code == 404
-
-
-def test_service_worker_served_as_javascript() -> None:
-    """/sw.js returns 200 with a JavaScript content type (no 404)."""
-    response = Client().get(reverse("public:service_worker"))
-    assert response.status_code == 200
-    assert "javascript" in response["Content-Type"]
-
-
-def test_favicon_redirects_to_static_icon() -> None:
-    """/favicon.ico redirects to the static SVG icon rather than 404ing."""
-    response = Client().get(reverse("public:favicon"))
-    assert response.status_code in (301, 302)
-    assert response.url.endswith("favicon.svg")
 
 
 # ---------------------------------------------------------------------------
@@ -506,6 +680,25 @@ def test_download_application_form_redirects_to_configured_url() -> None:
     response = Client().get(reverse("public:application_form"))
     assert response.status_code == 302
     assert response.url == settings.APPLICATION_FORM_URL
+
+
+# ---------------------------------------------------------------------------
+# Miscellaneous
+# ---------------------------------------------------------------------------
+
+
+def test_service_worker_served_as_javascript() -> None:
+    """/sw.js returns 200 with a JavaScript content type (no 404)."""
+    response = Client().get(reverse("public:service_worker"))
+    assert response.status_code == 200
+    assert "javascript" in response["Content-Type"]
+
+
+def test_favicon_redirects_to_static_icon() -> None:
+    """/favicon.ico redirects to the static SVG icon rather than 404ing."""
+    response = Client().get(reverse("public:favicon"))
+    assert response.status_code in (301, 302)
+    assert response.url.endswith("favicon.svg")
 
 
 # ---------------------------------------------------------------------------

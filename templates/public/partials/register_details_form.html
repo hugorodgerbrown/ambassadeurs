@@ -7,6 +7,187 @@ Context: form (RegistrationForm), role (slug), role_value (Role value).
 For ambassadors, the form renders a prior_pass select (SEASONAL / ANNUAL / MONT4).
 Referees do not see this field — their prior_pass resolves to NONE in the service.
 {% endcomment %}
+{% comment %}
+    Qualifying-criteria callout, hoisted out of the form into its own card and
+    mirroring the official 4 Vallées programme rubric. Tone follows the role
+    (accent for Ambassador, secondary for Referee). Season-specific years
+    (2026-2027 / 2024-25 / 2025-26) track the current season and need updating
+    when the season rolls over.
+{% endcomment %}
+<div class="req-callout mb-6{% if role_value != 'AMBASSADOR' %} req-callout--referee{% endif %}">
+    <div class="req-callout__head">
+        <h3 class="req-callout__title">
+            <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            >
+                <circle cx="12" cy="12" r="9" />
+                <path d="m8.5 12 2.5 2.5 4.5-5" />
+            </svg>
+            {% translate "Before you register, check you qualify" %}
+        </h3>
+        <span class="req-callout__badge">
+            {% if role_value == 'AMBASSADOR' %}
+                {% translate "As an Ambassador" %}
+            {% else %}
+                {% translate "As a Referee" %}
+            {% endif %}
+        </span>
+    </div>
+    <ul class="req-callout__list">
+        {% if role_value == 'AMBASSADOR' %}
+            <li class="req-callout__item">
+                <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <path d="M20 6 9 17l-5-5" />
+                </svg>
+                <span>
+                    {% blocktranslate trimmed %}
+                        Buy a 4 Vallées 2026-2027 annual season ticket at the same time as your referee, and at the
+                        same ski lift ticket office.
+                    {% endblocktranslate %}
+                    <strong class="req-callout__danger">{% translate "No retroactive refund." %}</strong>
+                </span>
+            </li>
+            <li class="req-callout__item">
+                <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <path d="M20 6 9 17l-5-5" />
+                </svg>
+                <span>
+                    {% blocktranslate trimmed %}
+                        Have held a seasonal or annual pass from one of the 4 Vallées companies in 2024-25 or 2025-26.
+                    {% endblocktranslate %}
+                </span>
+            </li>
+            <li class="req-callout__item">
+                <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <path d="M20 6 9 17l-5-5" />
+                </svg>
+                <span>
+                    {% blocktranslate trimmed %}
+                        Refer someone in a price category higher than or equal to your own — an adult cannot be an
+                        ambassador for a child, but a child can be an ambassador for an adult.
+                    {% endblocktranslate %}
+                </span>
+            </li>
+            <li class="req-callout__item">
+                <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <path d="M20 6 9 17l-5-5" />
+                </svg>
+                <span>
+                    {% blocktranslate trimmed %}
+                        Mont 4 Card holders, and those benefitting from special reductions, can refer an adult or a
+                        senior but are not eligible for the discount themselves.
+                    {% endblocktranslate %}
+                </span>
+            </li>
+        {% else %}
+            <li class="req-callout__item">
+                <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <path d="M20 6 9 17l-5-5" />
+                </svg>
+                <span>
+                    {% blocktranslate trimmed %}
+                        Buy a 4 Vallées 2026-2027 annual season ticket at the same time as your ambassador, and at the
+                        same ski lift ticket office.
+                    {% endblocktranslate %}
+                    <strong class="req-callout__danger">{% translate "No retroactive refund." %}</strong>
+                </span>
+            </li>
+            <li class="req-callout__item">
+                <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <path d="M20 6 9 17l-5-5" />
+                </svg>
+                <span>
+                    {% blocktranslate trimmed %}
+                        Not have held a mid-season, seasonal or annual pass from one of the 4 Vallées companies in
+                        2024-25 or 2025-26.
+                    {% endblocktranslate %}
+                </span>
+            </li>
+            <li class="req-callout__item">
+                <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <path d="M20 6 9 17l-5-5" />
+                </svg>
+                <span>
+                    {% blocktranslate trimmed %}
+                        Pay together: your ambassador pays in a lump sum, or you buy both passes at the same time at the
+                        sales desk. These passes cannot be bought online, so the necessary checks can be carried out.
+                    {% endblocktranslate %}
+                </span>
+            </li>
+        {% endif %}
+    </ul>
+</div>
+
 <div class="rounded-card border border-line bg-surface p-6">
     <h2 class="mb-1 text-lg font-semibold text-ink">
         {% if role_value == 'AMBASSADOR' %}
@@ -15,63 +196,6 @@ Referees do not see this field — their prior_pass resolves to NONE in the serv
             {% translate "Referee details" %}
         {% endif %}
     </h2>
-
-    {% comment %}
-        Qualifying criteria, mirroring the official 4 Vallées programme rubric.
-        Season-specific years (2026-2027 / 2024-25 / 2025-26) track the current
-        season and need updating when the season rolls over.
-    {% endcomment %}
-    <div class="mb-4 text-sm text-body">
-        <p class="mb-2 font-medium text-ink">{% translate "To qualify, you must:" %}</p>
-        <ul class="list-disc space-y-1.5 pl-5">
-            {% if role_value == 'AMBASSADOR' %}
-                <li>
-                    {% blocktranslate trimmed %}
-                        Buy a 4 Vallées 2026-2027 annual season ticket at the same time as your referee, and at the
-                        same ski lift ticket office.
-                    {% endblocktranslate %}
-                    <span class="font-semibold text-danger">{% translate "No retroactive refund." %}</span>
-                </li>
-                <li>
-                    {% blocktranslate trimmed %}
-                        Have held a seasonal or annual pass from one of the 4 Vallées companies in 2024-25 or 2025-26.
-                    {% endblocktranslate %}
-                </li>
-                <li>
-                    {% blocktranslate trimmed %}
-                        Refer someone in a price category higher than or equal to your own — an adult cannot be an
-                        ambassador for a child, but a child can be an ambassador for an adult.
-                    {% endblocktranslate %}
-                </li>
-                <li>
-                    {% blocktranslate trimmed %}
-                        Mont 4 Card holders, and those benefitting from special reductions, can refer an adult or a
-                        senior but are not eligible for the discount themselves.
-                    {% endblocktranslate %}
-                </li>
-            {% else %}
-                <li>
-                    {% blocktranslate trimmed %}
-                        Buy a 4 Vallées 2026-2027 annual season ticket at the same time as your ambassador, and at the
-                        same ski lift ticket office.
-                    {% endblocktranslate %}
-                    <span class="font-semibold text-danger">{% translate "No retroactive refund." %}</span>
-                </li>
-                <li>
-                    {% blocktranslate trimmed %}
-                        Not have held a mid-season, seasonal or annual pass from one of the 4 Vallées companies in
-                        2024-25 or 2025-26.
-                    {% endblocktranslate %}
-                </li>
-                <li>
-                    {% blocktranslate trimmed %}
-                        Pay together: your ambassador pays in a lump sum, or you buy both passes at the same time at the
-                        sales desk. These passes cannot be bought online, so the necessary checks can be carried out.
-                    {% endblocktranslate %}
-                </li>
-            {% endif %}
-        </ul>
-    </div>
 
     <form method="post" action="{% url 'public:register_details' %}">
         {% csrf_token %}

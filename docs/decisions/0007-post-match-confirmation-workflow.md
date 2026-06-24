@@ -75,6 +75,35 @@ record, suspension, and the post-accept "let-down" report.
 The accused no-show is the *other* registration on the match — derived, not
 stored.
 
+### Transition audit log
+
+Every state transition is **recorded for replay** — dispute resolution (the
+no-show path is trust-immediately, adjudicated by staff from the records) and
+debugging both depend on a reliable history of what changed when. This audit was
+previously provided by `django-fsm-log` riding the FSM `pre_transition` /
+`post_transition` signals; we recreate it here without the FSM dependency and
+without signals (CLAUDE.md "no Django signals for side effects").
+
+A generic log model lives in `core/` (it is cross-cutting, not Match-specific).
+Each transition is recorded **after** it is applied, inline from the transition
+service, inside the same atomic transaction as the field change:
+
+- `target` — `GenericForeignKey` (content type + object id) to the changed
+  instance, so the log is model-agnostic.
+- `field_name` — the field that transitioned (e.g. `"status"`).
+- `state_before`, `state_after` — the values either side of the transition.
+- timestamp — `BaseModel.created_at` is the post-transition instant; no separate
+  field is added.
+
+A helper `record_transition(instance, field_name, *, before, after)` is called
+from each transition function (`record_acceptance`, `record_decline`,
+`expire_match`, `report_no_show`). Because it is generic it also logs
+`Registration.status` transitions (`WAITING → MATCHED → CONFIRMED | SUSPENDED |
+WITHDRAWN`), giving one ordered history across both models. Recording inline (not
+via a signal) means an `.update()` or admin edit that skips the service is
+*visibly* unlogged rather than silently audited into a false history. The log is
+surfaced read-only in admin (VERB-22).
+
 ### Happy path — both accept
 
 1. `PROPOSED` match notification now carries a **signed, single-purpose,
@@ -187,7 +216,8 @@ CLAUDE.md "Path to live"). It must be idempotent and transactional
 ## Coding follow-ups (sub-tickets of VERB-16)
 
 1. Per-party accept tracking + `Match` state machine (`ABANDONED`, response
-   fields, accept/decline/mutual-accept transitions + contact reveal).
+   fields, accept/decline/mutual-accept transitions + contact reveal) +
+   generic `core` transition audit log (`record_transition`).
 2. Asymmetric re-queue + flaking record + suspension (`flake_count`,
    `SUSPENDED`, priority bands, exclude suspended from matching).
 3. Accept / decline endpoints + signed match-access token + match page +

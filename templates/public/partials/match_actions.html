@@ -1,0 +1,103 @@
+{% load i18n %}
+{% comment %}
+Match actions partial (VERB-19).
+
+Renders the accept/decline buttons when the match is actionable, a waiting
+message when this side has already accepted, or a terminal state message.
+Returned by the full match page and by the match_accept / match_decline HTMX
+endpoints so hx-swap="innerHTML" replaces only this fragment.
+
+Context:
+  match         — Match instance
+  registration  — the viewing party's Registration
+  side          — Match.Side value ("AMBASSADOR" or "REFEREE")
+  display_state — one of "actionable", "waiting", "terminal"
+  state_actionable / state_waiting / state_terminal — the sentinel strings
+  accept_url    — URL for the HTMX accept POST
+  decline_url   — URL for the HTMX decline POST
+  counterpart   — Registration of the other party (present only when ACCEPTED)
+{% endcomment %}
+{% if display_state == state_actionable %}
+    <p class="mb-4 text-body">
+        {% blocktranslate trimmed with deadline=match.expires_at %}
+            You have until {{ deadline }} to respond to this match.
+        {% endblocktranslate %}
+    </p>
+    <div class="flex flex-col gap-3 sm:flex-row">
+        <form
+            method="post"
+            action="{{ accept_url }}"
+            hx-post="{{ accept_url }}"
+            hx-target="#match-actions"
+            hx-swap="innerHTML"
+        >
+            {% csrf_token %}
+            <button type="submit" class="btn btn--role btn--block">
+                {% translate "Accept" %}
+            </button>
+        </form>
+        <form
+            method="post"
+            action="{{ decline_url }}"
+            hx-post="{{ decline_url }}"
+            hx-target="#match-actions"
+            hx-swap="innerHTML"
+        >
+            {% csrf_token %}
+            <button type="submit" class="btn btn--outline btn--block">
+                {% translate "Decline" %}
+            </button>
+        </form>
+    </div>
+{% elif display_state == state_waiting %}
+    <div class="announce announce--role">
+        <span class="announce__dot"></span>
+        {% translate "Waiting for your partner to respond" %}
+    </div>
+    <p class="mt-3 text-sm text-meta">
+        {% blocktranslate trimmed %}
+            You have accepted this match. We are waiting for your partner to respond. You will be notified by email when
+            they do.
+        {% endblocktranslate %}
+    </p>
+{% else %}
+    {# Terminal states — ACCEPTED, DECLINED, EXPIRED, ABANDONED, or window lapsed. #}
+    {% if match.status == 'ACCEPTED' %}
+        <p class="font-semibold text-ink">{% translate "Match accepted" %}</p>
+        <p class="mt-1 text-sm text-body">
+            {% blocktranslate trimmed %}
+                Both parties have accepted. See your partner's contact details above.
+            {% endblocktranslate %}
+        </p>
+    {% elif match.status == 'DECLINED' %}
+        <p class="font-semibold text-ink">{% translate "Match declined" %}</p>
+        <p class="mt-1 text-sm text-body">
+            {% blocktranslate trimmed %}
+                This match was declined. You have been re-queued and will be matched again shortly.
+            {% endblocktranslate %}
+        </p>
+    {% elif match.status == 'EXPIRED' %}
+        <p class="font-semibold text-ink">{% translate "Match expired" %}</p>
+        <p class="mt-1 text-sm text-body">
+            {% blocktranslate trimmed %}
+                The contact window for this match has closed without a mutual response. You have been re-queued.
+            {% endblocktranslate %}
+        </p>
+    {% elif match.status == 'ABANDONED' %}
+        <p class="font-semibold text-ink">{% translate "Match abandoned" %}</p>
+        <p class="mt-1 text-sm text-body">
+            {% blocktranslate trimmed %}
+                This match was reported as a no-show after acceptance. Please contact support if you believe this is an
+                error.
+            {% endblocktranslate %}
+        </p>
+    {% else %}
+        {# Window lapsed while match is technically still PROPOSED. #}
+        <p class="font-semibold text-ink">{% translate "Contact window closed" %}</p>
+        <p class="mt-1 text-sm text-body">
+            {% blocktranslate trimmed %}
+                The contact window for this match has closed. You have been re-queued.
+            {% endblocktranslate %}
+        </p>
+    {% endif %}
+{% endif %}

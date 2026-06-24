@@ -21,10 +21,12 @@ from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import Case, IntegerField, Value, When
+from django.urls import reverse
 from django.utils import timezone, translation
 from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 
+from accounts.tokens import make_match_access_token
 from core.services import record_transition
 
 from .models import Match, Registration
@@ -282,24 +284,31 @@ def send_match_notification(match: Match) -> None:
     """Send a "you've been matched" notification to both parties.
 
     Each recipient's email is rendered under their own preferred_language via
-    ``translation.override``. IMPORTANT: the body must contain NO contact PII
-    (name, email, phone) and NO action link — contact details are revealed only
-    after mutual accept (Invariant 1). The accept endpoint does not yet exist.
+    ``translation.override``. The body contains a per-recipient, signed match-
+    access link so they can view, accept, or decline the match. The link carries
+    no contact PII (Invariant 1) — contact details are only revealed after
+    mutual accept.
     """
     for registration in (
         match.ambassador_registration,
         match.referee_registration,
     ):
         lang = registration.preferred_language or settings.LANGUAGE_CODE
+        # Mint a per-recipient token that scopes the link to this registration
+        # only. The token carries no PII — only the match and registration PKs.
+        token = make_match_access_token(match.pk, registration.pk)
+        match_path = reverse("public:match", args=[token])
+        match_url = settings.BASE_URL + match_path
         with translation.override(lang):
             subject = _("You have been matched — 4 Vallées Ambassadors Program")
             body = _(
                 "Good news — the matching system has found you a partner for the "
                 "4 Vallées Ambassadors Program.\n\n"
-                "Log in to your account to view the match and take action within "
-                "the contact window.\n\n"
+                "Open the link below to view your match and accept or decline "
+                "within the contact window:\n\n"
+                "%(url)s\n\n"
                 "If you did not register for this programme, please ignore this email."
-            )
+            ) % {"url": match_url}
         recipient_email = registration.user.email
         send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [recipient_email])
         logger.info(
@@ -307,6 +316,130 @@ def send_match_notification(match: Match) -> None:
             match.pk,
             registration.pk,
         )
+
+
+def send_match_confirmed_email(match: Match) -> None:
+    """Send a confirmation email to both parties when a match is mutually accepted.
+
+    Each recipient's email is rendered under their own preferred_language. This
+    is the first and only point at which contact PII (the counterpart's name,
+    email, and phone) is revealed (Invariant 1). Must only be called after the
+    match has reached ``ACCEPTED`` status.
+
+    Args:
+        match: A Match whose ``status`` is ``ACCEPTED``.
+    """
+    # Reload to ensure we have the latest related objects.
+    match = (
+        Match.objects.select_related(
+            "ambassador_registration__user",
+            "referee_registration__user",
+        )
+        .get(pk=match.pk)
+    )
+
+    registrations = (
+        match.ambassador_registration,
+        match.referee_registration,
+    )
+    counterparts = {
+        match.ambassador_registration.pk: match.referee_registration,
+        match.referee_registration.pk: match.ambassador_registration,
+    }
+
+    for registration in registrations:
+        counterpart = counterparts[registration.pk]
+        lang = registration.preferred_language or settings.LANGUAGE_CODE
+        with translation.override(lang):
+            subject = _("Match confirmed — contact your partner")
+            body = _(
+                "Great news — your match has been confirmed!\n\n"
+                "Here are your partner's contact details:\n\n"
+                "Name: %(name)s\n"
+                "Email: %(email)s\n"
+                "Phone: %(phone)s\n\n"
+                "Please get in touch to arrange buying your passes together at "
+                "the ticket office.\n\n"
+                "Good luck!"
+            ) % {
+                "name": f"{counterpart.user.first_name} {counterpart.user.last_name}".strip(),
+                "email": counterpart.user.email,
+                "phone": counterpart.phone,
+            }
+        recipient_email = registration.user.email
+        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [recipient_email])
+        logger.info(
+            "Sent match confirmed email for match pk=%s to registration pk=%s",
+            match.pk,
+            registration.pk,
+        )
+
+
+def accept_match(match: Match, registration: Registration) -> Match:
+    """Record an acceptance by ``registration`` and send a confirmed email on mutual accept.
+
+    Calls ``record_acceptance``; if the returned match has reached
+    ``ACCEPTED`` status (both parties have now accepted), queues
+    ``send_match_confirmed_email`` via ``transaction.on_commit`` so the PII
+    reveal email is only sent after the DB commit succeeds.
+
+    Args:
+        match: The match being accepted.
+        registration: The registration (ambassador or referee) accepting.
+
+    Returns:
+        The updated ``Match`` instance.
+
+    Raises:
+        ValueError: propagated from ``record_acceptance`` if match is not PROPOSED.
+    """
+    match = record_acceptance(match, registration)
+    if match.status == Match.Status.ACCEPTED:
+        transaction.on_commit(lambda: send_match_confirmed_email(match))
+        logger.info(
+            "Match pk=%s accepted by both parties; confirmed email queued.",
+            match.pk,
+        )
+    return match
+
+
+def decline_match(match: Match, registration: Registration) -> Match:
+    """Record a decline by ``registration`` and re-queue both parties asymmetrically.
+
+    Calls ``record_decline`` then applies the VERB-17 re-queue services:
+    the decliner goes to the back of the queue (priority -= 1) and the other
+    party (who had not yet declined) goes to the front (priority += 1).
+
+    Args:
+        match: The match being declined.
+        registration: The registration (ambassador or referee) declining.
+
+    Returns:
+        The updated ``Match`` instance.
+
+    Raises:
+        ValueError: propagated from ``record_decline`` if match is not PROPOSED.
+    """
+    side = match.side_of(registration)
+    match = record_decline(match, registration)
+
+    # Determine the other party from the match before re-queuing.
+    if side == Match.Side.AMBASSADOR:
+        other = match.referee_registration
+    else:
+        other = match.ambassador_registration
+
+    requeue_to_back(registration)
+    requeue_to_front(other)
+
+    logger.info(
+        "decline_match: match pk=%s DECLINED by registration pk=%s; "
+        "decliner queued to back, other party (pk=%s) queued to front.",
+        match.pk,
+        registration.pk,
+        other.pk,
+    )
+    return match
 
 
 def register_participant(

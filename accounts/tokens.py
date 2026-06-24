@@ -1,5 +1,4 @@
-# Signed-link tokens for passwordless email verification and registration
-# confirmation.
+# Signed-link tokens for registration confirmation.
 #
 # Tokens are single-purpose (scoped by a dedicated salt) and expiring
 # (``max_age``), per CLAUDE.md invariant 6. Each token type carries only the
@@ -9,36 +8,12 @@ from __future__ import annotations
 
 from django.core import signing
 
-# Salt scopes the email-verification token to that one action; a token minted
-# here cannot be replayed against any other signing use.
-_SALT = "accounts.register-verify"
-
-# Salt for the combined-form registration confirmation token. Distinct from
-# the email-verification salt so the two cannot be interchanged.
+# Salt for the combined-form registration confirmation token. Scopes the token
+# to a single action so it cannot be replayed against other signing uses.
 _CONFIRM_SALT = "accounts.registration-confirm"
 
 # Tokens expire after 24 hours.
 MAX_AGE_SECONDS = 60 * 60 * 24
-
-
-def make_email_verification_token(email: str) -> str:
-    """Return a signed, single-purpose token that verifies ``email``."""
-    return signing.dumps({"email": email.lower()}, salt=_SALT)
-
-
-def read_email_verification_token(
-    token: str, max_age: int = MAX_AGE_SECONDS
-) -> str | None:
-    """Return the verified email for a valid token, else ``None``.
-
-    Returns ``None`` for a tampered, malformed, or expired token.
-    """
-    try:
-        data = signing.loads(token, salt=_SALT, max_age=max_age)
-    except signing.BadSignature:
-        return None
-    email = data.get("email")
-    return email if isinstance(email, str) else None
 
 
 def make_registration_confirmation_token(registration_pk: int) -> str:

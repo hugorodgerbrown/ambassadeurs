@@ -382,17 +382,47 @@ def test_register_confirm_invalid_token_returns_400() -> None:
     assert "public/register_invalid.html" in [t.name for t in response.templates]
 
 
-def test_register_confirm_expired_token_returns_400() -> None:
-    """An expired confirm token shows the invalid-link page with 400."""
+def test_register_confirm_tampered_token_returns_400() -> None:
+    """A tampered (invalid signature) confirm token shows the invalid-link page with 400."""
     user = UserFactory.create(username="ada@example.com", email="ada@example.com")
     reg = RegistrationFactory.create(
         user=user,
         status=Registration.Status.PENDING,
     )
     token = make_registration_confirmation_token(reg.pk)
-    # Force max_age=0 by using the real endpoint — simulate via a tampered token.
     response = Client().get(reverse("public:register_confirm", args=[token + "x"]))
     assert response.status_code == 400
+    assert "public/register_invalid.html" in [t.name for t in response.templates]
+
+
+def test_register_confirm_expired_token_returns_400() -> None:
+    """A well-formed but expired confirm token shows the invalid-link page with 400.
+
+    The token is valid (correct signature) but is read with max_age=-1 to
+    simulate expiry. The registration must remain PENDING (unchanged).
+    """
+    from unittest.mock import patch
+
+    from accounts.tokens import read_registration_confirmation_token
+
+    user = UserFactory.create(username="ada@example.com", email="ada@example.com")
+    reg = RegistrationFactory.create(
+        user=user,
+        status=Registration.Status.PENDING,
+    )
+    token = make_registration_confirmation_token(reg.pk)
+
+    # Wrap the real reader so it is called with max_age=-1 (always expired).
+    def _expired_reader(t: str, max_age: int = -1) -> None:  # type: ignore[override]
+        return read_registration_confirmation_token(t, max_age=-1)
+
+    with patch("public.views.read_registration_confirmation_token", _expired_reader):
+        response = Client().get(reverse("public:register_confirm", args=[token]))
+
+    assert response.status_code == 400
+    assert "public/register_invalid.html" in [t.name for t in response.templates]
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.PENDING
 
 
 def test_register_confirm_already_confirmed_returns_400() -> None:

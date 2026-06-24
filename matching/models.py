@@ -186,8 +186,18 @@ class MatchQuerySet(BaseQuerySet):
         return self.filter(status=Match.Status.PROPOSED)
 
     def active(self) -> MatchQuerySet:
-        """Return non-terminal matches (PROPOSED only; excludes DECLINED/EXPIRED)."""
-        return self.exclude(status__in=[Match.Status.DECLINED, Match.Status.EXPIRED])
+        """Return non-terminal matches (PROPOSED and ACCEPTED).
+
+        Excludes DECLINED, EXPIRED, and ABANDONED — all three are terminal
+        states in the match state machine.
+        """
+        return self.exclude(
+            status__in=[
+                Match.Status.DECLINED,
+                Match.Status.EXPIRED,
+                Match.Status.ABANDONED,
+            ]
+        )
 
 
 class Match(BaseModel):
@@ -197,17 +207,40 @@ class Match(BaseModel):
     rows (no unique constraint on the registration FKs) so that declined and
     expired matches are preserved as history.
 
-    State machine: PROPOSED → ACCEPTED | DECLINED | EXPIRED.
+    State machine:
+        PROPOSED → ACCEPTED | DECLINED | EXPIRED
+        ACCEPTED → ABANDONED  (post-accept no-show report; see ADR 0007)
+
     Contact PII is never revealed until both parties accept (Invariant 1).
+
+    Per-party responses are tracked as typed nullable columns rather than
+    generic JSON or separate FK rows — the parties are always exactly the two
+    registrations on the match, so a FK is over-built (ADR 0007).
     """
 
     class Status(models.TextChoices):
-        """Match lifecycle states. UPPER_CASE values (CLAUDE.md)."""
+        """Match lifecycle states. UPPER_CASE values (CLAUDE.md).
+
+        ABANDONED is added in VERB-18: a mutually-accepted match where one
+        party was reported as a post-accept no-show (ADR 0007).
+        """
 
         PROPOSED = "PROPOSED", _("Proposed")
         ACCEPTED = "ACCEPTED", _("Accepted")
         DECLINED = "DECLINED", _("Declined")
         EXPIRED = "EXPIRED", _("Expired")
+        ABANDONED = "ABANDONED", _("Abandoned")
+
+    class Side(models.TextChoices):
+        """Which side of the match a party is on. UPPER_CASE values (CLAUDE.md).
+
+        Used to record which party declined or reported a no-show without
+        storing a full FK to Registration (the two parties are always known
+        from the match itself).
+        """
+
+        AMBASSADOR = "AMBASSADOR", _("Ambassador")
+        REFEREE = "REFEREE", _("Referee")
 
     ambassador_registration = models.ForeignKey(
         Registration,
@@ -231,6 +264,43 @@ class Match(BaseModel):
         ),
     )
 
+    # --- Per-party response timestamps (VERB-18 / ADR 0007) -----------------
+
+    ambassador_accepted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Tz-aware instant the ambassador accepted; null until they do.",
+    )
+    referee_accepted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Tz-aware instant the referee accepted; null until they do.",
+    )
+    declined_by = models.CharField(
+        max_length=16,
+        choices=Side.choices,
+        blank=True,
+        help_text="Which side declined; empty until a decline occurs.",
+    )
+    declined_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Tz-aware instant the decline was recorded; null until then.",
+    )
+    no_show_reported_by = models.CharField(
+        max_length=16,
+        choices=Side.choices,
+        blank=True,
+        help_text=(
+            "Which side filed the post-accept no-show report; empty until then."
+        ),
+    )
+    no_show_reported_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Tz-aware instant the no-show report was filed; null until then.",
+    )
+
     objects = MatchQuerySet.as_manager()
 
     class Meta:
@@ -246,3 +316,20 @@ class Match(BaseModel):
     def __str__(self) -> str:
         """Delegate to to_string."""
         return self.to_string()
+
+    def side_of(self, registration: Registration) -> Match.Side:
+        """Return which side of this match ``registration`` is on.
+
+        Compares by primary key so the check works on both in-memory and
+        freshly-fetched instances.
+
+        Raises:
+            ValueError: if ``registration`` is neither party on this match.
+        """
+        if registration.pk == self.ambassador_registration_id:
+            return Match.Side.AMBASSADOR
+        if registration.pk == self.referee_registration_id:
+            return Match.Side.REFEREE
+        raise ValueError(
+            f"Registration pk={registration.pk} is not a party on Match pk={self.pk}."
+        )

@@ -308,11 +308,18 @@ both require `VERB-xxx` in the branch name or PR body.
 
 ## Path to live
 
-Deployed on **Render** as a single web service with one Postgres database. Every
-merge to `main` auto-deploys; `build.sh` runs migrations on each deploy. The
-contact-window expiry sweep (re-queue lapsed matches) needs a periodic job — add a
-Render scheduler/worker service when that slice is built, and document the topology
-here then.
+Deployed on **Render**. Topology:
+
+- **Web service** (`ambassadeurs`) — serves the Django app via Gunicorn.
+- **Cron service** (`ambassadeurs-expire-matches`) — runs `manage.py expire_matches`
+  hourly (`0 * * * *`) to sweep PROPOSED matches whose contact window has expired and
+  re-queue both registrations.
+- **Postgres database** (`ambassadeurs-db`) — shared by both services via
+  `DATABASE_URL`.
+
+Every merge to `main` auto-deploys the web service; `build.sh` runs migrations on
+each deploy. The cron service shares the same `build.sh` so migrations are safe to
+run from either service (they are idempotent).
 
 - **No secrets in source** — all credentials via `python-decouple`; `.env` is
   gitignored and never committed.

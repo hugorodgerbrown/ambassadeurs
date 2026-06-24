@@ -1,4 +1,4 @@
-# Render blueprint: single web service + one Postgres database.
+# Render blueprint: one web service + one cron service + one Postgres database.
 # Deploys on merge to main; build.sh migrates on each deploy. Plan names and
 # region are placeholders to confirm against the Render account at deploy time.
 
@@ -20,6 +20,41 @@ services:
         sync: false
       - key: CSRF_TRUSTED_ORIGINS
         sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ambassadeurs-db
+          property: connectionString
+
+  # Cron service: runs the contact-window expiry sweep once per hour.
+  # Expires PROPOSED matches whose expires_at has passed and re-queues both
+  # registrations (keeping-faith side to front, non-responder to back).
+  - type: cron
+    name: ambassadeurs-expire-matches
+    runtime: python
+    plan: starter
+    schedule: "0 * * * *"
+    buildCommand: ./build.sh
+    startCommand: uv run python manage.py expire_matches
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: PYTHON_VERSION
+        value: "3.14"
+      - key: SECRET_KEY
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: SECRET_KEY
+      - key: ALLOWED_HOSTS
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: ALLOWED_HOSTS
+      - key: CSRF_TRUSTED_ORIGINS
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: CSRF_TRUSTED_ORIGINS
       - key: DATABASE_URL
         fromDatabase:
           name: ambassadeurs-db

@@ -10,6 +10,9 @@
 # record_acceptance and record_decline implement the per-party response step of
 # the post-match confirmation workflow (ADR 0007 / VERB-18). Both are atomic
 # and call core.services.record_transition inline for the audit log.
+#
+# expire_lapsed_matches is the periodic sweep entry point: it transitions all
+# PROPOSED matches past their contact window to EXPIRED and re-queues each side.
 
 from __future__ import annotations
 
@@ -504,6 +507,84 @@ def register_participant(
 
     logger.info("Registered user pk=%s as %s", user.pk, role)
     return registration
+
+
+def expire_lapsed_matches() -> int:
+    """Expire all PROPOSED matches past their contact window and re-queue.
+
+    Selects candidate PKs up front, then processes each match in its own
+    ``transaction.atomic()`` block so that one bad match does not abort the
+    whole sweep.
+
+    Per-side re-queue logic:
+    - If a side had already accepted (``*_accepted_at`` is not None), they kept
+      faith → ``requeue_to_front``.
+    - If a side had not responded by expiry, they are the non-responder →
+      ``record_flake_and_requeue`` (records the flake, may suspend).
+
+    Returns:
+        The number of matches that were transitioned to EXPIRED in this run.
+    """
+    candidate_pks = list(Match.objects.lapsed().values_list("pk", flat=True))
+    expired_count = 0
+
+    for pk in candidate_pks:
+        try:
+            with transaction.atomic():
+                match = (
+                    Match.objects.select_for_update()
+                    .select_related("ambassador_registration", "referee_registration")
+                    .get(pk=pk)
+                )
+
+                # Concurrency / idempotency guard: another worker or an
+                # accept/decline may have already changed the status.
+                if match.status != Match.Status.PROPOSED:
+                    logger.debug(
+                        "Skipping match pk=%s: status is %r (expected PROPOSED)",
+                        pk,
+                        match.status,
+                    )
+                    continue
+
+                status_before = match.status
+                match.status = Match.Status.EXPIRED
+                match.save(update_fields=["status", "updated_at"])
+                record_transition(
+                    match,
+                    "status",
+                    before=status_before,
+                    after=match.status,
+                )
+
+                # Re-queue each side according to whether they had accepted.
+                ambassador_reg = match.ambassador_registration
+                referee_reg = match.referee_registration
+
+                if match.ambassador_accepted_at is not None:
+                    requeue_to_front(ambassador_reg)
+                else:
+                    record_flake_and_requeue(ambassador_reg)
+
+                if match.referee_accepted_at is not None:
+                    requeue_to_front(referee_reg)
+                else:
+                    record_flake_and_requeue(referee_reg)
+
+                expired_count += 1
+                logger.info(
+                    "Expired match pk=%s (ambassador reg pk=%s accepted=%s, "
+                    "referee reg pk=%s accepted=%s)",
+                    match.pk,
+                    ambassador_reg.pk,
+                    match.ambassador_accepted_at is not None,
+                    referee_reg.pk,
+                    match.referee_accepted_at is not None,
+                )
+        except Exception:
+            logger.exception("Error expiring match pk=%s; skipping", pk)
+
+    return expired_count
 
 
 def record_acceptance(match: Match, registration: Registration) -> Match:

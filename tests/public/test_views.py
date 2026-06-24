@@ -237,7 +237,8 @@ def test_register_post_race_integrity_error_does_not_500() -> None:
     # passes (no existing row), but the create inside the view raises
     # IntegrityError as if a concurrent request won the race.
     with patch(
-        "public.views.register_participant", side_effect=IntegrityError("unique violation")
+        "public.views.register_participant",
+        side_effect=IntegrityError("unique violation"),
     ):
         # Use an email that has no existing registration so form validation
         # passes; the IntegrityError is raised by the mock at create time.
@@ -383,7 +384,7 @@ def test_register_confirm_invalid_token_returns_400() -> None:
 
 
 def test_register_confirm_tampered_token_returns_400() -> None:
-    """A tampered (invalid signature) confirm token shows the invalid-link page with 400."""
+    """A tampered token shows the invalid-link page with status 400."""
     user = UserFactory.create(username="ada@example.com", email="ada@example.com")
     reg = RegistrationFactory.create(
         user=user,

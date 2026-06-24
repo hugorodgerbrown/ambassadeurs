@@ -5,7 +5,6 @@ from accounts.tokens import (
     read_registration_confirmation_token,
 )
 
-
 # ---------------------------------------------------------------------------
 # Registration confirmation tokens (VERB-24 combined-form flow)
 # ---------------------------------------------------------------------------

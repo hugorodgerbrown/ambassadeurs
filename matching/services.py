@@ -10,6 +10,9 @@
 # record_acceptance and record_decline implement the per-party response step of
 # the post-match confirmation workflow (ADR 0007 / VERB-18). Both are atomic
 # and call core.services.record_transition inline for the audit log.
+#
+# expire_lapsed_matches is the periodic sweep entry point: it transitions all
+# PROPOSED matches past their contact window to EXPIRED and re-queues each side.
 
 from __future__ import annotations
 
@@ -395,7 +398,11 @@ def expire_lapsed_matches() -> int:
     for pk in candidate_pks:
         try:
             with transaction.atomic():
-                match = Match.objects.select_for_update().get(pk=pk)
+                match = (
+                    Match.objects.select_for_update()
+                    .select_related("ambassador_registration", "referee_registration")
+                    .get(pk=pk)
+                )
 
                 # Concurrency / idempotency guard: another worker or an
                 # accept/decline may have already changed the status.

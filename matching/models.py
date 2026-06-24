@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from core.models import BaseModel, BaseQuerySet
@@ -191,8 +192,6 @@ class MatchQuerySet(BaseQuerySet):
         Shorthand for the expiry-sweep candidate set: proposed() filtered
         to those whose expires_at is at or before the current instant.
         """
-        from django.utils import timezone
-
         return self.proposed().filter(expires_at__lte=timezone.now())
 
     def active(self) -> MatchQuerySet:

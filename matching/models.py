@@ -80,8 +80,13 @@ class Registration(BaseModel):
         REFEREE = "REFEREE", _("Referee")
 
     class Status(models.TextChoices):
-        """Lifecycle of a registration in the pool."""
+        """Lifecycle of a registration in the pool.
 
+        PENDING: created from the combined form but not yet email-confirmed;
+        never matched. WAITING: confirmed and waiting in the pool.
+        """
+
+        PENDING = "PENDING", _("Pending")
         WAITING = "WAITING", _("Waiting")
         MATCHED = "MATCHED", _("Matched")
         CONFIRMED = "CONFIRMED", _("Confirmed")

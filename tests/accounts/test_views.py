@@ -1,6 +1,7 @@
 # Tests for the account self-service views.
 
 import pytest
+from django.contrib.auth import SESSION_KEY
 from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import reverse
@@ -115,3 +116,25 @@ def test_delete_post_removes_user_and_registration() -> None:
     assert response.url == reverse("public:home")
     assert not User.objects.filter(pk=user_pk).exists()
     assert not Registration.objects.exists()
+
+
+def test_logout_via_post_logs_out_and_redirects() -> None:
+    """A POST to the logout URL logs the user out and redirects to the home page."""
+    user = UserFactory.create()
+    client = Client()
+    client.force_login(user)
+    response = client.post(reverse("account_logout"))
+    assert response.status_code == 302
+    assert response.url == "/"
+    assert SESSION_KEY not in client.session
+
+
+def test_logout_get_renders_styled_page() -> None:
+    """A GET to the logout URL renders our styled override, not the allauth default."""
+    user = UserFactory.create()
+    client = Client()
+    client.force_login(user)
+    response = client.get(reverse("account_logout"))
+    assert response.status_code == 200
+    assert "account/logout.html" in [t.name for t in response.templates]
+    assert b"btn--primary" in response.content

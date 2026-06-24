@@ -1,0 +1,788 @@
+# English translations for the 4 Vallées Ambassadors application.
+# Copyright (C) 2026 Groupe Télé-Thyon SA
+# This file is distributed under the same license as the application.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ambassadeurs\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-24 12:44+0200\n"
+"PO-Revision-Date: 2026-06-24 12:44+0200\n"
+"Last-Translator: \n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+#: accounts/forms.py:24 matching/forms.py:61
+msgid "First name"
+msgstr ""
+
+#: accounts/forms.py:29 matching/forms.py:66
+msgid "Last name"
+msgstr ""
+
+#: accounts/forms.py:34 matching/forms.py:75 templates/accounts/detail.html:32
+msgid "Phone"
+msgstr ""
+
+#: accounts/forms.py:40 matching/forms.py:87
+msgid "Preferred language"
+msgstr ""
+
+#: accounts/forms.py:42 matching/forms.py:83 matching/forms.py:89
+msgid "No preference"
+msgstr ""
+
+#: accounts/views.py:62
+msgid "Your details have been updated."
+msgstr ""
+
+#: accounts/views.py:85
+msgid "Your account has been deleted."
+msgstr ""
+
+#: matching/forms.py:38 matching/forms.py:71 templates/accounts/detail.html:29
+msgid "Email"
+msgstr ""
+
+#: matching/forms.py:81
+msgid "Preferred resort / ticket office"
+msgstr ""
+
+#: matching/forms.py:93
+msgid "Prior-season pass type"
+msgstr ""
+
+#: matching/forms.py:99
+msgid "I confirm the statement above is true"
+msgstr ""
+
+#: matching/forms.py:159
+msgid "You are already registered for the current season."
+msgstr ""
+
+#: matching/models.py:26
+msgid "Verbier"
+msgstr ""
+
+#: matching/models.py:27
+msgid "Thyon"
+msgstr ""
+
+#: matching/models.py:28
+msgid "Nendaz"
+msgstr ""
+
+#: matching/models.py:29
+msgid "Veysonnaz"
+msgstr ""
+
+#: matching/models.py:30
+msgid "La Tzoumaz"
+msgstr ""
+
+#: matching/models.py:31
+msgid "Bruson"
+msgstr ""
+
+#: matching/models.py:79
+msgid "Ambassador"
+msgstr ""
+
+#: matching/models.py:80
+msgid "Referee"
+msgstr ""
+
+#: matching/models.py:85
+msgid "Waiting"
+msgstr ""
+
+#: matching/models.py:86
+msgid "Matched"
+msgstr ""
+
+#: matching/models.py:87
+msgid "Confirmed"
+msgstr ""
+
+#: matching/models.py:88
+msgid "Withdrawn"
+msgstr ""
+
+#: matching/models.py:98
+msgid "None — I did not hold a prior pass"
+msgstr ""
+
+#: matching/models.py:99
+msgid "Seasonal pass (4 Vallées)"
+msgstr ""
+
+#: matching/models.py:100
+msgid "Annual pass (4 Vallées)"
+msgstr ""
+
+#: matching/models.py:101
+msgid "Mont 4 Card / special reduction"
+msgstr ""
+
+#: matching/models.py:183
+msgid "Proposed"
+msgstr ""
+
+#: matching/models.py:184
+msgid "Accepted"
+msgstr ""
+
+#: matching/models.py:185
+msgid "Declined"
+msgstr ""
+
+#: matching/models.py:186
+msgid "Expired"
+msgstr ""
+
+#: matching/services.py:187
+msgid "You have been matched — 4 Vallées Ambassadors Program"
+msgstr ""
+
+#: matching/services.py:189
+msgid ""
+"Good news — the matching system has found you a partner for the 4 Vallées "
+"Ambassadors Program.\n"
+"\n"
+"Log in to your account to view the match and take action within the contact "
+"window.\n"
+"\n"
+"If you did not register for this programme, please ignore this email."
+msgstr ""
+
+#: public/views.py:83
+msgid "Confirm your email to register"
+msgstr ""
+
+#: public/views.py:85
+#, python-format
+msgid ""
+"Click the link below to confirm your email and continue registering for the "
+"4 Vallées Ambassadors Program:\n"
+"\n"
+"%(url)s\n"
+"\n"
+"This link expires in 24 hours. If you didn't request it, ignore this email."
+msgstr ""
+
+#: templates/account/logout.html:4 templates/account/logout.html:9
+#: templates/account/logout.html:17 templates/includes/nav.html:15
+msgid "Log out"
+msgstr ""
+
+#: templates/account/logout.html:12
+msgid "Are you sure you want to log out?"
+msgstr ""
+
+#: templates/accounts/delete.html:4 templates/accounts/delete.html:8
+#: templates/accounts/detail.html:95
+msgid "Delete my account"
+msgstr ""
+
+#: templates/accounts/delete.html:10
+msgid ""
+"This permanently deletes your account, your profile and all your "
+"registrations. You'll be removed from any queues. This cannot be undone."
+msgstr ""
+
+#: templates/accounts/delete.html:23
+msgid "Yes, delete my account"
+msgstr ""
+
+#: templates/accounts/delete.html:26 templates/accounts/edit.html:36
+msgid "Cancel"
+msgstr ""
+
+#: templates/accounts/detail.html:4 templates/accounts/detail.html:8
+#: templates/includes/nav.html:10
+msgid "My account"
+msgstr ""
+
+#: templates/accounts/detail.html:21
+msgid "Your details"
+msgstr ""
+
+#: templates/accounts/detail.html:23
+msgid "Edit"
+msgstr ""
+
+#: templates/accounts/detail.html:27
+msgid "Name"
+msgstr ""
+
+#: templates/accounts/detail.html:34
+msgid "Language"
+msgstr ""
+
+#: templates/accounts/detail.html:44
+msgid "Your registration"
+msgstr ""
+
+#: templates/accounts/detail.html:47
+msgid "Role"
+msgstr ""
+
+#: templates/accounts/detail.html:49
+msgid "Status"
+msgstr ""
+
+#: templates/accounts/detail.html:53
+msgid ""
+"Your role is fixed. To register in the other role you must delete your "
+"account and start again."
+msgstr ""
+
+#: templates/accounts/detail.html:58
+msgid "You have no registration yet."
+msgstr ""
+
+#: templates/accounts/detail.html:63
+msgid "Register now"
+msgstr ""
+
+#: templates/accounts/detail.html:70
+msgid "Security"
+msgstr ""
+
+#: templates/accounts/detail.html:72
+msgid ""
+"Link your Facebook profile so you can sign in with it, or remove the "
+"connection."
+msgstr ""
+
+#: templates/accounts/detail.html:80
+msgid "Manage Facebook connection"
+msgstr ""
+
+#: templates/accounts/detail.html:85
+msgid "Delete account"
+msgstr ""
+
+#: templates/accounts/detail.html:87
+msgid ""
+"Permanently delete your account and all your registrations. This cannot be "
+"undone."
+msgstr ""
+
+#: templates/accounts/edit.html:4 templates/accounts/edit.html:8
+msgid "Edit my details"
+msgstr ""
+
+#: templates/accounts/edit.html:25
+msgid "Your role and email can't be changed here."
+msgstr ""
+
+#: templates/accounts/edit.html:33
+msgid "Save changes"
+msgstr ""
+
+#: templates/base.html:7 templates/includes/nav.html:5
+msgid "4 Vallées Ambassadors"
+msgstr ""
+
+#: templates/includes/_facebook_button.html:14
+msgid "Continue with Facebook"
+msgstr ""
+
+#: templates/includes/footer.html:6 templates/public/home.html:7
+msgid "4 Vallées Ambassadors Program"
+msgstr ""
+
+#: templates/includes/footer.html:10
+msgid "Privacy"
+msgstr ""
+
+#: templates/includes/footer.html:13
+msgid "Cookies"
+msgstr ""
+
+#: templates/includes/footer.html:16
+msgid "Terms"
+msgstr ""
+
+#: templates/includes/nav.html:20
+msgid "Log in"
+msgstr ""
+
+#: templates/includes/nav.html:30
+msgid "Change language"
+msgstr ""
+
+#: templates/public/home.html:10
+msgid "Find your season-pass partner"
+msgstr ""
+
+#: templates/public/home.html:13
+msgid ""
+"To claim the Ambassadors discount on the 4 Vallées annual pass, a returning "
+"holder and a new holder have to apply together. We match you with a partner "
+"automatically — no more scrambling in the Facebook group, no chasing people "
+"who vanish."
+msgstr ""
+
+#: templates/public/home.html:22
+msgid "Registration opens soon — check back closer to the start of the season."
+msgstr ""
+
+#: templates/public/home.html:30
+msgid "How it works"
+msgstr ""
+
+#: templates/public/home.html:33
+msgid "Register in the role that fits you — Ambassador or Referee."
+msgstr ""
+
+#: templates/public/home.html:35
+msgid ""
+"We add you to the queue and match you with a partner automatically. You "
+"don't pick each other."
+msgstr ""
+
+#: templates/public/home.html:37
+msgid "When you're matched, we email you. You have 72 hours to accept."
+msgstr ""
+
+#: templates/public/home.html:39
+msgid ""
+"Once you both accept, we share contact details so you can meet and apply "
+"together."
+msgstr ""
+
+#: templates/public/home.html:47
+msgid "Which one are you?"
+msgstr ""
+
+#: templates/public/home.html:52
+msgid "I'm an Ambassador"
+msgstr ""
+
+#: templates/public/home.html:55
+msgid ""
+"You held a 4 Vallées seasonal or annual pass in a recent season and want to "
+"refer a new holder. You're the returning holder."
+msgstr ""
+
+#: templates/public/home.html:64
+msgid "Register as an Ambassador"
+msgstr ""
+
+#: templates/public/home.html:70
+msgid "I'm a Referee"
+msgstr ""
+
+#: templates/public/home.html:73
+msgid ""
+"You're new to the 4 Vallées — you didn't hold a pass in either of the two "
+"previous seasons — and need an Ambassador to refer you."
+msgstr ""
+
+#: templates/public/home.html:82
+msgid "Register as a Referee"
+msgstr ""
+
+#: templates/public/legal/cookies.html:4 templates/public/legal/cookies.html:8
+msgid "Cookie Policy"
+msgstr ""
+
+#: templates/public/legal/cookies.html:9 templates/public/legal/privacy.html:9
+#: templates/public/legal/terms.html:9
+msgid "Last updated"
+msgstr ""
+
+#: templates/public/legal/cookies.html:11
+msgid "What we use"
+msgstr ""
+
+#: templates/public/legal/cookies.html:13
+msgid ""
+"We only use strictly-necessary cookies: a session cookie to keep you signed "
+"in, a security cookie to protect forms against cross-site request forgery, "
+"and a cookie that remembers your chosen language."
+msgstr ""
+
+#: templates/public/legal/cookies.html:19
+msgid "What we don't use"
+msgstr ""
+
+#: templates/public/legal/cookies.html:21
+msgid ""
+"We do not use analytics, advertising, or third-party tracking cookies, so "
+"there is no cookie consent banner to manage."
+msgstr ""
+
+#: templates/public/legal/cookies.html:27
+msgid "Managing cookies"
+msgstr ""
+
+#: templates/public/legal/cookies.html:29
+msgid ""
+"You can clear or block cookies in your browser settings, but the site will "
+"not work correctly without the strictly-necessary cookies above."
+msgstr ""
+
+#: templates/public/legal/cookies.html:36
+#: templates/public/legal/privacy.html:59
+msgid ""
+"This policy is a first-draft baseline and should be reviewed by a legal "
+"professional before the program launches."
+msgstr ""
+
+#: templates/public/legal/privacy.html:4 templates/public/legal/privacy.html:8
+msgid "Privacy Policy"
+msgstr ""
+
+#: templates/public/legal/privacy.html:11
+msgid "Who we are"
+msgstr ""
+
+#: templates/public/legal/privacy.html:13
+msgid ""
+"This service matches partners for the 4 Vallées Ambassadors Program. The "
+"data controller for the personal data processed here is Groupe Télé-Thyon "
+"SA. For privacy questions, contact caissier@tele-thyon.ch."
+msgstr ""
+
+#: templates/public/legal/privacy.html:20
+msgid "What we collect"
+msgstr ""
+
+#: templates/public/legal/privacy.html:22
+msgid ""
+"We deliberately collect only what matchmaking and contact require: your "
+"name, email address, phone number, your role (Ambassador or Referee), your "
+"chosen price category, your prior-season eligibility attestation, and your "
+"preferred resort. We do not collect the full application details (date of "
+"birth, address, photo ID, keycard, insurance) — those are handled off-app "
+"when you apply in person."
+msgstr ""
+
+#: templates/public/legal/privacy.html:30
+msgid "Why we use it"
+msgstr ""
+
+#: templates/public/legal/privacy.html:32
+msgid ""
+"We use your data to place you in the matching queue, pair you with a "
+"partner, and let you contact each other once you have both accepted a match. "
+"Your email and phone are never shown to another participant before you have "
+"both accepted."
+msgstr ""
+
+#: templates/public/legal/privacy.html:39
+msgid "How long we keep it"
+msgstr ""
+
+#: templates/public/legal/privacy.html:41
+msgid ""
+"We keep your data for the duration of the season you registered for and a "
+"short period afterwards, then delete it. You can delete your account at any "
+"time from your account page."
+msgstr ""
+
+#: templates/public/legal/privacy.html:48
+msgid "Your rights (GDPR / Swiss FADP)"
+msgstr ""
+
+#: templates/public/legal/privacy.html:51
+msgid ""
+"You have the right to access, correct, export, or delete your personal data, "
+"and to object to or restrict its processing. You can exercise most of these "
+"directly from your account page, or by contacting us. You also have the "
+"right to lodge a complaint with your data protection authority."
+msgstr ""
+
+#: templates/public/legal/terms.html:4 templates/public/legal/terms.html:8
+msgid "Terms of Use"
+msgstr ""
+
+#: templates/public/legal/terms.html:11
+msgid "What this service does"
+msgstr ""
+
+#: templates/public/legal/terms.html:13
+msgid ""
+"This service helps you find a partner for the 4 Vallées Ambassadors Program. "
+"It is matchmaking only: the actual discount application and the purchase at "
+"the ticket office happen separately, in person, and are not part of this "
+"service."
+msgstr ""
+
+#: templates/public/legal/terms.html:20 templates/public/register_done.html:25
+msgid "Your responsibilities"
+msgstr ""
+
+#: templates/public/legal/terms.html:22
+msgid ""
+"Give accurate information, including your honest prior-season eligibility."
+msgstr ""
+
+#: templates/public/legal/terms.html:23
+msgid "Respond to a match within 72 hours — accept or decline."
+msgstr ""
+
+#: templates/public/legal/terms.html:25
+msgid ""
+"If you do not respond in time, your match is cancelled and you go to the "
+"back of the queue."
+msgstr ""
+
+#: templates/public/legal/terms.html:29
+msgid "Be respectful and prompt with the partner you are matched with."
+msgstr ""
+
+#: templates/public/legal/terms.html:32
+msgid "Eligibility"
+msgstr ""
+
+#: templates/public/legal/terms.html:34
+msgid ""
+"Eligibility is self-declared here and verified off-app when you apply "
+"together at the ticket office. Registering does not guarantee a match or "
+"entitle you to the discount; both depend on the off-app application."
+msgstr ""
+
+#: templates/public/legal/terms.html:41
+msgid "No guarantee"
+msgstr ""
+
+#: templates/public/legal/terms.html:43
+msgid ""
+"There are usually more referees than ambassadors, so we cannot guarantee "
+"that everyone will be matched."
+msgstr ""
+
+#: templates/public/legal/terms.html:49
+msgid ""
+"These terms are a first-draft baseline and should be reviewed by a legal "
+"professional before the program launches."
+msgstr ""
+
+#: templates/public/partials/register_details_form.html:34
+msgid "To qualify as an Ambassador you must:"
+msgstr ""
+
+#: templates/public/partials/register_details_form.html:36
+msgid "To qualify as a Referee you must:"
+msgstr ""
+
+#: templates/public/partials/register_details_form.html:56
+msgid ""
+"Buy a 4 Vallées 2026-2027 annual season ticket at the same time as your "
+"referee, and at the same ski lift ticket office."
+msgstr ""
+
+#: templates/public/partials/register_details_form.html:60
+#: templates/public/partials/register_details_form.html:141
+msgid "No retroactive refund."
+msgstr ""
+
+#: templates/public/partials/register_details_form.html:77
+msgid ""
+"Have held a seasonal or annual pass from one of the 4 Vallées companies in "
+"2024-25 or 2025-26."
+msgstr ""
+
+#: templates/public/partials/register_details_form.html:96
+msgid ""
+"Refer someone in a price category higher than or equal to your own — an "
+"adult cannot be an ambassador for a child, but a child can be an ambassador "
+"for an adult."
+msgstr ""
+
+#: templates/public/partials/register_details_form.html:116
+msgid ""
+"Mont 4 Card holders, and those benefitting from special reductions, can "
+"refer an adult or a senior but are not eligible for the discount themselves."
+msgstr ""
+
+#: templates/public/partials/register_details_form.html:137
+msgid ""
+"Buy a 4 Vallées 2026-2027 annual season ticket at the same time as your "
+"ambassador, and at the same ski lift ticket office."
+msgstr ""
+
+#: templates/public/partials/register_details_form.html:158
+msgid ""
+"Not have held a mid-season, seasonal or annual pass from one of the 4 "
+"Vallées companies in 2024-25 or 2025-26."
+msgstr ""
+
+#: templates/public/partials/register_details_form.html:178
+msgid ""
+"Pay together: your ambassador pays in a lump sum, or you buy both passes at "
+"the same time at the sales desk. These passes cannot be bought online, so "
+"the necessary checks can be carried out."
+msgstr ""
+
+#: templates/public/partials/register_details_form.html:191
+msgid "Ambassador details"
+msgstr ""
+
+#: templates/public/partials/register_details_form.html:193
+msgid "Referee details"
+msgstr ""
+
+#: templates/public/partials/register_details_form.html:228
+msgid ""
+"I confirm that I held a seasonal or annual 4 Vallées pass in 2024-25 or "
+"2025-26. I understand this will be checked against my keycard when we apply "
+"together."
+msgstr ""
+
+#: templates/public/partials/register_details_form.html:233
+msgid ""
+"I confirm that I did NOT hold a mid-season, seasonal or annual 4 Vallées "
+"pass in 2024-25 or 2025-26."
+msgstr ""
+
+#: templates/public/partials/register_details_form.html:252
+msgid "Register and join the queue"
+msgstr ""
+
+#: templates/public/register_closed.html:4
+msgid "Registration closed"
+msgstr ""
+
+#: templates/public/register_closed.html:9
+msgid "Registration isn't open yet"
+msgstr ""
+
+#: templates/public/register_closed.html:12
+msgid ""
+"There is no season open for registration right now. Please check back closer "
+"to the start of the season."
+msgstr ""
+
+#: templates/public/register_closed.html:18
+#: templates/public/register_done.html:40
+#: templates/public/register_email_sent.html:27
+msgid "Back to home"
+msgstr ""
+
+#: templates/public/register_details.html:4
+#: templates/public/register_details.html:8
+msgid "Confirm your role"
+msgstr ""
+
+#: templates/public/register_details.html:10
+#, python-format
+msgid "Confirm registration for <strong>%(email)s</strong>."
+msgstr ""
+
+#: templates/public/register_details.html:19
+msgid "Register as"
+msgstr ""
+
+#: templates/public/register_details.html:31
+msgid "Choose your role…"
+msgstr ""
+
+#: templates/public/register_details.html:39
+msgid "Ambassador - previous season ticket holder"
+msgstr ""
+
+#: templates/public/register_details.html:47
+msgid "Referee - new season ticket applicant"
+msgstr ""
+
+#: templates/public/register_details.html:52
+msgid "Role can't be changed after registration."
+msgstr ""
+
+#: templates/public/register_done.html:4
+msgid "Registration received"
+msgstr ""
+
+#: templates/public/register_done.html:9
+msgid "You're in the queue"
+msgstr ""
+
+#: templates/public/register_done.html:13
+msgid ""
+"Thanks for offering to refer a new holder. We'll match you with a referee "
+"and email you when it happens."
+msgstr ""
+
+#: templates/public/register_done.html:18
+msgid ""
+"Thanks for registering. We'll match you with an Ambassador and email you "
+"when it happens."
+msgstr ""
+
+#: templates/public/register_done.html:27
+msgid "Watch your inbox — we contact you by email."
+msgstr ""
+
+#: templates/public/register_done.html:28
+msgid "When matched, accept (or decline) within 72 hours."
+msgstr ""
+
+#: templates/public/register_done.html:30
+msgid ""
+"If you don't respond in time, your match is cancelled and you go to the back "
+"of the queue."
+msgstr ""
+
+#: templates/public/register_done.html:34
+msgid "Be respectful and prompt with your matched partner."
+msgstr ""
+
+#: templates/public/register_email_sent.html:4
+#: templates/public/register_email_sent.html:8
+msgid "Check your inbox"
+msgstr ""
+
+#: templates/public/register_email_sent.html:10
+msgid ""
+"We've emailed you a link to confirm your address and continue registering. "
+"The link expires in 24 hours."
+msgstr ""
+
+#: templates/public/register_email_sent.html:18
+msgid "Development shortcut"
+msgstr ""
+
+#: templates/public/register_invalid.html:4
+msgid "Link expired"
+msgstr ""
+
+#: templates/public/register_invalid.html:8
+msgid "This link is invalid or has expired"
+msgstr ""
+
+#: templates/public/register_invalid.html:10
+msgid ""
+"Verification links are single-use and expire after 24 hours. Please start "
+"again to get a fresh link."
+msgstr ""
+
+#: templates/public/register_invalid.html:16
+msgid "Start again"
+msgstr ""
+
+#: templates/public/register_start.html:4
+#: templates/public/register_start.html:8
+msgid "Register"
+msgstr ""
+
+#: templates/public/register_start.html:10
+msgid ""
+"First, confirm your email. We'll send you a link to continue — or you can "
+"use Facebook. You'll choose your role and fill in your details next."
+msgstr ""
+
+#: templates/public/register_start.html:19
+msgid "or continue with email"
+msgstr ""
+
+#: templates/public/register_start.html:37
+msgid "Email me a link"
+msgstr ""

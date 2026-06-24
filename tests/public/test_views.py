@@ -221,6 +221,33 @@ def test_register_post_duplicate_waiting_shows_validation_error() -> None:
     assert b"already registered" in response.content
 
 
+def test_register_post_race_integrity_error_does_not_500() -> None:
+    """An IntegrityError from a concurrent create must not propagate as a 500.
+
+    Simulates the TOCTOU window: form validation passes (no existing
+    registration found), but by the time the view calls register_participant
+    a concurrent request has created the row and the OneToOne constraint fires.
+    The view must catch that and redirect gracefully rather than 500-ing.
+    """
+    from unittest.mock import patch
+
+    from django.db import IntegrityError
+
+    # Patch register_participant to simulate the race condition: form validation
+    # passes (no existing row), but the create inside the view raises
+    # IntegrityError as if a concurrent request won the race.
+    with patch(
+        "public.views.register_participant", side_effect=IntegrityError("unique violation")
+    ):
+        # Use an email that has no existing registration so form validation
+        # passes; the IntegrityError is raised by the mock at create time.
+        response = Client().post(reverse("public:register"), _valid_referee_post())
+
+    # Must redirect to email-sent (no crash), not 500.
+    assert response.status_code == 302
+    assert response.url == reverse("public:register_email_sent")
+
+
 @override_settings(DEBUG=True)
 def test_register_post_stashes_confirm_url_in_debug() -> None:
     """In DEBUG the confirm URL is stashed in the session for the shortcut page."""

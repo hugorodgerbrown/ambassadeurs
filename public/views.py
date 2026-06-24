@@ -18,6 +18,7 @@ from django.conf import settings
 from django.contrib.auth import login
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
+from django.db import IntegrityError, transaction
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -207,25 +208,51 @@ def register(request: HttpRequest) -> HttpResponse:
 
     # Check for an existing PENDING registration for this email. If one exists,
     # resend the confirmation link without creating a second row.
+    #
+    # The lookup and create run inside a single atomic block to guard against a
+    # TOCTOU race: if a concurrent request confirms the registration between the
+    # DoesNotExist branch and the register_participant call, the OneToOne
+    # constraint would raise IntegrityError. We catch that and fall back to
+    # resending for whatever row now exists for that email.
     try:
-        pending_reg = Registration.objects.get(
-            user__email=email, status=Registration.Status.PENDING
+        with transaction.atomic():
+            try:
+                pending_reg = Registration.objects.select_for_update().get(
+                    user__email=email, status=Registration.Status.PENDING
+                )
+                confirm_url = _send_confirmation_email(request, pending_reg)
+            except Registration.DoesNotExist:
+                registration = register_participant(
+                    role=role_value,
+                    first_name=data["first_name"],
+                    last_name=data["last_name"],
+                    email=email,
+                    prior_pass=data["prior_pass"],
+                    phone=data.get("phone", ""),
+                    preferred_location=data.get("preferred_location", ""),
+                    preferred_language=data.get("preferred_language", ""),
+                    accepted_terms=form.accepted_statements(),
+                    status=Registration.Status.PENDING,
+                )
+                confirm_url = _send_confirmation_email(request, registration)
+    except IntegrityError:
+        # A concurrent request created/confirmed a registration for this email
+        # between our DoesNotExist branch and our create attempt. Resend for
+        # whichever row now exists with a PENDING status; if none exists (it was
+        # already confirmed), fall through to a generic resend.
+        logger.warning(
+            "IntegrityError on registration create for %s — resending for existing row",
+            email,
         )
-        confirm_url = _send_confirmation_email(request, pending_reg)
-    except Registration.DoesNotExist:
-        registration = register_participant(
-            role=role_value,
-            first_name=data["first_name"],
-            last_name=data["last_name"],
-            email=email,
-            prior_pass=data["prior_pass"],
-            phone=data.get("phone", ""),
-            preferred_location=data.get("preferred_location", ""),
-            preferred_language=data.get("preferred_language", ""),
-            accepted_terms=form.accepted_statements(),
-            status=Registration.Status.PENDING,
-        )
-        confirm_url = _send_confirmation_email(request, registration)
+        try:
+            existing = Registration.objects.get(
+                user__email=email, status=Registration.Status.PENDING
+            )
+            confirm_url = _send_confirmation_email(request, existing)
+        except Registration.DoesNotExist:
+            # The race winner already confirmed: redirect without sending so the
+            # user proceeds to login normally.
+            return redirect("public:register_email_sent")
 
     if settings.DEBUG:
         request.session["debug_verify_url"] = confirm_url

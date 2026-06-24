@@ -86,6 +86,7 @@ class Registration(BaseModel):
         MATCHED = "MATCHED", _("Matched")
         CONFIRMED = "CONFIRMED", _("Confirmed")
         WITHDRAWN = "WITHDRAWN", _("Withdrawn")
+        SUSPENDED = "SUSPENDED", _("Suspended")
 
     class PriorPass(models.TextChoices):
         """Prior-season pass type, used to gate match eligibility.
@@ -138,6 +139,13 @@ class Registration(BaseModel):
     priority = models.IntegerField(
         default=0,
         help_text="Queue priority; higher is nearer the front. Adjusted by flaking.",
+    )
+    flake_count = models.IntegerField(
+        default=0,
+        help_text=(
+            "Recorded flakes (non-responses and post-accept no-shows; not declines). "
+            "2 auto-suspends."
+        ),
     )
     accepted_terms = models.JSONField(
         default=list,

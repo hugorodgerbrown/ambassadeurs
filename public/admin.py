@@ -13,6 +13,6 @@ class FormDownloadAdmin(admin.ModelAdmin):
     download-rate trend over the registration period.
     """
 
-    list_display = ["pk", "created_at"]
+    list_display = ["__str__", "created_at"]
     readonly_fields = ["created_at", "updated_at"]
     date_hierarchy = "created_at"

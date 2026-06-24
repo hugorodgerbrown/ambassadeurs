@@ -1,5 +1,7 @@
 # Tests for the public site views.
 
+from unittest.mock import patch
+
 import pytest
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -534,16 +536,18 @@ def test_match_detail_bad_token_returns_400_and_invalid_template() -> None:
 
 
 def test_match_detail_expired_token_returns_400() -> None:
-    """An expired token returns 400 with the match_invalid template."""
+    """An expired token returns 400 with the match_invalid template.
+
+    ``read_match_access_token`` is patched to return ``None`` (the same value it
+    returns for an expired token) so the view's expiry-gate code path is exercised
+    without needing to manipulate the system clock.
+    """
     match = MatchFactory.create()
-    # Build a token with a very short max_age by using make_match_access_token
-    # and then reading it with max_age=-1. We use a trick: pass a fixed token.
     token = make_match_access_token(match.pk, match.ambassador_registration_id)
-    # The view uses the default max_age (CONTACT_WINDOW_HOURS * 3600); to test
-    # expiry without mocking time, we pass max_age=-1 via read_match_access_token
-    # directly. Here we verify the 400 path by passing a tampered token.
-    response = Client().get(reverse("public:match", args=[token + "x"]))
+    with patch("public.views.read_match_access_token", return_value=None):
+        response = Client().get(reverse("public:match", args=[token]))
     assert response.status_code == 400
+    assert "public/match_invalid.html" in [t.name for t in response.templates]
 
 
 def test_match_detail_registration_not_on_match_returns_400() -> None:

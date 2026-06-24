@@ -9,9 +9,12 @@
                 <a href="{% url 'accounts:detail' %}" class="font-medium text-ink">
                     {% translate "My account" %}
                 </a>
-                <a href="{% url 'account_logout' %}" class="text-body">
-                    {% translate "Log out" %}
-                </a>
+                <form method="post" action="{% url 'account_logout' %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="bg-transparent border-0 p-0 text-body cursor-pointer">
+                        {% translate "Log out" %}
+                    </button>
+                </form>
             {% else %}
                 <a href="{% url 'account_login' %}" class="font-medium text-ink">
                     {% translate "Log in" %}

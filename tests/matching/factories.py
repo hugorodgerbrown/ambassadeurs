@@ -7,6 +7,13 @@ import factory
 from matching.models import Match, Registration
 from tests.accounts.factories import UserFactory
 
+# Placeholder consent statements used as factory defaults so that existing tests
+# that do not exercise the acceptance flow remain green.
+_DEFAULT_ACCEPTED_TERMS = [
+    "I confirm my eligibility.",
+    "I have read and agree to the Terms of Use",
+]
+
 
 class RegistrationFactory(factory.django.DjangoModelFactory[Registration]):
     """Factory for Registration (ambassador with a seasonal pass by default).
@@ -25,6 +32,10 @@ class RegistrationFactory(factory.django.DjangoModelFactory[Registration]):
     preferred_location = ""
     status = Registration.Status.WAITING
     priority = 0
+    accepted_terms = factory.LazyFunction(lambda: list(_DEFAULT_ACCEPTED_TERMS))
+    terms_accepted_at = factory.LazyFunction(
+        lambda: datetime(2026, 9, 1, 10, 0, 0, tzinfo=UTC)
+    )
 
     class Params:
         """Extra traits for common configurations."""

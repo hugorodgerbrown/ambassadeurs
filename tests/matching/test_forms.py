@@ -17,7 +17,8 @@ def _valid_ambassador_data(**overrides: object) -> dict[str, object]:
         "last_name": "Lovelace",
         "email": "ada@example.com",
         "prior_pass": Registration.PriorPass.SEASONAL,
-        "attestation": True,
+        "prior_pass_attestation": True,
+        "terms_accepted": True,
     }
     data.update(overrides)
     return data
@@ -29,7 +30,8 @@ def _valid_referee_data(**overrides: object) -> dict[str, object]:
         "first_name": "Grace",
         "last_name": "Hopper",
         "email": "grace@example.com",
-        "attestation": True,
+        "prior_pass_attestation": True,
+        "terms_accepted": True,
     }
     data.update(overrides)
     return data
@@ -45,14 +47,42 @@ def test_valid_ambassador_form_lowercases_email() -> None:
     assert form.cleaned_data["email"] == "ada@example.com"
 
 
-def test_attestation_is_required() -> None:
-    """The mandatory attestation checkbox must be ticked."""
+def test_prior_pass_attestation_is_required() -> None:
+    """The eligibility declaration checkbox must be ticked."""
     form = RegistrationForm(
         role=Registration.Role.AMBASSADOR,
-        data=_valid_ambassador_data(attestation=False),
+        data=_valid_ambassador_data(prior_pass_attestation=False),
     )
     assert not form.is_valid()
-    assert "attestation" in form.errors
+    assert "prior_pass_attestation" in form.errors
+
+
+def test_terms_accepted_is_required() -> None:
+    """The Terms of Use acceptance checkbox must be ticked."""
+    form = RegistrationForm(
+        role=Registration.Role.AMBASSADOR,
+        data=_valid_ambassador_data(terms_accepted=False),
+    )
+    assert not form.is_valid()
+    assert "terms_accepted" in form.errors
+
+
+def test_both_checkboxes_present_makes_form_valid() -> None:
+    """The form is valid when both confirmation checkboxes are ticked."""
+    form = RegistrationForm(
+        role=Registration.Role.AMBASSADOR,
+        data=_valid_ambassador_data(),
+    )
+    assert form.is_valid(), form.errors
+
+
+def test_referee_both_checkboxes_present_makes_form_valid() -> None:
+    """The referee form is valid when both confirmation checkboxes are ticked."""
+    form = RegistrationForm(
+        role=Registration.Role.REFEREE,
+        data=_valid_referee_data(),
+    )
+    assert form.is_valid(), form.errors
 
 
 def test_ambassador_form_has_prior_pass_field() -> None:
@@ -95,7 +125,8 @@ def test_authenticated_duplicate_registration_rejected() -> None:
             "first_name": "Ada",
             "last_name": "Lovelace",
             "prior_pass": Registration.PriorPass.SEASONAL,
-            "attestation": True,
+            "prior_pass_attestation": True,
+            "terms_accepted": True,
         },
     )
     assert not form.is_valid()
@@ -122,3 +153,33 @@ def test_ambassador_prior_pass_invalid_choice_rejected() -> None:
     )
     assert not form.is_valid()
     assert "prior_pass" in form.errors
+
+
+def test_accepted_statements_returns_ambassador_specific_eligibility_label() -> None:
+    """accepted_statements() returns a 2-item list; ambassador wording is first."""
+    form = RegistrationForm(
+        role=Registration.Role.AMBASSADOR,
+        data=_valid_ambassador_data(),
+    )
+    assert form.is_valid(), form.errors
+    statements = form.accepted_statements()
+    assert len(statements) == 2
+    assert "2024-25 or 2025-26" in statements[0]
+    assert "seasonal or annual" in statements[0]
+    # The eligibility statement must not contain the referee negation.
+    assert "not held" not in statements[0]
+    assert statements[1] == "I have read and agree to the Terms of Use"
+
+
+def test_accepted_statements_returns_referee_specific_eligibility_label() -> None:
+    """accepted_statements() returns a 2-item list; referee wording is first."""
+    form = RegistrationForm(
+        role=Registration.Role.REFEREE,
+        data=_valid_referee_data(),
+    )
+    assert form.is_valid(), form.errors
+    statements = form.accepted_statements()
+    assert len(statements) == 2
+    assert "not held" in statements[0]
+    assert "2024-25 or 2025-26" in statements[0]
+    assert statements[1] == "I have read and agree to the Terms of Use"

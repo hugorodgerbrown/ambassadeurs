@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("matching", "0002_add_accepted_terms_to_registration"),
+        ("matching", "0003_registration_flake_count_alter_registration_status"),
     ]
 
     operations = [

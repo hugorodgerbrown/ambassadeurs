@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "How it works" %}{% endblock %}
+
+{% block content %}
+    <article class="mx-auto max-w-2xl space-y-4 text-body">
+        <h1 class="text-2xl font-bold text-ink">{% translate "How it works" %}</h1>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">
+            {% translate "What is the 4 Vallées Ambassadors Program?" %}
+        </h2>
+        <p>
+            {% blocktranslate trimmed %}
+                The 4 Vallées Ambassadors Program is a referral scheme that lets a returning season-pass holder (an
+                Ambassador) bring a genuinely new holder (a Referee) into the programme. Both apply together and, if
+                eligible, both receive a discount on their seasonal pass.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">
+            {% translate "Who is an Ambassador and who is a Referee?" %}
+        </h2>
+        <p>
+            {% blocktranslate trimmed %}
+                An Ambassador is someone who held a 4 Vallées seasonal or annual pass (or a Mont 4 Card) in a prior
+                season. A Referee is someone who has never held such a pass — they are genuinely new to the 4 Vallées
+                programme. Each Ambassador sponsors exactly one Referee.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "How do I apply?" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                Download the application form, fill it in together with your partner, and email it to
+                customer@televerbier.ch. You and your partner must sign the form and both be present at the ticket
+                office to purchase your passes together.
+            {% endblocktranslate %}
+        </p>
+        <p>
+            <a href="{% url 'public:application_form' %}" class="btn btn--primary">
+                {% translate "Download application form" %}
+            </a>
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "What is the process?" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                Once matched, both the Ambassador and the Referee fill in the application form together and email it to
+                customer@televerbier.ch. They then visit the ticket office together to sign the form in person and
+                purchase their passes at the kiosk.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "What are the requirements?" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                Both the Ambassador and the Referee must sign the application form and provide a valid passport or
+                national identity card at the ticket office. The Referee must not have held a 4 Vallées seasonal or
+                annual pass in any prior season — this is self-attested on the form and verified at the kiosk.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">
+            {% translate "What does this site do — and not do?" %}
+        </h2>
+        <p>
+            {% blocktranslate trimmed %}
+                This site handles only the matchmaking: it connects an Ambassador with a Referee so they can apply
+                together. It does not collect the full application details (date of birth, address, photo ID, keycard,
+                or insurance) and it is not connected to the ticket-office purchase system. Filling in the form and
+                buying at the kiosk happen off-app and are unchanged.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "How does the match work?" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                When you register, the system places you in a queue and pairs you with an eligible partner as soon as
+                one becomes available. You do not browse or choose — the system assigns a match. Once proposed, both
+                parties have a fixed window to accept. Neither side sees the other's contact details until both have
+                accepted.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "What happens next?" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                Once both parties accept the match, each receives the other's contact details. They then arrange to fill
+                in the application form and visit the ticket office together. If either party declines or the acceptance
+                window lapses, both re-enter the queue and the system proposes a new match.
+            {% endblocktranslate %}
+        </p>
+    </article>
+{% endblock %}

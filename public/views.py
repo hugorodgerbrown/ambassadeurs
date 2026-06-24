@@ -20,7 +20,10 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.translation import gettext as _
 
+from django.templatetags.static import static
+
 from accounts.services import get_or_create_participant_user
+from public.models import FormDownload
 from accounts.tokens import (
     make_email_verification_token,
     read_email_verification_token,
@@ -59,6 +62,21 @@ def legal_page(request: HttpRequest, page: str) -> HttpResponse:
     if page not in LEGAL_PAGES:
         raise Http404("Unknown legal page.")
     return render(request, f"public/legal/{page}.html")
+
+
+def how_it_works(request: HttpRequest) -> HttpResponse:
+    """Render the 'How it works' informational page (no queries)."""
+    return render(request, "public/how_it_works.html")
+
+
+def download_application_form(request: HttpRequest) -> HttpResponse:
+    """Record a form download and redirect to the application-form PDF.
+
+    Creates one FormDownload row per request (the conversion metric) then
+    issues a redirect to the static PDF. No PII is stored.
+    """
+    FormDownload.objects.create()
+    return redirect(static("docs/application-form.pdf"))
 
 
 # A no-op service worker served at the origin root so browsers stop 404-ing on

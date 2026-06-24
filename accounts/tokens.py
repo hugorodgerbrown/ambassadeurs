@@ -72,6 +72,16 @@ def read_match_access_token(
 
     Returns ``None`` for tampered, malformed, or expired tokens.
 
+    **Token expiry vs ``match.expires_at``.**
+    Tokens are minted inside ``send_match_notification`` (via
+    ``transaction.on_commit``), which fires seconds *after* the match is created.
+    ``match.expires_at`` is set at match-creation time, so the token's ``max_age``
+    clock starts slightly later than ``expires_at`` — the two can drift by a few
+    seconds. The view's ``match.expires_at`` check (``display_state`` logic) is
+    the authoritative gate on whether a match is still actionable; this token
+    ``max_age`` is a backstop that prevents links from working past the window even
+    if the view's clock check is somehow bypassed.
+
     Args:
         token: A token previously returned by ``make_match_access_token``.
         max_age: Override the maximum token age in seconds. Defaults to the

@@ -30,12 +30,11 @@ Referees do not see this field — their prior_pass resolves to NONE in the serv
                 <circle cx="12" cy="12" r="9" />
                 <path d="m8.5 12 2.5 2.5 4.5-5" />
             </svg>
-            {% translate "To qualify as " %}{% if role_value == 'AMBASSADOR' %}
-                {% translate "an Ambassador" %}
+            {% if role_value == 'AMBASSADOR' %}
+                {% translate "To qualify as an Ambassador you must:" %}
             {% else %}
-                {% translate "a Referee" %}
+                {% translate "To qualify as a Referee you must:" %}
             {% endif %}
-            {% translate "you must:" %}
         </h3>
     </div>
     <ul class="req-callout__list">
@@ -227,12 +226,13 @@ Referees do not see this field — their prior_pass resolves to NONE in the serv
             <p class="mb-2 text-sm text-body">
                 {% if role_value == 'AMBASSADOR' %}
                     {% blocktranslate trimmed %}
-                        I confirm that I held a seasonal or annual 4 Vallées pass in 2024-25 or 2025-26. I
-                        understand this will be checked against my keycard when we apply together.
+                        I confirm that I held a seasonal or annual 4 Vallées pass in 2024-25 or 2025-26. I understand
+                        this will be checked against my keycard when we apply together.
                     {% endblocktranslate %}
                 {% else %}
                     {% blocktranslate trimmed %}
-                        I confirm that I did NOT hold a mid-season, seasonal or annual 4 Vallées pass in 2024-25 or 2025-26.
+                        I confirm that I did NOT hold a mid-season, seasonal or annual 4 Vallées pass in 2024-25 or
+                        2025-26.
                     {% endblocktranslate %}
                 {% endif %}
             </p>

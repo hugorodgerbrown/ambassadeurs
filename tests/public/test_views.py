@@ -235,8 +235,7 @@ def test_details_form_fragment_ambassador_contains_qualifying_criteria() -> None
         headers={"hx-request": "true"},
     )
     assert response.status_code == 200
-    assert b"Before you register, check you qualify" in response.content
-    assert b"As an Ambassador" in response.content
+    assert b"To qualify as an Ambassador you must:" in response.content
     assert b"No retroactive refund." in response.content
     # Mont 4 Card clause is ambassador-specific.
     assert b"Mont 4 Card" in response.content
@@ -251,8 +250,7 @@ def test_details_form_fragment_referee_contains_qualifying_criteria() -> None:
         headers={"hx-request": "true"},
     )
     assert response.status_code == 200
-    assert b"Before you register, check you qualify" in response.content
-    assert b"As a Referee" in response.content
+    assert b"To qualify as a Referee you must:" in response.content
     assert b"No retroactive refund." in response.content
     # The buy-together / no-online clause is referee-specific.
     assert b"cannot be bought online" in response.content
@@ -325,7 +323,7 @@ def test_details_form_fragment_returns_role_form() -> None:
     )
     assert response.status_code == 200
     assert b"Referee details" in response.content
-    assert b"Before you register, check you qualify" in response.content
+    assert b"To qualify as a Referee you must:" in response.content
 
 
 def test_details_form_fragment_unknown_role_404() -> None:

@@ -25,6 +25,12 @@ from .models import Registration, Resort
 # ring; the focus colour follows the surrounding .role-theme.
 _INPUT_CLASSES = "input"
 
+# Classes applied to the confirmation checkboxes. ``mt-1`` nudges the 13px box
+# down so its centre lines up with the first line of the (line-height: 20px)
+# label text under the ``items-start`` flex label; ``shrink-0`` stops the box
+# being squashed when the label wraps to a second line.
+_CHECKBOX_CLASSES = "mt-1 shrink-0"
+
 # prior_pass choices available to ambassadors (must hold one of these).
 _AMBASSADOR_PRIOR_PASS_CHOICES = [
     (Registration.PriorPass.SEASONAL, Registration.PriorPass.SEASONAL.label),
@@ -91,11 +97,13 @@ class RegistrationForm(forms.Form):
     prior_pass_attestation = forms.BooleanField(
         # Label is role-specific; set in __init__.
         required=True,
+        widget=forms.CheckboxInput(attrs={"class": _CHECKBOX_CLASSES}),
     )
     terms_accepted = forms.BooleanField(
         # Label displayed in the template via {% blocktranslate %} with an inline link.
         label=_("I have read and agree to the Terms of Use"),
         required=True,
+        widget=forms.CheckboxInput(attrs={"class": _CHECKBOX_CLASSES}),
     )
 
     def __init__(

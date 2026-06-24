@@ -131,12 +131,118 @@ def test_register_details_requires_login() -> None:
 
 
 def test_register_details_renders_role_chooser() -> None:
-    """The details page offers the role choice to a signed-in user."""
+    """The details page renders the role select to a signed-in user."""
     client = Client()
     client.force_login(UserFactory.create())
     response = client.get(reverse("public:register_details"))
     assert response.status_code == 200
-    assert b"Which one are you?" in response.content
+    assert b"Confirm your role" in response.content
+    assert b"<select" in response.content
+    assert b'name="role"' in response.content
+
+
+def test_register_details_get_with_ambassador_hint_preselects_ambassador() -> None:
+    """A session role hint of 'ambassador' pre-selects the ambassador option."""
+    client = Client()
+    client.force_login(UserFactory.create())
+    session = client.session
+    session["register_role"] = "ambassador"
+    session.save()
+    response = client.get(reverse("public:register_details"))
+    assert response.status_code == 200
+    content = response.content
+    # The ambassador option must be selected; the referee option must not be.
+    assert b'value="ambassador"' in content
+    assert b'value="referee"' in content
+    # djangofmt renders selected as an attribute on the option line
+    ambassador_idx = content.index(b'value="ambassador"')
+    referee_idx = content.index(b'value="referee"')
+    ambassador_block = content[ambassador_idx : ambassador_idx + 200]
+    referee_block = content[referee_idx : referee_idx + 200]
+    assert b"selected" in ambassador_block
+    assert b"selected" not in referee_block
+
+
+def test_register_details_get_with_referee_hint_preselects_referee() -> None:
+    """A session role hint of 'referee' pre-selects the referee option."""
+    client = Client()
+    client.force_login(UserFactory.create())
+    session = client.session
+    session["register_role"] = "referee"
+    session.save()
+    response = client.get(reverse("public:register_details"))
+    assert response.status_code == 200
+    content = response.content
+    ambassador_idx = content.index(b'value="ambassador"')
+    referee_idx = content.index(b'value="referee"')
+    ambassador_block = content[ambassador_idx : ambassador_idx + 200]
+    referee_block = content[referee_idx : referee_idx + 200]
+    assert b"selected" not in ambassador_block
+    assert b"selected" in referee_block
+
+
+def test_register_details_get_no_hint_shows_blank_prompt() -> None:
+    """With no session hint the blank 'Choose your role…' prompt is selected."""
+    client = Client()
+    client.force_login(UserFactory.create())
+    response = client.get(reverse("public:register_details"))
+    assert response.status_code == 200
+    content = response.content
+    assert b"Choose your role" in content
+    # Neither role option should be selected.
+    ambassador_idx = content.index(b'value="ambassador"')
+    referee_idx = content.index(b'value="referee"')
+    ambassador_block = content[ambassador_idx : ambassador_idx + 200]
+    referee_block = content[referee_idx : referee_idx + 200]
+    assert b"selected" not in ambassador_block
+    assert b"selected" not in referee_block
+
+
+def test_details_form_fragment_ambassador_contains_reaffirmation() -> None:
+    """The ambassador fragment contains the role reaffirmation notice."""
+    client = Client()
+    client.force_login(UserFactory.create())
+    response = client.get(
+        reverse("public:register_details_form") + "?role=ambassador",
+        headers={"hx-request": "true"},
+    )
+    assert response.status_code == 200
+    assert b"Ambassador" in response.content
+    assert b"can't be changed once you register" in response.content
+
+
+def test_details_form_fragment_referee_contains_reaffirmation() -> None:
+    """The referee fragment contains the role reaffirmation notice."""
+    client = Client()
+    client.force_login(UserFactory.create())
+    response = client.get(
+        reverse("public:register_details_form") + "?role=referee",
+        headers={"hx-request": "true"},
+    )
+    assert response.status_code == 200
+    assert b"Referee" in response.content
+    assert b"can't be changed once you register" in response.content
+
+
+def test_register_details_post_invalid_reflects_bound_role_as_selected() -> None:
+    """A failed POST re-renders with the submitted role pre-selected in the dropdown."""
+    client = Client()
+    client.force_login(UserFactory.create())
+    response = client.post(
+        reverse("public:register_details"),
+        {
+            "role": "ambassador",
+            "first_name": "Ada",
+            "last_name": "Lovelace",
+            "prior_pass": Registration.PriorPass.SEASONAL,
+            # attestation omitted — causes validation failure
+        },
+    )
+    assert response.status_code == 200
+    content = response.content
+    ambassador_idx = content.index(b'value="ambassador"')
+    ambassador_block = content[ambassador_idx : ambassador_idx + 200]
+    assert b"selected" in ambassador_block
 
 
 @override_settings(

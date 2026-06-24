@@ -14,6 +14,9 @@ _DEFAULT_ACCEPTED_TERMS = [
     "I have read and agree to the Terms of Use",
 ]
 
+# Sentinel tz-aware datetime used as the default response timestamp in traits.
+_RESPONSE_AT = datetime(2026, 9, 2, 10, 0, 0, tzinfo=UTC)
+
 
 class RegistrationFactory(factory.django.DjangoModelFactory[Registration]):
     """Factory for Registration (ambassador with a seasonal pass by default).
@@ -51,7 +54,15 @@ class RegistrationFactory(factory.django.DjangoModelFactory[Registration]):
 
 
 class MatchFactory(factory.django.DjangoModelFactory[Match]):
-    """Factory for Match (PROPOSED by default)."""
+    """Factory for Match (PROPOSED by default).
+
+    Traits:
+        accepted: status=ACCEPTED, both *_accepted_at populated, both
+            registrations CONFIRMED.
+        declined: status=DECLINED, declined_by=AMBASSADOR, declined_at set.
+        abandoned: status=ABANDONED, no_show_reported_by=REFEREE,
+            no_show_reported_at set.
+    """
 
     class Meta:
         model = Match
@@ -62,3 +73,35 @@ class MatchFactory(factory.django.DjangoModelFactory[Match]):
     expires_at = factory.LazyFunction(
         lambda: datetime(2099, 12, 31, 23, 59, 59, tzinfo=UTC)
     )
+
+    class Params:
+        """Extra traits for common match states."""
+
+        accepted = factory.Trait(
+            status=Match.Status.ACCEPTED,
+            ambassador_accepted_at=factory.LazyFunction(lambda: _RESPONSE_AT),
+            referee_accepted_at=factory.LazyFunction(lambda: _RESPONSE_AT),
+            ambassador_registration=factory.SubFactory(
+                RegistrationFactory,
+                status=Registration.Status.CONFIRMED,
+            ),
+            referee_registration=factory.SubFactory(
+                RegistrationFactory,
+                referee=True,
+                status=Registration.Status.CONFIRMED,
+            ),
+        )
+
+        declined = factory.Trait(
+            status=Match.Status.DECLINED,
+            declined_by=Match.Side.AMBASSADOR,
+            declined_at=factory.LazyFunction(lambda: _RESPONSE_AT),
+        )
+
+        abandoned = factory.Trait(
+            status=Match.Status.ABANDONED,
+            ambassador_accepted_at=factory.LazyFunction(lambda: _RESPONSE_AT),
+            referee_accepted_at=factory.LazyFunction(lambda: _RESPONSE_AT),
+            no_show_reported_by=Match.Side.REFEREE,
+            no_show_reported_at=factory.LazyFunction(lambda: _RESPONSE_AT),
+        )

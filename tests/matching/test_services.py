@@ -641,6 +641,24 @@ def test_requeue_to_front_syncs_in_memory_instance() -> None:
     assert reg.priority == 6
 
 
+def test_requeue_to_front_lost_update_guard() -> None:
+    """requeue_to_front reads the locked DB row, not the stale instance.
+
+    The DB priority is 5 but the in-memory instance is stale at 0. The
+    increment must be computed from the locked row (5 → 6), not the stale 0.
+    """
+    reg = RegistrationFactory.create(
+        status=Registration.Status.MATCHED,
+        priority=5,  # DB value is 5
+    )
+    reg.priority = 0  # stale — must NOT be used by the service
+
+    requeue_to_front(reg)
+
+    reg.refresh_from_db()
+    assert reg.priority == 6
+
+
 # ---------------------------------------------------------------------------
 # requeue_to_back
 # ---------------------------------------------------------------------------
@@ -670,6 +688,24 @@ def test_requeue_to_back_syncs_in_memory_instance() -> None:
     requeue_to_back(reg)
 
     assert reg.status == Registration.Status.WAITING
+    assert reg.priority == 2
+
+
+def test_requeue_to_back_lost_update_guard() -> None:
+    """requeue_to_back reads the locked DB row, not the stale instance.
+
+    The DB priority is 3 but the in-memory instance is stale at 0. The
+    decrement must be computed from the locked row (3 → 2), not the stale 0.
+    """
+    reg = RegistrationFactory.create(
+        status=Registration.Status.MATCHED,
+        priority=3,  # DB value is 3
+    )
+    reg.priority = 0  # stale — must NOT be used by the service
+
+    requeue_to_back(reg)
+
+    reg.refresh_from_db()
     assert reg.priority == 2
 
 
@@ -778,6 +814,19 @@ def test_suspend_for_no_show_syncs_in_memory_instance() -> None:
 
     assert reg.status == Registration.Status.SUSPENDED
     assert reg.flake_count == 1
+
+
+def test_suspend_for_no_show_increments_flake_unconditionally() -> None:
+    """suspend_for_no_show increments flake_count regardless of its current value."""
+    reg = RegistrationFactory.create(
+        status=Registration.Status.MATCHED,
+        flake_count=2,
+    )
+    suspend_for_no_show(reg)
+
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.SUSPENDED
+    assert reg.flake_count == 3
 
 
 # ---------------------------------------------------------------------------

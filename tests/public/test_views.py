@@ -105,6 +105,34 @@ def test_register_email_sent_renders() -> None:
     assert "public/register_email_sent.html" in [t.name for t in response.templates]
 
 
+@override_settings(DEBUG=True)
+def test_register_email_sent_shows_verify_link_in_debug() -> None:
+    """In DEBUG the sent page surfaces the verify link for click-through testing."""
+    client = Client()
+    response = client.post(
+        reverse("public:register"), {"email": "ada@example.com"}, follow=True
+    )
+    assert response.status_code == 200
+    assert b"Development shortcut" in response.content
+    assert b"register/verify/" in response.content
+    # The one-shot value is popped, so a reload no longer shows the link.
+    assert "debug_verify_url" not in client.session
+    reload = client.get(reverse("public:register_email_sent"))
+    assert b"Development shortcut" not in reload.content
+
+
+@override_settings(DEBUG=False)
+def test_register_email_sent_hides_verify_link_outside_debug() -> None:
+    """Outside DEBUG the verify link is never stashed or shown."""
+    client = Client()
+    response = client.post(
+        reverse("public:register"), {"email": "ada@example.com"}, follow=True
+    )
+    assert response.status_code == 200
+    assert b"Development shortcut" not in response.content
+    assert "debug_verify_url" not in client.session
+
+
 def test_register_verify_valid_token_logs_in_and_creates_user() -> None:
     """A valid token creates the user, logs them in and goes to details."""
     token = make_email_verification_token("ada@example.com")

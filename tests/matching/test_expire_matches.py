@@ -5,6 +5,7 @@
 
 from datetime import UTC, datetime
 from io import StringIO
+from unittest.mock import patch
 
 import pytest
 from django.contrib.contenttypes.models import ContentType
@@ -12,7 +13,7 @@ from django.core.management import call_command
 
 from core.models import StateTransitionLog
 from matching.models import Match, Registration
-from matching.services import expire_lapsed_matches
+from matching.services import expire_lapsed_matches, record_flake_and_requeue
 from tests.matching.factories import MatchFactory, RegistrationFactory
 
 pytestmark = pytest.mark.django_db
@@ -267,6 +268,155 @@ def test_second_flake_suspends_registration() -> None:
     ambassador_reg.refresh_from_db()
     assert ambassador_reg.flake_count == 2
     assert ambassador_reg.status == Registration.Status.SUSPENDED
+
+
+def test_concurrency_skip_when_match_no_longer_proposed() -> None:
+    """Sweep skips a match that is no longer PROPOSED by the time it is locked.
+
+    Simulates a race: lapsed() returns the PK, but by the time the sweep does
+    the locked re-fetch the match has already been transitioned (e.g. accepted
+    just before the sweep locked it). The ``if match.status != PROPOSED:
+    continue`` guard must skip the match without mutating anything.
+    """
+    match = MatchFactory.create(
+        expires_at=_PAST,
+        ambassador_accepted_at=None,
+        referee_accepted_at=None,
+    )
+    match_pk = match.pk
+
+    # Bypass services to force a terminal state without going through expiry.
+    Match.objects.filter(pk=match_pk).update(status=Match.Status.DECLINED)
+
+    # Patch lapsed() so it still returns this PK as if the race happened
+    # between the initial PK query and the locked re-fetch.  We use
+    # Match.objects.filter to produce a real queryset with the correct PK.
+    fake_qs = Match.objects.filter(pk=match_pk)
+
+    log_count_before = StateTransitionLog.objects.count()
+
+    with patch.object(Match.objects.__class__, "lapsed", return_value=fake_qs):
+        count = expire_lapsed_matches()
+
+    assert count == 0
+
+    match.refresh_from_db()
+    assert match.status == Match.Status.DECLINED
+
+    # No new transition log row must have been written.
+    assert StateTransitionLog.objects.count() == log_count_before
+
+
+def test_per_match_exception_isolation_continues_sweep(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An exception mid-sweep is isolated: the remaining matches are still processed.
+
+    Creates two lapsed PROPOSED matches. Patches record_flake_and_requeue to
+    raise on the first call only (simulating a DB or logic failure). The second
+    match must still be transitioned to EXPIRED and re-queued; the failed match
+    is left untouched. expire_lapsed_matches returns 1 (the successfully
+    processed match) and logs the error.
+    """
+    ambassador_reg_1 = RegistrationFactory.create(
+        status=Registration.Status.MATCHED, priority=0, flake_count=0
+    )
+    referee_reg_1 = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED, priority=0, flake_count=0
+    )
+    match_1 = MatchFactory.create(
+        ambassador_registration=ambassador_reg_1,
+        referee_registration=referee_reg_1,
+        expires_at=_PAST,
+        ambassador_accepted_at=None,
+        referee_accepted_at=None,
+    )
+
+    ambassador_reg_2 = RegistrationFactory.create(
+        status=Registration.Status.MATCHED, priority=0, flake_count=0
+    )
+    referee_reg_2 = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED, priority=0, flake_count=0
+    )
+    match_2 = MatchFactory.create(
+        ambassador_registration=ambassador_reg_2,
+        referee_registration=referee_reg_2,
+        expires_at=_PAST,
+        ambassador_accepted_at=None,
+        referee_accepted_at=None,
+    )
+
+    # Fail on the first call to record_flake_and_requeue, succeed thereafter.
+    _call_count = {"n": 0}
+    _real = record_flake_and_requeue
+
+    def _failing_requeue(registration: Registration) -> None:
+        """Raise on the first invocation; delegate to the real function after."""
+        _call_count["n"] += 1
+        if _call_count["n"] == 1:
+            raise RuntimeError("simulated failure")
+        _real(registration)
+
+    import matching.services as _svc
+
+    with patch.object(_svc, "record_flake_and_requeue", _failing_requeue):
+        with caplog.at_level("ERROR", logger="matching.services"):
+            count = expire_lapsed_matches()
+
+    # Only one match successfully expired (the second one).
+    assert count == 1
+
+    # The ordering of candidate_pks is deterministic (Match.Meta.ordering =
+    # ["-created_at"]), so match_2 was created last → it appears first in the
+    # PK list → match_1 is processed second.  Exactly one match should be
+    # EXPIRED; the other stays PROPOSED (rolled back by the atomic block).
+    match_1.refresh_from_db()
+    match_2.refresh_from_db()
+    statuses = {match_1.status, match_2.status}
+    assert Match.Status.EXPIRED in statuses
+    assert Match.Status.PROPOSED in statuses
+
+    # The error must have been logged.
+    assert any("Error expiring match" in record.message for record in caplog.records)
+
+
+def test_already_terminal_declined_match_not_reprocessed() -> None:
+    """A lapsed DECLINED match is not reprocessed by the sweep.
+
+    lapsed() filters to PROPOSED only, so a DECLINED match with a past
+    expires_at is structurally excluded from the candidate set. The sweep
+    returns 0 and leaves the match and its registrations untouched.
+    """
+    ambassador_reg = RegistrationFactory.create(
+        status=Registration.Status.WAITING,
+        priority=0,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.WAITING,
+        priority=0,
+    )
+    match = MatchFactory.create(
+        declined=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+        expires_at=_PAST,
+    )
+
+    count = expire_lapsed_matches()
+
+    assert count == 0
+
+    match.refresh_from_db()
+    assert match.status == Match.Status.DECLINED
+
+    ambassador_reg.refresh_from_db()
+    assert ambassador_reg.status == Registration.Status.WAITING
+    assert ambassador_reg.priority == 0
+
+    referee_reg.refresh_from_db()
+    assert referee_reg.status == Registration.Status.WAITING
+    assert referee_reg.priority == 0
 
 
 # ---------------------------------------------------------------------------

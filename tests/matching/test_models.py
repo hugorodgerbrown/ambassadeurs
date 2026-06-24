@@ -158,11 +158,12 @@ def test_match_proposed_queryset() -> None:
 
 
 def test_match_active_excludes_declined_and_expired() -> None:
-    """MatchQuerySet.active excludes DECLINED and EXPIRED."""
+    """MatchQuerySet.active excludes DECLINED, EXPIRED, and ABANDONED."""
     proposed = MatchFactory.create(status=Match.Status.PROPOSED)
     accepted = MatchFactory.create(status=Match.Status.ACCEPTED)
     MatchFactory.create(status=Match.Status.DECLINED)
     MatchFactory.create(status=Match.Status.EXPIRED)
+    MatchFactory.create(status=Match.Status.ABANDONED)
     assert set(Match.objects.active()) == {proposed, accepted}
 
 
@@ -183,3 +184,11 @@ def test_multiple_matches_per_registration_allowed() -> None:
         expires_at=expires,
     )
     assert Match.objects.count() == 2
+
+
+def test_match_side_of_raises_for_unrelated_registration() -> None:
+    """Match.side_of raises ValueError when the registration is not a party."""
+    match = MatchFactory.create()
+    unrelated = RegistrationFactory.create(referee=True)
+    with pytest.raises(ValueError, match=r"not a party on Match"):
+        match.side_of(unrelated)

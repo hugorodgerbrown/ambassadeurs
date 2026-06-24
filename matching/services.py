@@ -400,7 +400,11 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
         ValueError: if ``match.status`` is not ``PROPOSED``.
     """
     with transaction.atomic():
-        match = Match.objects.select_for_update().get(pk=match.pk)
+        match = (
+            Match.objects.select_for_update()
+            .select_related("ambassador_registration", "referee_registration")
+            .get(pk=match.pk)
+        )
 
         if match.status != Match.Status.PROPOSED:
             raise ValueError(
@@ -424,57 +428,57 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
         if update_fields:
             match.save(update_fields=update_fields + ["updated_at"])
 
-        # Check if both sides have now accepted.
+        # Check if both sides have now accepted; the outer PROPOSED guard above
+        # guarantees status is still PROPOSED here.
         if (
             match.ambassador_accepted_at is not None
             and match.referee_accepted_at is not None
         ):
-            if match.status == Match.Status.PROPOSED:
-                # Transition match status.
-                status_before = match.status
-                match.status = Match.Status.ACCEPTED
-                match.save(update_fields=["status", "updated_at"])
-                record_transition(
-                    match,
-                    "status",
-                    before=status_before,
-                    after=match.status,
-                )
+            # Transition match status.
+            status_before = match.status
+            match.status = Match.Status.ACCEPTED
+            match.save(update_fields=["status", "updated_at"])
+            record_transition(
+                match,
+                "status",
+                before=status_before,
+                after=match.status,
+            )
 
-                # Transition both registrations to CONFIRMED.
-                ambassador_reg = match.ambassador_registration
-                referee_reg = match.referee_registration
+            # Transition both registrations to CONFIRMED.
+            ambassador_reg = match.ambassador_registration
+            referee_reg = match.referee_registration
 
-                amb_status_before = ambassador_reg.status
-                ref_status_before = referee_reg.status
+            amb_status_before = ambassador_reg.status
+            ref_status_before = referee_reg.status
 
-                Registration.objects.filter(
-                    pk__in=[ambassador_reg.pk, referee_reg.pk]
-                ).update(status=Registration.Status.CONFIRMED)
+            Registration.objects.filter(
+                pk__in=[ambassador_reg.pk, referee_reg.pk]
+            ).update(status=Registration.Status.CONFIRMED)
 
-                ambassador_reg.status = Registration.Status.CONFIRMED
-                referee_reg.status = Registration.Status.CONFIRMED
+            ambassador_reg.status = Registration.Status.CONFIRMED
+            referee_reg.status = Registration.Status.CONFIRMED
 
-                record_transition(
-                    ambassador_reg,
-                    "status",
-                    before=amb_status_before,
-                    after=ambassador_reg.status,
-                )
-                record_transition(
-                    referee_reg,
-                    "status",
-                    before=ref_status_before,
-                    after=referee_reg.status,
-                )
+            record_transition(
+                ambassador_reg,
+                "status",
+                before=amb_status_before,
+                after=ambassador_reg.status,
+            )
+            record_transition(
+                referee_reg,
+                "status",
+                before=ref_status_before,
+                after=referee_reg.status,
+            )
 
-                logger.info(
-                    "Match pk=%s ACCEPTED: both parties accepted "
-                    "(ambassador reg pk=%s, referee reg pk=%s)",
-                    match.pk,
-                    ambassador_reg.pk,
-                    referee_reg.pk,
-                )
+            logger.info(
+                "Match pk=%s ACCEPTED: both parties accepted "
+                "(ambassador reg pk=%s, referee reg pk=%s)",
+                match.pk,
+                ambassador_reg.pk,
+                referee_reg.pk,
+            )
 
     return match
 

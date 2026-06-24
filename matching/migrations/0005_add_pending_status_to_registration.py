@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("matching", "0003_registration_flake_count_alter_registration_status"),
+        ("matching", "0004_add_match_side_and_response_fields"),
     ]
 
     operations = [

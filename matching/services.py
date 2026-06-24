@@ -6,6 +6,10 @@
 # The matching engine runs synchronously inside register_participant: after
 # creating the registration (inside an atomic transaction), propose_match is
 # called to attempt an immediate pairing with a waiting counterpart.
+#
+# record_acceptance and record_decline implement the per-party response step of
+# the post-match confirmation workflow (ADR 0007 / VERB-18). Both are atomic
+# and call core.services.record_transition inline for the audit log.
 
 from __future__ import annotations
 
@@ -20,6 +24,8 @@ from django.db.models import Case, IntegerField, Value, When
 from django.utils import timezone, translation
 from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
+
+from core.services import record_transition
 
 from .models import Match, Registration
 
@@ -410,3 +416,168 @@ def confirm_registration(registration: Registration) -> Registration:
 
     logger.info("Confirmed registration pk=%s: PENDING → WAITING", registration.pk)
     return registration
+
+
+def record_acceptance(match: Match, registration: Registration) -> Match:
+    """Record that ``registration`` has accepted ``match``.
+
+    On the first accept, only the accepting side's ``*_accepted_at`` timestamp
+    is set and the status stays ``PROPOSED``; **no** ``StateTransitionLog`` row
+    is written at this point.
+
+    On the second accept (both sides now have a timestamp), the match
+    transitions ``PROPOSED → ACCEPTED``, both registrations transition
+    ``MATCHED → CONFIRMED``, and **three** ``StateTransitionLog`` rows are
+    written — one for ``Match.status`` and one for each ``Registration.status``
+    — all inside the same atomic transaction.
+
+    Re-accepting an already-accepted side is a no-op for that timestamp (the
+    existing value is kept) so callers can safely retry without double-counting.
+
+    Args:
+        match: The match to accept.
+        registration: The registration (ambassador or referee) accepting.
+
+    Returns:
+        The updated ``Match`` instance.
+
+    Raises:
+        ValueError: if ``match.status`` is not ``PROPOSED``.
+    """
+    with transaction.atomic():
+        match = (
+            Match.objects.select_for_update()
+            .select_related("ambassador_registration", "referee_registration")
+            .get(pk=match.pk)
+        )
+
+        if match.status != Match.Status.PROPOSED:
+            raise ValueError(
+                f"Cannot accept match pk={match.pk}: status is {match.status!r}, "
+                f"expected {Match.Status.PROPOSED!r}."
+            )
+
+        side = match.side_of(registration)
+        now = timezone.now()
+
+        update_fields: list[str] = []
+
+        if side == Match.Side.AMBASSADOR and match.ambassador_accepted_at is None:
+            match.ambassador_accepted_at = now
+            update_fields.append("ambassador_accepted_at")
+        elif side == Match.Side.REFEREE and match.referee_accepted_at is None:
+            match.referee_accepted_at = now
+            update_fields.append("referee_accepted_at")
+        # If the side has already accepted (re-accept), no timestamp is changed.
+
+        if update_fields:
+            match.save(update_fields=update_fields + ["updated_at"])
+
+        # Check if both sides have now accepted; the outer PROPOSED guard above
+        # guarantees status is still PROPOSED here.
+        if (
+            match.ambassador_accepted_at is not None
+            and match.referee_accepted_at is not None
+        ):
+            # Transition match status.
+            status_before = match.status
+            match.status = Match.Status.ACCEPTED
+            match.save(update_fields=["status", "updated_at"])
+            record_transition(
+                match,
+                "status",
+                before=status_before,
+                after=match.status,
+            )
+
+            # Transition both registrations to CONFIRMED.
+            ambassador_reg = match.ambassador_registration
+            referee_reg = match.referee_registration
+
+            amb_status_before = ambassador_reg.status
+            ref_status_before = referee_reg.status
+
+            Registration.objects.filter(
+                pk__in=[ambassador_reg.pk, referee_reg.pk]
+            ).update(status=Registration.Status.CONFIRMED)
+
+            ambassador_reg.status = Registration.Status.CONFIRMED
+            referee_reg.status = Registration.Status.CONFIRMED
+
+            record_transition(
+                ambassador_reg,
+                "status",
+                before=amb_status_before,
+                after=ambassador_reg.status,
+            )
+            record_transition(
+                referee_reg,
+                "status",
+                before=ref_status_before,
+                after=referee_reg.status,
+            )
+
+            logger.info(
+                "Match pk=%s ACCEPTED: both parties accepted "
+                "(ambassador reg pk=%s, referee reg pk=%s)",
+                match.pk,
+                ambassador_reg.pk,
+                referee_reg.pk,
+            )
+
+    return match
+
+
+def record_decline(match: Match, registration: Registration) -> Match:
+    """Record that ``registration`` has declined ``match``.
+
+    Sets ``declined_by``, ``declined_at``, and transitions the match from
+    ``PROPOSED → DECLINED``. One ``StateTransitionLog`` row is written for the
+    status change.
+
+    NOTE: re-queuing registrations and adjusting ``priority`` are **not** done
+    here; that belongs to VERB-17. This function deliberately leaves both
+    ``Registration.status`` values untouched so it is not mistaken for a bug.
+
+    Args:
+        match: The match to decline.
+        registration: The registration (ambassador or referee) declining.
+
+    Returns:
+        The updated ``Match`` instance.
+
+    Raises:
+        ValueError: if ``match.status`` is not ``PROPOSED``.
+    """
+    with transaction.atomic():
+        match = Match.objects.select_for_update().get(pk=match.pk)
+
+        if match.status != Match.Status.PROPOSED:
+            raise ValueError(
+                f"Cannot decline match pk={match.pk}: status is {match.status!r}, "
+                f"expected {Match.Status.PROPOSED!r}."
+            )
+
+        side = match.side_of(registration)
+        status_before = match.status
+
+        match.declined_by = side
+        match.declined_at = timezone.now()
+        match.status = Match.Status.DECLINED
+        match.save(update_fields=["declined_by", "declined_at", "status", "updated_at"])
+
+        record_transition(
+            match,
+            "status",
+            before=status_before,
+            after=match.status,
+        )
+
+        logger.info(
+            "Match pk=%s DECLINED by %s (registration pk=%s)",
+            match.pk,
+            side,
+            registration.pk,
+        )
+
+    return match

@@ -9,12 +9,15 @@ from django.db import transaction
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
+from core.models import StateTransitionLog
 from matching.models import Match, Registration
 from matching.services import (
     confirm_registration,
     is_eligible_pair,
     is_registration_open,
     propose_match,
+    record_acceptance,
+    record_decline,
     record_flake_and_requeue,
     register_participant,
     requeue_to_back,
@@ -982,3 +985,265 @@ def test_confirm_registration_syncs_in_memory_instance() -> None:
     # Must be synced without a separate refresh.
     assert result.status == Registration.Status.WAITING
     assert reg.status == Registration.Status.WAITING
+
+
+# ---------------------------------------------------------------------------
+# record_acceptance
+# ---------------------------------------------------------------------------
+
+
+def test_record_acceptance_first_accept_sets_ambassador_timestamp_only() -> None:
+    """First accept by ambassador sets ambassador_accepted_at; status stays PROPOSED."""
+    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    before = timezone.now()
+
+    result = record_acceptance(match, ambassador_reg)
+
+    after = timezone.now()
+    result.refresh_from_db()
+    assert result.status == Match.Status.PROPOSED
+    assert result.ambassador_accepted_at is not None
+    assert before <= result.ambassador_accepted_at <= after
+    assert result.referee_accepted_at is None
+    # No log row on first accept.
+    assert StateTransitionLog.objects.count() == 0
+
+
+def test_record_acceptance_first_accept_by_referee_sets_referee_timestamp_only() -> (
+    None
+):
+    """First accept by referee sets referee_accepted_at; status stays PROPOSED."""
+    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    result = record_acceptance(match, referee_reg)
+
+    result.refresh_from_db()
+    assert result.status == Match.Status.PROPOSED
+    assert result.referee_accepted_at is not None
+    assert result.ambassador_accepted_at is None
+    assert StateTransitionLog.objects.count() == 0
+
+
+def test_record_acceptance_second_accept_transitions_to_accepted() -> None:
+    """Second accept transitions Match → ACCEPTED and both registrations → CONFIRMED."""
+    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    # First accept — ambassador.
+    record_acceptance(match, ambassador_reg)
+    match.refresh_from_db()
+    assert match.status == Match.Status.PROPOSED
+
+    # Second accept — referee triggers the full transition.
+    result = record_acceptance(match, referee_reg)
+
+    result.refresh_from_db()
+    assert result.status == Match.Status.ACCEPTED
+
+    ambassador_reg.refresh_from_db()
+    referee_reg.refresh_from_db()
+    assert ambassador_reg.status == Registration.Status.CONFIRMED
+    assert referee_reg.status == Registration.Status.CONFIRMED
+
+
+def test_record_acceptance_second_accept_writes_three_log_rows() -> None:
+    """Mutual accept writes exactly three StateTransitionLog rows."""
+    from django.contrib.contenttypes.models import ContentType
+
+    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    record_acceptance(match, ambassador_reg)
+    record_acceptance(match, referee_reg)
+
+    logs = list(StateTransitionLog.objects.order_by("pk"))
+    assert len(logs) == 3
+
+    match_ct = ContentType.objects.get_for_model(Match)
+    reg_ct = ContentType.objects.get_for_model(Registration)
+
+    # One log for Match.status.
+    match_log = next(
+        (
+            log
+            for log in logs
+            if log.content_type_id == match_ct.pk and log.object_id == match.pk
+        ),
+        None,
+    )
+    assert match_log is not None
+    assert match_log.state_before == Match.Status.PROPOSED
+    assert match_log.state_after == Match.Status.ACCEPTED
+
+    # One log for ambassador Registration.status.
+    amb_log = next(
+        (
+            log
+            for log in logs
+            if log.content_type_id == reg_ct.pk and log.object_id == ambassador_reg.pk
+        ),
+        None,
+    )
+    assert amb_log is not None
+    assert amb_log.state_before == Registration.Status.MATCHED
+    assert amb_log.state_after == Registration.Status.CONFIRMED
+
+    # One log for referee Registration.status.
+    ref_log = next(
+        (
+            log
+            for log in logs
+            if log.content_type_id == reg_ct.pk and log.object_id == referee_reg.pk
+        ),
+        None,
+    )
+    assert ref_log is not None
+    assert ref_log.state_before == Registration.Status.MATCHED
+    assert ref_log.state_after == Registration.Status.CONFIRMED
+
+
+def test_record_acceptance_re_accept_is_idempotent_for_timestamp() -> None:
+    """Re-accepting an already-accepted side does not change the existing timestamp."""
+    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    result_first = record_acceptance(match, ambassador_reg)
+    result_first.refresh_from_db()
+    original_ts = result_first.ambassador_accepted_at
+
+    # Accept again — the timestamp must not change.
+    result_second = record_acceptance(result_first, ambassador_reg)
+    result_second.refresh_from_db()
+    assert result_second.ambassador_accepted_at == original_ts
+    # Status still PROPOSED (referee hasn't accepted).
+    assert result_second.status == Match.Status.PROPOSED
+
+
+def test_record_acceptance_raises_for_non_proposed_match() -> None:
+    """record_acceptance raises ValueError if match.status != PROPOSED."""
+    match = MatchFactory.create(status=Match.Status.DECLINED)
+    ambassador_reg = match.ambassador_registration
+
+    with pytest.raises(ValueError, match="PROPOSED"):
+        record_acceptance(match, ambassador_reg)
+
+
+# ---------------------------------------------------------------------------
+# record_decline
+# ---------------------------------------------------------------------------
+
+
+def test_record_decline_transitions_match_to_declined() -> None:
+    """record_decline transitions match PROPOSED → DECLINED and sets declined_by/at."""
+    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    before = timezone.now()
+
+    result = record_decline(match, ambassador_reg)
+
+    after = timezone.now()
+    result.refresh_from_db()
+    assert result.status == Match.Status.DECLINED
+    assert result.declined_by == Match.Side.AMBASSADOR
+    assert result.declined_at is not None
+    assert before <= result.declined_at <= after
+
+
+def test_record_decline_by_referee_sets_referee_side() -> None:
+    """record_decline by the referee side sets declined_by=REFEREE."""
+    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    result = record_decline(match, referee_reg)
+
+    result.refresh_from_db()
+    assert result.declined_by == Match.Side.REFEREE
+
+
+def test_record_decline_writes_one_log_row_for_match_status() -> None:
+    """record_decline writes exactly one StateTransitionLog row for Match.status."""
+    match = MatchFactory.create()
+    ambassador_reg = match.ambassador_registration
+
+    record_decline(match, ambassador_reg)
+
+    logs = list(StateTransitionLog.objects.all())
+    assert len(logs) == 1
+    log = logs[0]
+    assert log.object_id == match.pk
+    assert log.field_name == "status"
+    assert log.state_before == Match.Status.PROPOSED
+    assert log.state_after == Match.Status.DECLINED
+
+
+def test_record_decline_does_not_change_registration_statuses() -> None:
+    """record_decline leaves Registration.status untouched — re-queue is VERB-17."""
+    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    record_decline(match, ambassador_reg)
+
+    ambassador_reg.refresh_from_db()
+    referee_reg.refresh_from_db()
+    # Re-queuing belongs to VERB-17; this service must not touch these.
+    assert ambassador_reg.status == Registration.Status.MATCHED
+    assert referee_reg.status == Registration.Status.MATCHED
+
+
+def test_record_decline_raises_for_non_proposed_match() -> None:
+    """record_decline raises ValueError if match.status != PROPOSED."""
+    match = MatchFactory.create(status=Match.Status.ACCEPTED)
+    referee_reg = match.referee_registration
+
+    with pytest.raises(ValueError, match="PROPOSED"):
+        record_decline(match, referee_reg)

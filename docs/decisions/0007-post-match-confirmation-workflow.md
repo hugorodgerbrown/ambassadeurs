@@ -66,11 +66,17 @@ record, suspension, and the post-accept "let-down" report.
 
 ### Per-party response tracking
 
-`Match` gains nullable per-side timestamps so the engine knows *who* has acted:
+`Match` gains nullable per-side typed columns so the engine knows *who* has
+acted:
 
-- `ambassador_accepted_at`, `referee_accepted_at` (null until that side accepts).
-- `declined_by` (FK to `Registration`) + `declined_at` (which side declined).
-- `no_show_reported_by` (FK) + `no_show_reported_at` (the post-accept report).
+- `ambassador_accepted_at`, `referee_accepted_at` (`DateTimeField`, null until
+  that side accepts).
+- `declined_by` + `declined_at`: which side declined and when. `declined_by`
+  is a `Match.Side` enum value (`AMBASSADOR` / `REFEREE`) — a full FK to
+  `Registration` is over-built here because the two parties are always
+  retrievable from the match itself; the enum is sufficient and cheaper.
+- `no_show_reported_by` + `no_show_reported_at`: same rationale — `Side` enum,
+  not a FK.
 
 The accused no-show is the *other* registration on the match — derived, not
 stored.

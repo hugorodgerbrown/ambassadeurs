@@ -47,4 +47,13 @@ class MatchAdmin(admin.ModelAdmin):
         "referee_registration__user__email",
     ]
     raw_id_fields = ["ambassador_registration", "referee_registration"]
-    readonly_fields = ["created_at", "updated_at"]
+    readonly_fields = [
+        "ambassador_accepted_at",
+        "referee_accepted_at",
+        "declined_by",
+        "declined_at",
+        "no_show_reported_by",
+        "no_show_reported_at",
+        "created_at",
+        "updated_at",
+    ]

@@ -11,35 +11,46 @@
             {% endblocktranslate %}
         </div>
 
-        <h1 class="mb-4 text-2xl font-bold text-ink">{% translate "Which one are you?" %}</h1>
+        <h1 class="mb-4 text-2xl font-bold text-ink">{% translate "Confirm your role" %}</h1>
 
-        {# Role chooser — selecting a role HTMX-loads its details form below. #}
-        <div class="mb-6 grid gap-4 sm:grid-cols-2">
-            <button
-                type="button"
-                hx-get="{% url 'public:register_details_form' %}?role=ambassador"
+        {# Role selector — changing the select HTMX-loads the role-specific details form below. #}
+        <div class="mb-2">
+            <label for="id_role" class="block text-sm font-medium text-ink">
+                {% translate "Your role" %}
+            </label>
+            <select
+                id="id_role"
+                name="role"
+                hx-get="{% url 'public:register_details_form' %}"
+                hx-trigger="change"
                 hx-target="#details-form"
                 hx-swap="innerHTML"
-                class="rounded-card border border-line bg-surface p-4 text-left transition hover:border-accent"
+                class="mt-1 block w-full rounded-md border border-border bg-card px-3 py-2 text-text-1 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             >
-                <span class="block font-semibold text-ink">{% translate "I'm an Ambassador" %}</span>
-                <span class="mt-1 block text-sm text-body">
-                    {% translate "I held a 4 Vallées pass in a recent season and want to refer someone." %}
-                </span>
-            </button>
-            <button
-                type="button"
-                hx-get="{% url 'public:register_details_form' %}?role=referee"
-                hx-target="#details-form"
-                hx-swap="innerHTML"
-                class="rounded-card border border-line bg-surface p-4 text-left transition hover:border-accent"
-            >
-                <span class="block font-semibold text-ink">{% translate "I'm a Referee" %}</span>
-                <span class="mt-1 block text-sm text-body">
-                    {% translate "I'm new to the 4 Vallées and need an Ambassador to refer me." %}
-                </span>
-            </button>
+                <option value="" {% if not bound_role and not role_hint %}selected{% endif %}>
+                    {% translate "Choose your role…" %}
+                </option>
+                <option
+                    value="ambassador"
+                    {% if bound_role == "ambassador" or role_hint == "ambassador" and not bound_role %}
+                        selected
+                    {% endif %}
+                >
+                    {% translate "Ambassador" %}
+                </option>
+                <option
+                    value="referee"
+                    {% if bound_role == "referee" or role_hint == "referee" and not bound_role %}
+                        selected
+                    {% endif %}
+                >
+                    {% translate "Referee" %}
+                </option>
+            </select>
         </div>
+        <p class="mb-6 text-sm text-body">
+            {% translate "Your role can't be changed after you register, so choose carefully." %}
+        </p>
 
         <div id="details-form">
             {% if bound_form %}

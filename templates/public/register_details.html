@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "Choose your role" %}{% endblock %}
+{% block title %}{% translate "Confirm your role" %}{% endblock %}
 
 {% block content %}
     <section class="mx-auto max-w-xl">
@@ -22,10 +22,10 @@
                 id="id_role"
                 name="role"
                 hx-get="{% url 'public:register_details_form' %}"
-                hx-trigger="change"
+                hx-trigger="change[this.value]"
                 hx-target="#details-form"
                 hx-swap="innerHTML"
-                class="mt-1 block w-full rounded-md border border-border bg-card px-3 py-2 text-text-1 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                class="mt-1 block w-full rounded-md border border-line bg-surface px-3 py-2 text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             >
                 <option value="" {% if not bound_role and not role_hint %}selected{% endif %}>
                     {% translate "Choose your role…" %}

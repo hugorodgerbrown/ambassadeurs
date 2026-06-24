@@ -21,7 +21,12 @@ class RegistrationAdmin(admin.ModelAdmin):
     list_filter = ["role", "status", "prior_pass", "preferred_location"]
     search_fields = ["user__email", "user__first_name", "user__last_name"]
     raw_id_fields = ["user"]
-    readonly_fields = ["created_at", "updated_at"]
+    readonly_fields = [
+        "accepted_terms",
+        "terms_accepted_at",
+        "created_at",
+        "updated_at",
+    ]
 
 
 @admin.register(Match)

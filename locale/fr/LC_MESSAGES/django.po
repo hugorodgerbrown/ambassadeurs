@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-24 18:24+0200\n"
+"POT-Creation-Date: 2026-06-24 22:41+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -25,6 +25,8 @@ msgid "Last name"
 msgstr "Nom"
 
 #: accounts/forms.py:33 matching/forms.py:68 templates/accounts/detail.html:39
+#: templates/public/match.html:43
+#: templates/public/partials/match_actions.html:87
 msgid "Phone"
 msgstr "Téléphone"
 
@@ -45,6 +47,8 @@ msgid "Your account has been deleted."
 msgstr "Votre compte a été supprimé."
 
 #: matching/forms.py:64 templates/accounts/detail.html:36
+#: templates/public/match.html:35
+#: templates/public/partials/match_actions.html:79
 msgid "Email"
 msgstr "E-mail"
 
@@ -80,107 +84,116 @@ msgstr ""
 msgid "You are already registered for the current season."
 msgstr "Vous êtes déjà inscrit(e) pour la saison en cours."
 
-#: matching/models.py:26
+#: matching/models.py:27
 msgid "Verbier"
 msgstr "Verbier"
 
-#: matching/models.py:27
+#: matching/models.py:28
 msgid "Thyon"
 msgstr "Thyon"
 
-#: matching/models.py:28
+#: matching/models.py:29
 msgid "Nendaz"
 msgstr "Nendaz"
 
-#: matching/models.py:29
+#: matching/models.py:30
 msgid "Veysonnaz"
 msgstr "Veysonnaz"
 
-#: matching/models.py:30
+#: matching/models.py:31
 msgid "La Tzoumaz"
 msgstr "La Tzoumaz"
 
-#: matching/models.py:31
+#: matching/models.py:32
 msgid "Bruson"
 msgstr "Bruson"
 
-#: matching/models.py:79 templates/public/partials/register_surface.html:88
+#: matching/models.py:80 matching/models.py:256
+#: templates/public/partials/register_surface.html:88
 #: templates/public/partials/register_surface.html:143
 msgid "Ambassador"
 msgstr "Ambassadeur"
 
-#: matching/models.py:80 templates/public/partials/register_surface.html:90
+#: matching/models.py:81 matching/models.py:257
+#: templates/public/partials/register_surface.html:90
 #: templates/public/partials/register_surface.html:189
 msgid "Referee"
 msgstr "Filleul"
 
-#: matching/models.py:89
+#: matching/models.py:90
 msgid "Pending"
 msgstr "En attente de confirmation"
 
-#: matching/models.py:90
+#: matching/models.py:91
 msgid "Waiting"
 msgstr "En file d'attente"
 
-#: matching/models.py:91
+#: matching/models.py:92
 msgid "Matched"
 msgstr "Mis en relation"
 
-#: matching/models.py:92
+#: matching/models.py:93
 msgid "Confirmed"
 msgstr "Confirmé"
 
-#: matching/models.py:93
+#: matching/models.py:94
 msgid "Withdrawn"
 msgstr "Retiré"
 
-#: matching/models.py:94
+#: matching/models.py:95
 msgid "Suspended"
 msgstr "Suspendu"
 
-#: matching/models.py:104
+#: matching/models.py:105
 msgid "None — I did not hold a prior pass"
 msgstr "Aucun — je n'avais pas d'abonnement précédent"
 
-#: matching/models.py:105
+#: matching/models.py:106
 msgid "Seasonal pass (4 Vallées)"
 msgstr "Abonnement saisonnier (4 Vallées)"
 
-#: matching/models.py:106
+#: matching/models.py:107
 msgid "Annual pass (4 Vallées)"
 msgstr "Abonnement annuel (4 Vallées)"
 
-#: matching/models.py:107
+#: matching/models.py:108
 msgid "Mont 4 Card / special reduction"
 msgstr "Carte Mont 4 / réduction spéciale"
 
-#: matching/models.py:212
+#: matching/models.py:242
 msgid "Proposed"
 msgstr "Proposé"
 
-#: matching/models.py:213
+#: matching/models.py:243
 msgid "Accepted"
 msgstr "Accepté"
 
-#: matching/models.py:214
+#: matching/models.py:244
 msgid "Declined"
 msgstr "Refusé"
 
-#: matching/models.py:215
+#: matching/models.py:245
 msgid "Expired"
 msgstr "Expiré"
 
-#: matching/services.py:289
+#: matching/models.py:246
+msgid "Abandoned"
+msgstr "Abandonné"
+
+#: matching/services.py:306
 msgid "You have been matched — 4 Vallées Ambassadors Program"
 msgstr "Vous avez été mis en relation — Programme Ambassadeurs des 4 Vallées"
 
-#: matching/services.py:291
+#: matching/services.py:308
+#, python-format
 msgid ""
 "Good news — the matching system has found you a partner for the 4 Vallées "
 "Ambassadors Program.\n"
 "\n"
-"Log in to your account to view the match and take action within the contact "
-"window.\n"
+"Open the link below to view your match and accept or decline within the "
+"contact window:\n"
+"\n"
+"%(url)s\n"
 "\n"
 "If you did not register for this programme, please ignore this email."
 msgstr ""
@@ -192,11 +205,44 @@ msgstr ""
 "\n"
 "Si vous ne vous êtes pas inscrit(e) à ce programme, ignorez cet e-mail."
 
-#: public/views.py:114
+#: matching/services.py:357
+msgid "Match confirmed — contact your partner"
+msgstr "Mise en relation confirmée — contactez votre partenaire"
+
+#: matching/services.py:359
+#, python-format
+msgid ""
+"Great news — your match has been confirmed!\n"
+"\n"
+"Here are your partner's contact details:\n"
+"\n"
+"Name: %(name)s\n"
+"Email: %(email)s\n"
+"Phone: %(phone)s\n"
+"\n"
+"Please get in touch to arrange buying your passes together at the ticket "
+"office.\n"
+"\n"
+"Good luck!"
+msgstr ""
+"Bonne nouvelle — votre mise en relation est confirmée !\n"
+"\n"
+"Voici les coordonnées de votre partenaire :\n"
+"\n"
+"Nom : %(name)s\n"
+"E-mail : %(email)s\n"
+"Téléphone : %(phone)s\n"
+"\n"
+"Prenez contact pour organiser l'achat de vos abonnements ensemble au "
+"guichet.\n"
+"\n"
+"Bonne chance !"
+
+#: public/views.py:121
 msgid "Confirm your email to join the queue"
 msgstr "Confirmez votre e-mail pour rejoindre la file d'attente"
 
-#: public/views.py:116
+#: public/views.py:123
 #, python-format
 msgid ""
 "Click the link below to confirm your email and join the matching queue for "
@@ -264,7 +310,8 @@ msgstr "Vos informations"
 msgid "Edit"
 msgstr "Modifier"
 
-#: templates/accounts/detail.html:34
+#: templates/accounts/detail.html:34 templates/public/match.html:31
+#: templates/public/partials/match_actions.html:75
 msgid "Name"
 msgstr "Nom"
 
@@ -336,7 +383,9 @@ msgstr "Ambassadeurs des 4 Vallées"
 
 #: templates/includes/footer.html:32
 msgid "An independent way to find your season-pass partner for the 4 Vallées."
-msgstr "Un moyen indépendant de trouver votre partenaire d'abonnement de saison aux 4 Vallées."
+msgstr ""
+"Un moyen indépendant de trouver votre partenaire d'abonnement de saison aux "
+"4 Vallées."
 
 #: templates/includes/footer.html:38
 msgid "Program"
@@ -405,14 +454,15 @@ msgid ""
 "automatically — no more scrambling for a partner, no chasing people who "
 "vanish."
 msgstr ""
-"Pour bénéficier de la réduction Ambassadeurs sur l'abonnement annuel des "
-"4 Vallées, un détenteur actuel et un nouveau détenteur doivent postuler "
+"Pour bénéficier de la réduction Ambassadeurs sur l'abonnement annuel des 4 "
+"Vallées, un détenteur actuel et un nouveau détenteur doivent postuler "
 "ensemble. Nous vous trouvons automatiquement un partenaire — fini de courir "
 "après un partenaire, fini de se faire ignorer."
 
 #: templates/public/home.html:61
 msgid "Registration opens soon — check back closer to the start of the season."
-msgstr "Les inscriptions ouvrent bientôt — revenez plus près du début de la saison."
+msgstr ""
+"Les inscriptions ouvrent bientôt — revenez plus près du début de la saison."
 
 #: templates/public/home.html:75
 msgid "Register in the role that fits you"
@@ -428,7 +478,8 @@ msgstr "Nous vous mettons en relation automatiquement"
 
 #: templates/public/home.html:88
 msgid "We add you to the queue and pair you up. You don't pick each other."
-msgstr "Nous vous ajoutons à la file et vous associons. Vous ne vous choisissez pas."
+msgstr ""
+"Nous vous ajoutons à la file et vous associons. Vous ne vous choisissez pas."
 
 #: templates/public/home.html:97
 msgid "We email you when matched"
@@ -467,9 +518,9 @@ msgid ""
 "You held a 4 Vallées seasonal or annual pass in a recent season and want to "
 "refer a new holder. You're the returning holder."
 msgstr ""
-"Vous avez détenu un abonnement saisonnier ou annuel des 4 Vallées lors "
-"d'une saison récente et souhaitez parrainer un nouveau détenteur. Vous êtes "
-"le détenteur actuel."
+"Vous avez détenu un abonnement saisonnier ou annuel des 4 Vallées lors d'une "
+"saison récente et souhaitez parrainer un nouveau détenteur. Vous êtes le "
+"détenteur actuel."
 
 #: templates/public/home.html:144
 msgid "Register as an Ambassador"
@@ -804,8 +855,8 @@ msgid ""
 "SA. For privacy questions, contact caissier@tele-thyon.ch."
 msgstr ""
 "Ce service met en relation des partenaires pour le programme Ambassadeurs "
-"des 4 Vallées. Le responsable du traitement des données personnelles traitées "
-"ici est Groupe Télé-Thyon SA. Pour toute question relative à la "
+"des 4 Vallées. Le responsable du traitement des données personnelles "
+"traitées ici est Groupe Télé-Thyon SA. Pour toute question relative à la "
 "confidentialité, contactez caissier@tele-thyon.ch."
 
 #: templates/public/legal/privacy.html:20
@@ -840,11 +891,11 @@ msgid ""
 "Your email and phone are never shown to another participant before you have "
 "both accepted."
 msgstr ""
-"Nous utilisons vos données pour vous placer dans la file de mise en relation, "
-"vous associer à un partenaire et vous permettre de vous contacter une fois "
-"que vous avez tous les deux accepté une mise en relation. Votre e-mail et "
-"votre téléphone ne sont jamais montrés à un autre participant avant que vous "
-"ayez tous les deux accepté."
+"Nous utilisons vos données pour vous placer dans la file de mise en "
+"relation, vous associer à un partenaire et vous permettre de vous contacter "
+"une fois que vous avez tous les deux accepté une mise en relation. Votre e-"
+"mail et votre téléphone ne sont jamais montrés à un autre participant avant "
+"que vous ayez tous les deux accepté."
 
 #: templates/public/legal/privacy.html:39
 msgid "How long we keep it"
@@ -872,8 +923,8 @@ msgid ""
 "directly from your account page, or by contacting us. You also have the "
 "right to lodge a complaint with your data protection authority."
 msgstr ""
-"Vous avez le droit d'accéder à vos données personnelles, de les corriger, "
-"de les exporter ou de les supprimer, et de vous opposer à leur traitement ou "
+"Vous avez le droit d'accéder à vos données personnelles, de les corriger, de "
+"les exporter ou de les supprimer, et de vous opposer à leur traitement ou "
 "d'en demander la limitation. Vous pouvez exercer la plupart de ces droits "
 "directement depuis votre page de compte ou en nous contactant. Vous avez "
 "également le droit d'introduire une réclamation auprès de votre autorité de "
@@ -912,7 +963,8 @@ msgstr ""
 
 #: templates/public/legal/terms.html:23
 msgid "Respond to a match within 72 hours — accept or decline."
-msgstr "Répondez à une mise en relation dans les 72 heures — acceptez ou refusez."
+msgstr ""
+"Répondez à une mise en relation dans les 72 heures — acceptez ou refusez."
 
 #: templates/public/legal/terms.html:25
 msgid ""
@@ -924,7 +976,9 @@ msgstr ""
 
 #: templates/public/legal/terms.html:29
 msgid "Be respectful and prompt with the partner you are matched with."
-msgstr "Soyez respectueux(se) et réactif(ve) avec le partenaire qui vous est attribué."
+msgstr ""
+"Soyez respectueux(se) et réactif(ve) avec le partenaire qui vous est "
+"attribué."
 
 #: templates/public/legal/terms.html:32
 msgid "Eligibility"
@@ -960,6 +1014,147 @@ msgid ""
 msgstr ""
 "Ces conditions sont une ébauche initiale et doivent être revues par un "
 "professionnel du droit avant le lancement du programme."
+
+#: templates/public/match.html:4 templates/public/match.html:9
+msgid "Your match"
+msgstr "Votre mise en relation"
+
+#: templates/public/match.html:8
+msgid "Match"
+msgstr "Mise en relation"
+
+#: templates/public/match.html:12
+msgid "Match status"
+msgstr "Statut de la mise en relation"
+
+#: templates/public/match.html:15
+#, python-format
+msgid "Contact window closes: %(deadline)s"
+msgstr "Délai de contact : %(deadline)s"
+
+#: templates/public/match.html:28
+msgid "Your partner's contact details"
+msgstr "Coordonnées de votre partenaire"
+
+#: templates/public/match.html:52
+msgid ""
+"Please get in touch with your partner to arrange buying your passes together "
+"at the ticket office."
+msgstr ""
+"Prenez contact avec votre partenaire pour organiser l'achat de vos "
+"abonnements ensemble au guichet."
+
+#: templates/public/match.html:61
+msgid "Your response"
+msgstr "Votre réponse"
+
+#: templates/public/match.html:69 templates/public/register_closed.html:18
+#: templates/public/register_done.html:89
+#: templates/public/register_email_sent.html:73
+msgid "Back to home"
+msgstr "Retour à l'accueil"
+
+#: templates/public/match_invalid.html:4
+msgid "Link invalid"
+msgstr "Lien invalide"
+
+#: templates/public/match_invalid.html:8
+#: templates/public/register_invalid.html:8
+msgid "This link is invalid or has expired"
+msgstr "Ce lien est invalide ou a expiré"
+
+#: templates/public/match_invalid.html:10
+msgid ""
+"Match links expire when the contact window closes. If you received this link "
+"recently, please contact us for help."
+msgstr ""
+"Les liens de mise en relation expirent à la fermeture du délai de contact. "
+"Si vous avez reçu ce lien récemment, contactez-nous pour obtenir de l'aide."
+
+#: templates/public/match_invalid.html:17
+msgid "Go to the homepage"
+msgstr "Aller à la page d'accueil"
+
+#: templates/public/partials/match_actions.html:22
+#, python-format
+msgid "You have until %(deadline)s to respond to this match."
+msgstr ""
+"Vous avez jusqu'au %(deadline)s pour répondre à cette mise en relation."
+
+#: templates/public/partials/match_actions.html:36
+msgid "Accept"
+msgstr "Accepter"
+
+#: templates/public/partials/match_actions.html:48
+msgid "Decline"
+msgstr "Refuser"
+
+#: templates/public/partials/match_actions.html:55
+msgid "Waiting for your partner to respond"
+msgstr "En attente de la réponse de votre partenaire"
+
+#: templates/public/partials/match_actions.html:58
+msgid ""
+"You have accepted this match. We are waiting for your partner to respond. "
+"You will be notified by email when they do."
+msgstr ""
+"Vous avez accepté cette mise en relation. Nous attendons la réponse de votre "
+"partenaire. Vous serez notifié(e) par e-mail dès qu'il ou elle répondra."
+
+#: templates/public/partials/match_actions.html:66
+msgid "Match accepted"
+msgstr "Mise en relation acceptée"
+
+#: templates/public/partials/match_actions.html:68
+msgid "Both parties have accepted. Here are your partner's contact details."
+msgstr ""
+"Les deux parties ont accepté. Voici les coordonnées de votre partenaire."
+
+#: templates/public/partials/match_actions.html:97
+msgid "Match declined"
+msgstr "Mise en relation refusée"
+
+#: templates/public/partials/match_actions.html:99
+msgid ""
+"This match was declined. You have been re-queued and will be matched again "
+"shortly."
+msgstr ""
+"Cette mise en relation a été refusée. Vous avez été replacé(e) dans la file "
+"et serez associé(e) à nouveau prochainement."
+
+#: templates/public/partials/match_actions.html:104
+msgid "Match expired"
+msgstr "Mise en relation expirée"
+
+#: templates/public/partials/match_actions.html:106
+msgid ""
+"The contact window for this match has closed without a mutual response. You "
+"have been re-queued."
+msgstr ""
+"Le délai de contact pour cette mise en relation s'est fermé sans réponse "
+"mutuelle. Vous avez été replacé(e) dans la file."
+
+#: templates/public/partials/match_actions.html:111
+msgid "Match abandoned"
+msgstr "Mise en relation abandonnée"
+
+#: templates/public/partials/match_actions.html:113
+msgid ""
+"This match was reported as a no-show after acceptance. Please contact "
+"support if you believe this is an error."
+msgstr ""
+"Cette mise en relation a été signalée comme absence après acceptation. "
+"Contactez le support si vous pensez qu'il s'agit d'une erreur."
+
+#: templates/public/partials/match_actions.html:120
+msgid "Contact window closed"
+msgstr "Délai de contact fermé"
+
+#: templates/public/partials/match_actions.html:122
+msgid "The contact window for this match has closed. You have been re-queued."
+msgstr ""
+"Le délai de contact pour cette mise en relation est fermé. Vous avez été "
+"replacé(e) dans la file."
 
 #: templates/public/partials/register_eligibility.html:14
 msgid "Eligibility · Ambassador"
@@ -1072,11 +1267,15 @@ msgstr "Nouveau détenteur ayant besoin d'un Ambassadeur."
 
 #: templates/public/partials/register_surface.html:216
 msgid "You held a 4 Vallées pass recently and are referring a newcomer."
-msgstr "Vous avez détenu un abonnement des 4 Vallées récemment et parrainez un nouveau venu."
+msgstr ""
+"Vous avez détenu un abonnement des 4 Vallées récemment et parrainez un "
+"nouveau venu."
 
 #: templates/public/partials/register_surface.html:218
 msgid "You're new to the 4 Vallées and need an Ambassador to refer you."
-msgstr "Vous êtes nouveau aux 4 Vallées et avez besoin d'un Ambassadeur pour vous parrainer."
+msgstr ""
+"Vous êtes nouveau aux 4 Vallées et avez besoin d'un Ambassadeur pour vous "
+"parrainer."
 
 #: templates/public/partials/register_surface.html:220
 msgid "Your role can't be changed once you've registered."
@@ -1101,7 +1300,8 @@ msgid ""
 "rel=\"noopener\" class=\"text-accent underline\" >Terms of Use</a>."
 msgstr ""
 "J'ai lu et j'accepte les <a href=\"%(terms_url)s\" target=\"_blank\" "
-"rel=\"noopener\" class=\"text-accent underline\" >Conditions d'utilisation</a>."
+"rel=\"noopener\" class=\"text-accent underline\" >Conditions d'utilisation</"
+"a>."
 
 #: templates/public/partials/register_surface.html:298
 msgid "Register as Ambassador"
@@ -1126,12 +1326,6 @@ msgid ""
 msgstr ""
 "Aucune saison n'est actuellement ouverte aux inscriptions. Revenez plus près "
 "du début de la saison."
-
-#: templates/public/register_closed.html:18
-#: templates/public/register_done.html:89
-#: templates/public/register_email_sent.html:73
-msgid "Back to home"
-msgstr "Retour à l'accueil"
 
 #: templates/public/register_done.html:4 templates/public/register_done.html:33
 msgid "You're in the queue"
@@ -1224,10 +1418,6 @@ msgstr "Raccourci de développement"
 #: templates/public/register_invalid.html:4
 msgid "Link expired"
 msgstr "Lien expiré"
-
-#: templates/public/register_invalid.html:8
-msgid "This link is invalid or has expired"
-msgstr "Ce lien est invalide ou a expiré"
 
 #: templates/public/register_invalid.html:10
 msgid ""

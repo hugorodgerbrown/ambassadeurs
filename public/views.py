@@ -1,14 +1,19 @@
-# Public-facing views: the landing page and the single-step registration flow
-# (VERB-24).
+# Public-facing views: the landing page, the single-step registration flow
+# (VERB-24), and the match accept/decline flow (VERB-19).
 #
-# The combined registration flow: the homepage role buttons open the form
-# directly (no login required). The form includes an email field. On submit,
+# Registration flow (VERB-24): the homepage role buttons open a combined form
+# directly — no login required. The form includes an email field. On submit,
 # a Registration is created with status PENDING and a signed confirmation link
 # is emailed. Clicking the link transitions PENDING → WAITING, triggers
-# matching, logs the user in, and shows the in-queue page.
+# matching, logs the user in, and redirects to register_done. Facebook-login
+# references have been removed from the UI (VERB-24 P2); the allauth backend
+# and URL mount remain untouched in config/.
 #
-# Facebook-login references have been removed from the UI (VERB-24 P2). The
-# allauth backend and URL mount remain untouched in config/.
+# Match flow (VERB-19): a signed email link carries the participant to
+# /match/<token>/ where they can accept or decline. No @login_required — the
+# signed token IS the authentication. HTMX partial views for accept/decline are
+# guarded with require_htmx (Invariant 7). Contact PII is revealed ONLY when
+# match.status == ACCEPTED (Invariant 1).
 
 from __future__ import annotations
 
@@ -22,18 +27,22 @@ from django.db import IntegrityError, transaction
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from accounts.services import mark_email_verified
 from accounts.tokens import (
     make_registration_confirmation_token,
+    read_match_access_token,
     read_registration_confirmation_token,
 )
 from core.decorators import require_htmx
 from matching.forms import RegistrationForm
-from matching.models import Registration
+from matching.models import Match, Registration
 from matching.services import (
+    accept_match,
     confirm_registration,
+    decline_match,
     is_registration_open,
     register_participant,
 )
@@ -349,3 +358,224 @@ def register_details_form(request: HttpRequest) -> HttpResponse:
         "public/partials/register_surface.html",
         {"form": form, "role": role, "role_value": role_value, "is_htmx": True},
     )
+
+
+# ---------------------------------------------------------------------------
+# Match accept / decline flow (VERB-19)
+# ---------------------------------------------------------------------------
+
+# Display states for the match page — computed from match status + window.
+_STATE_ACTIONABLE = "actionable"  # PROPOSED, within window, this side not yet responded
+_STATE_WAITING = "waiting"  # PROPOSED but this side already accepted
+_STATE_TERMINAL = (
+    "terminal"  # ACCEPTED / DECLINED / EXPIRED / ABANDONED, or window lapsed
+)
+
+
+def _resolve_match_token(
+    token: str,
+) -> tuple[Match, Registration, Match.Side] | None:
+    """Validate a match-access token and return the relevant domain objects.
+
+    Returns ``(match, registration, side)`` on success, or ``None`` if the
+    token is invalid, expired, or the registration is not a party on the match.
+    The match is loaded with its two registrations selected-related.
+    """
+    parsed = read_match_access_token(token)
+    if parsed is None:
+        return None
+    match_pk, registration_pk = parsed
+
+    try:
+        match = Match.objects.select_related(
+            "ambassador_registration__user",
+            "referee_registration__user",
+        ).get(pk=match_pk)
+    except Match.DoesNotExist:
+        return None
+
+    # Confirm the token's registration_pk is one of the two parties.
+    if registration_pk not in (
+        match.ambassador_registration_id,
+        match.referee_registration_id,
+    ):
+        return None
+
+    # Identify which registration the token is for.
+    if registration_pk == match.ambassador_registration_id:
+        registration = match.ambassador_registration
+        side = Match.Side.AMBASSADOR
+    else:
+        registration = match.referee_registration
+        side = Match.Side.REFEREE
+
+    return match, registration, side
+
+
+def _compute_match_display_state(match: Match, side: Match.Side) -> str:
+    """Return the display state for a match page, from the viewer's perspective.
+
+    Returns one of the module-level ``_STATE_*`` constants.
+    """
+    if match.status != Match.Status.PROPOSED or timezone.now() > match.expires_at:
+        return _STATE_TERMINAL
+    # Match is PROPOSED and within the window. Check if this side has accepted.
+    if side == Match.Side.AMBASSADOR and match.ambassador_accepted_at is not None:
+        return _STATE_WAITING
+    if side == Match.Side.REFEREE and match.referee_accepted_at is not None:
+        return _STATE_WAITING
+    return _STATE_ACTIONABLE
+
+
+def match_detail(request: HttpRequest, token: str) -> HttpResponse:
+    """Render the match page (GET) or handle the no-JS POST fallback.
+
+    No ``@login_required`` — the signed token authenticates the viewer. Token
+    read failure or an unrelated registration → 400 with the invalid template.
+
+    GET: render the full ``public/match.html`` page with display state and,
+    only when ``match.status == ACCEPTED``, the counterpart's contact details.
+
+    POST (no-JS fallback): ``action=accept|decline`` → call the relevant service
+    → PRG redirect back to this view. The window and status are re-checked before
+    calling the service to avoid a double-submit 500.
+    """
+    resolved = _resolve_match_token(token)
+    if resolved is None:
+        return render(request, "public/match_invalid.html", status=400)
+
+    match, registration, side = resolved
+    display_state = _compute_match_display_state(match, side)
+
+    # Identify counterpart for the accepted PII reveal.
+    counterpart = (
+        match.referee_registration
+        if side == Match.Side.AMBASSADOR
+        else match.ambassador_registration
+    )
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action in ("accept", "decline") and display_state == _STATE_ACTIONABLE:
+            try:
+                if action == "accept":
+                    accept_match(match, registration)
+                else:
+                    decline_match(match, registration)
+            except ValueError:
+                # Match status changed between read and action; fall through
+                # to re-render the updated state.
+                pass
+        # PRG: redirect back to the match page after POST.
+        return redirect(reverse("public:match", args=[token]))
+
+    context = {
+        "match": match,
+        "registration": registration,
+        "side": side,
+        "display_state": display_state,
+        "state_actionable": _STATE_ACTIONABLE,
+        "state_waiting": _STATE_WAITING,
+        "state_terminal": _STATE_TERMINAL,
+        "accept_url": reverse("public:match_accept", args=[token]),
+        "decline_url": reverse("public:match_decline", args=[token]),
+    }
+    # Reveal counterpart PII ONLY when both parties have accepted (Invariant 1).
+    if match.status == Match.Status.ACCEPTED:
+        context["counterpart"] = counterpart
+
+    return render(request, "public/match.html", context)
+
+
+@require_htmx
+def match_accept(request: HttpRequest, token: str) -> HttpResponse:
+    """HTMX POST: accept the match and return the updated actions partial.
+
+    Guarded by ``@require_htmx`` (Invariant 7). Re-validates the token,
+    confirms the match is still PROPOSED and within the window, then calls
+    ``accept_match``. Renders ``public/partials/match_actions.html`` reflecting
+    the resulting state.
+    """
+    resolved = _resolve_match_token(token)
+    if resolved is None:
+        return HttpResponse(status=400)
+
+    match, registration, side = resolved
+    display_state = _compute_match_display_state(match, side)
+
+    if display_state == _STATE_ACTIONABLE:
+        try:
+            match = accept_match(match, registration)
+        except ValueError:
+            # Status changed between resolution and action; re-render current state.
+            pass
+        display_state = _compute_match_display_state(match, side)
+
+    counterpart = (
+        match.referee_registration
+        if side == Match.Side.AMBASSADOR
+        else match.ambassador_registration
+    )
+
+    context = {
+        "match": match,
+        "registration": registration,
+        "side": side,
+        "display_state": display_state,
+        "state_actionable": _STATE_ACTIONABLE,
+        "state_waiting": _STATE_WAITING,
+        "state_terminal": _STATE_TERMINAL,
+        "accept_url": reverse("public:match_accept", args=[token]),
+        "decline_url": reverse("public:match_decline", args=[token]),
+    }
+    if match.status == Match.Status.ACCEPTED:
+        context["counterpart"] = counterpart
+
+    return render(request, "public/partials/match_actions.html", context)
+
+
+@require_htmx
+def match_decline(request: HttpRequest, token: str) -> HttpResponse:
+    """HTMX POST: decline the match and return the updated actions partial.
+
+    Guarded by ``@require_htmx`` (Invariant 7). Re-validates the token,
+    confirms the match is still PROPOSED and within the window, then calls
+    ``decline_match``. Renders ``public/partials/match_actions.html`` reflecting
+    the resulting state.
+    """
+    resolved = _resolve_match_token(token)
+    if resolved is None:
+        return HttpResponse(status=400)
+
+    match, registration, side = resolved
+    display_state = _compute_match_display_state(match, side)
+
+    if display_state == _STATE_ACTIONABLE:
+        try:
+            match = decline_match(match, registration)
+        except ValueError:
+            # Status changed between resolution and action; re-render current state.
+            pass
+        display_state = _compute_match_display_state(match, side)
+
+    counterpart = (
+        match.referee_registration
+        if side == Match.Side.AMBASSADOR
+        else match.ambassador_registration
+    )
+
+    context = {
+        "match": match,
+        "registration": registration,
+        "side": side,
+        "display_state": display_state,
+        "state_actionable": _STATE_ACTIONABLE,
+        "state_waiting": _STATE_WAITING,
+        "state_terminal": _STATE_TERMINAL,
+        "accept_url": reverse("public:match_accept", args=[token]),
+        "decline_url": reverse("public:match_decline", args=[token]),
+    }
+    if match.status == Match.Status.ACCEPTED:
+        context["counterpart"] = counterpart
+
+    return render(request, "public/partials/match_actions.html", context)

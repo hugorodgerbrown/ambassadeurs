@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-24 18:24+0200\n"
+"POT-Creation-Date: 2026-06-24 22:41+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -25,6 +25,8 @@ msgid "Last name"
 msgstr ""
 
 #: accounts/forms.py:33 matching/forms.py:68 templates/accounts/detail.html:39
+#: templates/public/match.html:43
+#: templates/public/partials/match_actions.html:87
 msgid "Phone"
 msgstr ""
 
@@ -45,6 +47,8 @@ msgid "Your account has been deleted."
 msgstr ""
 
 #: matching/forms.py:64 templates/accounts/detail.html:36
+#: templates/public/match.html:35
+#: templates/public/partials/match_actions.html:79
 msgid "Email"
 msgstr ""
 
@@ -76,116 +80,146 @@ msgstr ""
 msgid "You are already registered for the current season."
 msgstr ""
 
-#: matching/models.py:26
+#: matching/models.py:27
 msgid "Verbier"
 msgstr ""
 
-#: matching/models.py:27
+#: matching/models.py:28
 msgid "Thyon"
 msgstr ""
 
-#: matching/models.py:28
+#: matching/models.py:29
 msgid "Nendaz"
 msgstr ""
 
-#: matching/models.py:29
+#: matching/models.py:30
 msgid "Veysonnaz"
 msgstr ""
 
-#: matching/models.py:30
+#: matching/models.py:31
 msgid "La Tzoumaz"
 msgstr ""
 
-#: matching/models.py:31
+#: matching/models.py:32
 msgid "Bruson"
 msgstr ""
 
-#: matching/models.py:79 templates/public/partials/register_surface.html:88
+#: matching/models.py:80 matching/models.py:256
+#: templates/public/partials/register_surface.html:88
 #: templates/public/partials/register_surface.html:143
 msgid "Ambassador"
 msgstr ""
 
-#: matching/models.py:80 templates/public/partials/register_surface.html:90
+#: matching/models.py:81 matching/models.py:257
+#: templates/public/partials/register_surface.html:90
 #: templates/public/partials/register_surface.html:189
 msgid "Referee"
 msgstr ""
 
-#: matching/models.py:89
+#: matching/models.py:90
 msgid "Pending"
 msgstr ""
 
-#: matching/models.py:90
+#: matching/models.py:91
 msgid "Waiting"
 msgstr ""
 
-#: matching/models.py:91
+#: matching/models.py:92
 msgid "Matched"
 msgstr ""
 
-#: matching/models.py:92
+#: matching/models.py:93
 msgid "Confirmed"
 msgstr ""
 
-#: matching/models.py:93
+#: matching/models.py:94
 msgid "Withdrawn"
 msgstr ""
 
-#: matching/models.py:94
+#: matching/models.py:95
 msgid "Suspended"
 msgstr ""
 
-#: matching/models.py:104
+#: matching/models.py:105
 msgid "None — I did not hold a prior pass"
 msgstr ""
 
-#: matching/models.py:105
+#: matching/models.py:106
 msgid "Seasonal pass (4 Vallées)"
 msgstr ""
 
-#: matching/models.py:106
+#: matching/models.py:107
 msgid "Annual pass (4 Vallées)"
 msgstr ""
 
-#: matching/models.py:107
+#: matching/models.py:108
 msgid "Mont 4 Card / special reduction"
 msgstr ""
 
-#: matching/models.py:212
+#: matching/models.py:242
 msgid "Proposed"
 msgstr ""
 
-#: matching/models.py:213
+#: matching/models.py:243
 msgid "Accepted"
 msgstr ""
 
-#: matching/models.py:214
+#: matching/models.py:244
 msgid "Declined"
 msgstr ""
 
-#: matching/models.py:215
+#: matching/models.py:245
 msgid "Expired"
 msgstr ""
 
-#: matching/services.py:289
+#: matching/models.py:246
+msgid "Abandoned"
+msgstr ""
+
+#: matching/services.py:306
 msgid "You have been matched — 4 Vallées Ambassadors Program"
 msgstr ""
 
-#: matching/services.py:291
+#: matching/services.py:308
+#, python-format
 msgid ""
 "Good news — the matching system has found you a partner for the 4 Vallées "
 "Ambassadors Program.\n"
 "\n"
-"Log in to your account to view the match and take action within the contact "
-"window.\n"
+"Open the link below to view your match and accept or decline within the "
+"contact window:\n"
+"\n"
+"%(url)s\n"
 "\n"
 "If you did not register for this programme, please ignore this email."
 msgstr ""
 
-#: public/views.py:114
+#: matching/services.py:357
+msgid "Match confirmed — contact your partner"
+msgstr ""
+
+#: matching/services.py:359
+#, python-format
+msgid ""
+"Great news — your match has been confirmed!\n"
+"\n"
+"Here are your partner's contact details:\n"
+"\n"
+"Name: %(name)s\n"
+"Email: %(email)s\n"
+"Phone: %(phone)s\n"
+"\n"
+"Please get in touch to arrange buying your passes together at the ticket "
+"office.\n"
+"\n"
+"Good luck!"
+msgstr ""
+
+#: public/views.py:121
 msgid "Confirm your email to join the queue"
 msgstr ""
 
-#: public/views.py:116
+#: public/views.py:123
 #, python-format
 msgid ""
 "Click the link below to confirm your email and join the matching queue for "
@@ -242,7 +276,8 @@ msgstr ""
 msgid "Edit"
 msgstr ""
 
-#: templates/accounts/detail.html:34
+#: templates/accounts/detail.html:34 templates/public/match.html:31
+#: templates/public/partials/match_actions.html:75
 msgid "Name"
 msgstr ""
 
@@ -801,6 +836,131 @@ msgid ""
 "professional before the program launches."
 msgstr ""
 
+#: templates/public/match.html:4 templates/public/match.html:9
+msgid "Your match"
+msgstr ""
+
+#: templates/public/match.html:8
+msgid "Match"
+msgstr ""
+
+#: templates/public/match.html:12
+msgid "Match status"
+msgstr ""
+
+#: templates/public/match.html:15
+#, python-format
+msgid "Contact window closes: %(deadline)s"
+msgstr ""
+
+#: templates/public/match.html:28
+msgid "Your partner's contact details"
+msgstr ""
+
+#: templates/public/match.html:52
+msgid ""
+"Please get in touch with your partner to arrange buying your passes together "
+"at the ticket office."
+msgstr ""
+
+#: templates/public/match.html:61
+msgid "Your response"
+msgstr ""
+
+#: templates/public/match.html:69 templates/public/register_closed.html:18
+#: templates/public/register_done.html:89
+#: templates/public/register_email_sent.html:73
+msgid "Back to home"
+msgstr ""
+
+#: templates/public/match_invalid.html:4
+msgid "Link invalid"
+msgstr ""
+
+#: templates/public/match_invalid.html:8
+#: templates/public/register_invalid.html:8
+msgid "This link is invalid or has expired"
+msgstr ""
+
+#: templates/public/match_invalid.html:10
+msgid ""
+"Match links expire when the contact window closes. If you received this link "
+"recently, please contact us for help."
+msgstr ""
+
+#: templates/public/match_invalid.html:17
+msgid "Go to the homepage"
+msgstr ""
+
+#: templates/public/partials/match_actions.html:22
+#, python-format
+msgid "You have until %(deadline)s to respond to this match."
+msgstr ""
+
+#: templates/public/partials/match_actions.html:36
+msgid "Accept"
+msgstr ""
+
+#: templates/public/partials/match_actions.html:48
+msgid "Decline"
+msgstr ""
+
+#: templates/public/partials/match_actions.html:55
+msgid "Waiting for your partner to respond"
+msgstr ""
+
+#: templates/public/partials/match_actions.html:58
+msgid ""
+"You have accepted this match. We are waiting for your partner to respond. "
+"You will be notified by email when they do."
+msgstr ""
+
+#: templates/public/partials/match_actions.html:66
+msgid "Match accepted"
+msgstr ""
+
+#: templates/public/partials/match_actions.html:68
+msgid "Both parties have accepted. Here are your partner's contact details."
+msgstr ""
+
+#: templates/public/partials/match_actions.html:97
+msgid "Match declined"
+msgstr ""
+
+#: templates/public/partials/match_actions.html:99
+msgid ""
+"This match was declined. You have been re-queued and will be matched again "
+"shortly."
+msgstr ""
+
+#: templates/public/partials/match_actions.html:104
+msgid "Match expired"
+msgstr ""
+
+#: templates/public/partials/match_actions.html:106
+msgid ""
+"The contact window for this match has closed without a mutual response. You "
+"have been re-queued."
+msgstr ""
+
+#: templates/public/partials/match_actions.html:111
+msgid "Match abandoned"
+msgstr ""
+
+#: templates/public/partials/match_actions.html:113
+msgid ""
+"This match was reported as a no-show after acceptance. Please contact "
+"support if you believe this is an error."
+msgstr ""
+
+#: templates/public/partials/match_actions.html:120
+msgid "Contact window closed"
+msgstr ""
+
+#: templates/public/partials/match_actions.html:122
+msgid "The contact window for this match has closed. You have been re-queued."
+msgstr ""
+
 #: templates/public/partials/register_eligibility.html:14
 msgid "Eligibility · Ambassador"
 msgstr ""
@@ -939,12 +1099,6 @@ msgid ""
 "to the start of the season."
 msgstr ""
 
-#: templates/public/register_closed.html:18
-#: templates/public/register_done.html:89
-#: templates/public/register_email_sent.html:73
-msgid "Back to home"
-msgstr ""
-
 #: templates/public/register_done.html:4 templates/public/register_done.html:33
 msgid "You're in the queue"
 msgstr ""
@@ -1022,10 +1176,6 @@ msgstr ""
 
 #: templates/public/register_invalid.html:4
 msgid "Link expired"
-msgstr ""
-
-#: templates/public/register_invalid.html:8
-msgid "This link is invalid or has expired"
 msgstr ""
 
 #: templates/public/register_invalid.html:10

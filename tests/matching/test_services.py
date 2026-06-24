@@ -12,7 +12,9 @@ from django.utils import timezone
 from core.models import StateTransitionLog
 from matching.models import Match, Registration
 from matching.services import (
+    accept_match,
     confirm_registration,
+    decline_match,
     is_eligible_pair,
     is_registration_open,
     propose_match,
@@ -22,6 +24,7 @@ from matching.services import (
     register_participant,
     requeue_to_back,
     requeue_to_front,
+    send_match_confirmed_email,
     send_match_notification,
     suspend_for_no_show,
 )
@@ -375,7 +378,12 @@ def test_send_match_notification_sends_two_emails() -> None:
 
 
 def test_send_match_notification_contains_no_pii() -> None:
-    """Notification emails must not contain any contact PII (Invariant 1)."""
+    """Notification emails must not contain any contact PII (Invariant 1).
+
+    The email includes a signed /match/<token>/ link so the recipient can open
+    the match page — the link is non-PII (carries only opaque PKs inside the
+    signature) and is intentionally present.
+    """
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
@@ -393,13 +401,13 @@ def test_send_match_notification_contains_no_pii() -> None:
 
     for message in mail.outbox:
         body = message.body
-        # No phone numbers
+        # No phone numbers.
         assert "+41790001234" not in body
         assert "+41790005678" not in body
-        # No email addresses (only the recipient's own, which is the To: field)
+        # No email addresses (only the recipient's own, which is the To: field).
         assert ambassador_reg.user.email not in body
         assert referee_reg.user.email not in body
-        # No names
+        # No names.
         assert (
             ambassador_reg.user.first_name not in body
             or not ambassador_reg.user.first_name
@@ -407,10 +415,17 @@ def test_send_match_notification_contains_no_pii() -> None:
         assert (
             referee_reg.user.first_name not in body or not referee_reg.user.first_name
         )
-        # No action links
-        assert "/accept" not in body
-        assert "/decline" not in body
-        assert "token" not in body.lower()
+        # The match link is present (non-PII — token is opaque).
+        assert "/match/" in body
+
+
+def test_send_match_notification_includes_match_link() -> None:
+    """Each notification email body contains the /match/ path."""
+    match = MatchFactory.create()
+    send_match_notification(match)
+    assert len(mail.outbox) == 2
+    for message in mail.outbox:
+        assert "/match/" in message.body
 
 
 def test_send_match_notification_respects_preferred_language() -> None:
@@ -1247,3 +1262,202 @@ def test_record_decline_raises_for_non_proposed_match() -> None:
 
     with pytest.raises(ValueError, match="PROPOSED"):
         record_decline(match, referee_reg)
+
+
+# ---------------------------------------------------------------------------
+# send_match_confirmed_email
+# ---------------------------------------------------------------------------
+
+
+def test_send_match_confirmed_email_sends_two_emails() -> None:
+    """send_match_confirmed_email sends exactly one email to each party."""
+    match = MatchFactory.create(accepted=True)
+    send_match_confirmed_email(match)
+    assert len(mail.outbox) == 2
+
+
+def test_send_match_confirmed_email_contains_counterpart_details() -> None:
+    """Each confirmed email contains the counterpart's name, email, and phone."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        phone="+41790001111",
+        status=Registration.Status.CONFIRMED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        phone="+41790002222",
+        status=Registration.Status.CONFIRMED,
+    )
+    match = MatchFactory.create(
+        accepted=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    send_match_confirmed_email(match)
+    assert len(mail.outbox) == 2
+
+    # Map To: addresses to message bodies.
+    body_by_recipient = {msg.to[0]: msg.body for msg in mail.outbox}
+
+    # The ambassador's email contains the referee's contact details.
+    amb_body = body_by_recipient[ambassador_reg.user.email]
+    assert referee_reg.user.email in amb_body
+    assert referee_reg.phone in amb_body
+    assert referee_reg.user.first_name in amb_body or not referee_reg.user.first_name
+
+    # The referee's email contains the ambassador's contact details.
+    ref_body = body_by_recipient[referee_reg.user.email]
+    assert ambassador_reg.user.email in ref_body
+    assert ambassador_reg.phone in ref_body
+    assert (
+        ambassador_reg.user.first_name in ref_body or not ambassador_reg.user.first_name
+    )
+
+
+def test_send_match_confirmed_email_respects_preferred_language() -> None:
+    """send_match_confirmed_email renders each email under the recipient's language."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        preferred_language="fr",
+        status=Registration.Status.CONFIRMED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        preferred_language="en",
+        status=Registration.Status.CONFIRMED,
+    )
+    match = MatchFactory.create(
+        accepted=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    send_match_confirmed_email(match)
+    assert len(mail.outbox) == 2
+
+
+# ---------------------------------------------------------------------------
+# accept_match
+# ---------------------------------------------------------------------------
+
+
+def test_accept_match_first_accept_stays_proposed_no_email() -> None:
+    """First accept leaves match PROPOSED and sends no confirmed email."""
+    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        result = accept_match(match, ambassador_reg)
+
+    assert result.status == Match.Status.PROPOSED
+    assert len(mail.outbox) == 0
+
+
+def test_accept_match_second_accept_transitions_accepted_and_sends_email() -> None:
+    """Second accept transitions match to ACCEPTED and sends confirmed emails."""
+    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    # First accept — ambassador.
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        accept_match(match, ambassador_reg)
+
+    match.refresh_from_db()
+    assert match.status == Match.Status.PROPOSED
+    assert len(mail.outbox) == 0
+
+    # Second accept — referee triggers the full transition.
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        result = accept_match(match, referee_reg)
+
+    assert result.status == Match.Status.ACCEPTED
+
+    ambassador_reg.refresh_from_db()
+    referee_reg.refresh_from_db()
+    assert ambassador_reg.status == Registration.Status.CONFIRMED
+    assert referee_reg.status == Registration.Status.CONFIRMED
+
+    # Two confirmed emails sent (one per party).
+    assert len(mail.outbox) == 2
+
+
+# ---------------------------------------------------------------------------
+# decline_match
+# ---------------------------------------------------------------------------
+
+
+def test_decline_match_transitions_to_declined() -> None:
+    """decline_match transitions the match to DECLINED."""
+    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    result = decline_match(match, ambassador_reg)
+    result.refresh_from_db()
+    assert result.status == Match.Status.DECLINED
+
+
+def test_decline_match_requeues_decliner_to_back_and_other_to_front() -> None:
+    """decline_match sends decliner to back (priority -1) and other to front (+1)."""
+    ambassador_reg = RegistrationFactory.create(
+        status=Registration.Status.MATCHED, priority=0
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED, priority=0
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    decline_match(match, ambassador_reg)
+
+    ambassador_reg.refresh_from_db()
+    referee_reg.refresh_from_db()
+    # Decliner (ambassador) goes to back: status WAITING, priority decremented.
+    assert ambassador_reg.status == Registration.Status.WAITING
+    assert ambassador_reg.priority == -1
+    # Other party (referee) goes to front: status WAITING, priority incremented.
+    assert referee_reg.status == Registration.Status.WAITING
+    assert referee_reg.priority == 1
+
+
+def test_decline_match_by_referee_requeues_correctly() -> None:
+    """decline_match by the referee side re-queues symmetrically in reverse."""
+    ambassador_reg = RegistrationFactory.create(
+        status=Registration.Status.MATCHED, priority=5
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED, priority=5
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    decline_match(match, referee_reg)
+
+    ambassador_reg.refresh_from_db()
+    referee_reg.refresh_from_db()
+    # Ambassador (other side) goes to front: priority 5 → 6.
+    assert ambassador_reg.status == Registration.Status.WAITING
+    assert ambassador_reg.priority == 6
+    # Referee (decliner) goes to back: priority 5 → 4.
+    assert referee_reg.status == Registration.Status.WAITING
+    assert referee_reg.priority == 4

@@ -27,6 +27,11 @@ urlpatterns = [
     path("legal/<slug:page>/", views.legal_page, name="legal"),
     path("how-it-works/", views.how_it_works, name="how_it_works"),
     path("application-form/", views.download_application_form, name="application_form"),
+    # Match accept/decline flow (VERB-19). No @login_required — the signed
+    # token IS the authentication for these views.
+    path("match/<str:token>/", views.match_detail, name="match"),
+    path("match/<str:token>/accept/", views.match_accept, name="match_accept"),
+    path("match/<str:token>/decline/", views.match_decline, name="match_decline"),
     # Well-known root requests served to avoid excess 404s (VERB-7).
     path("sw.js", views.service_worker, name="service_worker"),
     path(

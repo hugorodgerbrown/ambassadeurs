@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-25 15:46+0200\n"
+"POT-Creation-Date: 2026-06-25 16:13+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -340,6 +340,9 @@ msgid ""
 "Your registration has been suspended. Contact support if you think this is "
 "an error."
 msgstr ""
+
+msgid "View your match"
+msgstr "Voir votre mise en relation"
 
 msgid "You have no registration yet."
 msgstr "Vous n'avez pas encore d'inscription."
@@ -924,6 +927,12 @@ msgstr "Mise en relation"
 msgid "Contact window closes: %(deadline)s"
 msgstr "Délai de contact : %(deadline)s"
 
+msgid "Participation status"
+msgstr "Statut de participation"
+
+msgid "(you)"
+msgstr "(vous)"
+
 msgid "Your partner's contact details"
 msgstr "Coordonnées de votre partenaire"
 
@@ -940,6 +949,22 @@ msgstr "Votre réponse"
 msgid "Back to home"
 msgstr "Retour à l'accueil"
 
+msgid "Access denied"
+msgstr "Accès refusé"
+
+msgid "This match does not include you."
+msgstr "Vous ne faites pas partie de ce match."
+
+msgid ""
+"You are logged in as a different participant. Match pages are only "
+"accessible to the two participants named on the match."
+msgstr ""
+"Vous êtes connecté(e) en tant qu'un autre participant. Les pages de mise en "
+"relation ne sont accessibles qu'aux deux participants concernés."
+
+msgid "Go to the homepage"
+msgstr "Aller à la page d'accueil"
+
 msgid "Link invalid"
 msgstr "Lien invalide"
 
@@ -952,9 +977,6 @@ msgid ""
 msgstr ""
 "Les liens de mise en relation expirent à la fermeture du délai de contact. "
 "Si vous avez reçu ce lien récemment, contactez-nous pour obtenir de l'aide."
-
-msgid "Go to the homepage"
-msgstr "Aller à la page d'accueil"
 
 #, python-format
 msgid "You have until %(deadline)s to respond to this match."
@@ -1056,36 +1078,32 @@ msgstr "Ce dont vous aurez besoin pour être éligible"
 
 msgid "You must purchase a 2026/2027 4 Vallées season or annual pass."
 msgstr ""
+"Vous devez acheter un abonnement saisonnier ou annuel 4 Vallées 2026/2027."
 
-#, fuzzy
-#| msgid ""
-#| "I have held a seasonal or annual pass from one of the 4 Vallées companies "
-#| "in 2024-25 or 2025-26."
 msgid ""
 "You must have purchased a seasonal or annual pass from one of the 4 Vallées "
 "companies in 2024/2025 or 2025/2026."
 msgstr ""
-"J'ai détenu un abonnement saisonnier ou annuel auprès de l'une des "
-"compagnies des 4 Vallées en 2024-25 ou 2025-26."
+"Vous devez avoir détenu un abonnement saisonnier ou annuel auprès de l'une "
+"des compagnies des 4 Vallées en 2024/2025 ou 2025/2026."
 
 msgid ""
 "You must support a person in an equal or higher price category than your own "
 "(e.g. an adult can’t support a child, but the reverse is possible)."
 msgstr ""
+"Vous devez parrainer une personne dans une catégorie de prix égale ou "
+"supérieure à la vôtre (par exemple, un adulte ne peut pas parrainer un "
+"enfant, mais l’inverse est possible)."
 
 msgid "You must purchase a 2026/2027 4 Vallées annual pass."
-msgstr ""
+msgstr "Vous devez acheter un abonnement annuel 4 Vallées 2026/2027."
 
-#, fuzzy
-#| msgid ""
-#| "Not have held a mid-season, seasonal or annual pass from one of the 4 "
-#| "Vallées companies in 2024-25 or 2025-26."
 msgid ""
 "You must not have purchased a mid-season, seasonal or annual pass from any "
 "of the 4 Vallées companies in 2024/2025 nor 2025/2026."
 msgstr ""
-"Ne pas avoir détenu d'abonnement mi-saison, saisonnier ou annuel auprès de "
-"l'une des compagnies des 4 Vallées en 2024-25 ou 2025-26."
+"Vous ne devez pas avoir détenu d'abonnement mi-saison, saisonnier ou annuel "
+"auprès de l'une des compagnies des 4 Vallées en 2024/2025 ni en 2025/2026."
 
 msgid "Registration"
 msgstr "Inscription"
@@ -1267,6 +1285,12 @@ msgstr ""
 
 msgid "Start again"
 msgstr "Recommencer"
+
+#~ msgid "You've been matched!"
+#~ msgstr "Vous avez été mis en relation !"
+
+#~ msgid "Match confirmed."
+#~ msgstr "Mise en relation confirmée."
 
 #~ msgid "Status"
 #~ msgstr "Statut"

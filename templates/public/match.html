@@ -19,6 +19,52 @@
         </div>
 
         {% comment %}
+            Both-sides status panel (VERB-32). Shows each party's participation
+            status (Pending / Accepted / Declined) derived from match fields.
+            Role labels and status only — no names, email, or phone (Invariant 1).
+            The viewer's own row is marked with "(you)".
+        {% endcomment %}
+        <div class="card mb-6">
+            <h2 class="mb-3 text-h3 text-ink">{% translate "Participation status" %}</h2>
+            <dl class="space-y-3 text-sm">
+                <div class="flex items-center justify-between gap-2">
+                    <dt class="font-medium text-ink">
+                        {% translate "Ambassador" %}
+                        {% if side == 'AMBASSADOR' %}
+                            <span class="ml-1 text-xs text-meta">{% translate "(you)" %}</span>
+                        {% endif %}
+                    </dt>
+                    <dd>
+                        {% if match.ambassador_accepted_at %}
+                            <span class="status status--done">{% translate "Accepted" %}</span>
+                        {% elif match.declined_by == 'AMBASSADOR' %}
+                            <span class="status status--queue">{% translate "Declined" %}</span>
+                        {% else %}
+                            <span class="status status--action">{% translate "Pending" %}</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                    <dt class="font-medium text-ink">
+                        {% translate "Referee" %}
+                        {% if side == 'REFEREE' %}
+                            <span class="ml-1 text-xs text-meta">{% translate "(you)" %}</span>
+                        {% endif %}
+                    </dt>
+                    <dd>
+                        {% if match.referee_accepted_at %}
+                            <span class="status status--done">{% translate "Accepted" %}</span>
+                        {% elif match.declined_by == 'REFEREE' %}
+                            <span class="status status--queue">{% translate "Declined" %}</span>
+                        {% else %}
+                            <span class="status status--action">{% translate "Pending" %}</span>
+                        {% endif %}
+                    </dd>
+                </div>
+            </dl>
+        </div>
+
+        {% comment %}
             Contact details are revealed ONLY when both parties have accepted
             (Invariant 1). The counterpart context variable is absent until then.
         {% endcomment %}

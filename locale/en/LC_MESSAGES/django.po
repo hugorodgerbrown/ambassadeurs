@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-25 13:25+0200\n"
+"POT-Creation-Date: 2026-06-25 14:04+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -278,6 +278,15 @@ msgstr ""
 msgid ""
 "Your role is fixed. To register in the other role you must delete your "
 "account and start again."
+msgstr ""
+
+msgid "You've been matched!"
+msgstr ""
+
+msgid "Match confirmed."
+msgstr ""
+
+msgid "View your match"
 msgstr ""
 
 msgid "You have no registration yet."
@@ -720,6 +729,12 @@ msgstr ""
 msgid "Contact window closes: %(deadline)s"
 msgstr ""
 
+msgid "Participation status"
+msgstr ""
+
+msgid "(you)"
+msgstr ""
+
 msgid "Your partner's contact details"
 msgstr ""
 
@@ -734,6 +749,20 @@ msgstr ""
 msgid "Back to home"
 msgstr ""
 
+msgid "Access denied"
+msgstr ""
+
+msgid "This match does not include you."
+msgstr ""
+
+msgid ""
+"You are logged in as a different participant. Match pages are only "
+"accessible to the two participants named on the match."
+msgstr ""
+
+msgid "Go to the homepage"
+msgstr ""
+
 msgid "Link invalid"
 msgstr ""
 
@@ -743,9 +772,6 @@ msgstr ""
 msgid ""
 "Match links expire when the contact window closes. If you received this link "
 "recently, please contact us for help."
-msgstr ""
-
-msgid "Go to the homepage"
 msgstr ""
 
 #, python-format

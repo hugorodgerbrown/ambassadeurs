@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-25 13:25+0200\n"
+"POT-Creation-Date: 2026-06-25 14:04+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -325,6 +325,21 @@ msgid ""
 msgstr ""
 "Votre rôle est fixe. Pour vous inscrire dans l'autre rôle, vous devez "
 "supprimer votre compte et recommencer."
+
+#, fuzzy
+#| msgid "Your match"
+msgid "You've been matched!"
+msgstr "Votre mise en relation"
+
+#, fuzzy
+#| msgid "Match expired"
+msgid "Match confirmed."
+msgstr "Mise en relation expirée"
+
+#, fuzzy
+#| msgid "Your match"
+msgid "View your match"
+msgstr "Votre mise en relation"
 
 msgid "You have no registration yet."
 msgstr "Vous n'avez pas encore d'inscription."
@@ -909,6 +924,14 @@ msgstr "Statut de la mise en relation"
 msgid "Contact window closes: %(deadline)s"
 msgstr "Délai de contact : %(deadline)s"
 
+#, fuzzy
+#| msgid "Match status"
+msgid "Participation status"
+msgstr "Statut de la mise en relation"
+
+msgid "(you)"
+msgstr ""
+
 msgid "Your partner's contact details"
 msgstr "Coordonnées de votre partenaire"
 
@@ -925,6 +948,20 @@ msgstr "Votre réponse"
 msgid "Back to home"
 msgstr "Retour à l'accueil"
 
+msgid "Access denied"
+msgstr ""
+
+msgid "This match does not include you."
+msgstr ""
+
+msgid ""
+"You are logged in as a different participant. Match pages are only "
+"accessible to the two participants named on the match."
+msgstr ""
+
+msgid "Go to the homepage"
+msgstr "Aller à la page d'accueil"
+
 msgid "Link invalid"
 msgstr "Lien invalide"
 
@@ -937,9 +974,6 @@ msgid ""
 msgstr ""
 "Les liens de mise en relation expirent à la fermeture du délai de contact. "
 "Si vous avez reçu ce lien récemment, contactez-nous pour obtenir de l'aide."
-
-msgid "Go to the homepage"
-msgstr "Aller à la page d'accueil"
 
 #, python-format
 msgid "You have until %(deadline)s to respond to this match."

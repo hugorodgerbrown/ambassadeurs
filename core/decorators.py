@@ -1,5 +1,6 @@
 # View decorators shared across apps.
 
+import functools
 from collections.abc import Callable
 
 from django.conf import settings
@@ -17,6 +18,7 @@ def require_debug(
     ``override_settings(DEBUG=False)`` without re-importing the URL conf.
     """
 
+    @functools.wraps(view)
     def wrapper(request: HttpRequest, *args: object, **kwargs: object) -> HttpResponse:
         """Return the view response only when DEBUG is enabled."""
         if not settings.DEBUG:
@@ -36,6 +38,7 @@ def require_htmx(
     ``django_htmx`` populating ``request.htmx``.
     """
 
+    @functools.wraps(view)
     def wrapper(request: HttpRequest, *args: object, **kwargs: object) -> HttpResponse:
         """Return the view response only for HTMX requests."""
         if not getattr(request, "htmx", False):

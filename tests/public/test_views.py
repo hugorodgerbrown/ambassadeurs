@@ -9,6 +9,7 @@
 # access to the match page; HTMX partials for accept/decline are guarded by
 # require_htmx; contact PII is only revealed after mutual accept.
 
+import re
 from unittest.mock import patch
 
 import pytest
@@ -582,10 +583,10 @@ def test_register_get_already_registered_shows_banner_and_disabled_inputs() -> N
     # Link to account detail.
     assert reverse("accounts:detail") in content
     assert "View your registration" in content
-    # Form inputs must carry disabled.
-    assert "disabled" in content
-    # Submit button must be disabled.
-    assert "<button" in content and "disabled" in content
+    # At least one form input element must carry the disabled attribute.
+    assert re.search(r"<input[^>]*\bdisabled\b", content)
+    # The submit button element itself must be disabled.
+    assert re.search(r'<button[^>]*type="submit"[^>]*\bdisabled\b', content)
 
 
 def test_register_details_form_already_registered_shows_banner() -> None:

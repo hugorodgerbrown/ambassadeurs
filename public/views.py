@@ -56,21 +56,6 @@ from matching.services import (
 )
 from public.models import FormDownload
 
-
-def _authenticated_registration(request: HttpRequest) -> Registration | None:
-    """Return the Registration for the currently authenticated user, or None.
-
-    Mirrors the ``DoesNotExist`` guard used in ``accounts/views.py``. Returns
-    ``None`` for anonymous requests and for authenticated users who have no
-    Registration (e.g. staff-only admin users).
-    """
-    if not request.user.is_authenticated:
-        return None
-    try:
-        return Registration.objects.get(user=request.user)
-    except Registration.DoesNotExist:
-        return None
-
 logger = logging.getLogger(__name__)
 
 # Map the public URL slug to the stored Role value. Defining the valid slugs
@@ -86,6 +71,21 @@ SLUG_BY_ROLE = {v: k for k, v in ROLE_BY_SLUG.items()}
 # The legal documents, keyed by URL slug. Validating against this set keeps
 # unknown pages out of the view (404) and out of template lookups.
 LEGAL_PAGES = {"privacy", "cookies", "terms"}
+
+
+def _authenticated_registration(request: HttpRequest) -> Registration | None:
+    """Return the Registration for the currently authenticated user, or None.
+
+    Mirrors the ``DoesNotExist`` guard used in ``accounts/views.py``. Returns
+    ``None`` for anonymous requests and for authenticated users who have no
+    Registration (e.g. staff-only admin users).
+    """
+    if not request.user.is_authenticated:
+        return None
+    try:
+        return Registration.objects.get(user=request.user)
+    except Registration.DoesNotExist:
+        return None
 
 
 def home(request: HttpRequest) -> HttpResponse:

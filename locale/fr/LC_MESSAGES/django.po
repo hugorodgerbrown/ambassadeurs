@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-25 13:25+0200\n"
+"POT-Creation-Date: 2026-06-25 15:46+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -277,11 +277,18 @@ msgstr "Oui, supprimer mon compte"
 msgid "Cancel"
 msgstr "Annuler"
 
-msgid "My account"
-msgstr "Mon compte"
-
 msgid "Your account"
 msgstr "Votre compte"
+
+msgid "Your role"
+msgstr "Votre rôle"
+
+msgid ""
+"Your role is fixed. To register in the other role you must delete your "
+"account and start again."
+msgstr ""
+"Votre rôle est fixe. Pour vous inscrire dans l'autre rôle, vous devez "
+"supprimer votre compte et recommencer."
 
 msgid "Your details"
 msgstr "Vos informations"
@@ -301,30 +308,52 @@ msgstr "Non vérifié"
 msgid "Resend confirmation email"
 msgstr "Renvoyer l'e-mail de confirmation"
 
+#, fuzzy
+#| msgid "Your role and email can't be changed here."
+msgid "Email can't be changed here."
+msgstr "Votre rôle et votre e-mail ne peuvent pas être modifiés ici."
+
 msgid "Language"
 msgstr "Langue"
 
-msgid "Your registration"
-msgstr "Votre inscription"
+msgid "Match status"
+msgstr "Statut de la mise en relation"
 
-msgid "Your role"
-msgstr "Votre rôle"
+#, fuzzy
+#| msgid "Confirm your email to join the queue"
+msgid "Please confirm your email address to enter the pool."
+msgstr "Confirmez votre e-mail pour rejoindre la file d'attente"
 
-msgid "Status"
-msgstr "Statut"
+msgid "You are in the queue. We'll email you when a match is found."
+msgstr ""
 
-msgid "Pending email verification"
-msgstr "En attente de vérification de l'e-mail"
+#, fuzzy
+#| msgid "Waiting for your partner to respond"
+msgid "You have accepted. Waiting for your partner to respond."
+msgstr "En attente de la réponse de votre partenaire"
 
-msgid "Available for match"
-msgstr "Disponible pour un jumelage"
+msgid "You have been matched. Check your email to accept or decline."
+msgstr ""
 
 msgid ""
-"Your role is fixed. To register in the other role you must delete your "
-"account and start again."
+"Your match is confirmed. Contact your partner to buy your passes together."
 msgstr ""
-"Votre rôle est fixe. Pour vous inscrire dans l'autre rôle, vous devez "
-"supprimer votre compte et recommencer."
+
+#, fuzzy
+#| msgid "Your registration"
+msgid "Your registration has been withdrawn."
+msgstr "Votre inscription"
+
+#, fuzzy
+#| msgid ""
+#| "This match was reported as a no-show after acceptance. Please contact "
+#| "support if you believe this is an error."
+msgid ""
+"Your registration has been suspended. Contact support if you think this is "
+"an error."
+msgstr ""
+"Cette mise en relation a été signalée comme absence après acceptation. "
+"Contactez le support si vous pensez qu'il s'agit d'une erreur."
 
 msgid "You have no registration yet."
 msgstr "Vous n'avez pas encore d'inscription."
@@ -345,7 +374,9 @@ msgstr ""
 "Supprimez définitivement votre compte et toutes vos inscriptions. Cette "
 "action est irréversible."
 
-msgid "Edit my details"
+#, fuzzy
+#| msgid "Edit my details"
+msgid "Edit your details"
 msgstr "Modifier mes informations"
 
 msgid "Your role and email can't be changed here."
@@ -388,6 +419,9 @@ msgstr "Conditions"
 
 msgid "Account"
 msgstr "Compte"
+
+msgid "My account"
+msgstr "Mon compte"
 
 msgid "Log in"
 msgstr "Se connecter"
@@ -902,9 +936,6 @@ msgstr "Votre mise en relation"
 msgid "Match"
 msgstr "Mise en relation"
 
-msgid "Match status"
-msgstr "Statut de la mise en relation"
-
 #, python-format
 msgid "Contact window closes: %(deadline)s"
 msgstr "Délai de contact : %(deadline)s"
@@ -1252,6 +1283,15 @@ msgstr ""
 
 msgid "Start again"
 msgstr "Recommencer"
+
+#~ msgid "Status"
+#~ msgstr "Statut"
+
+#~ msgid "Pending email verification"
+#~ msgstr "En attente de vérification de l'e-mail"
+
+#~ msgid "Available for match"
+#~ msgstr "Disponible pour un jumelage"
 
 #~ msgid ""
 #~ "Buy a 4 Vallées 2026-2027 annual season ticket at the same time as your "

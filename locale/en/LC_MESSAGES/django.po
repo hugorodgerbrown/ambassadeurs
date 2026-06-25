@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-25 13:25+0200\n"
+"POT-Creation-Date: 2026-06-25 15:46+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -233,10 +233,15 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-msgid "My account"
+msgid "Your account"
 msgstr ""
 
-msgid "Your account"
+msgid "Your role"
+msgstr ""
+
+msgid ""
+"Your role is fixed. To register in the other role you must delete your "
+"account and start again."
 msgstr ""
 
 msgid "Your details"
@@ -257,27 +262,37 @@ msgstr ""
 msgid "Resend confirmation email"
 msgstr ""
 
+msgid "Email can't be changed here."
+msgstr ""
+
 msgid "Language"
 msgstr ""
 
-msgid "Your registration"
+msgid "Match status"
 msgstr ""
 
-msgid "Your role"
+msgid "Please confirm your email address to enter the pool."
 msgstr ""
 
-msgid "Status"
+msgid "You are in the queue. We'll email you when a match is found."
 msgstr ""
 
-msgid "Pending email verification"
+msgid "You have accepted. Waiting for your partner to respond."
 msgstr ""
 
-msgid "Available for match"
+msgid "You have been matched. Check your email to accept or decline."
 msgstr ""
 
 msgid ""
-"Your role is fixed. To register in the other role you must delete your "
-"account and start again."
+"Your match is confirmed. Contact your partner to buy your passes together."
+msgstr ""
+
+msgid "Your registration has been withdrawn."
+msgstr ""
+
+msgid ""
+"Your registration has been suspended. Contact support if you think this is "
+"an error."
 msgstr ""
 
 msgid "You have no registration yet."
@@ -297,7 +312,7 @@ msgid ""
 "undone."
 msgstr ""
 
-msgid "Edit my details"
+msgid "Edit your details"
 msgstr ""
 
 msgid "Your role and email can't be changed here."
@@ -337,6 +352,9 @@ msgid "Terms"
 msgstr ""
 
 msgid "Account"
+msgstr ""
+
+msgid "My account"
 msgstr ""
 
 msgid "Log in"
@@ -711,9 +729,6 @@ msgid "Your match"
 msgstr ""
 
 msgid "Match"
-msgstr ""
-
-msgid "Match status"
 msgstr ""
 
 #, python-format

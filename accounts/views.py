@@ -20,7 +20,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils.translation import gettext as _
 
-from matching.models import Registration
+from matching.models import Match, Registration
 
 from .forms import AccountForm
 from .services import delete_account, send_confirmation_email, update_account
@@ -28,7 +28,14 @@ from .services import delete_account, send_confirmation_email, update_account
 
 @login_required
 def account_detail(request: HttpRequest) -> HttpResponse:
-    """Show the participant's profile, registration and security controls."""
+    """Show the participant's profile, match status and security controls.
+
+    When the registration is MATCHED, fetches the active PROPOSED match via the
+    appropriate reverse accessor and derives ``i_have_accepted`` — whether the
+    viewing registration's own acceptance timestamp is set. The Match object
+    itself is never passed to the template (PII Invariant 1: contact details
+    must not be exposed before mutual accept).
+    """
     user = cast(User, request.user)
     try:
         registration: Registration | None = Registration.objects.get(user=user)
@@ -41,6 +48,21 @@ def account_detail(request: HttpRequest) -> HttpResponse:
     if settings.DEBUG:
         debug_verify_url = request.session.pop("debug_verify_url", None)
 
+    # Derive whether the viewer has already accepted their current proposed match.
+    # Only meaningful when status is MATCHED; defaults to False otherwise.
+    i_have_accepted = False
+    if registration is not None and registration.status == Registration.Status.MATCHED:
+        if registration.role == Registration.Role.AMBASSADOR:
+            match: Match | None = (
+                registration.matches_as_ambassador.proposed().first()
+            )
+            if match is not None:
+                i_have_accepted = match.ambassador_accepted_at is not None
+        else:
+            match = registration.matches_as_referee.proposed().first()
+            if match is not None:
+                i_have_accepted = match.referee_accepted_at is not None
+
     return render(
         request,
         "accounts/detail.html",
@@ -48,6 +70,7 @@ def account_detail(request: HttpRequest) -> HttpResponse:
             "registration": registration,
             "email_verified": email_verified,
             "debug_verify_url": debug_verify_url,
+            "i_have_accepted": i_have_accepted,
         },
     )
 

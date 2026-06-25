@@ -22,10 +22,12 @@ from matching.services import (
     record_decline,
     record_flake_and_requeue,
     register_participant,
+    report_no_show,
     requeue_to_back,
     requeue_to_front,
     send_match_confirmed_email,
     send_match_notification,
+    send_no_show_notification,
     suspend_for_no_show,
 )
 from tests.accounts.factories import UserFactory
@@ -1461,3 +1463,332 @@ def test_decline_match_by_referee_requeues_correctly() -> None:
     # Referee (decliner) goes to back: priority 5 → 4.
     assert referee_reg.status == Registration.Status.WAITING
     assert referee_reg.priority == 4
+
+
+# ---------------------------------------------------------------------------
+# report_no_show (VERB-21)
+# ---------------------------------------------------------------------------
+
+
+def test_report_no_show_transitions_match_to_abandoned() -> None:
+    """report_no_show transitions match ACCEPTED → ABANDONED."""
+    ambassador_reg = RegistrationFactory.create(
+        status=Registration.Status.CONFIRMED, priority=0
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.CONFIRMED, priority=0
+    )
+    match = MatchFactory.create(
+        accepted=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    result = report_no_show(match, ambassador_reg)
+
+    result.refresh_from_db()
+    assert result.status == Match.Status.ABANDONED
+    assert result.no_show_reported_by == Match.Side.AMBASSADOR
+    assert result.no_show_reported_at is not None
+
+
+def test_report_no_show_no_show_reported_at_is_tz_aware() -> None:
+    """report_no_show sets a tz-aware no_show_reported_at timestamp."""
+    from django.utils import timezone
+
+    match = MatchFactory.create(accepted=True)
+    before = timezone.now()
+    result = report_no_show(match, match.ambassador_registration)
+    after = timezone.now()
+
+    result.refresh_from_db()
+    assert result.no_show_reported_at is not None
+    assert result.no_show_reported_at.tzinfo is not None
+    assert before <= result.no_show_reported_at <= after
+
+
+def test_report_no_show_by_referee_sets_referee_side() -> None:
+    """report_no_show by the referee side records no_show_reported_by=REFEREE."""
+    match = MatchFactory.create(accepted=True)
+
+    result = report_no_show(match, match.referee_registration)
+
+    result.refresh_from_db()
+    assert result.no_show_reported_by == Match.Side.REFEREE
+
+
+def test_report_no_show_reporter_requeued_to_front() -> None:
+    """Reporter (kept-faith party) is re-queued to the front (WAITING, priority +1)."""
+    ambassador_reg = RegistrationFactory.create(
+        status=Registration.Status.CONFIRMED, priority=3
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.CONFIRMED, priority=0
+    )
+    match = MatchFactory.create(
+        accepted=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    report_no_show(match, ambassador_reg)
+
+    ambassador_reg.refresh_from_db()
+    assert ambassador_reg.status == Registration.Status.WAITING
+    assert ambassador_reg.priority == 4  # 3 + 1
+
+
+def test_report_no_show_accused_suspended() -> None:
+    """The accused party is SUSPENDED and flake_count incremented."""
+    ambassador_reg = RegistrationFactory.create(
+        status=Registration.Status.CONFIRMED, flake_count=0
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.CONFIRMED, flake_count=0
+    )
+    match = MatchFactory.create(
+        accepted=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    report_no_show(match, ambassador_reg)
+
+    # Reporter is ambassador; accused is referee.
+    referee_reg.refresh_from_db()
+    assert referee_reg.status == Registration.Status.SUSPENDED
+    assert referee_reg.flake_count == 1
+
+
+def test_report_no_show_writes_two_transition_log_rows() -> None:
+    """report_no_show writes exactly two StateTransitionLog rows.
+
+    One for Match.status (ACCEPTED → ABANDONED) and one for the accused
+    Registration.status (CONFIRMED → SUSPENDED). The reporter's CONFIRMED →
+    WAITING transition is intentionally not logged (consistent with the
+    decline path).
+    """
+    from django.contrib.contenttypes.models import ContentType
+
+    ambassador_reg = RegistrationFactory.create(
+        status=Registration.Status.CONFIRMED, priority=0
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.CONFIRMED, priority=0
+    )
+    match = MatchFactory.create(
+        accepted=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    report_no_show(match, ambassador_reg)
+
+    logs = list(StateTransitionLog.objects.order_by("pk"))
+    assert len(logs) == 2
+
+    match_ct = ContentType.objects.get_for_model(Match)
+    reg_ct = ContentType.objects.get_for_model(Registration)
+
+    # One log for Match.status.
+    match_log = next(
+        (log for log in logs if log.content_type_id == match_ct.pk),
+        None,
+    )
+    assert match_log is not None
+    assert match_log.object_id == match.pk
+    assert match_log.state_before == Match.Status.ACCEPTED
+    assert match_log.state_after == Match.Status.ABANDONED
+
+    # One log for the accused (referee) Registration.status.
+    reg_log = next(
+        (log for log in logs if log.content_type_id == reg_ct.pk),
+        None,
+    )
+    assert reg_log is not None
+    assert reg_log.object_id == referee_reg.pk
+    assert reg_log.state_before == Registration.Status.CONFIRMED
+    assert reg_log.state_after == Registration.Status.SUSPENDED
+
+
+def test_report_no_show_sends_one_email_to_accused() -> None:
+    """report_no_show queues one email to the accused party only (no reporter PII)."""
+    ambassador_reg = RegistrationFactory.create(
+        status=Registration.Status.CONFIRMED,
+        phone="+41790001111",
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.CONFIRMED,
+        phone="+41790002222",
+    )
+    match = MatchFactory.create(
+        accepted=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        report_no_show(match, ambassador_reg)
+
+    assert len(mail.outbox) == 1
+    # Email sent to the accused (referee), not the reporter.
+    assert mail.outbox[0].to == [referee_reg.user.email]
+
+
+def test_report_no_show_email_contains_no_reporter_pii() -> None:
+    """The no-show email must not contain any reporter PII (Invariant 1)."""
+    ambassador_reg = RegistrationFactory.create(
+        status=Registration.Status.CONFIRMED,
+        phone="+41790001111",
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.CONFIRMED,
+        phone="+41790002222",
+    )
+    match = MatchFactory.create(
+        accepted=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        report_no_show(match, ambassador_reg)
+
+    body = mail.outbox[0].body
+    # Reporter's PII must not appear.
+    assert ambassador_reg.phone not in body
+    assert ambassador_reg.user.email not in body
+    assert (
+        ambassador_reg.user.first_name not in body or not ambassador_reg.user.first_name
+    )
+
+
+def test_report_no_show_email_respects_accused_preferred_language() -> None:
+    """send_no_show_notification renders under the accused's preferred_language."""
+    accused_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.CONFIRMED,
+        preferred_language="fr",
+    )
+    ambassador_reg = RegistrationFactory.create(
+        status=Registration.Status.CONFIRMED,
+        preferred_language="en",
+    )
+    match = MatchFactory.create(
+        accepted=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=accused_reg,
+    )
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        report_no_show(match, ambassador_reg)
+
+    assert len(mail.outbox) == 1
+    # Email should be in French (accused's language).
+    assert mail.outbox[0].to == [accused_reg.user.email]
+    # French copy present (spot-check the subject).
+    assert "absence" in mail.outbox[0].subject.lower()
+
+
+def test_report_no_show_raises_on_non_accepted_match() -> None:
+    """report_no_show raises ValueError if match.status != ACCEPTED."""
+    match = MatchFactory.create(status=Match.Status.PROPOSED)
+
+    with pytest.raises(ValueError, match="ACCEPTED"):
+        report_no_show(match, match.ambassador_registration)
+
+
+def test_report_no_show_raises_if_already_reported() -> None:
+    """report_no_show raises ValueError if no_show_reported_by is already set.
+
+    Build an ACCEPTED match that already has no_show_reported_by set directly
+    so the status guard passes but the already-reported guard fires.
+    """
+    match = MatchFactory.create(
+        accepted=True,
+        no_show_reported_by=Match.Side.AMBASSADOR,
+    )
+
+    with pytest.raises(ValueError, match="already"):
+        report_no_show(match, match.referee_registration)
+
+
+def test_report_no_show_raises_on_declined_match() -> None:
+    """report_no_show raises ValueError on a DECLINED match (not ACCEPTED)."""
+    match = MatchFactory.create(declined=True)
+
+    with pytest.raises(ValueError, match="ACCEPTED"):
+        report_no_show(match, match.ambassador_registration)
+
+
+def test_report_no_show_returns_updated_match() -> None:
+    """report_no_show returns the updated Match instance."""
+    match = MatchFactory.create(accepted=True)
+
+    result = report_no_show(match, match.ambassador_registration)
+
+    assert result.status == Match.Status.ABANDONED
+    assert result.pk == match.pk
+
+
+# ---------------------------------------------------------------------------
+# send_no_show_notification (VERB-21)
+# ---------------------------------------------------------------------------
+
+
+def test_send_no_show_notification_sends_one_email() -> None:
+    """send_no_show_notification sends exactly one email to the accused."""
+    match = MatchFactory.create(accepted=True)
+    accused = match.referee_registration
+
+    send_no_show_notification(match, accused)
+
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == [accused.user.email]
+
+
+def test_send_no_show_notification_contains_no_reporter_pii() -> None:
+    """send_no_show_notification must not contain any reporter PII (Invariant 1)."""
+    ambassador_reg = RegistrationFactory.create(
+        status=Registration.Status.CONFIRMED,
+        phone="+41790003333",
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.CONFIRMED,
+        phone="+41790004444",
+    )
+    match = MatchFactory.create(
+        accepted=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    # Reporter is ambassador; accused is referee.
+    send_no_show_notification(match, referee_reg)
+
+    body = mail.outbox[0].body
+    # Reporter's PII must not appear in the accused's email.
+    assert ambassador_reg.phone not in body
+    assert ambassador_reg.user.email not in body
+
+
+def test_send_no_show_notification_respects_preferred_language() -> None:
+    """send_no_show_notification renders under the accused's preferred_language."""
+    accused_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.CONFIRMED,
+        preferred_language="fr",
+    )
+    match = MatchFactory.create(
+        accepted=True,
+        referee_registration=accused_reg,
+    )
+
+    send_no_show_notification(match, accused_reg)
+
+    assert len(mail.outbox) == 1
+    # French copy present in the subject.
+    assert "absence" in mail.outbox[0].subject.lower()

@@ -51,7 +51,9 @@ def _parse_viewport(value: str) -> tuple[int, int]:
         width, height = value.lower().split("x")
         return int(width), int(height)
     except ValueError as exc:  # pragma: no cover - argparse guards typical input
-        raise SystemExit(f"Invalid --viewport {value!r}; use desktop, mobile or WxH") from exc
+        raise SystemExit(
+            f"Invalid --viewport {value!r}; use desktop, mobile or WxH"
+        ) from exc
 
 
 def _parse_kwargs(pairs: list[str]) -> dict[str, str]:
@@ -82,7 +84,11 @@ def _resolve_target(args: argparse.Namespace, base_url: str) -> str:
 
         match_pk, _, registration_pk = args.match.partition(":")
         match = Match.objects.get(pk=int(match_pk))
-        reg_pk = int(registration_pk) if registration_pk else match.ambassador_registration_id
+        reg_pk = (
+            int(registration_pk)
+            if registration_pk
+            else match.ambassador_registration_id
+        )
         token = make_match_access_token(match.pk, reg_pk)
         return base_url.rstrip("/") + reverse("public:match", args=[token])
 
@@ -96,7 +102,9 @@ def _resolve_target(args: argparse.Namespace, base_url: str) -> str:
     raise SystemExit("Specify one of --name, --path, --url or --match")
 
 
-def _build_session_cookie(args: argparse.Namespace, base_url: str) -> dict[str, str] | None:
+def _build_session_cookie(
+    args: argparse.Namespace, base_url: str
+) -> dict[str, str] | None:
     """Create a logged-in session for --admin / --login-email and return a cookie.
 
     The session row is written to the dev database the runserver also reads, so
@@ -151,8 +159,14 @@ def _assert_reachable(base_url: str) -> None:
         ) from exc
 
 
-def _capture(url: str, out: Path, viewport: tuple[int, int], cookie: dict[str, str] | None,
-             full_page: bool, wait_selector: str | None) -> None:
+def _capture(
+    url: str,
+    out: Path,
+    viewport: tuple[int, int],
+    cookie: dict[str, str] | None,
+    full_page: bool,
+    wait_selector: str | None,
+) -> None:
     """Render ``url`` in headless Chromium and write a PNG to ``out``."""
     from playwright.sync_api import sync_playwright
 
@@ -188,24 +202,42 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     target = parser.add_argument_group("target (choose one)")
     target.add_argument("--name", help="Django URL name, e.g. public:register")
-    target.add_argument("--arg", action="append", default=[],
-                        help="reverse() kwarg as key=value (repeatable), e.g. --arg page=privacy")
+    target.add_argument(
+        "--arg",
+        action="append",
+        default=[],
+        help="reverse() kwarg as key=value (repeatable), e.g. --arg page=privacy",
+    )
     target.add_argument("--path", help="Absolute path, e.g. /how-it-works/")
     target.add_argument("--url", help="Fully-qualified URL (overrides base URL)")
-    target.add_argument("--match", metavar="MATCH_PK[:REG_PK]",
-                        help="Mint a signed match-access token for this match (defaults to the "
-                             "ambassador side) and screenshot public:match")
+    target.add_argument(
+        "--match",
+        metavar="MATCH_PK[:REG_PK]",
+        help="Mint a signed match-access token for this match (defaults to the "
+        "ambassador side) and screenshot public:match",
+    )
 
     auth = parser.add_argument_group("authentication (optional)")
-    auth.add_argument("--admin", action="store_true",
-                     help="Authenticate as the first superuser (for /admin/ pages)")
+    auth.add_argument(
+        "--admin",
+        action="store_true",
+        help="Authenticate as the first superuser (for /admin/ pages)",
+    )
     auth.add_argument("--login-email", help="Authenticate as the user with this email")
 
-    parser.add_argument("--viewport", default="desktop",
-                        help="desktop (1280x800), mobile (390x844), or WIDTHxHEIGHT")
-    parser.add_argument("--full-page", action="store_true",
-                        help="Capture the full scrollable page, not just the viewport")
-    parser.add_argument("--wait-selector", help="Wait for this CSS selector before capturing")
+    parser.add_argument(
+        "--viewport",
+        default="desktop",
+        help="desktop (1280x800), mobile (390x844), or WIDTHxHEIGHT",
+    )
+    parser.add_argument(
+        "--full-page",
+        action="store_true",
+        help="Capture the full scrollable page, not just the viewport",
+    )
+    parser.add_argument(
+        "--wait-selector", help="Wait for this CSS selector before capturing"
+    )
     parser.add_argument("--base-url", help="Override settings.BASE_URL")
     parser.add_argument("--out", required=True, type=Path, help="Output PNG path")
     args = parser.parse_args()
@@ -217,8 +249,14 @@ def main() -> None:
     url = _resolve_target(args, base_url)
     cookie = _build_session_cookie(args, base_url)
     _assert_reachable(base_url)
-    _capture(url, args.out, _parse_viewport(args.viewport), cookie,
-             args.full_page, args.wait_selector)
+    _capture(
+        url,
+        args.out,
+        _parse_viewport(args.viewport),
+        cookie,
+        args.full_page,
+        args.wait_selector,
+    )
 
     print(f"SAVED {args.out} {url}")
 

@@ -1,5 +1,7 @@
 # Tests for the account self-service views.
 
+from datetime import UTC, datetime
+
 import pytest
 from allauth.account.models import EmailAddress
 from django.contrib.auth import SESSION_KEY
@@ -222,7 +224,10 @@ def test_detail_hides_resend_button_when_email_verified() -> None:
 @pytest.mark.parametrize(
     ("status", "expected_label"),
     [
-        (Registration.Status.PENDING, b"Please confirm your email address to enter the pool"),
+        (
+            Registration.Status.PENDING,
+            b"Please confirm your email address to enter the pool",
+        ),
         (Registration.Status.WAITING, b"You are in the queue"),
         # MATCHED with no proposed match: i_have_accepted defaults to False.
         (Registration.Status.MATCHED, b"Check your email to accept or decline"),
@@ -248,8 +253,6 @@ def test_detail_status_sentence(status: str, expected_label: bytes) -> None:
 
 def test_detail_matched_not_yet_accepted_shows_check_email() -> None:
     """A MATCHED ambassador who has not yet accepted sees the 'check email' sentence."""
-    from datetime import UTC, datetime
-
     reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
     # Create a PROPOSED match with ambassador_accepted_at=None (not yet accepted).
     MatchFactory.create(
@@ -271,8 +274,6 @@ def test_detail_matched_not_yet_accepted_shows_check_email() -> None:
 
 def test_detail_matched_accepted_shows_waiting_for_partner() -> None:
     """A MATCHED ambassador who has accepted sees the 'waiting for partner' sentence."""
-    from datetime import UTC, datetime
-
     accepted_at = datetime(2026, 9, 2, 10, 0, 0, tzinfo=UTC)
     reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
     MatchFactory.create(
@@ -283,6 +284,53 @@ def test_detail_matched_accepted_shows_waiting_for_partner() -> None:
     )
     client = Client()
     client.force_login(reg.user)
+    response = client.get(reverse("accounts:detail"))
+    assert response.status_code == 200
+    assert b"Waiting for your partner" in response.content
+
+
+def test_detail_matched_referee_not_yet_accepted_shows_check_email() -> None:
+    """A MATCHED referee who has not yet accepted sees the 'check email' sentence."""
+    ref_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    MatchFactory.create(
+        referee_registration=ref_reg,
+        status=Match.Status.PROPOSED,
+        expires_at=datetime(2099, 12, 31, 23, 59, 59, tzinfo=UTC),
+    )
+    client = Client()
+    client.force_login(ref_reg.user)
+    response = client.get(reverse("accounts:detail"))
+    assert response.status_code == 200
+    assert b"Check your email to accept or decline" in response.content
+    # PII invariant: the counterpart's contact details must not appear.
+    ambassador_email = (
+        ref_reg.matches_as_referee.first().ambassador_registration.user.email
+    )
+    assert ambassador_email.encode() not in response.content
+    ambassador_phone = (
+        ref_reg.matches_as_referee.first().ambassador_registration.phone
+    )
+    assert ambassador_phone.encode() not in response.content
+
+
+def test_detail_matched_referee_accepted_shows_waiting_for_partner() -> None:
+    """A MATCHED referee who has accepted sees the 'waiting for partner' sentence."""
+    accepted_at = datetime(2026, 9, 2, 10, 0, 0, tzinfo=UTC)
+    ref_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    MatchFactory.create(
+        referee_registration=ref_reg,
+        status=Match.Status.PROPOSED,
+        expires_at=datetime(2099, 12, 31, 23, 59, 59, tzinfo=UTC),
+        referee_accepted_at=accepted_at,
+    )
+    client = Client()
+    client.force_login(ref_reg.user)
     response = client.get(reverse("accounts:detail"))
     assert response.status_code == 200
     assert b"Waiting for your partner" in response.content

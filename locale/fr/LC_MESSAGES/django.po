@@ -308,10 +308,8 @@ msgstr "Non vérifié"
 msgid "Resend confirmation email"
 msgstr "Renvoyer l'e-mail de confirmation"
 
-#, fuzzy
-#| msgid "Your role and email can't be changed here."
 msgid "Email can't be changed here."
-msgstr "Votre rôle et votre e-mail ne peuvent pas être modifiés ici."
+msgstr ""
 
 msgid "Language"
 msgstr "Langue"
@@ -374,10 +372,8 @@ msgstr ""
 "Supprimez définitivement votre compte et toutes vos inscriptions. Cette "
 "action est irréversible."
 
-#, fuzzy
-#| msgid "Edit my details"
 msgid "Edit your details"
-msgstr "Modifier mes informations"
+msgstr ""
 
 msgid "Your role and email can't be changed here."
 msgstr "Votre rôle et votre e-mail ne peuvent pas être modifiés ici."

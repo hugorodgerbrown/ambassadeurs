@@ -8,11 +8,13 @@ entire #reg-surface via HTMX, so the eyebrow, lead copy, role zone, eligibility
 callout, form heading and submit button all re-tone in one move.
 
 Context:
-  form        — RegistrationForm bound to the role
-  role        — public slug ("ambassador" / "referee"), used in URLs / hidden input
-  role_value  — stored Role value ("AMBASSADOR" / "REFEREE"), used for branching
-  is_htmx     — truthy only on the HTMX swap response (drives the out-of-band
-                update of the above-nav tone band)
+  form               — RegistrationForm bound to the role
+  role               — public slug ("ambassador" / "referee"), used in URLs / hidden input
+  role_value         — stored Role value ("AMBASSADOR" / "REFEREE"), used for branching
+  is_htmx            — truthy only on the HTMX swap response (drives the out-of-band
+                       update of the above-nav tone band)
+  already_registered — Registration instance if the user is already registered, else None;
+                       when set, shows a notice banner and disables the whole surface
 {% endcomment %}
 {% if is_htmx %}
     {% comment %}Keep the above-nav tone band in sync with the role on an HTMX swap.{% endcomment %}
@@ -28,6 +30,17 @@ Context:
     id="reg-surface"
     class="role-theme{% if role_value != 'AMBASSADOR' %} role-theme--referee{% endif %}"
 >
+    {% if already_registered %}
+        <div class="announce mb-6">
+            <span class="announce__dot"></span>
+            {% blocktranslate trimmed with role=already_registered.get_role_display %}
+                You are already registered as {{ role }}.
+            {% endblocktranslate %}
+            <a href="{% url 'accounts:detail' %}" class="underline">
+                {% translate "View your registration" %}
+            </a>
+        </div>
+    {% endif %}
     <p class="eyebrow mb-3" style="color: var(--role)">{% translate "Registration" %}</p>
     <h1 class="mb-2 text-ink">{% translate "Register" %}</h1>
     <p class="mb-6 text-lead text-body">
@@ -48,7 +61,12 @@ Context:
     <div class="role-zone mb-6">
         <p class="label mb-2">{% translate "Your role" %}</p>
 
-        <details class="role-select">
+        <details
+            class="role-select{% if already_registered %} pointer-events-none opacity-60{% endif %}"
+            {% if already_registered %}
+                aria-disabled="true"
+            {% endif %}
+        >
             <summary class="role-select__trigger">
                 <span class="role-select__id">
                     <span class="role-select__badge">
@@ -124,6 +142,9 @@ Context:
                     hx-target="#reg-surface"
                     hx-swap="outerHTML"
                     hx-push-url="{% url 'public:register' %}?role=ambassador"
+                    {% if already_registered %}
+                        disabled
+                    {% endif %}
                 >
                     <span class="role-select__option-badge role-select__option-badge--amb">
                         <svg
@@ -171,6 +192,9 @@ Context:
                     hx-target="#reg-surface"
                     hx-swap="outerHTML"
                     hx-push-url="{% url 'public:register' %}?role=referee"
+                    {% if already_registered %}
+                        disabled
+                    {% endif %}
                 >
                     <span class="role-select__option-badge role-select__option-badge--ref">
                         <svg
@@ -290,7 +314,13 @@ Context:
                 </div>
             </fieldset>
 
-            <button type="submit" class="btn btn--role btn--block">
+            <button
+                type="submit"
+                class="btn btn--role btn--block{% if already_registered %} opacity-60 pointer-events-none{% endif %}"
+                {% if already_registered %}
+                    disabled
+                {% endif %}
+            >
                 {% if role_value == 'AMBASSADOR' %}
                     {% translate "Register as Ambassador" %}
                 {% else %}

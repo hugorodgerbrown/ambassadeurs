@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "Your account" %}{% endblock %}
+{% block title %}{% translate "Account details" %}{% endblock %}
 
 {% block topband %}
     <div class="role-theme{% if registration and registration.role != 'AMBASSADOR' %} role-theme--referee{% endif %}">
@@ -11,7 +11,7 @@
 
 {% block content %}
     <section class="role-theme{% if registration and registration.role != 'AMBASSADOR' %} role-theme--referee{% endif %} mx-auto max-w-xl">
-        <p class="eyebrow mb-2" style="color: var(--role)">{% translate "Your account" %}</p>
+        <p class="eyebrow mb-2" style="color: var(--role)">{% translate "Account details" %}</p>
         <h1 class="mb-6 text-ink">{% translate "Your account" %}</h1>
 
         {% if messages %}
@@ -27,16 +27,12 @@
             Sits above "Your details" so role context is immediately visible.
         {% endcomment %}
         {% if registration %}
-            <div class="card mb-6">
-                <div class="role-zone mb-3">
-                    <p class="label mb-1">{% translate "Your role" %}</p>
-                    <p class="role-select__name">{{ registration.get_role_display }}</p>
-                </div>
-                <p class="text-xs text-meta">
-                    {% blocktranslate trimmed %}
-                        Your role is fixed. To register in the other role you must delete your account and start again.
-                    {% endblocktranslate %}
-                </p>
+            <div class="role-zone mb-3">
+                <p class="label mb-1">{% translate "Your role" %}</p>
+                <p class="role-select__name">{{ registration.get_role_display }}</p>
+                <small>{% blocktranslate trimmed %}
+                        To change role you must delete your account and start again.
+                    {% endblocktranslate %}</small>
             </div>
         {% endif %}
 
@@ -94,7 +90,6 @@
                             </button>
                         </form>
                     {% endif %}
-                    <p class="mt-1 text-xs text-meta">{% translate "Email can't be changed here." %}</p>
                 </dd>
                 {% if registration %}
                     <dt class="text-meta">{% translate "Phone" %}</dt>
@@ -182,14 +177,14 @@
             <h3 class="mb-2 text-sm font-semibold text-danger">{% translate "Delete account" %}</h3>
             <p class="mb-3 text-sm text-body">
                 {% blocktranslate trimmed %}
-                    Permanently delete your account and all your registrations. This cannot be undone.
+                    Permanently delete your account. This cannot be undone.
                 {% endblocktranslate %}
             </p>
             <a
                 href="{% url 'accounts:delete' %}"
                 class="btn btn--ghost border-danger text-danger hover:border-danger"
             >
-                {% translate "Delete my account" %}
+                {% translate "Delete account " %}
             </a>
         </div>
     </section>

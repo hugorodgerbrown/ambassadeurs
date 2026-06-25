@@ -1116,8 +1116,13 @@ def test_match_detail_post_fallback_accept_redirects() -> None:
     assert response.url == url
 
 
-def test_match_detail_post_fallback_decline_redirects() -> None:
-    """A no-JS POST with action=decline performs PRG redirect back to the match page."""
+def test_match_detail_post_fallback_decline_renders_removed_page() -> None:
+    """A no-JS POST with action=decline renders match_removed.html directly.
+
+    After decline the decliner's registration is deleted. A PRG redirect would
+    re-resolve the token, find the FK NULL, and return 400 on the invalid
+    template. Instead the view renders match_removed.html in-place (no redirect).
+    """
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
@@ -1135,8 +1140,8 @@ def test_match_detail_post_fallback_decline_redirects() -> None:
     url = reverse("public:match", args=[token])
     response = Client().post(url, {"action": "decline"})
 
-    assert response.status_code == 302
-    assert response.url == url
+    assert response.status_code == 200
+    assert "public/match_removed.html" in [t.name for t in response.templates]
 
 
 # ---------------------------------------------------------------------------

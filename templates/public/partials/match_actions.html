@@ -44,6 +44,7 @@ Context:
             hx-post="{{ decline_url }}"
             hx-target="#match-actions"
             hx-swap="innerHTML"
+            hx-confirm='{% translate "Declining will remove your registration. You can re-register at any time. Are you sure?" %}'
         >
             {% csrf_token %}
             <button type="submit" class="btn btn--outline btn--block">
@@ -51,6 +52,11 @@ Context:
             </button>
         </form>
     </div>
+    <p class="mt-3 text-sm text-meta">
+        {% blocktranslate trimmed %}
+            Declining this match will remove your registration from the pool. You can re-register at any time.
+        {% endblocktranslate %}
+    </p>
 {% elif display_state == state_waiting %}
     <div class="announce announce--role">
         <span class="announce__dot"></span>
@@ -121,11 +127,24 @@ Context:
         {% endif %}
     {% elif match.status == 'DECLINED' %}
         <p class="font-semibold text-ink">{% translate "Match declined" %}</p>
-        <p class="mt-1 text-sm text-body">
-            {% blocktranslate trimmed %}
-                This match was declined. You have been re-queued and will be matched again shortly.
-            {% endblocktranslate %}
-        </p>
+        {% if match.declined_by == side %}
+            <p class="mt-1 text-sm text-body">
+                {% blocktranslate trimmed %}
+                    You declined this match. Your registration has been removed. You can re-register at any time.
+                {% endblocktranslate %}
+            </p>
+            <p class="mt-4">
+                <a href="{% url 'public:register' %}" class="btn btn--role">
+                    {% translate "Re-register" %}
+                </a>
+            </p>
+        {% else %}
+            <p class="mt-1 text-sm text-body">
+                {% blocktranslate trimmed %}
+                    This match was declined. You have been re-queued and will be matched again shortly.
+                {% endblocktranslate %}
+            </p>
+        {% endif %}
     {% elif match.status == 'EXPIRED' %}
         <p class="font-semibold text-ink">{% translate "Match expired" %}</p>
         <p class="mt-1 text-sm text-body">

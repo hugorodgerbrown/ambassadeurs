@@ -532,9 +532,15 @@ def match_detail(request: HttpRequest, token: str) -> HttpResponse:
                     accept_match(match, token_registration)
                 else:
                     decline_match(match, token_registration)
+                    # After a successful decline the decliner's User and
+                    # Registration are deleted. Redirecting would re-resolve
+                    # the token, find the FK NULL, and return 400. Render the
+                    # removed page directly instead (no PRG for this terminal
+                    # path).
+                    return render(request, "public/match_removed.html")
             except ValueError:
                 # Match status changed between read and action; fall through
-                # to re-render the updated state.
+                # to PRG redirect so the updated state is displayed.
                 pass
         elif (
             action == "report_no_show"

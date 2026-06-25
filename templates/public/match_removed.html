@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Registration removed" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-md text-center">
+        <h1 class="mb-4 text-2xl font-bold text-ink">
+            {% translate "Your registration has been removed" %}
+        </h1>
+        <p class="text-body">
+            {% blocktranslate trimmed %}
+                You declined this match, so your registration has been removed from the pool. You can re-register at any
+                time if you change your mind.
+            {% endblocktranslate %}
+        </p>
+        <p class="mt-6">
+            <a href="{% url 'public:register' %}" class="btn btn--role">
+                {% translate "Re-register" %}
+            </a>
+        </p>
+    </section>
+{% endblock %}

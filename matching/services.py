@@ -20,6 +20,7 @@
 
 from __future__ import annotations
 
+import functools
 import logging
 from datetime import timedelta
 
@@ -779,7 +780,10 @@ def report_no_show(match: Match, registration: Registration) -> Match:
     with transaction.atomic():
         match = (
             Match.objects.select_for_update()
-            .select_related("ambassador_registration", "referee_registration")
+            .select_related(
+                "ambassador_registration__user",
+                "referee_registration__user",
+            )
             .get(pk=match.pk)
         )
 
@@ -844,7 +848,9 @@ def report_no_show(match: Match, registration: Registration) -> Match:
             accused.pk,
         )
 
-        transaction.on_commit(lambda: send_no_show_notification(match, accused))
+        transaction.on_commit(
+            functools.partial(send_no_show_notification, match, accused)
+        )
 
     return match
 

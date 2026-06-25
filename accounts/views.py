@@ -16,14 +16,17 @@ from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils.translation import gettext as _
 
-from matching.models import Registration
+from matching.models import Match, Registration
+from public.views import _render_match_page
 
 from .forms import AccountForm
 from .services import delete_account, send_confirmation_email, update_account
+from .tokens import make_match_access_token
 
 
 @login_required
@@ -136,3 +139,51 @@ def account_delete(request: HttpRequest) -> HttpResponse:
         messages.success(request, _("Your account has been deleted."))
         return redirect("public:home")
     return render(request, "accounts/delete.html")
+
+
+@login_required
+def account_match(request: HttpRequest) -> HttpResponse:
+    """Render the match page for the authenticated user's active match.
+
+    Looks up the user's non-terminal match (PROPOSED or ACCEPTED) without
+    requiring a token — the login session provides the auth. This route allows
+    participants to reach their match page from the account page even after the
+    emailed token link has expired (relevant for CONFIRMED/ACCEPTED matches).
+
+    A fresh single-purpose match-access token is minted on each load and passed
+    to ``_render_match_page`` so the on-page accept/decline/report-no-show forms
+    have valid action URLs. Page access itself is gated by ``@login_required``
+    (non-expiring), not the token; the token only powers the HTMX action URLs
+    and is scoped by ``_MATCH_SALT`` with the usual contact-window expiry
+    (Invariant 6).
+
+    Redirects to ``accounts:detail`` if the user has no active match, so there
+    is no error page for the "no match yet" case.
+    """
+    user = cast(User, request.user)
+    match = (
+        Match.objects.active()
+        .filter(
+            Q(ambassador_registration__user=user) | Q(referee_registration__user=user)
+        )
+        .select_related(
+            "ambassador_registration__user",
+            "referee_registration__user",
+        )
+        .first()
+    )
+    if match is None:
+        return redirect("accounts:detail")
+
+    # Determine which registration belongs to this user.
+    if match.ambassador_registration.user_id == user.pk:
+        registration = match.ambassador_registration
+    else:
+        registration = match.referee_registration
+
+    side = match.side_of(registration)
+    # Mint a fresh per-participant token so the action forms (accept/decline/
+    # report-no-show) have valid hx-post URLs. Token is single-purpose and
+    # in-window (valid for CONTACT_WINDOW_HOURS), satisfying Invariant 6.
+    token = make_match_access_token(match.pk, registration.pk)
+    return _render_match_page(request, match, registration, side, token=token)

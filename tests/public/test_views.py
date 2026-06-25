@@ -1315,3 +1315,163 @@ def test_match_detail_post_fallback_report_no_show_already_reported_noop() -> No
     match.refresh_from_db()
     assert match.status == Match.Status.ABANDONED
     assert match.no_show_reported_by == Match.Side.REFEREE  # unchanged
+
+
+# ---------------------------------------------------------------------------
+# match_detail — auth branch (VERB-32)
+# ---------------------------------------------------------------------------
+
+
+def test_match_detail_anonymous_valid_token_renders_200() -> None:
+    """An anonymous visitor with a valid token sees the match page."""
+    match = MatchFactory.create()
+    url = _make_match_url(match, match.ambassador_registration)
+    response = Client().get(url)
+    assert response.status_code == 200
+    assert "public/match.html" in [t.name for t in response.templates]
+
+
+def test_match_detail_authenticated_participant_renders_own_side() -> None:
+    """An authenticated participant sees the page from their own side, regardless of
+    which party's token is in the URL."""
+    match = MatchFactory.create()
+    # Build URL from the ambassador token.
+    token = make_match_access_token(match.pk, match.ambassador_registration_id)
+    url = reverse("public:match", args=[token])
+
+    # Log in as the referee — their own side should be rendered.
+    client = Client()
+    client.force_login(match.referee_registration.user)
+    response = client.get(url)
+
+    assert response.status_code == 200
+    assert response.context["side"] == Match.Side.REFEREE
+    assert response.context["registration"].pk == match.referee_registration_id
+
+
+def test_match_detail_authenticated_non_participant_returns_403() -> None:
+    """An authenticated user who is not a party on the match receives 403."""
+    match = MatchFactory.create()
+    url = _make_match_url(match, match.ambassador_registration)
+
+    # Third user — not on the match.
+    other_user = RegistrationFactory.create().user
+    client = Client()
+    client.force_login(other_user)
+    response = client.get(url)
+
+    assert response.status_code == 403
+    assert "public/match_forbidden.html" in [t.name for t in response.templates]
+
+
+def test_match_detail_authenticated_user_without_registration_returns_403() -> None:
+    """An authenticated user with no registration at all receives 403 on match pages."""
+    match = MatchFactory.create()
+    url = _make_match_url(match, match.ambassador_registration)
+
+    no_reg_user = UserFactory.create()
+    client = Client()
+    client.force_login(no_reg_user)
+    response = client.get(url)
+
+    assert response.status_code == 403
+    assert "public/match_forbidden.html" in [t.name for t in response.templates]
+
+
+def test_match_detail_invalid_token_still_returns_400_for_authenticated_user() -> None:
+    """An expired or invalid token returns 400 regardless of auth state."""
+    other_user = RegistrationFactory.create().user
+    client = Client()
+    client.force_login(other_user)
+    response = client.get(reverse("public:match", args=["bad-token"]))
+    assert response.status_code == 400
+    assert "public/match_invalid.html" in [t.name for t in response.templates]
+
+
+# ---------------------------------------------------------------------------
+# Both-sides status panel (VERB-32)
+# ---------------------------------------------------------------------------
+
+
+def test_both_sides_panel_shows_pending_for_proposed_match() -> None:
+    """On a PROPOSED match with no responses, both sides show Pending."""
+    match = MatchFactory.create()
+    url = _make_match_url(match, match.ambassador_registration)
+    response = Client().get(url)
+    content = response.content.decode()
+    # Both sides pending — the panel should appear twice with "Pending".
+    assert content.count("Pending") >= 2
+
+
+def test_both_sides_panel_shows_accepted_after_ambassador_accepts() -> None:
+    """After the ambassador accepts, the ambassador row shows Accepted."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    with TestCase.captureOnCommitCallbacks(execute=False):
+        accept_match(match, ambassador_reg)
+
+    match.refresh_from_db()
+    url = _make_match_url(match, ambassador_reg)
+    response = Client().get(url)
+    content = response.content.decode()
+    # Ambassador row: Accepted; referee row: Pending.
+    assert "Accepted" in content
+    assert "Pending" in content
+
+
+def test_both_sides_panel_shows_declined_for_declining_party() -> None:
+    """When a party declines, their row shows Declined in the panel."""
+    match = MatchFactory.create(declined=True)  # declined_by=AMBASSADOR
+    url = _make_match_url(match, match.ambassador_registration)
+    response = Client().get(url)
+    content = response.content.decode()
+    assert "Declined" in content
+
+
+def test_both_sides_panel_marks_viewer_with_you() -> None:
+    """The viewer's own row is marked with '(you)'."""
+    match = MatchFactory.create()
+    url = _make_match_url(match, match.ambassador_registration)
+    response = Client().get(url)
+    content = response.content.decode()
+    assert "(you)" in content
+
+
+def test_both_sides_panel_no_counterpart_pii_in_proposed_match() -> None:
+    """The panel never emits the counterpart's name, email, or phone for PROPOSED."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        phone="+41790009999",
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        phone="+41790008888",
+        status=Registration.Status.MATCHED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    # View from the ambassador side.
+    url = _make_match_url(match, ambassador_reg)
+    response = Client().get(url)
+    content = response.content.decode()
+    # Referee's PII must not appear anywhere on the page.
+    assert referee_reg.phone not in content
+    assert referee_reg.user.email not in content
+    referee_name = referee_reg.user.get_full_name()
+    if referee_name:
+        assert referee_name not in content

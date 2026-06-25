@@ -552,6 +552,98 @@ def test_details_form_fragment_closed_without_open_window_404() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Already-registered user sees banner and disabled surface (VERB-26)
+# ---------------------------------------------------------------------------
+
+
+def test_register_get_already_registered_shows_banner_and_disabled_inputs() -> None:
+    """A logged-in user with a Registration sees the already-registered banner
+    and disabled form inputs on GET /register/.
+
+    Checks: banner copy, correct role label, link to accounts:detail, and the
+    disabled attribute on an input field and the submit button.
+    """
+    user = UserFactory.create()
+    RegistrationFactory.create(
+        user=user,
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.WAITING,
+    )
+    client = Client()
+    client.force_login(user)
+    response = client.get(reverse("public:register"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    # Banner copy.
+    assert "You are already registered as" in content
+    assert "Ambassador" in content
+    # Link to account detail.
+    assert reverse("accounts:detail") in content
+    assert "View your registration" in content
+    # Form inputs must carry disabled.
+    assert "disabled" in content
+    # Submit button must be disabled.
+    assert "<button" in content and "disabled" in content
+
+
+def test_register_details_form_already_registered_shows_banner() -> None:
+    """A logged-in user with a Registration sees the banner and disabled surface
+    on the HTMX role-swap partial endpoint (register_details_form).
+    """
+    user = UserFactory.create()
+    RegistrationFactory.create(
+        user=user,
+        referee=True,
+        status=Registration.Status.WAITING,
+    )
+    client = Client()
+    client.force_login(user)
+    response = client.get(
+        reverse("public:register_details_form") + "?role=referee",
+        headers={"hx-request": "true"},
+    )
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    # Banner copy with correct role.
+    assert "You are already registered as" in content
+    assert "Referee" in content
+    assert reverse("accounts:detail") in content
+    assert "View your registration" in content
+    # Disabled state present.
+    assert "disabled" in content
+
+
+def test_register_get_authenticated_without_registration_shows_normal_form() -> None:
+    """A logged-in user who has no Registration sees the normal enabled form
+    without any already-registered banner or disabled attributes.
+    """
+    user = UserFactory.create()
+    client = Client()
+    client.force_login(user)
+    response = client.get(reverse("public:register"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "You are already registered as" not in content
+    assert "View your registration" not in content
+    # No disabled inputs or buttons — the form surface is fully enabled.
+    assert "disabled" not in content
+
+
+def test_register_get_anonymous_shows_normal_form() -> None:
+    """An anonymous visitor sees the normal enabled form without any banner."""
+    response = Client().get(reverse("public:register"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "You are already registered as" not in content
+    assert "View your registration" not in content
+
+
+# ---------------------------------------------------------------------------
 # register_done
 # ---------------------------------------------------------------------------
 

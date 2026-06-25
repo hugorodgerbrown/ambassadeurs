@@ -591,6 +591,34 @@ def test_register_get_already_registered_shows_banner_and_disabled_inputs() -> N
     assert re.search(r'<button[^>]*type="submit"[^>]*\bdisabled\b', content)
 
 
+def test_register_get_already_registered_locks_to_registered_role() -> None:
+    """An already-registered user is shown the role they registered with even
+    if they arrived via the other role's homepage link.
+
+    A registered ambassador hitting /register/?role=referee must see the
+    ambassador-themed, ambassador-labelled locked form — not the referee one.
+    """
+    user = UserFactory.create()
+    RegistrationFactory.create(
+        user=user,
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.WAITING,
+    )
+    client = Client()
+    client.force_login(user)
+    response = client.get(reverse("public:register") + "?role=referee")
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    # The surface is themed for the registered (ambassador) role, not referee.
+    assert "role-theme--referee" not in content
+    # The hidden role input carries the registered role's slug.
+    assert 'name="role" value="ambassador"' in content
+    # The submit-area exit copy reflects the locked state.
+    assert "Already registered" in content
+
+
 def test_register_details_form_already_registered_shows_banner() -> None:
     """A logged-in user with a Registration sees the banner and disabled surface
     on the HTMX role-swap partial endpoint (register_details_form).

@@ -144,13 +144,19 @@ def register(request: HttpRequest) -> HttpResponse:
     role_value = ROLE_BY_SLUG.get(role_slug, Registration.Role.AMBASSADOR)
 
     if request.method == "GET":
+        # After is_authenticated, Django stubs narrow request.user to User.
+        anon_user: User | None = request.user if request.user.is_authenticated else None
+        already_registered = _authenticated_registration(request)
+        if already_registered is not None:
+            # Lock the form to the role they actually registered with, ignoring
+            # the ?role= they arrived on (e.g. an already-registered ambassador
+            # clicking "I'm a Referee" on the homepage). The form is read-only,
+            # so it must reflect their record, not the link they followed.
+            role_value = Registration.Role(already_registered.role)
         # Derive the display slug from the validated role value so an unknown
         # ?role= param falls back gracefully to ambassador.
         role_slug = SLUG_BY_ROLE[role_value]
-        # After is_authenticated, Django stubs narrow request.user to User.
-        anon_user: User | None = request.user if request.user.is_authenticated else None
         form = RegistrationForm(role=role_value, user=anon_user)
-        already_registered = _authenticated_registration(request)
         if already_registered is not None:
             for field in form.fields.values():
                 field.disabled = True
@@ -347,8 +353,14 @@ def register_details_form(request: HttpRequest) -> HttpResponse:
         raise Http404("Unknown registration role.")
     # After is_authenticated, Django stubs narrow request.user to User.
     htmx_user: User | None = request.user if request.user.is_authenticated else None
-    form = RegistrationForm(role=role_value, user=htmx_user)
     already_registered = _authenticated_registration(request)
+    if already_registered is not None:
+        # Already registered: the locked surface must show their actual role,
+        # not whichever role this swap requested (the picker is disabled, but a
+        # crafted request must not re-theme the form).
+        role_value = Registration.Role(already_registered.role)
+        role = SLUG_BY_ROLE[role_value]
+    form = RegistrationForm(role=role_value, user=htmx_user)
     if already_registered is not None:
         for field in form.fields.values():
             field.disabled = True

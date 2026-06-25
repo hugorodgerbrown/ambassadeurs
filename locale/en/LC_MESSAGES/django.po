@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-25 16:26+0200\n"
+"POT-Creation-Date: 2026-06-25 18:41+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -57,6 +57,42 @@ msgid "Your account has been deleted."
 msgstr ""
 
 msgid "Target"
+msgstr ""
+
+msgid "Development panel"
+msgstr ""
+
+msgid "Development shortcut"
+msgstr ""
+
+msgid "Referee"
+msgstr ""
+
+msgid "Ambassador"
+msgstr ""
+
+msgid "Create counterpart"
+msgstr ""
+
+msgid "State"
+msgstr ""
+
+msgid "Waiting (match immediately)"
+msgstr ""
+
+msgid "Pending (email confirm required)"
+msgstr ""
+
+msgid "Create"
+msgstr ""
+
+msgid "Accept as counterpart"
+msgstr ""
+
+msgid "Decline as counterpart"
+msgstr ""
+
+msgid "Log in as counterpart"
 msgstr ""
 
 msgid "has flakes"
@@ -112,12 +148,6 @@ msgid "La Tzoumaz"
 msgstr ""
 
 msgid "Bruson"
-msgstr ""
-
-msgid "Ambassador"
-msgstr ""
-
-msgid "Referee"
 msgstr ""
 
 msgid "Pending"
@@ -324,12 +354,6 @@ msgid "Save changes"
 msgstr ""
 
 msgid "4 Vallées Ambassadors"
-msgstr ""
-
-msgid "Development panel"
-msgstr ""
-
-msgid "Development shortcut"
 msgstr ""
 
 msgid "An independent way to find your season-pass partner for the 4 Vallées."

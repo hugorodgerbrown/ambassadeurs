@@ -374,7 +374,7 @@ def test_debug_panel_shown_without_verify_url() -> None:
 
 @override_settings(DEBUG=True, INTERNAL_IPS=["127.0.0.1"])
 def test_debug_panel_shown_with_verify_url_shows_shortcut() -> None:
-    """Under DEBUG the shortcut link appears inside the panel when the session has the URL."""
+    """Under DEBUG the shortcut link appears in the panel when the session URL set."""
     registration = RegistrationFactory.create(status=Registration.Status.PENDING)
     client = Client()
     client.force_login(registration.user)

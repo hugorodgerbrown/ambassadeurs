@@ -7,6 +7,7 @@
 # names) are finalised in the deployment ticket.
 set -o errexit
 
+pip install uv
 uv sync --frozen --no-dev
 npm ci
 npm run css:build

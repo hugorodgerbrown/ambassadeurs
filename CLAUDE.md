@@ -273,6 +273,13 @@ Django's translation functions (`gettext`/`gettext_lazy` in Python, `{% translat
 catalogues live in `locale/en/` and `locale/fr/`. Code, comments, and docs stay
 British English (see Conventions); the i18n rule governs display strings only.
 
+**Always run `makemessages` with `--no-location`** (e.g.
+`uv run python manage.py makemessages -l en -l fr --no-location`). The `#: file:line`
+comments churn on every extraction as code moves, so leaving them in makes `.po`
+merges almost impossible — two branches touch the same line references independently
+and conflict, and the numbers shift again after merge. Omitting them keeps the
+catalogues stable and mergeable.
+
 ## Local CI — always run tox
 
 **`tox` is the single entry point** for linters, type checks, Django system checks,

@@ -1,5 +1,5 @@
 # Public-facing views: the landing page, the single-step registration flow
-# (VERB-24), and the match accept/decline flow (VERB-19).
+# (VERB-24), and the match accept/decline/report-no-show flow (VERB-19/VERB-21).
 #
 # Registration flow (VERB-24): the homepage role buttons open a combined form
 # directly — no login required. The form includes an email field. On submit,
@@ -14,6 +14,12 @@
 # signed token IS the authentication. HTMX partial views for accept/decline are
 # guarded with require_htmx (Invariant 7). Contact PII is revealed ONLY when
 # match.status == ACCEPTED (Invariant 1).
+#
+# No-show reporting (VERB-21): once a match is ACCEPTED, either party may
+# report the other as a post-accept no-show via
+# match_report_no_show (@require_htmx) or the no-JS POST fallback in
+# match_detail. The report transitions the match to ABANDONED, suspends the
+# accused, and re-queues the reporter to the front of the pool.
 
 from __future__ import annotations
 
@@ -29,6 +35,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
+from django.views.decorators.http import require_POST
 
 from accounts.services import mark_email_verified
 from accounts.tokens import (
@@ -45,6 +52,7 @@ from matching.services import (
     decline_match,
     is_registration_open,
     register_participant,
+    report_no_show,
 )
 from public.models import FormDownload
 
@@ -63,6 +71,21 @@ SLUG_BY_ROLE = {v: k for k, v in ROLE_BY_SLUG.items()}
 # The legal documents, keyed by URL slug. Validating against this set keeps
 # unknown pages out of the view (404) and out of template lookups.
 LEGAL_PAGES = {"privacy", "cookies", "terms"}
+
+
+def _authenticated_registration(request: HttpRequest) -> Registration | None:
+    """Return the Registration for the currently authenticated user, or None.
+
+    Mirrors the ``DoesNotExist`` guard used in ``accounts/views.py``. Returns
+    ``None`` for anonymous requests and for authenticated users who have no
+    Registration (e.g. staff-only admin users).
+    """
+    if not request.user.is_authenticated:
+        return None
+    try:
+        return Registration.objects.get(user=request.user)
+    except Registration.DoesNotExist:
+        return None
 
 
 def home(request: HttpRequest) -> HttpResponse:
@@ -164,10 +187,19 @@ def register(request: HttpRequest) -> HttpResponse:
         # After is_authenticated, Django stubs narrow request.user to User.
         anon_user: User | None = request.user if request.user.is_authenticated else None
         form = RegistrationForm(role=role_value, user=anon_user)
+        already_registered = _authenticated_registration(request)
+        if already_registered is not None:
+            for field in form.fields.values():
+                field.disabled = True
         return render(
             request,
             "public/register_details.html",
-            {"form": form, "role": role_slug, "role_value": role_value},
+            {
+                "form": form,
+                "role": role_slug,
+                "role_value": role_value,
+                "already_registered": already_registered,
+            },
         )
 
     # POST path.
@@ -353,10 +385,20 @@ def register_details_form(request: HttpRequest) -> HttpResponse:
     # After is_authenticated, Django stubs narrow request.user to User.
     htmx_user: User | None = request.user if request.user.is_authenticated else None
     form = RegistrationForm(role=role_value, user=htmx_user)
+    already_registered = _authenticated_registration(request)
+    if already_registered is not None:
+        for field in form.fields.values():
+            field.disabled = True
     return render(
         request,
         "public/partials/register_surface.html",
-        {"form": form, "role": role, "role_value": role_value, "is_htmx": True},
+        {
+            "form": form,
+            "role": role,
+            "role_value": role_value,
+            "is_htmx": True,
+            "already_registered": already_registered,
+        },
     )
 
 
@@ -466,6 +508,16 @@ def match_detail(request: HttpRequest, token: str) -> HttpResponse:
                 # Match status changed between read and action; fall through
                 # to re-render the updated state.
                 pass
+        elif (
+            action == "report_no_show"
+            and match.status == Match.Status.ACCEPTED
+            and not match.no_show_reported_by
+        ):
+            try:
+                report_no_show(match, registration)
+            except ValueError:
+                # Match status changed or already reported; fall through.
+                pass
         # PRG: redirect back to the match page after POST.
         return redirect(reverse("public:match", args=[token]))
 
@@ -479,6 +531,7 @@ def match_detail(request: HttpRequest, token: str) -> HttpResponse:
         "state_terminal": _STATE_TERMINAL,
         "accept_url": reverse("public:match_accept", args=[token]),
         "decline_url": reverse("public:match_decline", args=[token]),
+        "report_no_show_url": reverse("public:match_report_no_show", args=[token]),
     }
     # Reveal counterpart PII ONLY when both parties have accepted (Invariant 1).
     if match.status == Match.Status.ACCEPTED:
@@ -527,6 +580,7 @@ def match_accept(request: HttpRequest, token: str) -> HttpResponse:
         "state_terminal": _STATE_TERMINAL,
         "accept_url": reverse("public:match_accept", args=[token]),
         "decline_url": reverse("public:match_decline", args=[token]),
+        "report_no_show_url": reverse("public:match_report_no_show", args=[token]),
     }
     if match.status == Match.Status.ACCEPTED:
         context["counterpart"] = counterpart
@@ -574,6 +628,65 @@ def match_decline(request: HttpRequest, token: str) -> HttpResponse:
         "state_terminal": _STATE_TERMINAL,
         "accept_url": reverse("public:match_accept", args=[token]),
         "decline_url": reverse("public:match_decline", args=[token]),
+        "report_no_show_url": reverse("public:match_report_no_show", args=[token]),
+    }
+    if match.status == Match.Status.ACCEPTED:
+        context["counterpart"] = counterpart
+
+    return render(request, "public/partials/match_actions.html", context)
+
+
+@require_htmx
+@require_POST
+def match_report_no_show(request: HttpRequest, token: str) -> HttpResponse:
+    """HTMX POST: report a post-accept no-show and return the updated actions partial.
+
+    Guarded by ``@require_htmx`` (Invariant 7) and ``@require_POST`` — the
+    action is irreversible (suspends the accused's registration) so a GET, even
+    with the HX header, must not trigger it.
+
+    Re-validates the token, confirms the match is still ACCEPTED with no
+    existing report, then calls ``report_no_show``. Renders
+    ``public/partials/match_actions.html`` reflecting the resulting ABANDONED
+    state.
+
+    A second POST on a match that is already ABANDONED (or otherwise
+    non-ACCEPTED) is a safe no-op: the service raises ``ValueError``, which is
+    caught and silently swallowed, and the partial is re-rendered with the
+    current state.
+    """
+    resolved = _resolve_match_token(token)
+    if resolved is None:
+        return HttpResponse(status=400)
+
+    match, registration, side = resolved
+
+    if match.status == Match.Status.ACCEPTED and not match.no_show_reported_by:
+        try:
+            match = report_no_show(match, registration)
+        except ValueError:
+            # Status changed or already reported between resolution and action;
+            # re-render current state.
+            match.refresh_from_db()
+
+    counterpart = (
+        match.referee_registration
+        if side == Match.Side.AMBASSADOR
+        else match.ambassador_registration
+    )
+    display_state = _compute_match_display_state(match, side)
+
+    context = {
+        "match": match,
+        "registration": registration,
+        "side": side,
+        "display_state": display_state,
+        "state_actionable": _STATE_ACTIONABLE,
+        "state_waiting": _STATE_WAITING,
+        "state_terminal": _STATE_TERMINAL,
+        "accept_url": reverse("public:match_accept", args=[token]),
+        "decline_url": reverse("public:match_decline", args=[token]),
+        "report_no_show_url": reverse("public:match_report_no_show", args=[token]),
     }
     if match.status == Match.Status.ACCEPTED:
         context["counterpart"] = counterpart

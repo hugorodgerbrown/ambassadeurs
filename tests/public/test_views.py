@@ -9,6 +9,7 @@
 # access to the match page; HTMX partials for accept/decline are guarded by
 # require_htmx; contact PII is only revealed after mutual accept.
 
+import re
 from unittest.mock import patch
 
 import pytest
@@ -82,7 +83,9 @@ def test_register_get_with_ambassador_role_hint() -> None:
     """GET /register/?role=ambassador themes the form for the ambassador."""
     response = Client().get(reverse("public:register") + "?role=ambassador")
     assert response.status_code == 200
-    assert b"Ambassador details" in response.content
+    # The form heading is the generic "Your details"; the role is conveyed by
+    # the eligibility eyebrow and the (absent) referee theme class.
+    assert b"Eligibility \xc2\xb7 Ambassador" in response.content
     assert b"role-theme--referee" not in response.content
 
 
@@ -90,7 +93,7 @@ def test_register_get_with_referee_role_hint() -> None:
     """GET /register/?role=referee themes the form for the referee."""
     response = Client().get(reverse("public:register") + "?role=referee")
     assert response.status_code == 200
-    assert b"Referee details" in response.content
+    assert b"Eligibility \xc2\xb7 Referee" in response.content
     assert b"role-theme--referee" in response.content
 
 
@@ -98,7 +101,8 @@ def test_register_get_defaults_to_ambassador_on_unknown_role() -> None:
     """GET /register/?role=banana silently falls back to the ambassador form."""
     response = Client().get(reverse("public:register") + "?role=banana")
     assert response.status_code == 200
-    assert b"Ambassador details" in response.content
+    assert b"Eligibility \xc2\xb7 Ambassador" in response.content
+    assert b"role-theme--referee" not in response.content
 
 
 @override_settings(
@@ -498,7 +502,8 @@ def test_details_form_fragment_referee_contains_qualifying_criteria() -> None:
     assert response.status_code == 200
     assert b"What you'll need to qualify" in response.content
     assert b"Eligibility \xc2\xb7 Referee" in response.content
-    assert b"cannot be bought online" in response.content
+    # Referee-specific criterion: the no-prior-pass (mid-season) exclusion.
+    assert b"mid-season" in response.content
 
 
 def test_details_form_fragment_returns_role_form() -> None:
@@ -508,7 +513,7 @@ def test_details_form_fragment_returns_role_form() -> None:
         headers={"hx-request": "true"},
     )
     assert response.status_code == 200
-    assert b"Referee details" in response.content
+    assert b"Eligibility \xc2\xb7 Referee" in response.content
 
 
 def test_details_form_fragment_pushes_canonical_role_url() -> None:
@@ -545,6 +550,98 @@ def test_details_form_fragment_closed_without_open_window_404() -> None:
         headers={"hx-request": "true"},
     )
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Already-registered user sees banner and disabled surface (VERB-26)
+# ---------------------------------------------------------------------------
+
+
+def test_register_get_already_registered_shows_banner_and_disabled_inputs() -> None:
+    """A logged-in user with a Registration sees the already-registered banner
+    and disabled form inputs on GET /register/.
+
+    Checks: banner copy, correct role label, link to accounts:detail, and the
+    disabled attribute on an input field and the submit button.
+    """
+    user = UserFactory.create()
+    RegistrationFactory.create(
+        user=user,
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.WAITING,
+    )
+    client = Client()
+    client.force_login(user)
+    response = client.get(reverse("public:register"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    # Banner copy.
+    assert "You are already registered as" in content
+    assert "Ambassador" in content
+    # Link to account detail.
+    assert reverse("accounts:detail") in content
+    assert "View your registration" in content
+    # At least one form input element must carry the disabled attribute.
+    assert re.search(r"<input[^>]*\bdisabled\b", content)
+    # The submit button element itself must be disabled.
+    assert re.search(r'<button[^>]*type="submit"[^>]*\bdisabled\b', content)
+
+
+def test_register_details_form_already_registered_shows_banner() -> None:
+    """A logged-in user with a Registration sees the banner and disabled surface
+    on the HTMX role-swap partial endpoint (register_details_form).
+    """
+    user = UserFactory.create()
+    RegistrationFactory.create(
+        user=user,
+        referee=True,
+        status=Registration.Status.WAITING,
+    )
+    client = Client()
+    client.force_login(user)
+    response = client.get(
+        reverse("public:register_details_form") + "?role=referee",
+        headers={"hx-request": "true"},
+    )
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    # Banner copy with correct role.
+    assert "You are already registered as" in content
+    assert "Referee" in content
+    assert reverse("accounts:detail") in content
+    assert "View your registration" in content
+    # Disabled state present.
+    assert "disabled" in content
+
+
+def test_register_get_authenticated_without_registration_shows_normal_form() -> None:
+    """A logged-in user who has no Registration sees the normal enabled form
+    without any already-registered banner or disabled attributes.
+    """
+    user = UserFactory.create()
+    client = Client()
+    client.force_login(user)
+    response = client.get(reverse("public:register"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "You are already registered as" not in content
+    assert "View your registration" not in content
+    # No disabled inputs or buttons — the form surface is fully enabled.
+    assert "disabled" not in content
+
+
+def test_register_get_anonymous_shows_normal_form() -> None:
+    """An anonymous visitor sees the normal enabled form without any banner."""
+    response = Client().get(reverse("public:register"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "You are already registered as" not in content
+    assert "View your registration" not in content
 
 
 # ---------------------------------------------------------------------------
@@ -1009,3 +1106,182 @@ def test_match_detail_post_fallback_decline_redirects() -> None:
 
     assert response.status_code == 302
     assert response.url == url
+
+
+# ---------------------------------------------------------------------------
+# match_report_no_show (VERB-21)
+# ---------------------------------------------------------------------------
+
+
+def _make_accepted_match() -> tuple[Match, Registration, Registration]:
+    """Create a mutually accepted match with both registrations CONFIRMED."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        phone="+41790009999",
+        status=Registration.Status.CONFIRMED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        phone="+41790008888",
+        status=Registration.Status.CONFIRMED,
+    )
+    match = MatchFactory.create(
+        accepted=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    return match, ambassador_reg, referee_reg
+
+
+def test_match_report_no_show_htmx_post_transitions_to_abandoned() -> None:
+    """A valid HTMX POST on an ACCEPTED match transitions it to ABANDONED."""
+    match, ambassador_reg, _ = _make_accepted_match()
+    token = make_match_access_token(match.pk, ambassador_reg.pk)
+    url = reverse("public:match_report_no_show", args=[token])
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        response = Client().post(url, headers={"hx-request": "true"})
+
+    assert response.status_code == 200
+    match.refresh_from_db()
+    assert match.status == Match.Status.ABANDONED
+    assert match.no_show_reported_by == Match.Side.AMBASSADOR
+
+
+def test_match_report_no_show_returns_fragment() -> None:
+    """The HTMX response renders the match_actions partial (not the full page)."""
+    match, ambassador_reg, _ = _make_accepted_match()
+    token = make_match_access_token(match.pk, ambassador_reg.pk)
+    url = reverse("public:match_report_no_show", args=[token])
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        response = Client().post(url, headers={"hx-request": "true"})
+
+    assert response.status_code == 200
+    assert "public/partials/match_actions.html" in [t.name for t in response.templates]
+
+
+def test_match_report_no_show_requires_htmx() -> None:
+    """match_report_no_show returns 400 for a plain (non-HTMX) POST (Invariant 7)."""
+    match, ambassador_reg, _ = _make_accepted_match()
+    token = make_match_access_token(match.pk, ambassador_reg.pk)
+    url = reverse("public:match_report_no_show", args=[token])
+
+    response = Client().post(url)
+
+    assert response.status_code == 400
+    # Match must be unchanged.
+    match.refresh_from_db()
+    assert match.status == Match.Status.ACCEPTED
+
+
+def test_match_report_no_show_htmx_get_does_not_report() -> None:
+    """An HTMX GET to match_report_no_show does not perform the report.
+
+    The action is irreversible (suspends the accused) so a GET, even with the
+    HX header, must be rejected — @require_POST returns 405 Method Not Allowed.
+    """
+    match, ambassador_reg, _ = _make_accepted_match()
+    token = make_match_access_token(match.pk, ambassador_reg.pk)
+    url = reverse("public:match_report_no_show", args=[token])
+
+    response = Client().get(url, headers={"hx-request": "true"})
+
+    assert response.status_code == 405
+    # Match must be unchanged.
+    match.refresh_from_db()
+    assert match.status == Match.Status.ACCEPTED
+
+
+def test_match_report_no_show_on_non_accepted_match_is_noop() -> None:
+    """An HTMX POST on a PROPOSED match is a no-op (no state change)."""
+    match = MatchFactory.create()  # PROPOSED
+    token = make_match_access_token(match.pk, match.ambassador_registration_id)
+    url = reverse("public:match_report_no_show", args=[token])
+
+    response = Client().post(url, headers={"hx-request": "true"})
+
+    assert response.status_code == 200
+    match.refresh_from_db()
+    assert match.status == Match.Status.PROPOSED
+
+
+def test_match_report_no_show_second_report_is_noop() -> None:
+    """A second HTMX POST on an already-ABANDONED match is a no-op."""
+    match = MatchFactory.create(abandoned=True)
+    # The factory sets no_show_reported_by=REFEREE; try to report as ambassador.
+    token = make_match_access_token(match.pk, match.ambassador_registration_id)
+    url = reverse("public:match_report_no_show", args=[token])
+
+    response = Client().post(url, headers={"hx-request": "true"})
+
+    assert response.status_code == 200
+    match.refresh_from_db()
+    # Status and reporter unchanged.
+    assert match.status == Match.Status.ABANDONED
+    assert match.no_show_reported_by == Match.Side.REFEREE
+
+
+def test_match_report_no_show_abandoned_fragment_shows_reporter_copy() -> None:
+    """After reporting, the fragment shows reassurance copy to the reporter."""
+    match, ambassador_reg, _ = _make_accepted_match()
+    token = make_match_access_token(match.pk, ambassador_reg.pk)
+    url = reverse("public:match_report_no_show", args=[token])
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        response = Client().post(url, headers={"hx-request": "true"})
+
+    content = response.content.decode()
+    assert "reported a no-show" in content.lower()
+    # The accused-facing "contact support" copy must not appear to the reporter.
+    assert "contact support" not in content.lower()
+
+
+def test_match_report_no_show_abandoned_fragment_shows_accused_copy() -> None:
+    """The accused sees the 'contact support' copy on the ABANDONED partial."""
+    match, ambassador_reg, referee_reg = _make_accepted_match()
+    # Report filed by ambassador; accused is referee.
+    with TestCase.captureOnCommitCallbacks(execute=False):
+        from matching.services import report_no_show
+
+        report_no_show(match, ambassador_reg)
+
+    # Now load the partial for the accused (referee).
+    token = make_match_access_token(match.pk, referee_reg.pk)
+    url = reverse("public:match_report_no_show", args=[token])
+    response = Client().post(url, headers={"hx-request": "true"})
+
+    content = response.content.decode()
+    assert "contact support" in content.lower()
+
+
+def test_match_detail_post_fallback_report_no_show_redirects() -> None:
+    """A no-JS POST with action=report_no_show applies the report and PRG-redirects."""
+    match, ambassador_reg, _ = _make_accepted_match()
+    token = make_match_access_token(match.pk, ambassador_reg.pk)
+    url = reverse("public:match", args=[token])
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        response = Client().post(url, {"action": "report_no_show"})
+
+    assert response.status_code == 302
+    assert response.url == url
+    match.refresh_from_db()
+    assert match.status == Match.Status.ABANDONED
+
+
+def test_match_detail_post_fallback_report_no_show_already_reported_noop() -> None:
+    """A no-JS report_no_show POST on an already-reported match is a no-op."""
+    match = MatchFactory.create(abandoned=True)
+    token = make_match_access_token(match.pk, match.ambassador_registration_id)
+    url = reverse("public:match", args=[token])
+
+    # The factory creates no_show_reported_by=REFEREE; try to report as ambassador
+    # on an already-ABANDONED match.
+    response = Client().post(url, {"action": "report_no_show"})
+
+    assert response.status_code == 302
+    match.refresh_from_db()
+    assert match.status == Match.Status.ABANDONED
+    assert match.no_show_reported_by == Match.Side.REFEREE  # unchanged

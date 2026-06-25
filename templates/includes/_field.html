@@ -3,9 +3,11 @@ Single form field rendered with the design-system .field / .input classes.
 The widget itself carries the .input class (set in the form's widget attrs), so
 this template only supplies the label, required marker, hint and errors.
 
-Context: field — a bound form field.
+Context: field — a bound form field. When the field is disabled (the view sets
+field.disabled, e.g. an already-registered user revisiting the form) the wrapper
+gains .field--disabled so the label and hint mute to match the greyed control.
 {% endcomment %}
-<div class="field">
+<div class="field{% if field.field.disabled %} field--disabled{% endif %}">
     <label class="field__label" for="{{ field.id_for_label }}">
         {{ field.label }}{% if field.field.required %} <span class="field__req">*</span>{% endif %}
     </label>

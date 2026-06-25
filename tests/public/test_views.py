@@ -577,16 +577,46 @@ def test_register_get_already_registered_shows_banner_and_disabled_inputs() -> N
 
     assert response.status_code == 200
     content = response.content.decode()
-    # Banner copy.
-    assert "You are already registered as" in content
+    # Lock-banner copy.
+    assert "You're already registered" in content
     assert "Ambassador" in content
-    # Link to account detail.
+    # Locked submit replacement label.
+    assert "Already registered" in content
+    # Link to account detail (the exit).
     assert reverse("accounts:detail") in content
-    assert "View your registration" in content
+    assert "View my status" in content
     # At least one form input element must carry the disabled attribute.
     assert re.search(r"<input[^>]*\bdisabled\b", content)
     # The submit button element itself must be disabled.
     assert re.search(r'<button[^>]*type="submit"[^>]*\bdisabled\b', content)
+
+
+def test_register_get_already_registered_locks_to_registered_role() -> None:
+    """An already-registered user is shown the role they registered with even
+    if they arrived via the other role's homepage link.
+
+    A registered ambassador hitting /register/?role=referee must see the
+    ambassador-themed, ambassador-labelled locked form — not the referee one.
+    """
+    user = UserFactory.create()
+    RegistrationFactory.create(
+        user=user,
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.WAITING,
+    )
+    client = Client()
+    client.force_login(user)
+    response = client.get(reverse("public:register") + "?role=referee")
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    # The surface is themed for the registered (ambassador) role, not referee.
+    assert "role-theme--referee" not in content
+    # The hidden role input carries the registered role's slug.
+    assert 'name="role" value="ambassador"' in content
+    # The submit-area exit copy reflects the locked state.
+    assert "Already registered" in content
 
 
 def test_register_details_form_already_registered_shows_banner() -> None:
@@ -608,11 +638,11 @@ def test_register_details_form_already_registered_shows_banner() -> None:
 
     assert response.status_code == 200
     content = response.content.decode()
-    # Banner copy with correct role.
-    assert "You are already registered as" in content
+    # Lock-banner copy with correct role.
+    assert "You're already registered" in content
     assert "Referee" in content
     assert reverse("accounts:detail") in content
-    assert "View your registration" in content
+    assert "View my status" in content
     # Disabled state present.
     assert "disabled" in content
 
@@ -628,8 +658,8 @@ def test_register_get_authenticated_without_registration_shows_normal_form() -> 
 
     assert response.status_code == 200
     content = response.content.decode()
-    assert "You are already registered as" not in content
-    assert "View your registration" not in content
+    assert "You're already registered" not in content
+    assert "View my status" not in content
     # No disabled inputs or buttons — the form surface is fully enabled.
     assert "disabled" not in content
 
@@ -640,8 +670,8 @@ def test_register_get_anonymous_shows_normal_form() -> None:
 
     assert response.status_code == 200
     content = response.content.decode()
-    assert "You are already registered as" not in content
-    assert "View your registration" not in content
+    assert "You're already registered" not in content
+    assert "View my status" not in content
 
 
 # ---------------------------------------------------------------------------

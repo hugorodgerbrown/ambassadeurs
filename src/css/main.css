@@ -22,10 +22,12 @@
   --color-page-sunken:    #e3eaed;
   --color-surface:        #ffffff;
   --color-surface-2:      #f6f9fa;
+  --color-surface-disabled: #e9edee; /* flat fill for disabled / locked controls */
 
   --color-ink:            #0f2329;   /* headings        */
   --color-body:           #44565d;   /* body text       */
   --color-meta:           #5f7178;   /* meta / tertiary */
+  --color-text-disabled:  #8a979c;   /* text inside a disabled control */
 
   --color-line:           rgb(15 35 41 / 0.10);
   --color-line-strong:    rgb(15 35 41 / 0.18);
@@ -112,10 +114,12 @@
   --color-page-sunken:    #0f1c20;
   --color-surface:        #152228;
   --color-surface-2:      #19272d;
+  --color-surface-disabled: #101b1f;
 
   --color-ink:            #eaf3f4;
   --color-body:           #a7bcc1;
   --color-meta:           #7e9298;
+  --color-text-disabled:  #5e7176;
 
   --color-line:           rgb(255 255 255 / 0.10);
   --color-line-strong:    rgb(255 255 255 / 0.20);
@@ -221,7 +225,21 @@
   .btn--ghost:hover { border-color: var(--color-accent); color: var(--color-accent); }
 
   .btn--block { width: 100%; }
-  .btn:disabled { opacity: .5; cursor: default; }
+
+  /* Disabled / locked — a flat greyed control, not a washed-out tint, so it
+     reads as "can't act" rather than "failed to load". Overrides every variant
+     and neutralises hover. .is-disabled is the class-only equivalent for
+     elements that can't take the disabled attribute (e.g. an <a>-as-button —
+     pair it with aria-disabled="true" and drop the href). */
+  .btn:disabled,
+  .btn.is-disabled {
+    background: var(--color-surface-disabled);
+    color: var(--color-text-disabled);
+    border-color: var(--color-line);
+    cursor: not-allowed;
+  }
+  .btn:disabled:hover,
+  .btn.is-disabled:hover { background: var(--color-surface-disabled); }
 
   /* Card */
   /* border uses --color-line (was --color-border); padding uses 1.5rem (was --space-6). */
@@ -334,6 +352,55 @@
   .input::placeholder { color: var(--color-meta); opacity: .75; }
   .input:focus { border-color: var(--role); box-shadow: 0 0 0 3px var(--role-tint); }
 
+  /* Native <select> — same box as .input with a token-stroked chevron baked in
+     via appearance:none (so the platform arrow is replaced by one that matches
+     the design). Add .select--placeholder while the empty prompt option is
+     selected to mute the displayed text. */
+  .select {
+    width: 100%; height: 48px; padding: 0 42px 0 14px;
+    background-color: var(--color-surface);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%235f7178' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 14px center;
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-control);
+    font-family: var(--font-sans); font-size: 1rem; color: var(--color-ink);
+    appearance: none; -webkit-appearance: none; cursor: pointer; outline: none;
+    transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+  }
+  .select--placeholder { color: var(--color-meta); }
+  .select:focus { border-color: var(--role); box-shadow: 0 0 0 3px var(--role-tint); }
+
+  /* ── Disabled / locked controls ──────────────────────────────────────────
+     Prevents re-submitting a completed form — e.g. an authenticated user who
+     has already registered revisits the page. The whole field group dims: wrap
+     it in .field--disabled to mute the label + hint too. */
+  .input:disabled,
+  .select:disabled {
+    background-color: var(--color-surface-disabled);
+    color: var(--color-text-disabled);
+    -webkit-text-fill-color: var(--color-text-disabled);   /* Safari keeps text dark otherwise */
+    border-color: var(--color-line);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+  /* Dim the baked-in chevron to the disabled-text colour. */
+  .select:disabled {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%238a979c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+  .field--disabled .field__label { color: var(--color-text-disabled); }
+  .field--disabled .field__hint  { opacity: .75; }
+
+  /* ── Lock banner ─────────────────────────────────────────────────────────
+     The notice topping a locked (already-registered) form: a calm surface card
+     with a role-coloured left accent and a lock medallion. Follows --role, so
+     it tones to the active role and inverts in dark mode via the tokens. */
+  .lock-banner { display: flex; align-items: flex-start; gap: 13px; background: var(--color-surface); border: 1px solid var(--color-line); border-left: 3px solid var(--role); border-radius: var(--radius-card); padding: 18px 20px; }
+  .lock-banner__icon { flex: none; width: 34px; height: 34px; margin-top: 1px; border-radius: var(--radius-pill); background: var(--role-tint); color: var(--role); display: flex; align-items: center; justify-content: center; }
+  .lock-banner__title { font-size: 1rem; font-weight: 600; color: var(--color-ink); margin-bottom: 3px; }
+  .lock-banner__body  { font-size: 0.92rem; line-height: 1.5; color: var(--color-body); }
+  .lock-banner__body strong { color: var(--color-ink); font-weight: 600; }
+  .lock-banner__body a { color: var(--role); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+
   /* ── Role select ────────────────────────────────────────────────────────
      The "Your role" dropdown that drives .role-theme. The trigger follows
      --role; the two options in the open menu keep FIXED per-role badges
@@ -363,6 +430,16 @@
   .role-select__role  { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--role-ink); }
   .role-select__caret { flex: none; color: var(--color-meta); transition: transform var(--dur-base) ease; }
   .role-select[open] .role-select__caret { transform: rotate(180deg); }
+
+  /* Locked role picker — the role can't be changed once registered. The trigger
+     is a <summary>, not a <button>, so it can't take :disabled; .role-select--locked
+     mirrors the handoff's :disabled treatment: drop the 2px role outline to a
+     quiet border, flatten the fill to surface-disabled and mute the text. Pair
+     it with pointer-events-none in the template so the <details> can't open. */
+  .role-select--locked .role-select__trigger { background: var(--color-surface-disabled); border: 1px solid var(--color-line); cursor: not-allowed; }
+  .role-select--locked .role-select__name,
+  .role-select--locked .role-select__caret { color: var(--color-text-disabled); }
+  .role-select--locked .role-select__badge { background: var(--color-surface); color: var(--color-text-disabled); }
 
   .role-select__menu {
     position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 30;

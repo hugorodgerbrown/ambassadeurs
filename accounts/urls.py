@@ -10,6 +10,7 @@ urlpatterns = [
     path("", views.account_detail, name="detail"),
     path("edit/", views.account_edit, name="edit"),
     path("delete/", views.account_delete, name="delete"),
+    path("match/", views.account_match, name="match"),
     path(
         "resend-confirmation/",
         views.account_resend_confirmation,

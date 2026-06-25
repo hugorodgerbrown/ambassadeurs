@@ -98,8 +98,10 @@ def is_eligible_pair(ambassador: Registration, referee: Registration) -> bool:
 def queue_position(registration: Registration) -> int | None:
     """Return the 1-based position of ``registration`` in the eligible waiting pool.
 
-    Returns ``None`` if the registration is not in ``WAITING`` status — the
-    position is only meaningful for participants actively queuing.
+    Returns ``None`` if the registration is not in ``WAITING`` status, or if it
+    is not a member of the eligible pool (e.g. an ambassador with an ineligible
+    ``prior_pass`` value). The position is only meaningful for participants
+    actively queuing in an eligible state.
 
     Picks the same-role eligible pool (``eligible_ambassadors`` or
     ``eligible_referees``) and counts the rows ranked strictly ahead using the
@@ -110,7 +112,8 @@ def queue_position(registration: Registration) -> int | None:
         registration: The registration whose position to determine.
 
     Returns:
-        1-based queue ordinal, or ``None`` if not WAITING.
+        1-based queue ordinal, or ``None`` if not WAITING or not in the eligible
+        pool.
     """
     if registration.status != Registration.Status.WAITING:
         return None
@@ -119,6 +122,9 @@ def queue_position(registration: Registration) -> int | None:
         pool = Registration.objects.eligible_ambassadors()
     else:
         pool = Registration.objects.eligible_referees()
+
+    if not pool.filter(pk=registration.pk).exists():
+        return None
 
     ahead = pool.filter(
         Q(priority__gt=registration.priority)

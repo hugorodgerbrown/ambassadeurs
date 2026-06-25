@@ -56,6 +56,21 @@ from matching.services import (
 )
 from public.models import FormDownload
 
+
+def _authenticated_registration(request: HttpRequest) -> Registration | None:
+    """Return the Registration for the currently authenticated user, or None.
+
+    Mirrors the ``DoesNotExist`` guard used in ``accounts/views.py``. Returns
+    ``None`` for anonymous requests and for authenticated users who have no
+    Registration (e.g. staff-only admin users).
+    """
+    if not request.user.is_authenticated:
+        return None
+    try:
+        return Registration.objects.get(user=request.user)
+    except Registration.DoesNotExist:
+        return None
+
 logger = logging.getLogger(__name__)
 
 # Map the public URL slug to the stored Role value. Defining the valid slugs
@@ -172,10 +187,19 @@ def register(request: HttpRequest) -> HttpResponse:
         # After is_authenticated, Django stubs narrow request.user to User.
         anon_user: User | None = request.user if request.user.is_authenticated else None
         form = RegistrationForm(role=role_value, user=anon_user)
+        already_registered = _authenticated_registration(request)
+        if already_registered is not None:
+            for field in form.fields.values():
+                field.disabled = True
         return render(
             request,
             "public/register_details.html",
-            {"form": form, "role": role_slug, "role_value": role_value},
+            {
+                "form": form,
+                "role": role_slug,
+                "role_value": role_value,
+                "already_registered": already_registered,
+            },
         )
 
     # POST path.
@@ -361,10 +385,20 @@ def register_details_form(request: HttpRequest) -> HttpResponse:
     # After is_authenticated, Django stubs narrow request.user to User.
     htmx_user: User | None = request.user if request.user.is_authenticated else None
     form = RegistrationForm(role=role_value, user=htmx_user)
+    already_registered = _authenticated_registration(request)
+    if already_registered is not None:
+        for field in form.fields.values():
+            field.disabled = True
     return render(
         request,
         "public/partials/register_surface.html",
-        {"form": form, "role": role, "role_value": role_value, "is_htmx": True},
+        {
+            "form": form,
+            "role": role,
+            "role_value": role_value,
+            "is_htmx": True,
+            "already_registered": already_registered,
+        },
     )
 
 

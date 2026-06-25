@@ -20,6 +20,13 @@
 # match_report_no_show (@require_htmx) or the no-JS POST fallback in
 # match_detail. The report transitions the match to ABANDONED, suspends the
 # accused, and re-queues the reporter to the front of the pool.
+#
+# Wrong-user journey (VERB-32): match_detail GET branches on the auth state of
+# the viewer. Anonymous → token auth (existing behaviour). Authenticated
+# participant → own-side view (via match.side_of). Authenticated
+# non-participant → 403 with match_forbidden.html. The shared
+# _render_match_page helper is importable by accounts.views so that the
+# tokenless accounts:match route can render the identical match.html.
 
 from __future__ import annotations
 
@@ -444,6 +451,52 @@ def _compute_match_display_state(match: Match, side: Match.Side) -> str:
     return _STATE_ACTIONABLE
 
 
+def _render_match_page(
+    request: HttpRequest,
+    match: Match,
+    registration: Registration,
+    side: Match.Side,
+    *,
+    token: str | None = None,
+) -> HttpResponse:
+    """Build the match-page context and return the rendered ``public/match.html``.
+
+    Shared by ``match_detail`` (token route) and ``accounts.views.account_match``
+    (tokenless, login-required route). When ``token`` is provided the HTMX
+    action URLs include it; when it is ``None`` the URL keys are omitted
+    (the tokenless route does not expose action partials).
+
+    Contact PII is included in the context ONLY when ``match.status == ACCEPTED``
+    (Invariant 1).
+    """
+    display_state = _compute_match_display_state(match, side)
+    counterpart = (
+        match.referee_registration
+        if side == Match.Side.AMBASSADOR
+        else match.ambassador_registration
+    )
+    context: dict[str, object] = {
+        "match": match,
+        "registration": registration,
+        "side": side,
+        "display_state": display_state,
+        "state_actionable": _STATE_ACTIONABLE,
+        "state_waiting": _STATE_WAITING,
+        "state_terminal": _STATE_TERMINAL,
+    }
+    if token is not None:
+        context["accept_url"] = reverse("public:match_accept", args=[token])
+        context["decline_url"] = reverse("public:match_decline", args=[token])
+        context["report_no_show_url"] = reverse(
+            "public:match_report_no_show", args=[token]
+        )
+    # Reveal counterpart PII ONLY when both parties have accepted (Invariant 1).
+    if match.status == Match.Status.ACCEPTED:
+        context["counterpart"] = counterpart
+
+    return render(request, "public/match.html", context)
+
+
 def match_detail(request: HttpRequest, token: str) -> HttpResponse:
     """Render the match page (GET) or handle the no-JS POST fallback.
 
@@ -452,6 +505,11 @@ def match_detail(request: HttpRequest, token: str) -> HttpResponse:
 
     GET: render the full ``public/match.html`` page with display state and,
     only when ``match.status == ACCEPTED``, the counterpart's contact details.
+    The auth branch (VERB-32) applies:
+    - Anonymous → token side (existing behaviour).
+    - Authenticated participant (one of the two parties) → own side via
+      ``match.side_of(registration)`` so they always see their own perspective.
+    - Authenticated non-participant → 403 with ``match_forbidden.html``.
 
     POST (no-JS fallback): ``action=accept|decline`` → call the relevant service
     → PRG redirect back to this view. The window and status are re-checked before
@@ -461,24 +519,19 @@ def match_detail(request: HttpRequest, token: str) -> HttpResponse:
     if resolved is None:
         return render(request, "public/match_invalid.html", status=400)
 
-    match, registration, side = resolved
-    display_state = _compute_match_display_state(match, side)
-
-    # Identify counterpart for the accepted PII reveal.
-    counterpart = (
-        match.referee_registration
-        if side == Match.Side.AMBASSADOR
-        else match.ambassador_registration
-    )
+    match, token_registration, token_side = resolved
 
     if request.method == "POST":
+        # POST always uses token authentication (the no-JS form carries the token
+        # in the URL). The display_state check is against the token side.
+        display_state = _compute_match_display_state(match, token_side)
         action = request.POST.get("action")
         if action in ("accept", "decline") and display_state == _STATE_ACTIONABLE:
             try:
                 if action == "accept":
-                    accept_match(match, registration)
+                    accept_match(match, token_registration)
                 else:
-                    decline_match(match, registration)
+                    decline_match(match, token_registration)
             except ValueError:
                 # Match status changed between read and action; fall through
                 # to re-render the updated state.
@@ -489,30 +542,34 @@ def match_detail(request: HttpRequest, token: str) -> HttpResponse:
             and not match.no_show_reported_by
         ):
             try:
-                report_no_show(match, registration)
+                report_no_show(match, token_registration)
             except ValueError:
                 # Match status changed or already reported; fall through.
                 pass
         # PRG: redirect back to the match page after POST.
         return redirect(reverse("public:match", args=[token]))
 
-    context = {
-        "match": match,
-        "registration": registration,
-        "side": side,
-        "display_state": display_state,
-        "state_actionable": _STATE_ACTIONABLE,
-        "state_waiting": _STATE_WAITING,
-        "state_terminal": _STATE_TERMINAL,
-        "accept_url": reverse("public:match_accept", args=[token]),
-        "decline_url": reverse("public:match_decline", args=[token]),
-        "report_no_show_url": reverse("public:match_report_no_show", args=[token]),
-    }
-    # Reveal counterpart PII ONLY when both parties have accepted (Invariant 1).
-    if match.status == Match.Status.ACCEPTED:
-        context["counterpart"] = counterpart
+    # GET — auth branch (VERB-32).
+    auth_registration = _authenticated_registration(request)
+    if not request.user.is_authenticated:
+        # Anonymous: render from the token's side (existing behaviour).
+        return _render_match_page(
+            request, match, token_registration, token_side, token=token
+        )
 
-    return render(request, "public/match.html", context)
+    # Authenticated. Check whether this user is a party on the match.
+    if auth_registration is not None and auth_registration.pk in (
+        match.ambassador_registration_id,
+        match.referee_registration_id,
+    ):
+        # Authenticated participant: render from their own side.
+        own_side = match.side_of(auth_registration)
+        return _render_match_page(
+            request, match, auth_registration, own_side, token=token
+        )
+
+    # Authenticated non-participant (wrong user or no registration).
+    return render(request, "public/match_forbidden.html", status=403)
 
 
 @require_htmx

@@ -58,8 +58,8 @@
         </div>
 
         {% if debug_verify_url %}
-            {# Development only: the view only populates this under DEBUG so the
-               signed link can be clicked directly without opening the inbox. #}
+            {% comment %}Development only: the view only populates this under DEBUG so the
+               signed link can be clicked directly without opening the inbox.{% endcomment %}
             <div class="card mt-4 text-left text-sm">
                 <p class="mb-2 font-semibold text-ink">{% translate "Development shortcut" %}</p>
                 <a href="{{ debug_verify_url }}" class="break-all font-medium text-accent underline">

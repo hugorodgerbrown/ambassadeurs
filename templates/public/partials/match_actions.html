@@ -61,7 +61,7 @@ Context:
         {% endblocktranslate %}
     </p>
 {% else %}
-    {# Terminal states — ACCEPTED, DECLINED, EXPIRED, ABANDONED, or window lapsed. #}
+    {% comment %}Terminal states — ACCEPTED, DECLINED, EXPIRED, ABANDONED, or window lapsed.{% endcomment %}
     {% if match.status == 'ACCEPTED' %}
         <p class="font-semibold text-ink">{% translate "Match accepted" %}</p>
         <p class="mt-1 text-sm text-body">
@@ -116,7 +116,7 @@ Context:
             {% endblocktranslate %}
         </p>
     {% else %}
-        {# Window lapsed while match is technically still PROPOSED. #}
+        {% comment %}Window lapsed while match is technically still PROPOSED.{% endcomment %}
         <p class="font-semibold text-ink">{% translate "Contact window closed" %}</p>
         <p class="mt-1 text-sm text-body">
             {% blocktranslate trimmed %}

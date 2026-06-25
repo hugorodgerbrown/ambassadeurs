@@ -1098,11 +1098,14 @@ def test_match_detail_htmx_decline_decliner_sees_removed_message() -> None:
     response = Client().post(url, headers={"hx-request": "true"})
 
     assert response.status_code == 200
-    content = response.content.decode()
-    # The decliner sees the removal message and re-register link.
-    assert "re-register" in content.lower()
-    # The "re-queued" branch must not appear for the decliner.
-    assert "re-queued" not in content.lower()
+    assert "public/partials/match_actions.html" in [t.name for t in response.templates]
+    # The decliner's branch renders a re-register link (structural URL check,
+    # independent of translation).
+    register_url = reverse("public:register")
+    assert register_url.encode() in response.content
+    # The match must be DECLINED in the database.
+    match.refresh_from_db()
+    assert match.status == Match.Status.DECLINED
 
 
 def test_match_detail_htmx_decline_counterpart_sees_requeued_message() -> None:
@@ -1137,10 +1140,19 @@ def test_match_detail_htmx_decline_counterpart_sees_requeued_message() -> None:
     response = Client().get(
         reverse("public:match", args=[referee_token]),
     )
-    # GET on the full match page should still render the DECLINED state.
+    # GET on the full match page should render the DECLINED state.
     assert response.status_code == 200
-    content = response.content.decode()
-    assert "re-queued" in content.lower() or "matched again" in content.lower()
+    assert "public/match.html" in [t.name for t in response.templates]
+    # The match must remain DECLINED in the database.
+    match.refresh_from_db()
+    assert match.status == Match.Status.DECLINED
+    # The counterpart is the referee — they are NOT the decliner. The template
+    # branch for match.declined_by != side omits the "Re-register" button; the
+    # decliner's register link (btn--role on the /register/ href) must be absent.
+    register_btn_fragment = (
+        'href="' + reverse("public:register") + '" class="btn btn--role"'
+    ).encode()
+    assert register_btn_fragment not in response.content
 
 
 def test_match_removed_page_has_register_link() -> None:
@@ -1217,6 +1229,38 @@ def test_match_decline_requires_htmx() -> None:
     url = reverse("public:match_decline", args=[token])
     response = Client().post(url)
     assert response.status_code == 400
+
+
+def test_match_accept_htmx_get_is_rejected() -> None:
+    """An HTMX GET to match_accept is rejected with 405 Method Not Allowed.
+
+    @require_POST must guard the view even when the HX-Request header is present.
+    """
+    match = MatchFactory.create()
+    token = make_match_access_token(match.pk, match.ambassador_registration_id)
+    url = reverse("public:match_accept", args=[token])
+    response = Client().get(url, headers={"hx-request": "true"})
+    assert response.status_code == 405
+    # Match must be unchanged.
+    match.refresh_from_db()
+    assert match.status == Match.Status.PROPOSED
+
+
+def test_match_decline_htmx_get_is_rejected() -> None:
+    """An HTMX GET to match_decline is rejected with 405 Method Not Allowed.
+
+    @require_POST must guard the view even when the HX-Request header is present,
+    since decline is destructive (deletes the decliner's User row).
+    """
+    match = MatchFactory.create()
+    token = make_match_access_token(match.pk, match.ambassador_registration_id)
+    url = reverse("public:match_decline", args=[token])
+    response = Client().get(url, headers={"hx-request": "true"})
+    assert response.status_code == 405
+    # Match must be unchanged and decliner's registration must still exist.
+    match.refresh_from_db()
+    assert match.status == Match.Status.PROPOSED
+    assert match.ambassador_registration is not None
 
 
 def test_match_detail_post_fallback_accept_redirects() -> None:

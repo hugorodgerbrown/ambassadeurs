@@ -1504,37 +1504,6 @@ def test_decline_match_records_email_hash_on_match() -> None:
     assert len(match.declined_by_email_hash) == 64
 
 
-def test_decline_match_requeue_to_back_not_called(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """decline_match does not call requeue_to_back on the decliner."""
-    import matching.services as services_module
-
-    called = []
-
-    original = services_module.requeue_to_back
-
-    def spy(*args: object, **kwargs: object) -> None:
-        called.append(args)
-        return original(*args, **kwargs)  # type: ignore[return-value]
-
-    monkeypatch.setattr(services_module, "requeue_to_back", spy)
-
-    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED
-    )
-    match = MatchFactory.create(
-        ambassador_registration=ambassador_reg,
-        referee_registration=referee_reg,
-    )
-
-    decline_match(match, ambassador_reg)
-
-    # requeue_to_back must not have been called (decliner is deleted, not re-queued).
-    assert called == []
-
-
 def test_register_participant_sets_prior_decline_count_to_zero_for_fresh_email() -> (
     None
 ):

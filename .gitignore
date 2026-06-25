@@ -1,6 +1,12 @@
 # Claude Code — machine-local settings (permissions, etc.)
 .claude/settings.local.json
 
+# Screenshot build artefacts from the `screenshot` skill
+.claude/screenshots/
+
+# Skill-creator eval scaffolding (trigger evals, optimizer runs, logs)
+.claude/skills/*-workspace/
+
 # Python
 __pycache__/
 *.py[cod]

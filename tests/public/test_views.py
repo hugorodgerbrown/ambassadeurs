@@ -577,12 +577,14 @@ def test_register_get_already_registered_shows_banner_and_disabled_inputs() -> N
 
     assert response.status_code == 200
     content = response.content.decode()
-    # Banner copy.
-    assert "You are already registered as" in content
+    # Lock-banner copy.
+    assert "You're already registered" in content
     assert "Ambassador" in content
-    # Link to account detail.
+    # Locked submit replacement label.
+    assert "Already registered" in content
+    # Link to account detail (the exit).
     assert reverse("accounts:detail") in content
-    assert "View your registration" in content
+    assert "View my status" in content
     # At least one form input element must carry the disabled attribute.
     assert re.search(r"<input[^>]*\bdisabled\b", content)
     # The submit button element itself must be disabled.
@@ -608,11 +610,11 @@ def test_register_details_form_already_registered_shows_banner() -> None:
 
     assert response.status_code == 200
     content = response.content.decode()
-    # Banner copy with correct role.
-    assert "You are already registered as" in content
+    # Lock-banner copy with correct role.
+    assert "You're already registered" in content
     assert "Referee" in content
     assert reverse("accounts:detail") in content
-    assert "View your registration" in content
+    assert "View my status" in content
     # Disabled state present.
     assert "disabled" in content
 
@@ -628,8 +630,8 @@ def test_register_get_authenticated_without_registration_shows_normal_form() -> 
 
     assert response.status_code == 200
     content = response.content.decode()
-    assert "You are already registered as" not in content
-    assert "View your registration" not in content
+    assert "You're already registered" not in content
+    assert "View my status" not in content
     # No disabled inputs or buttons — the form surface is fully enabled.
     assert "disabled" not in content
 
@@ -640,8 +642,8 @@ def test_register_get_anonymous_shows_normal_form() -> None:
 
     assert response.status_code == 200
     content = response.content.decode()
-    assert "You are already registered as" not in content
-    assert "View your registration" not in content
+    assert "You're already registered" not in content
+    assert "View my status" not in content
 
 
 # ---------------------------------------------------------------------------

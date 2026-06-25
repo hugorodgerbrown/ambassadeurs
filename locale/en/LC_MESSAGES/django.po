@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-25 12:44+0200\n"
+"POT-Creation-Date: 2026-06-25 13:25+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -29,6 +29,25 @@ msgid "Preferred language"
 msgstr ""
 
 msgid "No preference"
+msgstr ""
+
+msgid "Confirm your email to join the queue"
+msgstr ""
+
+#, python-format
+msgid ""
+"Click the link below to confirm your email and join the matching queue for "
+"the 4 Vallées Ambassadors Program:\n"
+"\n"
+"%(url)s\n"
+"\n"
+"This link expires in 24 hours. If you didn't request it, ignore this email."
+msgstr ""
+
+msgid "No pending registration found. Your email may already be confirmed."
+msgstr ""
+
+msgid "Confirmation email resent. Please check your inbox."
 msgstr ""
 
 msgid "Your details have been updated."
@@ -194,19 +213,6 @@ msgid ""
 "If you did not register for this programme, please ignore this email."
 msgstr ""
 
-msgid "Confirm your email to join the queue"
-msgstr ""
-
-#, python-format
-msgid ""
-"Click the link below to confirm your email and join the matching queue for "
-"the 4 Vallées Ambassadors Program:\n"
-"\n"
-"%(url)s\n"
-"\n"
-"This link expires in 24 hours. If you didn't request it, ignore this email."
-msgstr ""
-
 msgid "Log out"
 msgstr ""
 
@@ -242,6 +248,15 @@ msgstr ""
 msgid "Name"
 msgstr ""
 
+msgid "Email verified"
+msgstr ""
+
+msgid "Unverified"
+msgstr ""
+
+msgid "Resend confirmation email"
+msgstr ""
+
 msgid "Language"
 msgstr ""
 
@@ -252,6 +267,12 @@ msgid "Your role"
 msgstr ""
 
 msgid "Status"
+msgstr ""
+
+msgid "Pending email verification"
+msgstr ""
+
+msgid "Available for match"
 msgstr ""
 
 msgid ""
@@ -286,6 +307,12 @@ msgid "Save changes"
 msgstr ""
 
 msgid "4 Vallées Ambassadors"
+msgstr ""
+
+msgid "Development panel"
+msgstr ""
+
+msgid "Development shortcut"
 msgstr ""
 
 msgid "An independent way to find your season-pass partner for the 4 Vallées."
@@ -822,14 +849,12 @@ msgid ""
 "of the 4 Vallées companies in 2024/2025 nor 2025/2026."
 msgstr ""
 
-#, python-format
-msgid "You are already registered as %(role)s."
-msgstr ""
-
-msgid "View your registration"
-msgstr ""
-
 msgid "Registration"
+msgstr ""
+
+msgid ""
+"Your registration is complete — these are the details we have on file. They "
+"can't be changed here."
 msgstr ""
 
 msgid ""
@@ -840,6 +865,18 @@ msgstr ""
 msgid ""
 "Tell us who you are and confirm you qualify. We'll email a link to verify "
 "your address — then we start finding your Ambassador."
+msgstr ""
+
+msgid "You're already registered"
+msgstr ""
+
+#, python-format
+msgid ""
+"Signed in as <strong>%(email)s</strong> — you registered as %(role)s on "
+"%(date)s, so this form is locked."
+msgstr ""
+
+msgid "View my status"
 msgstr ""
 
 msgid "Returning holder referring a newcomer."
@@ -864,6 +901,14 @@ msgstr ""
 msgid ""
 "I have read and agree to the <a href=\"%(terms_url)s\" target=\"_blank\" "
 "rel=\"noopener\" class=\"text-accent underline\" >Terms of Use</a>."
+msgstr ""
+
+msgid "Already registered"
+msgstr ""
+
+msgid ""
+"You can only register once. To change your details, contact us or check your "
+"status."
 msgstr ""
 
 msgid "Register as Ambassador"
@@ -936,9 +981,6 @@ msgstr ""
 msgid ""
 "The link expires in 24 hours. If it doesn't arrive in a few minutes, check "
 "your spam folder."
-msgstr ""
-
-msgid "Development shortcut"
 msgstr ""
 
 msgid "Link expired"

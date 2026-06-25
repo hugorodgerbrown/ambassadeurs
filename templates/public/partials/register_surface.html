@@ -30,21 +30,14 @@ Context:
     id="reg-surface"
     class="role-theme{% if role_value != 'AMBASSADOR' %} role-theme--referee{% endif %}"
 >
-    {% if already_registered %}
-        <div class="announce mb-6">
-            <span class="announce__dot"></span>
-            {% blocktranslate trimmed with role=already_registered.get_role_display %}
-                You are already registered as {{ role }}.
-            {% endblocktranslate %}
-            <a href="{% url 'accounts:detail' %}" class="underline">
-                {% translate "View your registration" %}
-            </a>
-        </div>
-    {% endif %}
     <p class="eyebrow mb-3" style="color: var(--role)">{% translate "Registration" %}</p>
     <h1 class="mb-2 text-ink">{% translate "Register" %}</h1>
     <p class="mb-6 text-lead text-body">
-        {% if role_value == 'AMBASSADOR' %}
+        {% if already_registered %}
+            {% blocktranslate trimmed %}
+                Your registration is complete — these are the details we have on file. They can't be changed here.
+            {% endblocktranslate %}
+        {% elif role_value == 'AMBASSADOR' %}
             {% blocktranslate trimmed %}
                 Tell us who you are and confirm you qualify. We'll email a link to verify your address — then we start
                 finding your Referee.
@@ -57,12 +50,48 @@ Context:
         {% endif %}
     </p>
 
+    {% if already_registered %}
+        {% comment %}
+            Lock banner — tops a locked form for an already-registered, signed-in
+            user. Surface card with a role-coloured left accent and lock medallion;
+            states who they are, when they registered, that the form is locked, and
+            links to their status (the exit). Follows --role via .lock-banner.
+        {% endcomment %}
+        <div class="lock-banner mb-6">
+            <span class="lock-banner__icon">
+                <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <rect x="4" y="11" width="16" height="9" rx="2" />
+                    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                </svg>
+            </span>
+            <div class="flex-1">
+                <p class="lock-banner__title">{% translate "You're already registered" %}</p>
+                <p class="lock-banner__body">
+                    {% blocktranslate trimmed with email=already_registered.user.email role=already_registered.get_role_display date=already_registered.created_at|date:"j F Y" %}
+                        Signed in as <strong>{{ email }}</strong> — you registered as {{ role }} on {{ date }}, so
+                        this form is locked.
+                    {% endblocktranslate %}
+                    <a href="{% url 'accounts:detail' %}">{% translate "View my status" %}</a>.
+                </p>
+            </div>
+        </div>
+    {% endif %}
+
     {% comment %}── Role zone — the dropdown that drives the whole surface's palette. ──{% endcomment %}
     <div class="role-zone mb-6">
         <p class="label mb-2">{% translate "Your role" %}</p>
 
         <details
-            class="role-select{% if already_registered %} pointer-events-none opacity-60{% endif %}"
+            class="role-select{% if already_registered %} role-select--locked pointer-events-none{% endif %}"
             {% if already_registered %}
                 aria-disabled="true"
             {% endif %}
@@ -314,32 +343,56 @@ Context:
                 </div>
             </fieldset>
 
-            <button
-                type="submit"
-                class="btn btn--role btn--block{% if already_registered %} opacity-60 pointer-events-none{% endif %}"
-                {% if already_registered %}
-                    disabled
-                {% endif %}
-            >
-                {% if role_value == 'AMBASSADOR' %}
-                    {% translate "Register as Ambassador" %}
-                {% else %}
-                    {% translate "Register as Referee" %}
-                {% endif %}
-                <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                >
-                    <path d="M5 12h14" />
-                    <path d="m13 5 7 7-7 7" />
-                </svg>
-            </button>
+            {% if already_registered %}
+                {% comment %}
+                    Locked submit — a non-actionable "Already registered" in the
+                    flat greyed treatment (.btn:disabled), with a lock icon and a
+                    reason line stating the why and the what-now. The server also
+                    rejects a second registration POST regardless of this UI.
+                {% endcomment %}
+                <button type="submit" class="btn btn--role btn--block" disabled>
+                    <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <rect x="4" y="11" width="16" height="9" rx="2" />
+                        <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                    </svg>
+                    {% translate "Already registered" %}
+                </button>
+                <p class="field__hint mt-3 text-center">
+                    {% blocktranslate trimmed %}
+                        You can only register once. To change your details, contact us or check your status.
+                    {% endblocktranslate %}
+                </p>
+            {% else %}
+                <button type="submit" class="btn btn--role btn--block">
+                    {% if role_value == 'AMBASSADOR' %}
+                        {% translate "Register as Ambassador" %}
+                    {% else %}
+                        {% translate "Register as Referee" %}
+                    {% endif %}
+                    <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <path d="M5 12h14" />
+                        <path d="m13 5 7 7-7 7" />
+                    </svg>
+                </button>
+            {% endif %}
         </form>
     </div>
 

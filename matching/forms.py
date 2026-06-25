@@ -20,10 +20,16 @@ from django.utils.translation import gettext_lazy as _
 
 from .models import Registration, Resort
 
-# Design-system class applied to text-like inputs and selects. ``.input``
-# (src/css/main.css) carries the height, border, radius and role-toned focus
-# ring; the focus colour follows the surrounding .role-theme.
+# Design-system class applied to text-like inputs. ``.input`` (src/css/main.css)
+# carries the height, border, radius and role-toned focus ring; the focus colour
+# follows the surrounding .role-theme.
 _INPUT_CLASSES = "input"
+
+# Design-system class applied to native ``<select>`` widgets. ``.select`` matches
+# the ``.input`` box but bakes in a token-stroked chevron via ``appearance:none``
+# (so the platform arrow is replaced by one that matches the design) and dims
+# that chevron when the control is disabled.
+_SELECT_CLASSES = "select"
 
 # Classes applied to the confirmation checkboxes. ``mt-1`` nudges the 13px box
 # down so its centre lines up with the first line of the (line-height: 20px)
@@ -80,19 +86,19 @@ class RegistrationForm(forms.Form):
         label=_("Preferred resort / ticket office"),
         required=False,
         choices=[("", _("No preference"))] + list(Resort.choices),
-        widget=forms.Select(attrs={"class": _INPUT_CLASSES}),
+        widget=forms.Select(attrs={"class": _SELECT_CLASSES}),
     )
     preferred_language = forms.ChoiceField(
         label=_("Preferred language"),
         required=False,
         choices=[("", _("No preference"))] + list(settings.LANGUAGES),
-        widget=forms.Select(attrs={"class": _INPUT_CLASSES}),
+        widget=forms.Select(attrs={"class": _SELECT_CLASSES}),
     )
     prior_pass = forms.ChoiceField(
         label=_("Prior-season pass type"),
         choices=_AMBASSADOR_PRIOR_PASS_CHOICES,
         required=False,
-        widget=forms.Select(attrs={"class": _INPUT_CLASSES}),
+        widget=forms.Select(attrs={"class": _SELECT_CLASSES}),
     )
     prior_pass_attestation = forms.BooleanField(
         # Label is role-specific; set in __init__.

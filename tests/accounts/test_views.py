@@ -354,3 +354,33 @@ def test_debug_panel_absent_outside_debug() -> None:
     client.force_login(user)
     response = client.get(reverse("accounts:detail"))
     assert b"Development panel" not in response.content
+
+
+@override_settings(DEBUG=True, INTERNAL_IPS=["127.0.0.1"])
+def test_debug_panel_shown_without_verify_url() -> None:
+    """Under DEBUG the panel frame appears even when no debug_verify_url is set.
+
+    This covers the requirement that the panel is site-wide, not limited to pages
+    that inject debug_verify_url into context.
+    """
+    user = UserFactory.create()
+    client = Client()
+    client.force_login(user)
+    # No session key planted — no debug_verify_url in context.
+    response = client.get(reverse("accounts:detail"))
+    assert b"Development panel" in response.content
+    assert b"Development shortcut" not in response.content
+
+
+@override_settings(DEBUG=True, INTERNAL_IPS=["127.0.0.1"])
+def test_debug_panel_shown_with_verify_url_shows_shortcut() -> None:
+    """Under DEBUG the shortcut link appears inside the panel when the session has the URL."""
+    registration = RegistrationFactory.create(status=Registration.Status.PENDING)
+    client = Client()
+    client.force_login(registration.user)
+    session = client.session
+    session["debug_verify_url"] = "http://testserver/register/confirm/FAKE/"
+    session.save()
+    response = client.get(reverse("accounts:detail"))
+    assert b"Development panel" in response.content
+    assert b"Development shortcut" in response.content

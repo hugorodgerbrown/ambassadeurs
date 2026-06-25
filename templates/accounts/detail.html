@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "My account" %}{% endblock %}
+{% block title %}{% translate "Account details" %}{% endblock %}
 
 {% block topband %}
     <div class="role-theme{% if registration and registration.role != 'AMBASSADOR' %} role-theme--referee{% endif %}">
@@ -11,8 +11,8 @@
 
 {% block content %}
     <section class="role-theme{% if registration and registration.role != 'AMBASSADOR' %} role-theme--referee{% endif %} mx-auto max-w-xl">
-        <p class="eyebrow mb-2" style="color: var(--role)">{% translate "Your account" %}</p>
-        <h1 class="mb-6 text-ink">{% translate "My account" %}</h1>
+        <p class="eyebrow mb-2" style="color: var(--role)">{% translate "Account details" %}</p>
+        <h1 class="mb-6 text-ink">{% translate "Your account" %}</h1>
 
         {% if messages %}
             {% for message in messages %}
@@ -22,7 +22,21 @@
             {% endfor %}
         {% endif %}
 
-        {# Profile #}
+        {% comment %}
+            Role panel — read-only, shown only when a registration exists.
+            Sits above "Your details" so role context is immediately visible.
+        {% endcomment %}
+        {% if registration %}
+            <div class="role-zone mb-3">
+                <p class="label mb-1">{% translate "Your role" %}</p>
+                <p class="role-select__name">{{ registration.get_role_display }}</p>
+                <small>{% blocktranslate trimmed %}
+                        To change role you must delete your account and start again.
+                    {% endblocktranslate %}</small>
+            </div>
+        {% endif %}
+
+        {# Your details card #}
         <div class="card mb-6">
             <div class="mb-4 flex items-center justify-between">
                 <h2 class="text-h3 text-ink">{% translate "Your details" %}</h2>
@@ -88,49 +102,49 @@
             </dl>
         </div>
 
-        {% comment %}Registration — role is read-only. Role identity uses the .role-zone tone;
-           the match status keeps the semantic .status tokens.{% endcomment %}
-        <div class="card mb-6">
-            <h2 class="mb-4 text-h3 text-ink">{% translate "Your registration" %}</h2>
-            {% if registration %}
-                <div class="role-zone mb-4">
-                    <p class="label mb-1">{% translate "Your role" %}</p>
-                    <p class="role-select__name">{{ registration.get_role_display }}</p>
-                </div>
-                <dl class="grid grid-cols-3 items-center gap-2 text-sm">
-                    <dt class="text-meta">{% translate "Status" %}</dt>
-                    <dd class="col-span-2">
-                        {% comment %}
-                            Richer status labels covering all six Registration.Status
-                            values. Pill tone: status--action for MATCHED (needs
-                            attention), status--done for CONFIRMED (success),
-                            status--queue for all others (neutral / informational).
-                        {% endcomment %}
-                        <span
-                            class="status {% if registration.status == 'MATCHED' %}status--action{% elif registration.status == 'CONFIRMED' %}status--done{% else %}status--queue{% endif %}"
-                        >
-                            {% if registration.status == 'PENDING' %}
-                                {% translate "Pending email verification" %}
-                            {% elif registration.status == 'WAITING' %}
-                                {% translate "Available for match" %}
-                            {% elif registration.status == 'MATCHED' %}
-                                {% translate "Matched" %}
-                            {% elif registration.status == 'CONFIRMED' %}
-                                {% translate "Confirmed" %}
-                            {% elif registration.status == 'WITHDRAWN' %}
-                                {% translate "Withdrawn" %}
-                            {% elif registration.status == 'SUSPENDED' %}
-                                {% translate "Suspended" %}
-                            {% else %}
-                                {{ registration.get_status_display }}
-                            {% endif %}
-                        </span>
-                    </dd>
-                </dl>
-                <p class="mt-3 text-xs text-meta">
-                    {% blocktranslate trimmed %}
-                        Your role is fixed. To register in the other role you must delete your account and start again.
-                    {% endblocktranslate %}
+        {% comment %}
+            Match status card — replaces the old "Your registration" card.
+            Shows a plain sentence per Registration.Status value rather than a
+            status pill, so the participant always knows what to do next.
+            When there is no registration, shows the "Register now" prompt instead.
+        {% endcomment %}
+        {% if registration %}
+            <div class="card mb-6">
+                <h2 class="mb-4 text-h3 text-ink">{% translate "Match status" %}</h2>
+                <p class="text-sm text-body">
+                    {% if registration.status == 'PENDING' %}
+                        {% blocktranslate trimmed %}
+                            Please confirm your email address to enter the pool.
+                        {% endblocktranslate %}
+                    {% elif registration.status == 'WAITING' %}
+                        {% blocktranslate trimmed %}
+                            You are in the queue. We'll email you when a match is found.
+                        {% endblocktranslate %}
+                    {% elif registration.status == 'MATCHED' %}
+                        {% if i_have_accepted %}
+                            {% blocktranslate trimmed %}
+                                You have accepted. Waiting for your partner to respond.
+                            {% endblocktranslate %}
+                        {% else %}
+                            {% blocktranslate trimmed %}
+                                You have been matched. Check your email to accept or decline.
+                            {% endblocktranslate %}
+                        {% endif %}
+                    {% elif registration.status == 'CONFIRMED' %}
+                        {% blocktranslate trimmed %}
+                            Your match is confirmed. Contact your partner to buy your passes together.
+                        {% endblocktranslate %}
+                    {% elif registration.status == 'WITHDRAWN' %}
+                        {% blocktranslate trimmed %}
+                            Your registration has been withdrawn.
+                        {% endblocktranslate %}
+                    {% elif registration.status == 'SUSPENDED' %}
+                        {% blocktranslate trimmed %}
+                            Your registration has been suspended. Contact support if you think this is an error.
+                        {% endblocktranslate %}
+                    {% else %}
+                        {{ registration.get_status_display }}
+                    {% endif %}
                 </p>
                 {% comment %}
                     Show a "View your match" prompt only for MATCHED and CONFIRMED
@@ -141,25 +155,21 @@
                 {% endcomment %}
                 {% if registration.status == 'MATCHED' or registration.status == 'CONFIRMED' %}
                     <div class="mt-4 border-t border-line pt-4">
-                        <p class="mb-3 text-sm font-medium text-ink">
-                            {% if registration.status == 'MATCHED' %}
-                                {% translate "You've been matched!" %}
-                            {% else %}
-                                {% translate "Match confirmed." %}
-                            {% endif %}
-                        </p>
                         <a href="{% url 'accounts:match' %}" class="btn btn--role">
                             {% translate "View your match" %}
                         </a>
                     </div>
                 {% endif %}
-            {% else %}
+            </div>
+        {% else %}
+            <div class="card mb-6">
+                <h2 class="mb-4 text-h3 text-ink">{% translate "Match status" %}</h2>
                 <p class="text-sm text-body">{% translate "You have no registration yet." %}</p>
                 <a href="{% url 'public:register' %}" class="btn btn--role mt-4">
                     {% translate "Register now" %}
                 </a>
-            {% endif %}
-        </div>
+            </div>
+        {% endif %}
 
         {# Security #}
         <div class="card">
@@ -167,14 +177,14 @@
             <h3 class="mb-2 text-sm font-semibold text-danger">{% translate "Delete account" %}</h3>
             <p class="mb-3 text-sm text-body">
                 {% blocktranslate trimmed %}
-                    Permanently delete your account and all your registrations. This cannot be undone.
+                    Permanently delete your account. This cannot be undone.
                 {% endblocktranslate %}
             </p>
             <a
                 href="{% url 'accounts:delete' %}"
                 class="btn btn--ghost border-danger text-danger hover:border-danger"
             >
-                {% translate "Delete my account" %}
+                {% translate "Delete account " %}
             </a>
         </div>
     </section>

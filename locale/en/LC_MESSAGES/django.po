@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-25 12:41+0200\n"
+"POT-Creation-Date: 2026-06-25 12:44+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -16,191 +16,139 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: accounts/forms.py:23 matching/forms.py:60
 msgid "First name"
 msgstr ""
 
-#: accounts/forms.py:28 matching/forms.py:65
 msgid "Last name"
 msgstr ""
 
-#: accounts/forms.py:33 matching/forms.py:74 templates/accounts/detail.html:39
-#: templates/public/match.html:43
-#: templates/public/partials/match_actions.html:90
 msgid "Phone"
 msgstr ""
 
-#: accounts/forms.py:39 matching/forms.py:86
 msgid "Preferred language"
 msgstr ""
 
-#: accounts/forms.py:41 matching/forms.py:82 matching/forms.py:88
 msgid "No preference"
 msgstr ""
 
-#: accounts/views.py:62
 msgid "Your details have been updated."
 msgstr ""
 
-#: accounts/views.py:89
 msgid "Your account has been deleted."
 msgstr ""
 
-#: core/admin.py:54
 msgid "Target"
 msgstr ""
 
-#: matching/admin.py:16
 msgid "has flakes"
 msgstr ""
 
-#: matching/admin.py:27
 msgid "Yes"
 msgstr ""
 
-#: matching/admin.py:28
 msgid "No"
 msgstr ""
 
-#: matching/admin.py:40
 msgid "Export selected abandoned matches as CSV"
 msgstr ""
 
-#: matching/forms.py:70 templates/accounts/detail.html:36
-#: templates/public/match.html:35
-#: templates/public/partials/match_actions.html:82
 msgid "Email"
 msgstr ""
 
-#: matching/forms.py:80
 msgid "Preferred resort / ticket office"
 msgstr ""
 
-#: matching/forms.py:92
 msgid "Prior-season pass type"
 msgstr ""
 
-#: matching/forms.py:104
 msgid "I have read and agree to the Terms of Use"
 msgstr ""
 
-#: matching/forms.py:131
 msgid ""
 "I have held a seasonal or annual pass from one of the 4 Vallées companies in "
 "2024-25 or 2025-26."
 msgstr ""
 
-#: matching/forms.py:136
 msgid ""
 "I have not held a mid-season, seasonal or annual pass from one of the 4 "
 "Vallées companies in 2024-25 or 2025-26."
 msgstr ""
 
-#: matching/forms.py:198
 msgid "You are already registered for the current season."
 msgstr ""
 
-#: matching/models.py:27
 msgid "Verbier"
 msgstr ""
 
-#: matching/models.py:28
 msgid "Thyon"
 msgstr ""
 
-#: matching/models.py:29
 msgid "Nendaz"
 msgstr ""
 
-#: matching/models.py:30
 msgid "Veysonnaz"
 msgstr ""
 
-#: matching/models.py:31
 msgid "La Tzoumaz"
 msgstr ""
 
-#: matching/models.py:32
 msgid "Bruson"
 msgstr ""
 
-#: matching/models.py:80 matching/models.py:256
-#: templates/public/partials/register_surface.html:108
-#: templates/public/partials/register_surface.html:167
 msgid "Ambassador"
 msgstr ""
 
-#: matching/models.py:81 matching/models.py:257
-#: templates/public/partials/register_surface.html:110
-#: templates/public/partials/register_surface.html:217
 msgid "Referee"
 msgstr ""
 
-#: matching/models.py:90
 msgid "Pending"
 msgstr ""
 
-#: matching/models.py:91
 msgid "Waiting"
 msgstr ""
 
-#: matching/models.py:92
 msgid "Matched"
 msgstr ""
 
-#: matching/models.py:93
 msgid "Confirmed"
 msgstr ""
 
-#: matching/models.py:94
 msgid "Withdrawn"
 msgstr ""
 
-#: matching/models.py:95
 msgid "Suspended"
 msgstr ""
 
-#: matching/models.py:105
 msgid "None — I did not hold a prior pass"
 msgstr ""
 
-#: matching/models.py:106
 msgid "Seasonal pass (4 Vallées)"
 msgstr ""
 
-#: matching/models.py:107
 msgid "Annual pass (4 Vallées)"
 msgstr ""
 
-#: matching/models.py:108
 msgid "Mont 4 Card / special reduction"
 msgstr ""
 
-#: matching/models.py:242
 msgid "Proposed"
 msgstr ""
 
-#: matching/models.py:243
 msgid "Accepted"
 msgstr ""
 
-#: matching/models.py:244
 msgid "Declined"
 msgstr ""
 
-#: matching/models.py:245
 msgid "Expired"
 msgstr ""
 
-#: matching/models.py:246
 msgid "Abandoned"
 msgstr ""
 
-#: matching/services.py:311
 msgid "You have been matched — 4 Vallées Ambassadors Program"
 msgstr ""
 
-#: matching/services.py:313
 #, python-format
 msgid ""
 "Good news — the matching system has found you a partner for the 4 Vallées "
@@ -214,11 +162,9 @@ msgid ""
 "If you did not register for this programme, please ignore this email."
 msgstr ""
 
-#: matching/services.py:362
 msgid "Match confirmed — contact your partner"
 msgstr ""
 
-#: matching/services.py:364
 #, python-format
 msgid ""
 "Great news — your match has been confirmed!\n"
@@ -235,11 +181,9 @@ msgid ""
 "Good luck!"
 msgstr ""
 
-#: matching/services.py:877
 msgid "Your match has been reported as a no-show"
 msgstr ""
 
-#: matching/services.py:879
 msgid ""
 "We have received a no-show report from your match partner for the 4 Vallées "
 "Ambassadors Program.\n"
@@ -250,11 +194,9 @@ msgid ""
 "If you did not register for this programme, please ignore this email."
 msgstr ""
 
-#: public/views.py:144
 msgid "Confirm your email to join the queue"
 msgstr ""
 
-#: public/views.py:146
 #, python-format
 msgid ""
 "Click the link below to confirm your email and join the matching queue for "
@@ -265,183 +207,131 @@ msgid ""
 "This link expires in 24 hours. If you didn't request it, ignore this email."
 msgstr ""
 
-#: templates/account/logout.html:4 templates/account/logout.html:9
-#: templates/account/logout.html:17 templates/includes/footer.html:67
-#: templates/includes/nav.html:39
 msgid "Log out"
 msgstr ""
 
-#: templates/account/logout.html:12
 msgid "Are you sure you want to log out?"
 msgstr ""
 
-#: templates/accounts/delete.html:4 templates/accounts/delete.html:8
-#: templates/accounts/detail.html:95
 msgid "Delete my account"
 msgstr ""
 
-#: templates/accounts/delete.html:10
 msgid ""
 "This permanently deletes your account, your profile and all your "
 "registrations. You'll be removed from any queues. This cannot be undone."
 msgstr ""
 
-#: templates/accounts/delete.html:23
 msgid "Yes, delete my account"
 msgstr ""
 
-#: templates/accounts/delete.html:26 templates/accounts/edit.html:33
 msgid "Cancel"
 msgstr ""
 
-#: templates/accounts/detail.html:4 templates/accounts/detail.html:15
-#: templates/includes/footer.html:59 templates/includes/nav.html:34
 msgid "My account"
 msgstr ""
 
-#: templates/accounts/detail.html:14 templates/accounts/edit.html:14
 msgid "Your account"
 msgstr ""
 
-#: templates/accounts/detail.html:28
-#: templates/public/partials/register_surface.html:259
 msgid "Your details"
 msgstr ""
 
-#: templates/accounts/detail.html:30
 msgid "Edit"
 msgstr ""
 
-#: templates/accounts/detail.html:34 templates/public/match.html:31
-#: templates/public/partials/match_actions.html:78
 msgid "Name"
 msgstr ""
 
-#: templates/accounts/detail.html:41
 msgid "Language"
 msgstr ""
 
-#: templates/accounts/detail.html:53
 msgid "Your registration"
 msgstr ""
 
-#: templates/accounts/detail.html:56
-#: templates/public/partials/register_surface.html:64
 msgid "Your role"
 msgstr ""
 
-#: templates/accounts/detail.html:60
 msgid "Status"
 msgstr ""
 
-#: templates/accounts/detail.html:70
 msgid ""
 "Your role is fixed. To register in the other role you must delete your "
 "account and start again."
 msgstr ""
 
-#: templates/accounts/detail.html:75
 msgid "You have no registration yet."
 msgstr ""
 
-#: templates/accounts/detail.html:77
 msgid "Register now"
 msgstr ""
 
-#: templates/accounts/detail.html:84
 msgid "Security"
 msgstr ""
 
-#: templates/accounts/detail.html:85
 msgid "Delete account"
 msgstr ""
 
-#: templates/accounts/detail.html:87
 msgid ""
 "Permanently delete your account and all your registrations. This cannot be "
 "undone."
 msgstr ""
 
-#: templates/accounts/edit.html:4 templates/accounts/edit.html:15
 msgid "Edit my details"
 msgstr ""
 
-#: templates/accounts/edit.html:25
 msgid "Your role and email can't be changed here."
 msgstr ""
 
-#: templates/accounts/edit.html:30
 msgid "Save changes"
 msgstr ""
 
-#: templates/base.html:7 templates/includes/footer.html:29
-#: templates/includes/nav.html:29
 msgid "4 Vallées Ambassadors"
 msgstr ""
 
-#: templates/includes/footer.html:32
 msgid "An independent way to find your season-pass partner for the 4 Vallées."
 msgstr ""
 
-#: templates/includes/footer.html:38
 msgid "Program"
 msgstr ""
 
-#: templates/includes/footer.html:40 templates/public/home.html:69
-#: templates/public/how_it_works.html:4 templates/public/how_it_works.html:8
 msgid "How it works"
 msgstr ""
 
-#: templates/includes/footer.html:44
 msgid "Legal"
 msgstr ""
 
-#: templates/includes/footer.html:46
 msgid "Privacy"
 msgstr ""
 
-#: templates/includes/footer.html:49
 msgid "Cookies"
 msgstr ""
 
-#: templates/includes/footer.html:52
 msgid "Terms"
 msgstr ""
 
-#: templates/includes/footer.html:56
 msgid "Account"
 msgstr ""
 
-#: templates/includes/footer.html:72 templates/includes/nav.html:44
 msgid "Log in"
 msgstr ""
 
-#: templates/includes/footer.html:75
-#: templates/public/partials/register_surface.html:46
-#: templates/public/register_details.html:4
 msgid "Register"
 msgstr ""
 
-#: templates/includes/footer.html:84
-#: templates/public/partials/register_surface.html:351
 msgid ""
 "Independent project — not affiliated with the official 4 Vallées pass "
 "operator."
 msgstr ""
 
-#: templates/includes/nav.html:54
 msgid "Change language"
 msgstr ""
 
-#: templates/public/home.html:14
 msgid "4 Vallées Ambassadors Program"
 msgstr ""
 
-#: templates/public/home.html:16
 msgid "Find your season-pass partner"
 msgstr ""
 
-#: templates/public/home.html:19
 msgid ""
 "To claim the Ambassadors discount on the 4 Vallées annual pass, a returning "
 "holder and a new holder have to apply together. We match you with a partner "
@@ -449,90 +339,68 @@ msgid ""
 "vanish."
 msgstr ""
 
-#: templates/public/home.html:61
 msgid "Registration opens soon — check back closer to the start of the season."
 msgstr ""
 
-#: templates/public/home.html:76
 msgid "Register in the role that fits you"
 msgstr ""
 
-#: templates/public/home.html:78
 msgid "Ambassador or Referee — whichever describes you."
 msgstr ""
 
-#: templates/public/home.html:87
 msgid "We match you automatically"
 msgstr ""
 
-#: templates/public/home.html:89
 msgid "We add you to the queue and pair you up. You don't pick each other."
 msgstr ""
 
-#: templates/public/home.html:98
 msgid "We email you when matched"
 msgstr ""
 
-#: templates/public/home.html:99
 msgid "You'll have 72 hours to accept the match."
 msgstr ""
 
-#: templates/public/home.html:107
 msgid "Meet and apply together"
 msgstr ""
 
-#: templates/public/home.html:109
 msgid ""
 "Once you both accept, we share contact details so you can apply together."
 msgstr ""
 
-#: templates/public/home.html:119
 msgid "Which one are you?"
 msgstr ""
 
-#: templates/public/home.html:136
-#: templates/public/partials/register_surface.html:115
 msgid "Returning holder"
 msgstr ""
 
-#: templates/public/home.html:138
 msgid "I'm an Ambassador"
 msgstr ""
 
-#: templates/public/home.html:140
 msgid ""
 "You held a 4 Vallées seasonal or annual pass in a recent season and want to "
 "refer a new holder. You're the returning holder."
 msgstr ""
 
-#: templates/public/home.html:146
 msgid "Register as an Ambassador"
 msgstr ""
 
-#: templates/public/home.html:178
-#: templates/public/partials/register_surface.html:117
 msgid "New holder"
 msgstr ""
 
-#: templates/public/home.html:180
 msgid "I'm a Referee"
 msgstr ""
 
-#: templates/public/home.html:182
 msgid ""
 "You're new to the 4 Vallées — you didn't hold a pass in either of the two "
 "previous seasons — and need an Ambassador to refer you."
 msgstr ""
 
-#: templates/public/home.html:188
 msgid "Register as a Referee"
 msgstr ""
 
-#: templates/public/how_it_works.html:11
 msgid "What is the 4 Vallées Ambassadors Program?"
 msgstr ""
 
-#: templates/public/how_it_works.html:14
 msgid ""
 "The 4 Vallées Ambassadors Program is a referral scheme that lets a returning "
 "season-pass holder (an Ambassador) bring a new person (a Referee) into the "
@@ -540,11 +408,9 @@ msgid ""
 "their seasonal pass."
 msgstr ""
 
-#: templates/public/how_it_works.html:22
 msgid "Who is an Ambassador and who is a Referee?"
 msgstr ""
 
-#: templates/public/how_it_works.html:25
 msgid ""
 "An Ambassador is someone who held a 4 Vallées seasonal or annual pass in "
 "either of the last two seasons (2024/25 or 2025/26). A Referee is someone "
@@ -554,11 +420,9 @@ msgid ""
 "adult can't support a child, but the reverse is possible)."
 msgstr ""
 
-#: templates/public/how_it_works.html:34
 msgid "How do I apply?"
 msgstr ""
 
-#: templates/public/how_it_works.html:36
 msgid ""
 "Download the application form, fill it in together with your partner, and "
 "email it to customer@televerbier.ch. Both parties must sign the form and "
@@ -566,15 +430,12 @@ msgid ""
 "application. If applying by email this can be a photograph attachment."
 msgstr ""
 
-#: templates/public/how_it_works.html:44
 msgid "Download application form"
 msgstr ""
 
-#: templates/public/how_it_works.html:48
 msgid "What is the approval process?"
 msgstr ""
 
-#: templates/public/how_it_works.html:50
 msgid ""
 "Once the application form is received it will be assessed for approval. If "
 "approved, you will receive a confirmation email that includes payment "
@@ -583,11 +444,9 @@ msgid ""
 "although you may be able to pick up elsewhere if you request it?)"
 msgstr ""
 
-#: templates/public/how_it_works.html:58
 msgid "What are the requirements?"
 msgstr ""
 
-#: templates/public/how_it_works.html:60
 msgid ""
 "Both the Ambassador and the Referee must sign the application form and "
 "provide a valid passport or national identity card. Both must attest to the "
@@ -595,11 +454,9 @@ msgid ""
 "will be checked during the application process."
 msgstr ""
 
-#: templates/public/how_it_works.html:68
 msgid "So what does this site do?"
 msgstr ""
 
-#: templates/public/how_it_works.html:71
 msgid ""
 "The biggest challenge for Ambassadors is finding someone who wants to buy a "
 "Season pass for the first time. The current process is chaotic — everyone "
@@ -610,11 +467,9 @@ msgid ""
 "and vice versa."
 msgstr ""
 
-#: templates/public/how_it_works.html:81
 msgid "What does this site not do?"
 msgstr ""
 
-#: templates/public/how_it_works.html:84
 msgid ""
 "This site handles only the matchmaking: it connects an Ambassador with a "
 "Referee so they can apply together. It does not collect the full application "
@@ -624,11 +479,9 @@ msgid ""
 "it from there."
 msgstr ""
 
-#: templates/public/how_it_works.html:92
 msgid "How does the match work?"
 msgstr ""
 
-#: templates/public/how_it_works.html:94
 msgid ""
 "When you register, the system places you in a queue and pairs you with an "
 "eligible partner as soon as one becomes available. You do not browse or "
@@ -637,11 +490,9 @@ msgid ""
 "until both have accepted the match."
 msgstr ""
 
-#: templates/public/how_it_works.html:102
 msgid "How long does it take to find a match?"
 msgstr ""
 
-#: templates/public/how_it_works.html:104
 msgid ""
 "The match is done on registration if a partner is available. Ambassadors "
 "typically outnumber Referees, so if you register as a Referee you may be "
@@ -650,11 +501,9 @@ msgid ""
 "can see where you are in the queue from your status page."
 msgstr ""
 
-#: templates/public/how_it_works.html:112
 msgid "What happens then?"
 msgstr ""
 
-#: templates/public/how_it_works.html:114
 msgid ""
 "Once both parties accept the match, each receives the other's contact "
 "details. They then arrange to fill in the application form and submit the "
@@ -662,31 +511,25 @@ msgid ""
 "re-enter the queue and the system proposes a new match."
 msgstr ""
 
-#: templates/public/how_it_works.html:122
 msgid "What happens if I miss the match confirmation window?"
 msgstr ""
 
-#: templates/public/how_it_works.html:125
 msgid ""
 "If you are matched but you miss the confirmation window, then the match is "
 "cancelled, and you will go to the back of the queue."
 msgstr ""
 
-#: templates/public/how_it_works.html:132
 msgid "What happens if my partner misses the confirmation window?"
 msgstr ""
 
-#: templates/public/how_it_works.html:135
 msgid ""
 "If you are matched but your partner misses the confirmation window, then the "
 "match is cancelled, and you will go to the front of the queue."
 msgstr ""
 
-#: templates/public/how_it_works.html:141
 msgid "How long is the confirmation window?"
 msgstr ""
 
-#: templates/public/how_it_works.html:143
 msgid ""
 "The confirmation window is variable - as we get closer to the season start "
 "things get more frantic, and the window will shorten. It will start at 72hrs "
@@ -695,73 +538,57 @@ msgid ""
 "window will be shown in the match email notifications."
 msgstr ""
 
-#: templates/public/legal/cookies.html:4 templates/public/legal/cookies.html:8
 msgid "Cookie Policy"
 msgstr ""
 
-#: templates/public/legal/cookies.html:9 templates/public/legal/privacy.html:9
-#: templates/public/legal/terms.html:9
 msgid "Last updated"
 msgstr ""
 
-#: templates/public/legal/cookies.html:11
 msgid "What we use"
 msgstr ""
 
-#: templates/public/legal/cookies.html:13
 msgid ""
 "We only use strictly-necessary cookies: a session cookie to keep you signed "
 "in, a security cookie to protect forms against cross-site request forgery, "
 "and a cookie that remembers your chosen language."
 msgstr ""
 
-#: templates/public/legal/cookies.html:19
 msgid "What we don't use"
 msgstr ""
 
-#: templates/public/legal/cookies.html:21
 msgid ""
 "We do not use analytics, advertising, or third-party tracking cookies, so "
 "there is no cookie consent banner to manage."
 msgstr ""
 
-#: templates/public/legal/cookies.html:27
 msgid "Managing cookies"
 msgstr ""
 
-#: templates/public/legal/cookies.html:29
 msgid ""
 "You can clear or block cookies in your browser settings, but the site will "
 "not work correctly without the strictly-necessary cookies above."
 msgstr ""
 
-#: templates/public/legal/cookies.html:36
-#: templates/public/legal/privacy.html:59
 msgid ""
 "This policy is a first-draft baseline and should be reviewed by a legal "
 "professional before the program launches."
 msgstr ""
 
-#: templates/public/legal/privacy.html:4 templates/public/legal/privacy.html:8
 msgid "Privacy Policy"
 msgstr ""
 
-#: templates/public/legal/privacy.html:11
 msgid "Who we are"
 msgstr ""
 
-#: templates/public/legal/privacy.html:13
 msgid ""
 "This service matches partners for the 4 Vallées Ambassadors Program. The "
 "data controller for the personal data processed here is Groupe Télé-Thyon "
 "SA. For privacy questions, contact caissier@tele-thyon.ch."
 msgstr ""
 
-#: templates/public/legal/privacy.html:20
 msgid "What we collect"
 msgstr ""
 
-#: templates/public/legal/privacy.html:22
 msgid ""
 "We deliberately collect only what matchmaking and contact require: your "
 "name, email address, phone number, your role (Ambassador or Referee), your "
@@ -771,11 +598,9 @@ msgid ""
 "when you apply in person."
 msgstr ""
 
-#: templates/public/legal/privacy.html:30
 msgid "Why we use it"
 msgstr ""
 
-#: templates/public/legal/privacy.html:32
 msgid ""
 "We use your data to place you in the matching queue, pair you with a "
 "partner, and let you contact each other once you have both accepted a match. "
@@ -783,22 +608,18 @@ msgid ""
 "both accepted."
 msgstr ""
 
-#: templates/public/legal/privacy.html:39
 msgid "How long we keep it"
 msgstr ""
 
-#: templates/public/legal/privacy.html:41
 msgid ""
 "We keep your data for the duration of the season you registered for and a "
 "short period afterwards, then delete it. You can delete your account at any "
 "time from your account page."
 msgstr ""
 
-#: templates/public/legal/privacy.html:48
 msgid "Your rights (GDPR / Swiss FADP)"
 msgstr ""
 
-#: templates/public/legal/privacy.html:51
 msgid ""
 "You have the right to access, correct, export, or delete your personal data, "
 "and to object to or restrict its processing. You can exercise most of these "
@@ -806,15 +627,12 @@ msgid ""
 "right to lodge a complaint with your data protection authority."
 msgstr ""
 
-#: templates/public/legal/terms.html:4 templates/public/legal/terms.html:8
 msgid "Terms of Use"
 msgstr ""
 
-#: templates/public/legal/terms.html:11
 msgid "What this service does"
 msgstr ""
 
-#: templates/public/legal/terms.html:13
 msgid ""
 "This service helps you find a partner for the 4 Vallées Ambassadors Program. "
 "It is matchmaking only: the actual discount application and the purchase at "
@@ -822,403 +640,314 @@ msgid ""
 "service."
 msgstr ""
 
-#: templates/public/legal/terms.html:20 templates/public/register_done.html:58
 msgid "Your responsibilities"
 msgstr ""
 
-#: templates/public/legal/terms.html:22
 msgid ""
 "Give accurate information, including your honest prior-season eligibility."
 msgstr ""
 
-#: templates/public/legal/terms.html:23
 msgid "Respond to a match within 72 hours — accept or decline."
 msgstr ""
 
-#: templates/public/legal/terms.html:25
 msgid ""
 "If you do not respond in time, your match is cancelled and you go to the "
 "back of the queue."
 msgstr ""
 
-#: templates/public/legal/terms.html:29
 msgid "Be respectful and prompt with the partner you are matched with."
 msgstr ""
 
-#: templates/public/legal/terms.html:32
 msgid "Eligibility"
 msgstr ""
 
-#: templates/public/legal/terms.html:34
 msgid ""
 "Eligibility is self-declared here and verified off-app when you apply "
 "together at the ticket office. Registering does not guarantee a match or "
 "entitle you to the discount; both depend on the off-app application."
 msgstr ""
 
-#: templates/public/legal/terms.html:41
 msgid "No guarantee"
 msgstr ""
 
-#: templates/public/legal/terms.html:43
 msgid ""
 "There are usually more referees than ambassadors, so we cannot guarantee "
 "that everyone will be matched."
 msgstr ""
 
-#: templates/public/legal/terms.html:49
 msgid ""
 "These terms are a first-draft baseline and should be reviewed by a legal "
 "professional before the program launches."
 msgstr ""
 
-#: templates/public/match.html:4 templates/public/match.html:9
 msgid "Your match"
 msgstr ""
 
-#: templates/public/match.html:8
 msgid "Match"
 msgstr ""
 
-#: templates/public/match.html:12
 msgid "Match status"
 msgstr ""
 
-#: templates/public/match.html:15
 #, python-format
 msgid "Contact window closes: %(deadline)s"
 msgstr ""
 
-#: templates/public/match.html:28
 msgid "Your partner's contact details"
 msgstr ""
 
-#: templates/public/match.html:52
 msgid ""
 "Please get in touch with your partner to arrange buying your passes together "
 "at the ticket office."
 msgstr ""
 
-#: templates/public/match.html:61
 msgid "Your response"
 msgstr ""
 
-#: templates/public/match.html:69 templates/public/register_closed.html:18
-#: templates/public/register_done.html:89
-#: templates/public/register_email_sent.html:74
 msgid "Back to home"
 msgstr ""
 
-#: templates/public/match_invalid.html:4
 msgid "Link invalid"
 msgstr ""
 
-#: templates/public/match_invalid.html:8
-#: templates/public/register_invalid.html:8
 msgid "This link is invalid or has expired"
 msgstr ""
 
-#: templates/public/match_invalid.html:10
 msgid ""
 "Match links expire when the contact window closes. If you received this link "
 "recently, please contact us for help."
 msgstr ""
 
-#: templates/public/match_invalid.html:17
 msgid "Go to the homepage"
 msgstr ""
 
-#: templates/public/partials/match_actions.html:24
 #, python-format
 msgid "You have until %(deadline)s to respond to this match."
 msgstr ""
 
-#: templates/public/partials/match_actions.html:38
 msgid "Accept"
 msgstr ""
 
-#: templates/public/partials/match_actions.html:50
 msgid "Decline"
 msgstr ""
 
-#: templates/public/partials/match_actions.html:57
 msgid "Waiting for your partner to respond"
 msgstr ""
 
-#: templates/public/partials/match_actions.html:60
 msgid ""
 "You have accepted this match. We are waiting for your partner to respond. "
 "You will be notified by email when they do."
 msgstr ""
 
-#: templates/public/partials/match_actions.html:69
 msgid "Match accepted"
 msgstr ""
 
-#: templates/public/partials/match_actions.html:71
 msgid "Both parties have accepted. Here are your partner's contact details."
 msgstr ""
 
-#: templates/public/partials/match_actions.html:102
 msgid ""
 "If your partner did not show up to complete the application, you can report "
 "a no-show. This will remove them from the pool and return you to the front "
 "of the queue."
 msgstr ""
 
-#: templates/public/partials/match_actions.html:113
 msgid "Are you sure you want to report a no-show? This cannot be undone."
 msgstr ""
 
-#: templates/public/partials/match_actions.html:118
 msgid "Report no-show"
 msgstr ""
 
-#: templates/public/partials/match_actions.html:124
 msgid "Match declined"
 msgstr ""
 
-#: templates/public/partials/match_actions.html:126
 msgid ""
 "This match was declined. You have been re-queued and will be matched again "
 "shortly."
 msgstr ""
 
-#: templates/public/partials/match_actions.html:131
 msgid "Match expired"
 msgstr ""
 
-#: templates/public/partials/match_actions.html:133
 msgid ""
 "The contact window for this match has closed without a mutual response. You "
 "have been re-queued."
 msgstr ""
 
-#: templates/public/partials/match_actions.html:138
 msgid "Match abandoned"
 msgstr ""
 
-#: templates/public/partials/match_actions.html:141
 msgid ""
 "You reported a no-show. You are back near the front of the queue and will be "
 "matched again shortly."
 msgstr ""
 
-#: templates/public/partials/match_actions.html:147
 msgid ""
 "This match was reported as a no-show after acceptance. Please contact "
 "support if you believe this is an error."
 msgstr ""
 
-#: templates/public/partials/match_actions.html:156
 msgid "Contact window closed"
 msgstr ""
 
-#: templates/public/partials/match_actions.html:158
 msgid "The contact window for this match has closed. You have been re-queued."
 msgstr ""
 
-#: templates/public/partials/register_eligibility.html:14
 msgid "Eligibility · Ambassador"
 msgstr ""
 
-#: templates/public/partials/register_eligibility.html:16
 msgid "Eligibility · Referee"
 msgstr ""
 
-#: templates/public/partials/register_eligibility.html:20
 msgid "What you'll need to qualify"
 msgstr ""
 
-#: templates/public/partials/register_eligibility.html:26
 msgid "You must purchase a 2026/2027 4 Vallées season or annual pass."
 msgstr ""
 
-#: templates/public/partials/register_eligibility.html:34
 msgid ""
 "You must have purchased a seasonal or annual pass from one of the 4 Vallées "
 "companies in 2024/2025 or 2025/2026."
 msgstr ""
 
-#: templates/public/partials/register_eligibility.html:42
 msgid ""
 "You must support a person in an equal or higher price category than your own "
 "(e.g. an adult can’t support a child, but the reverse is possible)."
 msgstr ""
 
-#: templates/public/partials/register_eligibility.html:51
 msgid "You must purchase a 2026/2027 4 Vallées annual pass."
 msgstr ""
 
-#: templates/public/partials/register_eligibility.html:59
 msgid ""
 "You must not have purchased a mid-season, seasonal or annual pass from any "
 "of the 4 Vallées companies in 2024/2025 nor 2025/2026."
 msgstr ""
 
-#: templates/public/partials/register_surface.html:37
 #, python-format
 msgid "You are already registered as %(role)s."
 msgstr ""
 
-#: templates/public/partials/register_surface.html:41
 msgid "View your registration"
 msgstr ""
 
-#: templates/public/partials/register_surface.html:45
 msgid "Registration"
 msgstr ""
 
-#: templates/public/partials/register_surface.html:49
 msgid ""
 "Tell us who you are and confirm you qualify. We'll email a link to verify "
 "your address — then we start finding your Referee."
 msgstr ""
 
-#: templates/public/partials/register_surface.html:54
 msgid ""
 "Tell us who you are and confirm you qualify. We'll email a link to verify "
 "your address — then we start finding your Ambassador."
 msgstr ""
 
-#: templates/public/partials/register_surface.html:169
 msgid "Returning holder referring a newcomer."
 msgstr ""
 
-#: templates/public/partials/register_surface.html:219
 msgid "New holder who needs an Ambassador."
 msgstr ""
 
-#: templates/public/partials/register_surface.html:244
 msgid "You held a 4 Vallées pass recently and are referring a newcomer."
 msgstr ""
 
-#: templates/public/partials/register_surface.html:246
 msgid "You're new to the 4 Vallées and need an Ambassador to refer you."
 msgstr ""
 
-#: templates/public/partials/register_surface.html:248
 msgid "Your role can't be changed once you've registered."
 msgstr ""
 
-#: templates/public/partials/register_surface.html:290
 msgid "Confirmations"
 msgstr ""
 
-#: templates/public/partials/register_surface.html:305
 #, python-format
 msgid ""
 "I have read and agree to the <a href=\"%(terms_url)s\" target=\"_blank\" "
 "rel=\"noopener\" class=\"text-accent underline\" >Terms of Use</a>."
 msgstr ""
 
-#: templates/public/partials/register_surface.html:329
 msgid "Register as Ambassador"
 msgstr ""
 
-#: templates/public/partials/register_surface.html:331
 msgid "Register as Referee"
 msgstr ""
 
-#: templates/public/register_closed.html:4
 msgid "Registration closed"
 msgstr ""
 
-#: templates/public/register_closed.html:9
 msgid "Registration isn't open yet"
 msgstr ""
 
-#: templates/public/register_closed.html:12
 msgid ""
 "There is no season open for registration right now. Please check back closer "
 "to the start of the season."
 msgstr ""
 
-#: templates/public/register_done.html:4 templates/public/register_done.html:33
 msgid "You're in the queue"
 msgstr ""
 
-#: templates/public/register_done.html:32
 msgid "Registration complete"
 msgstr ""
 
-#: templates/public/register_done.html:36
 msgid ""
 "Thanks for offering to refer a new holder. We've added you to the matching "
 "queue and will email you the moment we pair you with your Referee."
 msgstr ""
 
-#: templates/public/register_done.html:41
 msgid ""
 "Thanks for registering. We've added you to the matching queue and will email "
 "you the moment we pair you with your Ambassador."
 msgstr ""
 
-#: templates/public/register_done.html:51
 msgid "Looking for your Referee"
 msgstr ""
 
-#: templates/public/register_done.html:53
 msgid "Looking for your Ambassador"
 msgstr ""
 
-#: templates/public/register_done.html:60
 msgid "Watch your inbox — we contact you by email."
 msgstr ""
 
-#: templates/public/register_done.html:61
 msgid "When matched, accept (or decline) within 72 hours."
 msgstr ""
 
-#: templates/public/register_done.html:63
 msgid ""
 "If you don't respond in time, your match is cancelled and you go to the back "
 "of the queue."
 msgstr ""
 
-#: templates/public/register_done.html:67
 msgid "Be respectful and prompt with your matched partner."
 msgstr ""
 
-#: templates/public/register_done.html:72
 msgid "Go to my account"
 msgstr ""
 
-#: templates/public/register_email_sent.html:4
-#: templates/public/register_email_sent.html:30
 msgid "Confirm your email"
 msgstr ""
 
-#: templates/public/register_email_sent.html:29
 msgid "Almost there"
 msgstr ""
 
-#: templates/public/register_email_sent.html:32
 msgid ""
 "We've emailed you a confirmation link. Click it to confirm your address and "
 "join the matching queue — then we start finding your partner."
 msgstr ""
 
-#: templates/public/register_email_sent.html:54
 msgid ""
 "The link expires in 24 hours. If it doesn't arrive in a few minutes, check "
 "your spam folder."
 msgstr ""
 
-#: templates/public/register_email_sent.html:65
 msgid "Development shortcut"
 msgstr ""
 
-#: templates/public/register_invalid.html:4
 msgid "Link expired"
 msgstr ""
 
-#: templates/public/register_invalid.html:10
 msgid ""
 "Verification links are single-use and expire after 24 hours. Please start "
 "again to get a fresh link."
 msgstr ""
 
-#: templates/public/register_invalid.html:16
 msgid "Start again"
 msgstr ""

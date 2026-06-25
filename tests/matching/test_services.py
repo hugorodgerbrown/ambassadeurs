@@ -1561,12 +1561,16 @@ def test_report_no_show_accused_suspended() -> None:
 
 
 def test_report_no_show_writes_two_transition_log_rows() -> None:
-    """report_no_show writes exactly two StateTransitionLog rows.
+    """report_no_show writes exactly two StateTransitionLog rows for the objects.
 
     One for Match.status (ACCEPTED → ABANDONED) and one for the accused
     Registration.status (CONFIRMED → SUSPENDED). The reporter's CONFIRMED →
     WAITING transition is intentionally not logged (consistent with the
     decline path).
+
+    The count is scoped to the specific match and accused-registration PKs so
+    the assertion holds even when other rows exist in the table (e.g. from
+    earlier tests in the same session).
     """
     from django.contrib.contenttypes.models import ContentType
 
@@ -1584,15 +1588,21 @@ def test_report_no_show_writes_two_transition_log_rows() -> None:
 
     report_no_show(match, ambassador_reg)
 
-    logs = list(StateTransitionLog.objects.order_by("pk"))
-    assert len(logs) == 2
-
     match_ct = ContentType.objects.get_for_model(Match)
     reg_ct = ContentType.objects.get_for_model(Registration)
 
+    # Filter to only the rows for this match and the accused registration.
+    relevant_logs = list(
+        StateTransitionLog.objects.filter(
+            content_type_id__in=[match_ct.pk, reg_ct.pk],
+            object_id__in=[match.pk, referee_reg.pk],
+        ).order_by("pk")
+    )
+    assert len(relevant_logs) == 2
+
     # One log for Match.status.
     match_log = next(
-        (log for log in logs if log.content_type_id == match_ct.pk),
+        (log for log in relevant_logs if log.content_type_id == match_ct.pk),
         None,
     )
     assert match_log is not None
@@ -1602,7 +1612,7 @@ def test_report_no_show_writes_two_transition_log_rows() -> None:
 
     # One log for the accused (referee) Registration.status.
     reg_log = next(
-        (log for log in logs if log.content_type_id == reg_ct.pk),
+        (log for log in relevant_logs if log.content_type_id == reg_ct.pk),
         None,
     )
     assert reg_log is not None
@@ -1637,8 +1647,20 @@ def test_report_no_show_sends_one_email_to_accused() -> None:
 
 
 def test_report_no_show_email_contains_no_reporter_pii() -> None:
-    """The no-show email must not contain any reporter PII (Invariant 1)."""
+    """The no-show email must not contain any reporter PII (Invariant 1).
+
+    The reporter (ambassador) is built with known non-empty PII values so the
+    assertions are real checks rather than vacuously true for empty strings.
+    """
+    reporter_user = UserFactory.create(
+        first_name="Reporter",
+        last_name="Jones",
+        email="reporter.jones@example.com",
+    )
     ambassador_reg = RegistrationFactory.create(
+        user=reporter_user,
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
         status=Registration.Status.CONFIRMED,
         phone="+41790001111",
     )
@@ -1657,12 +1679,11 @@ def test_report_no_show_email_contains_no_reporter_pii() -> None:
         report_no_show(match, ambassador_reg)
 
     body = mail.outbox[0].body
-    # Reporter's PII must not appear.
+    # Each reporter PII value must be absent from the accused's email body.
     assert ambassador_reg.phone not in body
     assert ambassador_reg.user.email not in body
-    assert (
-        ambassador_reg.user.first_name not in body or not ambassador_reg.user.first_name
-    )
+    assert ambassador_reg.user.first_name not in body
+    assert ambassador_reg.user.last_name not in body
 
 
 def test_report_no_show_email_respects_accused_preferred_language() -> None:

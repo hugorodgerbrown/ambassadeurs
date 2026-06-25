@@ -1079,6 +1079,24 @@ def test_match_report_no_show_requires_htmx() -> None:
     assert match.status == Match.Status.ACCEPTED
 
 
+def test_match_report_no_show_htmx_get_does_not_report() -> None:
+    """An HTMX GET to match_report_no_show does not perform the report.
+
+    The action is irreversible (suspends the accused) so a GET, even with the
+    HX header, must be rejected — @require_POST returns 405 Method Not Allowed.
+    """
+    match, ambassador_reg, _ = _make_accepted_match()
+    token = make_match_access_token(match.pk, ambassador_reg.pk)
+    url = reverse("public:match_report_no_show", args=[token])
+
+    response = Client().get(url, headers={"hx-request": "true"})
+
+    assert response.status_code == 405
+    # Match must be unchanged.
+    match.refresh_from_db()
+    assert match.status == Match.Status.ACCEPTED
+
+
 def test_match_report_no_show_on_non_accepted_match_is_noop() -> None:
     """An HTMX POST on a PROPOSED match is a no-op (no state change)."""
     match = MatchFactory.create()  # PROPOSED

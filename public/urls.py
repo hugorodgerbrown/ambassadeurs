@@ -32,6 +32,11 @@ urlpatterns = [
     path("match/<str:token>/", views.match_detail, name="match"),
     path("match/<str:token>/accept/", views.match_accept, name="match_accept"),
     path("match/<str:token>/decline/", views.match_decline, name="match_decline"),
+    path(
+        "match/<str:token>/report-no-show/",
+        views.match_report_no_show,
+        name="match_report_no_show",
+    ),
     # Well-known root requests served to avoid excess 404s (VERB-7).
     path("sw.js", views.service_worker, name="service_worker"),
     path(

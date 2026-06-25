@@ -55,8 +55,10 @@ from matching.services import (
     confirm_registration,
     decline_match,
     is_registration_open,
+    queue_position,
     register_participant,
     report_no_show,
+    total_accepted_matches,
 )
 from public.models import FormDownload
 
@@ -331,14 +333,33 @@ def register_confirm(request: HttpRequest, token: str) -> HttpResponse:
 
 
 def register_done(request: HttpRequest, role: str) -> HttpResponse:
-    """Render the post-registration "what happens next" confirmation page."""
+    """Render the post-registration "what happens next" confirmation page.
+
+    Resolves the authenticated user's registration (if any) and, when the
+    registration is in WAITING status, adds ``queue_position`` and
+    ``total_accepted_matches`` to the context so the template can display the
+    participant's position in the pool.
+    """
     role_value = ROLE_BY_SLUG.get(role)
     if role_value is None:
         raise Http404("Unknown registration role.")
+
+    registration = _authenticated_registration(request)
+    position: int | None = None
+    accepted_count: int = 0
+    if registration is not None and registration.status == Registration.Status.WAITING:
+        position = queue_position(registration)
+        accepted_count = total_accepted_matches()
+
     return render(
         request,
         "public/register_done.html",
-        {"role": role, "role_value": role_value},
+        {
+            "role": role,
+            "role_value": role_value,
+            "queue_position": position,
+            "total_accepted_matches": accepted_count,
+        },
     )
 
 

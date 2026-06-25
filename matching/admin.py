@@ -19,10 +19,13 @@ class HasFlakesListFilter(admin.SimpleListFilter):
     def lookups(
         self, request: HttpRequest, model_admin: admin.ModelAdmin
     ) -> list[tuple[str, str]]:
-        """Return the Yes/No filter options."""
+        """Return the Yes/No filter options, reusing Django's built-in translations."""
+        # Reuse Django's own translated "Yes"/"No" (present in Django's locale
+        # files) so no new catalogue entries are needed in this project.
+        # _StrPromise is str-compatible at runtime; mypy treats them as distinct.
         return [
-            ("yes", str(_("Yes"))),
-            ("no", str(_("No"))),
+            ("yes", _("Yes")),  # type: ignore[list-item]
+            ("no", _("No")),  # type: ignore[list-item]
         ]
 
     def queryset(self, request: HttpRequest, queryset: Any) -> Any:

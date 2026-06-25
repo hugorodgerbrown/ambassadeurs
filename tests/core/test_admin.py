@@ -1,6 +1,7 @@
 # Tests for core admin classes.
 
 import pytest
+from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.test import Client
 from django.urls import reverse
@@ -18,7 +19,7 @@ pytestmark = pytest.mark.django_db
 # ---------------------------------------------------------------------------
 
 
-def make_staff_user():
+def make_staff_user() -> User:
     """Create and return a superuser for admin access in tests."""
     user = UserFactory.create(
         username="core_admin_staff",

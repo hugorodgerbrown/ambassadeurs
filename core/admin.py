@@ -6,6 +6,7 @@ from django.contrib import admin
 from django.http import HttpRequest
 from django.urls import NoReverseMatch, reverse
 from django.utils.html import format_html
+from django.utils.safestring import SafeString
 from django.utils.translation import gettext_lazy as _
 
 from .models import StateTransitionLog
@@ -51,7 +52,7 @@ class StateTransitionLogAdmin(admin.ModelAdmin):
         return False
 
     @admin.display(description=_("Target"))
-    def target_link(self, obj: StateTransitionLog) -> str:
+    def target_link(self, obj: StateTransitionLog) -> str | SafeString:
         """Return an anchor to the target instance's admin change page.
 
         Uses ``content_type`` and ``object_id`` to build the admin URL — both

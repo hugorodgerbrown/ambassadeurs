@@ -2,6 +2,7 @@
 
 import pytest
 from django.contrib.auth.models import User
+from django.http import HttpResponse
 from django.test import Client
 from django.urls import reverse
 
@@ -60,7 +61,7 @@ def test_match_changelist_returns_200(client: Client) -> None:
 
 def test_has_flakes_filter_yes_returns_only_flaked(client: Client) -> None:
     """?has_flakes=yes returns only registrations with flake_count > 0."""
-    RegistrationFactory.create(flake_count=0)
+    clean = RegistrationFactory.create(flake_count=0)
     flaked = RegistrationFactory.create(flake_count=1)
     staff = make_staff_user()
     client.force_login(staff)
@@ -70,12 +71,13 @@ def test_has_flakes_filter_yes_returns_only_flaked(client: Client) -> None:
     # The flaked registration must appear; the clean one must not.
     content = response.content.decode()
     assert str(flaked.user) in content
+    assert str(clean.user) not in content
 
 
 def test_has_flakes_filter_no_returns_only_clean(client: Client) -> None:
     """?has_flakes=no returns only registrations with flake_count == 0."""
     clean = RegistrationFactory.create(flake_count=0)
-    RegistrationFactory.create(flake_count=2)
+    flaked = RegistrationFactory.create(flake_count=2)
     staff = make_staff_user()
     client.force_login(staff)
     url = reverse("admin:matching_registration_changelist")
@@ -83,6 +85,7 @@ def test_has_flakes_filter_no_returns_only_clean(client: Client) -> None:
     assert response.status_code == 200
     content = response.content.decode()
     assert str(clean.user) in content
+    assert str(flaked.user) not in content
 
 
 # ---------------------------------------------------------------------------
@@ -90,7 +93,7 @@ def test_has_flakes_filter_no_returns_only_clean(client: Client) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _post_action(client: Client, pks: list[int]) -> Client:
+def _post_action(client: Client, pks: list[int]) -> HttpResponse:
     """POST the export_abandoned_as_csv action for the given Match PKs."""
     url = reverse("admin:matching_match_changelist")
     return client.post(

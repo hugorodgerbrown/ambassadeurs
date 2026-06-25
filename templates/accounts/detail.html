@@ -120,6 +120,17 @@
                         {% blocktranslate trimmed %}
                             You are in the queue. We'll email you when a match is found.
                         {% endblocktranslate %}
+                        {% if queue_position %}
+                            <br>
+                            {% blocktranslate trimmed with position=queue_position %}
+                                You are number {{ position }} in the queue.
+                            {% endblocktranslate %}
+                            {% blocktranslate trimmed count counter=total_accepted_matches %}
+                                {{ counter }} pair matched so far this season.
+                            {% plural %}
+                                {{ counter }} pairs matched so far this season.
+                            {% endblocktranslate %}
+                        {% endif %}
                     {% elif registration.status == 'MATCHED' %}
                         {% if i_have_accepted %}
                             {% blocktranslate trimmed %}

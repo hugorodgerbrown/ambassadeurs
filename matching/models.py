@@ -146,6 +146,14 @@ class Registration(BaseModel):
         default=0,
         help_text="Queue priority; higher is nearer the front. Adjusted by flaking.",
     )
+    prior_decline_count = models.PositiveIntegerField(
+        default=0,
+        help_text=(
+            "Number of prior DECLINED matches associated with this email address "
+            "before this registration was created. Computed at registration time "
+            "from Match.declined_by_email_hash."
+        ),
+    )
     flake_count = models.IntegerField(
         default=0,
         help_text=(
@@ -213,6 +221,18 @@ class MatchQuerySet(BaseQuerySet):
             ]
         )
 
+    def for_decline_hash(self, email_hash: str) -> MatchQuerySet:
+        """Return DECLINED matches whose decliner's email hash matches ``email_hash``.
+
+        Used at registration time to count prior declines by the same address.
+        The method name avoids a clash with the model field
+        ``declined_by_email_hash``.
+        """
+        return self.filter(
+            status=Match.Status.DECLINED,
+            declined_by_email_hash=email_hash,
+        )
+
 
 class Match(BaseModel):
     """A system-proposed pairing of one ambassador and one referee.
@@ -258,12 +278,14 @@ class Match(BaseModel):
 
     ambassador_registration = models.ForeignKey(
         Registration,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
         related_name="matches_as_ambassador",
     )
     referee_registration = models.ForeignKey(
         Registration,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
         related_name="matches_as_referee",
     )
     status = models.CharField(
@@ -301,6 +323,16 @@ class Match(BaseModel):
         blank=True,
         help_text="Tz-aware instant the decline was recorded; null until then.",
     )
+    declined_by_email_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "HMAC-SHA256 hex digest of the decliner's normalised email address, "
+            "set at decline time so that prior-decline history is preserved after "
+            "the decliner's User and Registration rows are deleted."
+        ),
+    )
     no_show_reported_by = models.CharField(
         max_length=16,
         choices=Side.choices,
@@ -321,11 +353,22 @@ class Match(BaseModel):
         ordering = ["-created_at"]
 
     def to_string(self) -> str:
-        """Return a human-readable label for the match."""
-        return (
-            f"Match {self.pk}: {self.ambassador_registration.user} ↔ "
-            f"{self.referee_registration.user} [{self.get_status_display()}]"
+        """Return a human-readable label for the match.
+
+        Registration FKs are nullable (SET_NULL on User delete) so either side
+        may be None on DECLINED matches where the decliner's row was removed.
+        """
+        amb = (
+            str(self.ambassador_registration.user)
+            if self.ambassador_registration_id is not None
+            else "(deleted)"
         )
+        ref = (
+            str(self.referee_registration.user)
+            if self.referee_registration_id is not None
+            else "(deleted)"
+        )
+        return f"Match {self.pk}: {amb} ↔ {ref} [{self.get_status_display()}]"
 
     def __str__(self) -> str:
         """Delegate to to_string."""

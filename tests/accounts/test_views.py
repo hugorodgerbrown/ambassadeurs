@@ -4,10 +4,11 @@ import pytest
 from allauth.account.models import EmailAddress
 from django.contrib.auth import SESSION_KEY
 from django.contrib.auth.models import User
-from django.test import Client, override_settings
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from matching.models import Match, Registration
+from matching.services import accept_match
 from tests.accounts.factories import UserFactory
 from tests.matching.factories import MatchFactory, RegistrationFactory
 
@@ -591,3 +592,133 @@ def test_detail_hides_view_match_link_for_non_match_statuses(status: str) -> Non
     response = client.get(reverse("accounts:detail"))
     assert response.status_code == 200
     assert reverse("accounts:match").encode() not in response.content
+
+
+# ---------------------------------------------------------------------------
+# account_match — action URLs minted per load (VERB-32 blocker fix)
+# ---------------------------------------------------------------------------
+
+
+def test_account_match_proposed_includes_accept_and_decline_urls() -> None:
+    """accounts:match for a MATCHED registration includes accept_url and decline_url."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    client = Client()
+    client.force_login(ambassador_reg.user)
+    response = client.get(reverse("accounts:match"))
+    assert response.status_code == 200
+    # Both action URLs must be present and non-empty in the context.
+    assert response.context["accept_url"]
+    assert response.context["decline_url"]
+
+
+def test_account_match_confirmed_includes_report_no_show_url() -> None:
+    """accounts:match for a CONFIRMED registration includes report_no_show_url."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.CONFIRMED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.CONFIRMED,
+    )
+    MatchFactory.create(
+        accepted=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    client = Client()
+    client.force_login(ambassador_reg.user)
+    response = client.get(reverse("accounts:match"))
+    assert response.status_code == 200
+    assert response.context["report_no_show_url"]
+
+
+def test_account_match_accept_via_minted_token_transitions_match() -> None:
+    """Posting to the accept_url from accounts:match context transitions the match.
+
+    Derives the accept URL from the context (as the on-page form would use it)
+    and POSTs via HTMX to confirm the token minted in account_match is valid
+    and the accept endpoint honours it.
+    """
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    client = Client()
+    client.force_login(ambassador_reg.user)
+
+    # Load accounts:match to retrieve the minted accept_url.
+    page_response = client.get(reverse("accounts:match"))
+    assert page_response.status_code == 200
+    accept_url = page_response.context["accept_url"]
+    assert accept_url  # non-empty
+
+    # POST to the accept URL with the HTMX header — should transition to waiting.
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        htmx_response = client.post(accept_url, headers={"hx-request": "true"})
+
+    assert htmx_response.status_code == 200
+    ambassador_reg.refresh_from_db()
+    match_row = ambassador_reg.matches_as_ambassador.first()
+    assert match_row is not None
+    assert match_row.ambassador_accepted_at is not None
+
+
+def test_account_match_second_accept_via_minted_token_confirms_match() -> None:
+    """Both sides accepting via minted tokens transitions the match to ACCEPTED."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    # Ambassador accepts first via the service directly (off-HTMX).
+    with TestCase.captureOnCommitCallbacks(execute=False):
+        accept_match(match, ambassador_reg)
+
+    match.refresh_from_db()
+    assert match.status == Match.Status.PROPOSED  # still proposed, one side accepted
+
+    # Referee accepts via the minted token from accounts:match.
+    ref_client = Client()
+    ref_client.force_login(referee_reg.user)
+    page_response = ref_client.get(reverse("accounts:match"))
+    assert page_response.status_code == 200
+    accept_url = page_response.context["accept_url"]
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        htmx_response = ref_client.post(accept_url, headers={"hx-request": "true"})
+
+    assert htmx_response.status_code == 200
+    match.refresh_from_db()
+    assert match.status == Match.Status.ACCEPTED

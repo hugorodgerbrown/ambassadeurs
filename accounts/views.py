@@ -26,6 +26,7 @@ from public.views import _render_match_page
 
 from .forms import AccountForm
 from .services import delete_account, send_confirmation_email, update_account
+from .tokens import make_match_access_token
 
 
 @login_required
@@ -149,6 +150,13 @@ def account_match(request: HttpRequest) -> HttpResponse:
     participants to reach their match page from the account page even after the
     emailed token link has expired (relevant for CONFIRMED/ACCEPTED matches).
 
+    A fresh single-purpose match-access token is minted on each load and passed
+    to ``_render_match_page`` so the on-page accept/decline/report-no-show forms
+    have valid action URLs. Page access itself is gated by ``@login_required``
+    (non-expiring), not the token; the token only powers the HTMX action URLs
+    and is scoped by ``_MATCH_SALT`` with the usual contact-window expiry
+    (Invariant 6).
+
     Redirects to ``accounts:detail`` if the user has no active match, so there
     is no error page for the "no match yet" case.
     """
@@ -174,5 +182,8 @@ def account_match(request: HttpRequest) -> HttpResponse:
         registration = match.referee_registration
 
     side = match.side_of(registration)
-    # No token: the tokenless route does not provide HTMX action URLs.
-    return _render_match_page(request, match, registration, side)
+    # Mint a fresh per-participant token so the action forms (accept/decline/
+    # report-no-show) have valid hx-post URLs. Token is single-purpose and
+    # in-window (valid for CONTACT_WINDOW_HOURS), satisfying Invariant 6.
+    token = make_match_access_token(match.pk, registration.pk)
+    return _render_match_page(request, match, registration, side, token=token)

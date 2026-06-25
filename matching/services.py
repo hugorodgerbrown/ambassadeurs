@@ -436,6 +436,13 @@ def decline_match(match: Match, registration: Registration) -> Match:
     can use the same email at any time and their ``prior_decline_count`` will
     reflect the history.
 
+    All three steps (record_decline, requeue_to_front, user.delete) run inside
+    a single outer ``transaction.atomic()`` block so that a crash between steps
+    cannot leave a partial state (e.g. match DECLINED but decliner still
+    present). The inner atomics in ``record_decline`` and ``requeue_to_front``
+    nest via savepoints — mirroring the pattern used in
+    ``expire_lapsed_matches``.
+
     Args:
         match: The match being declined.
         registration: The registration (ambassador or referee) declining.
@@ -449,23 +456,25 @@ def decline_match(match: Match, registration: Registration) -> Match:
     side = match.side_of(registration)
     # Capture the user reference before record_decline returns (we need it after).
     user = registration.user
-    match = record_decline(match, registration)
 
-    # Determine the other party from the match before deleting the decliner.
-    # Both FKs are non-null on PROPOSED matches; assertion satisfies mypy.
-    if side == Match.Side.AMBASSADOR:
-        other = match.referee_registration
-    else:
-        other = match.ambassador_registration
-    assert other is not None, (
-        f"Expected non-null other-party FK on PROPOSED match pk={match.pk}"
-    )
+    with transaction.atomic():
+        match = record_decline(match, registration)
 
-    requeue_to_front(other)
+        # Determine the other party from the match before deleting the decliner.
+        # Both FKs are non-null on PROPOSED matches; assertion satisfies mypy.
+        if side == Match.Side.AMBASSADOR:
+            other = match.referee_registration
+        else:
+            other = match.ambassador_registration
+        assert other is not None, (
+            f"Expected non-null other-party FK on PROPOSED match pk={match.pk}"
+        )
 
-    # Delete the decliner's User (cascades to Registration via OneToOneField).
-    # The Match row survives with the FK set to NULL (SET_NULL).
-    user.delete()
+        requeue_to_front(other)
+
+        # Delete the decliner's User (cascades to Registration via OneToOneField).
+        # The Match row survives with the FK set to NULL (SET_NULL).
+        user.delete()
 
     logger.info(
         "decline_match: match pk=%s DECLINED by registration pk=%s "
@@ -473,7 +482,7 @@ def decline_match(match: Match, registration: Registration) -> Match:
         match.pk,
         registration.pk,
         user.pk,
-        other.pk if other is not None else None,
+        other.pk,
     )
     return match
 

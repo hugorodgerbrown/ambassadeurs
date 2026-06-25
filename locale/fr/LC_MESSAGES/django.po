@@ -85,8 +85,6 @@ msgstr "Ambassadeur"
 msgid "Create counterpart"
 msgstr ""
 
-#, fuzzy
-#| msgid "Status"
 msgid "State"
 msgstr "Statut"
 
@@ -102,10 +100,8 @@ msgstr ""
 msgid "Accept as counterpart"
 msgstr ""
 
-#, fuzzy
-#| msgid "Delete account"
 msgid "Decline as counterpart"
-msgstr "Supprimer le compte"
+msgstr ""
 
 msgid "Log in as counterpart"
 msgstr ""

@@ -1,0 +1,171 @@
+# Tests for matching admin classes and actions.
+
+import pytest
+from django.contrib.auth.models import User
+from django.http import HttpResponse
+from django.test import Client
+from django.urls import reverse
+
+from tests.accounts.factories import UserFactory
+from tests.matching.factories import MatchFactory, RegistrationFactory
+
+pytestmark = pytest.mark.django_db
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def make_staff_user() -> User:
+    """Create and return a superuser for admin access in tests."""
+    user = UserFactory.create(
+        username="staff_admin",
+        is_staff=True,
+        is_superuser=True,
+    )
+    user.set_password("password")
+    user.save()
+    return user
+
+
+# ---------------------------------------------------------------------------
+# Changelist smoke tests
+# ---------------------------------------------------------------------------
+
+
+def test_registration_changelist_returns_200(client: Client) -> None:
+    """GET the Registration changelist as a staff user returns HTTP 200."""
+    RegistrationFactory.create()
+    staff = make_staff_user()
+    client.force_login(staff)
+    url = reverse("admin:matching_registration_changelist")
+    response = client.get(url)
+    assert response.status_code == 200
+
+
+def test_match_changelist_returns_200(client: Client) -> None:
+    """GET the Match changelist as a staff user returns HTTP 200."""
+    MatchFactory.create()
+    staff = make_staff_user()
+    client.force_login(staff)
+    url = reverse("admin:matching_match_changelist")
+    response = client.get(url)
+    assert response.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# HasFlakesListFilter
+# ---------------------------------------------------------------------------
+
+
+def test_has_flakes_filter_yes_returns_only_flaked(client: Client) -> None:
+    """?has_flakes=yes returns only registrations with flake_count > 0."""
+    clean = RegistrationFactory.create(flake_count=0)
+    flaked = RegistrationFactory.create(flake_count=1)
+    staff = make_staff_user()
+    client.force_login(staff)
+    url = reverse("admin:matching_registration_changelist")
+    response = client.get(url, {"has_flakes": "yes"})
+    assert response.status_code == 200
+    # The flaked registration must appear; the clean one must not.
+    content = response.content.decode()
+    assert str(flaked.user) in content
+    assert str(clean.user) not in content
+
+
+def test_has_flakes_filter_no_returns_only_clean(client: Client) -> None:
+    """?has_flakes=no returns only registrations with flake_count == 0."""
+    clean = RegistrationFactory.create(flake_count=0)
+    flaked = RegistrationFactory.create(flake_count=2)
+    staff = make_staff_user()
+    client.force_login(staff)
+    url = reverse("admin:matching_registration_changelist")
+    response = client.get(url, {"has_flakes": "no"})
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert str(clean.user) in content
+    assert str(flaked.user) not in content
+
+
+# ---------------------------------------------------------------------------
+# export_abandoned_as_csv action
+# ---------------------------------------------------------------------------
+
+
+def _post_action(client: Client, pks: list[int]) -> HttpResponse:
+    """POST the export_abandoned_as_csv action for the given Match PKs."""
+    url = reverse("admin:matching_match_changelist")
+    return client.post(
+        url,
+        {
+            "action": "export_abandoned_as_csv",
+            "_selected_action": [str(pk) for pk in pks],
+        },
+    )
+
+
+def test_csv_export_returns_200_and_correct_content_type(client: Client) -> None:
+    """The export action returns 200 with a text/csv content type."""
+    match = MatchFactory.create(abandoned=True)
+    staff = make_staff_user()
+    client.force_login(staff)
+    response = _post_action(client, [match.pk])
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/csv")
+
+
+def test_csv_export_header_row_present(client: Client) -> None:
+    """The CSV always contains the expected header row."""
+    match = MatchFactory.create(abandoned=True)
+    staff = make_staff_user()
+    client.force_login(staff)
+    response = _post_action(client, [match.pk])
+    content = response.content.decode()
+    assert "match_id" in content
+    assert "ambassador_email" in content
+    assert "referee_email" in content
+
+
+def test_csv_export_contains_abandoned_match(client: Client) -> None:
+    """The CSV body includes a row for each ABANDONED match selected."""
+    match = MatchFactory.create(abandoned=True)
+    staff = make_staff_user()
+    client.force_login(staff)
+    response = _post_action(client, [match.pk])
+    content = response.content.decode()
+    # Primary key and both emails must appear in the CSV body.
+    assert str(match.pk) in content
+    assert match.ambassador_registration.user.email in content
+    assert match.referee_registration.user.email in content
+
+
+def test_csv_export_excludes_non_abandoned_matches(client: Client) -> None:
+    """The CSV body must not include matches that are not ABANDONED."""
+    abandoned = MatchFactory.create(abandoned=True)
+    proposed = MatchFactory.create()
+    staff = make_staff_user()
+    client.force_login(staff)
+    response = _post_action(client, [abandoned.pk, proposed.pk])
+    content = response.content.decode()
+    # The proposed match's ambassador email must not appear.
+    proposed_email = proposed.ambassador_registration.user.email
+    abandoned_email = abandoned.ambassador_registration.user.email
+    assert abandoned_email in content
+    # Factories create distinct users, so these emails differ.
+    assert proposed_email != abandoned_email
+    assert proposed_email not in content
+
+
+def test_csv_export_empty_when_no_abandoned_selected(client: Client) -> None:
+    """Selecting only non-ABANDONED matches produces a header-only CSV."""
+    match = MatchFactory.create()  # PROPOSED by default
+    staff = make_staff_user()
+    client.force_login(staff)
+    response = _post_action(client, [match.pk])
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/csv")
+    lines = [line for line in response.content.decode().splitlines() if line.strip()]
+    # Only the header row; no data rows.
+    assert len(lines) == 1
+    assert "match_id" in lines[0]

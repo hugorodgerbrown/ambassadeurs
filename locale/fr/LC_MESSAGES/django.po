@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-25 11:34+0200\n"
+"POT-Creation-Date: 2026-06-25 12:44+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -36,6 +36,21 @@ msgstr "Vos informations ont été mises à jour."
 
 msgid "Your account has been deleted."
 msgstr "Votre compte a été supprimé."
+
+msgid "Target"
+msgstr "Cible"
+
+msgid "has flakes"
+msgstr "a des désistements"
+
+msgid "Yes"
+msgstr "Oui"
+
+msgid "No"
+msgstr "Non"
+
+msgid "Export selected abandoned matches as CSV"
+msgstr "Exporter les mises en relation abandonnées sélectionnées en CSV"
 
 msgid "Email"
 msgstr "E-mail"
@@ -930,11 +945,12 @@ msgid ""
 "of the queue."
 msgstr ""
 "Si votre partenaire ne s'est pas présenté(e) pour finaliser la demande, vous "
-"pouvez signaler une absence. Cela le retirera de la file et vous replacera en "
-"tête de file."
+"pouvez signaler une absence. Cela le retirera de la file et vous replacera "
+"en tête de file."
 
 msgid "Are you sure you want to report a no-show? This cannot be undone."
-msgstr "Voulez-vous vraiment signaler une absence ? Cette action est irréversible."
+msgstr ""
+"Voulez-vous vraiment signaler une absence ? Cette action est irréversible."
 
 msgid "Report no-show"
 msgstr "Signaler une absence"
@@ -1025,6 +1041,16 @@ msgid ""
 msgstr ""
 "Ne pas avoir détenu d'abonnement mi-saison, saisonnier ou annuel auprès de "
 "l'une des compagnies des 4 Vallées en 2024-25 ou 2025-26."
+
+#, fuzzy, python-format
+#| msgid "You are already registered for the current season."
+msgid "You are already registered as %(role)s."
+msgstr "Vous êtes déjà inscrit(e) pour la saison en cours."
+
+#, fuzzy
+#| msgid "Your registration"
+msgid "View your registration"
+msgstr "Votre inscription"
 
 msgid "Registration"
 msgstr "Inscription"

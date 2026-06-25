@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-24 23:49+0200\n"
+"POT-Creation-Date: 2026-06-25 12:44+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -35,6 +35,21 @@ msgid "Your details have been updated."
 msgstr ""
 
 msgid "Your account has been deleted."
+msgstr ""
+
+msgid "Target"
+msgstr ""
+
+msgid "has flakes"
+msgstr ""
+
+msgid "Yes"
+msgstr ""
+
+msgid "No"
+msgstr ""
+
+msgid "Export selected abandoned matches as CSV"
 msgstr ""
 
 msgid "Email"
@@ -164,6 +179,19 @@ msgid ""
 "office.\n"
 "\n"
 "Good luck!"
+msgstr ""
+
+msgid "Your match has been reported as a no-show"
+msgstr ""
+
+msgid ""
+"We have received a no-show report from your match partner for the 4 Vallées "
+"Ambassadors Program.\n"
+"\n"
+"Your registration has been removed from the pool. If you believe this report "
+"was made in error, please contact us for help.\n"
+"\n"
+"If you did not register for this programme, please ignore this email."
 msgstr ""
 
 msgid "Confirm your email to join the queue"
@@ -717,6 +745,18 @@ msgstr ""
 msgid "Both parties have accepted. Here are your partner's contact details."
 msgstr ""
 
+msgid ""
+"If your partner did not show up to complete the application, you can report "
+"a no-show. This will remove them from the pool and return you to the front "
+"of the queue."
+msgstr ""
+
+msgid "Are you sure you want to report a no-show? This cannot be undone."
+msgstr ""
+
+msgid "Report no-show"
+msgstr ""
+
 msgid "Match declined"
 msgstr ""
 
@@ -734,6 +774,11 @@ msgid ""
 msgstr ""
 
 msgid "Match abandoned"
+msgstr ""
+
+msgid ""
+"You reported a no-show. You are back near the front of the queue and will be "
+"matched again shortly."
 msgstr ""
 
 msgid ""
@@ -775,6 +820,13 @@ msgstr ""
 msgid ""
 "You must not have purchased a mid-season, seasonal or annual pass from any "
 "of the 4 Vallées companies in 2024/2025 nor 2025/2026."
+msgstr ""
+
+#, python-format
+msgid "You are already registered as %(role)s."
+msgstr ""
+
+msgid "View your registration"
 msgstr ""
 
 msgid "Registration"

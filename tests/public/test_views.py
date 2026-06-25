@@ -1037,13 +1037,16 @@ def test_match_detail_htmx_second_accept_shows_accepted_state_and_pii() -> None:
 
 
 def test_match_detail_htmx_decline_shows_declined_state() -> None:
-    """HTMX decline → DECLINED state; both parties re-queued."""
+    """HTMX decline → DECLINED state; decliner deleted, other party re-queued."""
+    from django.contrib.auth.models import User
+
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
         status=Registration.Status.MATCHED,
         priority=0,
     )
+    ambassador_user_pk = ambassador_reg.user.pk
     referee_reg = RegistrationFactory.create(
         referee=True,
         status=Registration.Status.MATCHED,
@@ -1061,11 +1064,9 @@ def test_match_detail_htmx_decline_shows_declined_state() -> None:
     match.refresh_from_db()
     assert match.status == Match.Status.DECLINED
 
-    # Re-queue side effects: decliner back, other front.
-    ambassador_reg.refresh_from_db()
+    # Decliner (ambassador) is deleted; other party (referee) is re-queued to front.
+    assert not User.objects.filter(pk=ambassador_user_pk).exists()
     referee_reg.refresh_from_db()
-    assert ambassador_reg.status == Registration.Status.WAITING
-    assert ambassador_reg.priority == -1
     assert referee_reg.status == Registration.Status.WAITING
     assert referee_reg.priority == 1
 

@@ -285,8 +285,12 @@ def test_counterpart_decline_transitions_match_to_declined() -> None:
 
 
 @override_settings(DEBUG=True)
-def test_counterpart_decline_requeues_registrations() -> None:
-    """counterpart_decline re-queues both registrations with asymmetric priority."""
+def test_counterpart_decline_deletes_counterpart_and_requeues_user() -> None:
+    """counterpart_decline deletes the counterpart's registration and re-queues the user.
+
+    The counterpart (decliner) has their User and Registration deleted; the
+    matched user (kept-faith party) is re-queued to the front of the pool.
+    """
     user = UserFactory.create()
     my_reg = RegistrationFactory.create(
         user=user,
@@ -299,6 +303,7 @@ def test_counterpart_decline_requeues_registrations() -> None:
         status=Registration.Status.MATCHED,
         priority=0,
     )
+    counterpart_user_pk = counterpart_reg.user.pk
     MatchFactory.create(
         ambassador_registration=my_reg,
         referee_registration=counterpart_reg,
@@ -308,11 +313,16 @@ def test_counterpart_decline_requeues_registrations() -> None:
     client = _authenticated_client(user)
     client.post(reverse("debug:counterpart_decline"))
 
-    my_reg.refresh_from_db()
-    counterpart_reg.refresh_from_db()
+    from django.contrib.auth.models import User as DjangoUser
 
-    # The counterpart (decliner) goes to the back; the user goes to the front.
-    assert counterpart_reg.priority < my_reg.priority
+    # The counterpart (decliner) is deleted.
+    assert not DjangoUser.objects.filter(pk=counterpart_user_pk).exists()
+    assert not Registration.objects.filter(pk=counterpart_reg.pk).exists()
+
+    # The kept-faith user is re-queued to the front (priority +1).
+    my_reg.refresh_from_db()
+    assert my_reg.status == Registration.Status.WAITING
+    assert my_reg.priority == 1
 
 
 # ---------------------------------------------------------------------------

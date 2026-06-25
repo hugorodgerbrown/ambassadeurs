@@ -1415,11 +1415,14 @@ def test_decline_match_transitions_to_declined() -> None:
     assert result.status == Match.Status.DECLINED
 
 
-def test_decline_match_requeues_decliner_to_back_and_other_to_front() -> None:
-    """decline_match sends decliner to back (priority -1) and other to front (+1)."""
+def test_decline_match_deletes_decliner_and_requeues_other_to_front() -> None:
+    """decline_match deletes the decliner's User+Registration and re-queues other."""
+    from django.contrib.auth.models import User
+
     ambassador_reg = RegistrationFactory.create(
         status=Registration.Status.MATCHED, priority=0
     )
+    ambassador_user_pk = ambassador_reg.user.pk
     referee_reg = RegistrationFactory.create(
         referee=True, status=Registration.Status.MATCHED, priority=0
     )
@@ -1430,24 +1433,32 @@ def test_decline_match_requeues_decliner_to_back_and_other_to_front() -> None:
 
     decline_match(match, ambassador_reg)
 
-    ambassador_reg.refresh_from_db()
+    # Decliner (ambassador) User and Registration are deleted.
+    assert not User.objects.filter(pk=ambassador_user_pk).exists()
+    assert not Registration.objects.filter(pk=ambassador_reg.pk).exists()
+
+    # Other party (referee) re-queued to front: status WAITING, priority incremented.
     referee_reg.refresh_from_db()
-    # Decliner (ambassador) goes to back: status WAITING, priority decremented.
-    assert ambassador_reg.status == Registration.Status.WAITING
-    assert ambassador_reg.priority == -1
-    # Other party (referee) goes to front: status WAITING, priority incremented.
     assert referee_reg.status == Registration.Status.WAITING
     assert referee_reg.priority == 1
 
+    # Match survives with the ambassador FK set to NULL.
+    match.refresh_from_db()
+    assert match.status == Match.Status.DECLINED
+    assert match.ambassador_registration_id is None
 
-def test_decline_match_by_referee_requeues_correctly() -> None:
-    """decline_match by the referee side re-queues symmetrically in reverse."""
+
+def test_decline_match_by_referee_deletes_referee_and_requeues_ambassador() -> None:
+    """decline_match by the referee side deletes referee and re-queues ambassador."""
+    from django.contrib.auth.models import User
+
     ambassador_reg = RegistrationFactory.create(
         status=Registration.Status.MATCHED, priority=5
     )
     referee_reg = RegistrationFactory.create(
         referee=True, status=Registration.Status.MATCHED, priority=5
     )
+    referee_user_pk = referee_reg.user.pk
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
@@ -1455,14 +1466,19 @@ def test_decline_match_by_referee_requeues_correctly() -> None:
 
     decline_match(match, referee_reg)
 
+    # Decliner (referee) User and Registration are deleted.
+    assert not User.objects.filter(pk=referee_user_pk).exists()
+    assert not Registration.objects.filter(pk=referee_reg.pk).exists()
+
+    # Ambassador (other side) re-queued to front: priority 5 → 6.
     ambassador_reg.refresh_from_db()
-    referee_reg.refresh_from_db()
-    # Ambassador (other side) goes to front: priority 5 → 6.
     assert ambassador_reg.status == Registration.Status.WAITING
     assert ambassador_reg.priority == 6
-    # Referee (decliner) goes to back: priority 5 → 4.
-    assert referee_reg.status == Registration.Status.WAITING
-    assert referee_reg.priority == 4
+
+    # Match survives with the referee FK set to NULL.
+    match.refresh_from_db()
+    assert match.status == Match.Status.DECLINED
+    assert match.referee_registration_id is None
 
 
 # ---------------------------------------------------------------------------

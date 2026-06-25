@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Confirm email address" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-md text-center">
+        <div class="medallion mx-auto mb-6">
+            <svg
+                width="30"
+                height="30"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            >
+                <rect x="2" y="4" width="20" height="16" rx="3" />
+                <path d="m3 7 9 6 9-6" />
+            </svg>
+        </div>
+        <p class="eyebrow mb-3">{% translate "Email confirmation" %}</p>
+        <h1 class="mb-4 text-ink">{% translate "Confirm email address" %}</h1>
+
+        {% if confirmation %}
+            {% if can_confirm %}
+                <p class="mx-auto max-w-sm text-lead text-body mb-8">
+                    {% blocktranslate trimmed with email=confirmation.email_address.email %}
+                        Please confirm that {{ email }} is your email address.
+                    {% endblocktranslate %}
+                </p>
+                <form
+                    method="post"
+                    action="{% url 'account_confirm_email' confirmation.key %}"
+                >
+                    {% csrf_token %}
+                    {{ redirect_field }}
+                    <button type="submit" class="btn btn--primary">
+                        {% translate "Confirm" %}
+                    </button>
+                </form>
+            {% else %}
+                <div class="card mt-6 text-left">
+                    <p class="text-body">
+                        {% blocktranslate trimmed with email=confirmation.email_address.email %}
+                            Unable to confirm {{ email }} because it is already confirmed by a different account.
+                        {% endblocktranslate %}
+                    </p>
+                </div>
+                <p class="mt-6">
+                    <a href="{% url 'account_login' %}" class="font-medium text-accent underline">
+                        {% translate "Back to sign in" %}
+                    </a>
+                </p>
+            {% endif %}
+        {% else %}
+            <div class="card mt-6 text-left">
+                <p class="text-body">
+                    {% translate "This email confirmation link has expired or is invalid." %}
+                </p>
+            </div>
+            <p class="mt-6">
+                <a href="{% url 'account_login' %}" class="font-medium text-accent underline">
+                    {% translate "Back to sign in" %}
+                </a>
+            </p>
+        {% endif %}
+    </section>
+{% endblock %}

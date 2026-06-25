@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Sign up" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-md">
+        <h1 class="mb-4 text-3xl font-bold text-ink">
+            {% translate "Sign up" %}
+        </h1>
+        <p class="mb-6 text-body">
+            {% blocktranslate trimmed with provider_name=account.get_provider.name site_name=site.name %}
+                You are about to use your {{ provider_name }} account to sign in to
+                {{ site_name }}. As a final step, please confirm your email address.
+            {% endblocktranslate %}
+        </p>
+
+        {% if form.non_field_errors %}
+            <div class="mb-4 rounded-control border border-danger bg-danger-tint p-3 text-sm text-danger-ink">
+                {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="card">
+            <form method="post" action="{% url 'socialaccount_signup' %}">
+                {% csrf_token %}
+                {{ redirect_field }}
+
+                <div class="field mb-5">
+                    <label class="field__label" for="{{ form.email.id_for_label }}">
+                        {{ form.email.label }}{% if form.email.field.required %}
+                            <span class="field__req">*</span>{% endif %}
+                    </label>
+                    <input
+                        class="input"
+                        type="email"
+                        name="{{ form.email.html_name }}"
+                        id="{{ form.email.id_for_label }}"
+                        value="{{ form.email.value|default:'' }}"
+                        {% if form.email.field.required %}
+                            required
+                        {% endif %}
+                        autocomplete="email"
+                        autofocus
+                    >
+                    {% if form.email.help_text %}
+                        <p class="field__hint">{{ form.email.help_text }}</p>
+                    {% endif %}
+                    {% for error in form.email.errors %}
+                        <p class="field__hint text-danger">{{ error }}</p>
+                    {% endfor %}
+                </div>
+
+                <button type="submit" class="btn btn--primary btn--block">
+                    {% translate "Sign up" %}
+                </button>
+            </form>
+        </div>
+    </section>
+{% endblock %}

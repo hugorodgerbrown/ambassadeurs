@@ -5,7 +5,7 @@
 # (DEBUG=False → 404 on every endpoint).
 
 import pytest
-from django.test import Client, TestCase, override_settings
+from django.test import Client, override_settings
 from django.urls import reverse
 
 from matching.models import Match, Registration
@@ -32,46 +32,48 @@ def _authenticated_client(user: object) -> Client:
 # ---------------------------------------------------------------------------
 
 
-class TestRequireDebugGuard(TestCase):
-    """Every debug endpoint returns 404 when settings.DEBUG is False."""
+@override_settings(DEBUG=False)
+@pytest.mark.django_db
+def test_create_counterpart_404_when_not_debug() -> None:
+    """POST to create_counterpart returns 404 in production."""
+    user = UserFactory.create()
+    RegistrationFactory.create(user=user)
+    client = _authenticated_client(user)
+    response = client.post(reverse("debug:create_counterpart"), {"state": "WAITING"})
+    assert response.status_code == 404
 
-    @override_settings(DEBUG=False)
-    def test_create_counterpart_404_when_not_debug(self) -> None:
-        """POST to create_counterpart returns 404 in production."""
-        user = UserFactory.create()
-        RegistrationFactory.create(user=user)
-        client = _authenticated_client(user)
-        response = client.post(
-            reverse("debug:create_counterpart"), {"state": "WAITING"}
-        )
-        assert response.status_code == 404
 
-    @override_settings(DEBUG=False)
-    def test_counterpart_accept_404_when_not_debug(self) -> None:
-        """POST to counterpart_accept returns 404 in production."""
-        user = UserFactory.create()
-        RegistrationFactory.create(user=user)
-        client = _authenticated_client(user)
-        response = client.post(reverse("debug:counterpart_accept"))
-        assert response.status_code == 404
+@override_settings(DEBUG=False)
+@pytest.mark.django_db
+def test_counterpart_accept_404_when_not_debug() -> None:
+    """POST to counterpart_accept returns 404 in production."""
+    user = UserFactory.create()
+    RegistrationFactory.create(user=user)
+    client = _authenticated_client(user)
+    response = client.post(reverse("debug:counterpart_accept"))
+    assert response.status_code == 404
 
-    @override_settings(DEBUG=False)
-    def test_counterpart_decline_404_when_not_debug(self) -> None:
-        """POST to counterpart_decline returns 404 in production."""
-        user = UserFactory.create()
-        RegistrationFactory.create(user=user)
-        client = _authenticated_client(user)
-        response = client.post(reverse("debug:counterpart_decline"))
-        assert response.status_code == 404
 
-    @override_settings(DEBUG=False)
-    def test_counterpart_login_404_when_not_debug(self) -> None:
-        """POST to counterpart_login returns 404 in production."""
-        user = UserFactory.create()
-        RegistrationFactory.create(user=user)
-        client = _authenticated_client(user)
-        response = client.post(reverse("debug:counterpart_login"))
-        assert response.status_code == 404
+@override_settings(DEBUG=False)
+@pytest.mark.django_db
+def test_counterpart_decline_404_when_not_debug() -> None:
+    """POST to counterpart_decline returns 404 in production."""
+    user = UserFactory.create()
+    RegistrationFactory.create(user=user)
+    client = _authenticated_client(user)
+    response = client.post(reverse("debug:counterpart_decline"))
+    assert response.status_code == 404
+
+
+@override_settings(DEBUG=False)
+@pytest.mark.django_db
+def test_counterpart_login_404_when_not_debug() -> None:
+    """POST to counterpart_login returns 404 in production."""
+    user = UserFactory.create()
+    RegistrationFactory.create(user=user)
+    client = _authenticated_client(user)
+    response = client.post(reverse("debug:counterpart_login"))
+    assert response.status_code == 404
 
 
 # ---------------------------------------------------------------------------

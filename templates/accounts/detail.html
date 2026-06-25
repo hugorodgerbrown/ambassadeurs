@@ -132,6 +132,27 @@
                         Your role is fixed. To register in the other role you must delete your account and start again.
                     {% endblocktranslate %}
                 </p>
+                {% comment %}
+                    Show a "View your match" prompt only for MATCHED and CONFIRMED
+                    registrations. MATCHED means the engine has paired the user but
+                    mutual accept has not yet happened; CONFIRMED means both have
+                    accepted and contact details are revealed. Both states have an
+                    active match reachable via accounts:match.
+                {% endcomment %}
+                {% if registration.status == 'MATCHED' or registration.status == 'CONFIRMED' %}
+                    <div class="mt-4 border-t border-line pt-4">
+                        <p class="mb-3 text-sm font-medium text-ink">
+                            {% if registration.status == 'MATCHED' %}
+                                {% translate "You've been matched!" %}
+                            {% else %}
+                                {% translate "Match confirmed." %}
+                            {% endif %}
+                        </p>
+                        <a href="{% url 'accounts:match' %}" class="btn btn--role">
+                            {% translate "View your match" %}
+                        </a>
+                    </div>
+                {% endif %}
             {% else %}
                 <p class="text-sm text-body">{% translate "You have no registration yet." %}</p>
                 <a href="{% url 'public:register' %}" class="btn btn--role mt-4">

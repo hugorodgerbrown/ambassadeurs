@@ -88,6 +88,34 @@ def _authenticated_registration(request: HttpRequest) -> Registration | None:
         return None
 
 
+def _already_registered_response(
+    request: HttpRequest,
+    registration: Registration,
+    role_slug: str,
+    role_value: str,
+) -> HttpResponse:
+    """Render the registration surface in its disabled "already registered" state.
+
+    Builds an unbound form with every field disabled and the ``already_registered``
+    context the template uses to show the banner. Shared by the GET branch and the
+    defensive authenticated POST guard so both present an identical surface for an
+    already-registered user.
+    """
+    form = RegistrationForm(role=role_value, user=registration.user)
+    for field in form.fields.values():
+        field.disabled = True
+    return render(
+        request,
+        "public/register_details.html",
+        {
+            "form": form,
+            "role": role_slug,
+            "role_value": role_value,
+            "already_registered": registration,
+        },
+    )
+
+
 def home(request: HttpRequest) -> HttpResponse:
     """Render the public landing page with the two role calls-to-action."""
     return render(
@@ -184,13 +212,16 @@ def register(request: HttpRequest) -> HttpResponse:
         # Derive the display slug from the validated role value so an unknown
         # ?role= param falls back gracefully to ambassador.
         role_slug = SLUG_BY_ROLE[role_value]
+        # An already-registered user gets the disabled "already registered"
+        # surface instead of an actionable form (VERB-26).
+        already_registered = _authenticated_registration(request)
+        if already_registered is not None:
+            return _already_registered_response(
+                request, already_registered, role_slug, role_value
+            )
         # After is_authenticated, Django stubs narrow request.user to User.
         anon_user: User | None = request.user if request.user.is_authenticated else None
         form = RegistrationForm(role=role_value, user=anon_user)
-        already_registered = _authenticated_registration(request)
-        if already_registered is not None:
-            for field in form.fields.values():
-                field.disabled = True
         return render(
             request,
             "public/register_details.html",
@@ -198,7 +229,7 @@ def register(request: HttpRequest) -> HttpResponse:
                 "form": form,
                 "role": role_slug,
                 "role_value": role_value,
-                "already_registered": already_registered,
+                "already_registered": None,
             },
         )
 
@@ -214,6 +245,15 @@ def register(request: HttpRequest) -> HttpResponse:
         # handled for completeness). Create a WAITING registration immediately.
         # Django stubs narrow request.user to User after is_authenticated.
         auth_user: User = request.user
+        # Guard against a second registration (VERB-28): Registration.user is a
+        # OneToOneField, so a direct POST by an already-registered user would
+        # otherwise raise an unhandled IntegrityError (500). Re-render the same
+        # disabled surface the GET path serves rather than writing to the database.
+        already_registered = _authenticated_registration(request)
+        if already_registered is not None:
+            return _already_registered_response(
+                request, already_registered, role_slug, role_value
+            )
         form = RegistrationForm(role=role_value, data=request.POST, user=auth_user)
         if form.is_valid():
             data = form.cleaned_data

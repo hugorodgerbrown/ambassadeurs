@@ -589,6 +589,51 @@ def test_register_get_already_registered_shows_banner_and_disabled_inputs() -> N
     assert re.search(r'<button[^>]*type="submit"[^>]*\bdisabled\b', content)
 
 
+def test_register_post_authenticated_already_registered_no_duplicate() -> None:
+    """An authenticated, already-registered user POSTing to /register/ gets the
+    disabled already-registered surface (200), not a 500, and no second
+    Registration row is created (VERB-28).
+    """
+    user = UserFactory.create()
+    RegistrationFactory.create(
+        user=user,
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.WAITING,
+    )
+    client = Client()
+    client.force_login(user)
+    response = client.post(reverse("public:register"), {"role": "ambassador"})
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    # The disabled already-registered surface is returned, not a 500.
+    assert "You are already registered as" in content
+    assert reverse("accounts:detail") in content
+    # The same disabled surface the GET path serves — inputs are disabled.
+    assert re.search(r"<input[^>]*\bdisabled\b", content)
+    # No second Registration row was created.
+    assert Registration.objects.filter(user=user).count() == 1
+
+
+def test_register_post_authenticated_without_registration_completes() -> None:
+    """The guard leaves the legitimate authenticated POST path unchanged: a
+    logged-in user with no Registration who POSTs a valid form is registered at
+    WAITING status and redirected to register_done (VERB-28 regression guard).
+    """
+    user = UserFactory.create()
+    client = Client()
+    client.force_login(user)
+    response = client.post(reverse("public:register"), _valid_ambassador_post())
+
+    assert response.status_code == 302
+    assert response.url == reverse(
+        "public:register_done", kwargs={"role": "ambassador"}
+    )
+    registration = Registration.objects.get(user=user)
+    assert registration.status == Registration.Status.WAITING
+
+
 def test_register_details_form_already_registered_shows_banner() -> None:
     """A logged-in user with a Registration sees the banner and disabled surface
     on the HTMX role-swap partial endpoint (register_details_form).

@@ -1952,6 +1952,21 @@ def test_queue_position_role_scoped_referee_ignores_ambassadors() -> None:
     assert queue_position(referee) == 1
 
 
+def test_queue_position_returns_none_for_ineligible_waiting_ambassador() -> None:
+    """queue_position returns None for a WAITING ambassador with an ineligible prior_pass.
+
+    An ambassador with prior_pass=NONE is not in the eligible pool even though
+    their status is WAITING (e.g. created via admin, bypassing the form
+    validation). The function must return None rather than a misleading ordinal.
+    """
+    reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.NONE,
+        status=Registration.Status.WAITING,
+    )
+    assert queue_position(reg) is None
+
+
 # ---------------------------------------------------------------------------
 # total_accepted_matches
 # ---------------------------------------------------------------------------
@@ -1963,10 +1978,16 @@ def test_total_accepted_matches_returns_zero_with_no_matches() -> None:
 
 
 def test_total_accepted_matches_counts_only_accepted() -> None:
-    """total_accepted_matches counts only ACCEPTED matches, not other statuses."""
+    """total_accepted_matches counts only ACCEPTED matches, not other statuses.
+
+    Includes an ABANDONED match (a no-show that was previously ACCEPTED) to
+    confirm it does not inflate the count — ABANDONED is a distinct terminal
+    status and must not be conflated with ACCEPTED.
+    """
     MatchFactory.create(accepted=True)
     MatchFactory.create(accepted=True)
     MatchFactory.create()  # PROPOSED
     MatchFactory.create(declined=True)
+    MatchFactory.create(abandoned=True)  # was ACCEPTED, then reported as no-show
 
     assert total_accepted_matches() == 2

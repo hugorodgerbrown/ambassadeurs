@@ -54,7 +54,7 @@
             {% endif %}
         </div>
 
-        {% if queue_position %}
+        {% if queue_position is not None %}
             <p class="mb-6 text-sm text-body">
                 {% blocktranslate trimmed with position=queue_position %}
                     You are number {{ position }} in the queue.

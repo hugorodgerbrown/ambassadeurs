@@ -120,7 +120,7 @@
                         {% blocktranslate trimmed %}
                             You are in the queue. We'll email you when a match is found.
                         {% endblocktranslate %}
-                        {% if queue_position %}
+                        {% if queue_position is not None %}
                             <br>
                             {% blocktranslate trimmed with position=queue_position %}
                                 You are number {{ position }} in the queue.

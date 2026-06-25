@@ -1,9 +1,11 @@
 {% load i18n %}
 {% comment %}
-DEBUG-only developer panel. Rendered in normal document flow beneath the footer
-(no fixed/z-50 positioning). Uses a native <details> element so it is collapsed
-by default with zero JavaScript. Guarded in base.html by {% if debug %} (the
-built-in django.template.context_processors.debug variable).
+DEBUG-only developer panel. Rendered beneath the footer and pinned to the
+bottom of the viewport with sticky positioning, so the (collapsed) toggle bar
+stays reachable while scrolling. Uses an opaque background so it stays legible
+where it overlaps page content. Uses a native <details> element so it is
+collapsed by default with zero JavaScript. Guarded in base.html by
+{% if debug %} (the built-in django.template.context_processors.debug variable).
 
 Context variables injected by debug.context_processors.debug_panel:
   debug_registration  — logged-in user's Registration, or None
@@ -11,12 +13,11 @@ Context variables injected by debug.context_processors.debug_panel:
   debug_counterpart   — the other Registration in the match, or None
   debug_verify_url    — stashed confirmation URL (from session), or None
 {% endcomment %}
-<details class="w-full border-t-2 border-warning bg-warning/10">
+<details class="sticky bottom-0 z-50 w-full border-t-2 border-warning bg-surface">
     <summary class="cursor-pointer px-4 py-2 text-xs font-semibold uppercase tracking-widest text-warning">
         {% translate "Development panel" %}
     </summary>
     <div class="space-y-4 px-4 py-3">
-
         {% if debug_verify_url %}
             <div>
                 <p class="text-xs font-semibold text-ink">{% translate "Development shortcut" %}</p>
@@ -93,6 +94,5 @@ Context variables injected by debug.context_processors.debug_panel:
                 </form>
             </div>
         {% endif %}
-
     </div>
 </details>

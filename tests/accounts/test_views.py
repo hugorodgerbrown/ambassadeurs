@@ -7,9 +7,9 @@ from django.contrib.auth.models import User
 from django.test import Client, override_settings
 from django.urls import reverse
 
-from matching.models import Registration
+from matching.models import Match, Registration
 from tests.accounts.factories import UserFactory
-from tests.matching.factories import RegistrationFactory
+from tests.matching.factories import MatchFactory, RegistrationFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -384,3 +384,210 @@ def test_debug_panel_shown_with_verify_url_shows_shortcut() -> None:
     response = client.get(reverse("accounts:detail"))
     assert b"Development panel" in response.content
     assert b"Development shortcut" in response.content
+
+
+# ---------------------------------------------------------------------------
+# account_match view (VERB-32)
+# ---------------------------------------------------------------------------
+
+
+def test_account_match_anonymous_redirects_to_login() -> None:
+    """An anonymous request to accounts:match is redirected to login."""
+    response = Client().get(reverse("accounts:match"))
+    assert response.status_code == 302
+    assert reverse("account_login") in response.url
+
+
+def test_account_match_no_active_match_redirects_to_detail() -> None:
+    """A logged-in user with no active match is redirected to accounts:detail."""
+    user = UserFactory.create()
+    RegistrationFactory.create(user=user, status=Registration.Status.WAITING)
+    client = Client()
+    client.force_login(user)
+    response = client.get(reverse("accounts:match"))
+    assert response.status_code == 302
+    assert response.url == reverse("accounts:detail")
+
+
+def test_account_match_no_registration_redirects_to_detail() -> None:
+    """A logged-in user with no registration at all is redirected to accounts:detail."""
+    user = UserFactory.create()
+    client = Client()
+    client.force_login(user)
+    response = client.get(reverse("accounts:match"))
+    assert response.status_code == 302
+    assert response.url == reverse("accounts:detail")
+
+
+def test_account_match_matched_registration_renders_match_page() -> None:
+    """A user with a PROPOSED active match sees the match page (200)."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    client = Client()
+    client.force_login(ambassador_reg.user)
+    response = client.get(reverse("accounts:match"))
+    assert response.status_code == 200
+    assert "public/match.html" in [t.name for t in response.templates]
+
+
+def test_account_match_renders_own_side_for_ambassador() -> None:
+    """The account match view renders from the ambassador's side."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    client = Client()
+    client.force_login(ambassador_reg.user)
+    response = client.get(reverse("accounts:match"))
+    assert response.status_code == 200
+    # The context side must be the ambassador's side.
+    assert response.context["side"] == Match.Side.AMBASSADOR
+
+
+def test_account_match_renders_own_side_for_referee() -> None:
+    """The account match view renders from the referee's side."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    client = Client()
+    client.force_login(referee_reg.user)
+    response = client.get(reverse("accounts:match"))
+    assert response.status_code == 200
+    assert response.context["side"] == Match.Side.REFEREE
+
+
+def test_account_match_confirmed_match_includes_counterpart_pii() -> None:
+    """An ACCEPTED match via accounts:match reveals counterpart contact details."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        phone="+41790009999",
+        status=Registration.Status.CONFIRMED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        phone="+41790008888",
+        status=Registration.Status.CONFIRMED,
+    )
+    MatchFactory.create(
+        accepted=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    # Log in as the ambassador; should see the referee's PII.
+    client = Client()
+    client.force_login(ambassador_reg.user)
+    response = client.get(reverse("accounts:match"))
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "+41790008888" in content
+    assert referee_reg.user.email in content
+
+
+def test_account_match_terminal_match_is_not_returned() -> None:
+    """A DECLINED (terminal) match is not surfaced on accounts:match."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.WAITING,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.WAITING,
+    )
+    MatchFactory.create(
+        declined=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    client = Client()
+    client.force_login(ambassador_reg.user)
+    response = client.get(reverse("accounts:match"))
+    # No active match; redirect to detail.
+    assert response.status_code == 302
+    assert response.url == reverse("accounts:detail")
+
+
+# ---------------------------------------------------------------------------
+# account detail template — "View your match" link (VERB-32)
+# ---------------------------------------------------------------------------
+
+
+def test_detail_shows_view_match_link_for_matched_registration() -> None:
+    """The account detail page shows the 'View your match' link for MATCHED status."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    MatchFactory.create(ambassador_registration=ambassador_reg)
+    client = Client()
+    client.force_login(ambassador_reg.user)
+    response = client.get(reverse("accounts:detail"))
+    assert response.status_code == 200
+    # Assert on the URL, not translated copy (test env has no compiled catalogues).
+    assert reverse("accounts:match").encode() in response.content
+
+
+def test_detail_shows_view_match_link_for_confirmed_registration() -> None:
+    """The account detail page shows the 'View your match' link for CONFIRMED status."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.CONFIRMED,
+    )
+    MatchFactory.create(accepted=True, ambassador_registration=ambassador_reg)
+    client = Client()
+    client.force_login(ambassador_reg.user)
+    response = client.get(reverse("accounts:detail"))
+    assert response.status_code == 200
+    assert reverse("accounts:match").encode() in response.content
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        Registration.Status.PENDING,
+        Registration.Status.WAITING,
+        Registration.Status.WITHDRAWN,
+        Registration.Status.SUSPENDED,
+    ],
+)
+def test_detail_hides_view_match_link_for_non_match_statuses(status: str) -> None:
+    """The 'View your match' link is absent for non-MATCHED/CONFIRMED statuses."""
+    registration = RegistrationFactory.create(status=status)
+    client = Client()
+    client.force_login(registration.user)
+    response = client.get(reverse("accounts:detail"))
+    assert response.status_code == 200
+    assert reverse("accounts:match").encode() not in response.content

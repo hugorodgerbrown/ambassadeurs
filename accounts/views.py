@@ -53,9 +53,7 @@ def account_detail(request: HttpRequest) -> HttpResponse:
     i_have_accepted = False
     if registration is not None and registration.status == Registration.Status.MATCHED:
         if registration.role == Registration.Role.AMBASSADOR:
-            match: Match | None = (
-                registration.matches_as_ambassador.proposed().first()
-            )
+            match: Match | None = registration.matches_as_ambassador.proposed().first()
             if match is not None:
                 i_have_accepted = match.ambassador_accepted_at is not None
         else:

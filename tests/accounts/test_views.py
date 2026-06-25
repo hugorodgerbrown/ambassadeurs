@@ -310,9 +310,7 @@ def test_detail_matched_referee_not_yet_accepted_shows_check_email() -> None:
         ref_reg.matches_as_referee.first().ambassador_registration.user.email
     )
     assert ambassador_email.encode() not in response.content
-    ambassador_phone = (
-        ref_reg.matches_as_referee.first().ambassador_registration.phone
-    )
+    ambassador_phone = ref_reg.matches_as_referee.first().ambassador_registration.phone
     assert ambassador_phone.encode() not in response.content
 
 

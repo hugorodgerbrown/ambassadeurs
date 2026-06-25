@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-25 16:26+0200\n"
+"POT-Creation-Date: 2026-06-25 18:41+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -70,6 +70,42 @@ msgstr "Votre compte a été supprimé."
 msgid "Target"
 msgstr "Cible"
 
+msgid "Development panel"
+msgstr "Panneau de développement"
+
+msgid "Development shortcut"
+msgstr "Raccourci de développement"
+
+msgid "Referee"
+msgstr "Filleul"
+
+msgid "Ambassador"
+msgstr "Ambassadeur"
+
+msgid "Create counterpart"
+msgstr ""
+
+msgid "State"
+msgstr "Statut"
+
+msgid "Waiting (match immediately)"
+msgstr ""
+
+msgid "Pending (email confirm required)"
+msgstr ""
+
+msgid "Create"
+msgstr ""
+
+msgid "Accept as counterpart"
+msgstr ""
+
+msgid "Decline as counterpart"
+msgstr ""
+
+msgid "Log in as counterpart"
+msgstr ""
+
 msgid "has flakes"
 msgstr "a des désistements"
 
@@ -128,12 +164,6 @@ msgstr "La Tzoumaz"
 
 msgid "Bruson"
 msgstr "Bruson"
-
-msgid "Ambassador"
-msgstr "Ambassadeur"
-
-msgid "Referee"
-msgstr "Filleul"
 
 msgid "Pending"
 msgstr "En attente de confirmation"
@@ -369,12 +399,6 @@ msgstr "Enregistrer les modifications"
 
 msgid "4 Vallées Ambassadors"
 msgstr "Ambassadeurs des 4 Vallées"
-
-msgid "Development panel"
-msgstr "Panneau de développement"
-
-msgid "Development shortcut"
-msgstr "Raccourci de développement"
 
 msgid "An independent way to find your season-pass partner for the 4 Vallées."
 msgstr ""
@@ -1286,9 +1310,6 @@ msgstr "Recommencer"
 
 #~ msgid "Match confirmed."
 #~ msgstr "Mise en relation confirmée."
-
-#~ msgid "Status"
-#~ msgstr "Statut"
 
 #~ msgid "Pending email verification"
 #~ msgstr "En attente de vérification de l'e-mail"

@@ -358,16 +358,10 @@ class Match(BaseModel):
         Registration FKs are nullable (SET_NULL on User delete) so either side
         may be None on DECLINED matches where the decliner's row was removed.
         """
-        amb = (
-            str(self.ambassador_registration.user)
-            if self.ambassador_registration_id is not None
-            else "(deleted)"
-        )
-        ref = (
-            str(self.referee_registration.user)
-            if self.referee_registration_id is not None
-            else "(deleted)"
-        )
+        amb_reg = self.ambassador_registration
+        amb = str(amb_reg.user) if amb_reg is not None else "(deleted)"
+        ref_reg = self.referee_registration
+        ref = str(ref_reg.user) if ref_reg is not None else "(deleted)"
         return f"Match {self.pk}: {amb} ↔ {ref} [{self.get_status_display()}]"
 
     def __str__(self) -> str:

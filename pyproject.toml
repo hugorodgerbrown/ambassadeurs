@@ -50,6 +50,12 @@ select = ["E", "F", "I", "UP", "B", "DJ", "C4", "S"]
 # Assertions and hard-coded test data are expected in the test suite.
 "tests/**" = ["S101", "S106"]
 "**/migrations/**" = ["E501"]
+# Service functions use assertions to enforce FK invariants (non-null on
+# PROPOSED/ACCEPTED matches) after the nullable-FK migration; these are
+# genuine runtime guards, not test-only checks.
+"matching/services.py" = ["S101"]
+# Debug helpers use assertions to enforce the same FK invariants.
+"debug/views.py" = ["S101"]
 
 [tool.mypy]
 python_version = "3.14"

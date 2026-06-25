@@ -23,7 +23,7 @@ from accounts.tokens import (
     make_registration_confirmation_token,
 )
 from matching.models import Match, Registration
-from matching.services import accept_match
+from matching.services import accept_match, register_participant
 from public.models import FormDownload
 from tests.accounts.factories import UserFactory
 from tests.matching.factories import MatchFactory, RegistrationFactory
@@ -1072,6 +1072,133 @@ def test_match_detail_htmx_decline_shows_declined_state() -> None:
 
     content = response.content.decode()
     assert "declined" in content.lower()
+
+
+def test_match_detail_htmx_decline_decliner_sees_removed_message() -> None:
+    """HTMX decline partial shows the 'registration removed' message to the decliner.
+
+    The partial's DECLINED branch splits on match.declined_by == side. The
+    decliner (ambassador here) should see the removed message and re-register link.
+    """
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    token = make_match_access_token(match.pk, ambassador_reg.pk)
+    url = reverse("public:match_decline", args=[token])
+    response = Client().post(url, headers={"hx-request": "true"})
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    # The decliner sees the removal message and re-register link.
+    assert "re-register" in content.lower()
+    # The "re-queued" branch must not appear for the decliner.
+    assert "re-queued" not in content.lower()
+
+
+def test_match_detail_htmx_decline_counterpart_sees_requeued_message() -> None:
+    """After a decline the non-declining party's HTMX view shows re-queued message.
+
+    The counterpart (referee here) follows their own token after the ambassador
+    declines. The DECLINED branch shows them the re-queued message (not the
+    removed message meant for the decliner).
+    """
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    # The ambassador declines via the service directly (to avoid going through HTMX).
+    from matching.services import decline_match as svc_decline_match
+
+    svc_decline_match(match, ambassador_reg)
+
+    # The referee now visits their own token.
+    match.refresh_from_db()
+    referee_token = make_match_access_token(match.pk, referee_reg.pk)
+    response = Client().get(
+        reverse("public:match", args=[referee_token]),
+    )
+    # GET on the full match page should still render the DECLINED state.
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "re-queued" in content.lower() or "matched again" in content.lower()
+
+
+def test_match_removed_page_has_register_link() -> None:
+    """match_removed.html renders a link to the registration page."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    token = make_match_access_token(match.pk, ambassador_reg.pk)
+    url = reverse("public:match", args=[token])
+    response = Client().post(url, {"action": "decline"})
+
+    assert response.status_code == 200
+    assert "public/match_removed.html" in [t.name for t in response.templates]
+    assert reverse("public:register").encode() in response.content
+
+
+def test_register_participant_prior_decline_count_set_on_reregistration() -> None:
+    """After declining (which deletes registration), re-registration carries count=1."""
+    from matching.services import decline_match as svc_decline_match
+
+    # Create a matched pair — the ambassador will decline.
+    referee_reg = RegistrationFactory.create(referee=True)
+    ambassador_reg = register_participant(
+        role=Registration.Role.AMBASSADOR,
+        first_name="Ada",
+        last_name="Lovelace",
+        email="ada_view_reregister@example.com",
+        prior_pass=Registration.PriorPass.SEASONAL,
+    )
+    ambassador_email = ambassador_reg.user.email
+
+    from matching.models import Match
+
+    match = Match.objects.get(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    svc_decline_match(match, ambassador_reg)
+
+    # Re-register with the same email.
+    new_reg = register_participant(
+        role=Registration.Role.AMBASSADOR,
+        first_name="Ada",
+        last_name="Lovelace",
+        email=ambassador_email,
+        prior_pass=Registration.PriorPass.SEASONAL,
+    )
+    assert new_reg.prior_decline_count == 1
 
 
 def test_match_accept_requires_htmx() -> None:

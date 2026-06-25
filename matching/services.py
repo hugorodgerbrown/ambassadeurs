@@ -298,6 +298,10 @@ def send_match_notification(match: Match) -> None:
     no contact PII (Invariant 1) — contact details are only revealed after
     mutual accept.
     """
+    # Both FKs are non-null on PROPOSED matches (the only state this is called
+    # from); assertions make the nullability explicit for the type checker.
+    assert match.ambassador_registration is not None
+    assert match.referee_registration is not None
     for registration in (
         match.ambassador_registration,
         match.referee_registration,
@@ -343,6 +347,11 @@ def send_match_confirmed_email(match: Match) -> None:
         "ambassador_registration__user",
         "referee_registration__user",
     ).get(pk=match.pk)
+
+    # Both FKs are non-null on ACCEPTED matches (the only state this is called
+    # from); assertions make the nullability explicit for the type checker.
+    assert match.ambassador_registration is not None
+    assert match.referee_registration is not None
 
     registrations = (
         match.ambassador_registration,
@@ -443,10 +452,14 @@ def decline_match(match: Match, registration: Registration) -> Match:
     match = record_decline(match, registration)
 
     # Determine the other party from the match before deleting the decliner.
+    # Both FKs are non-null on PROPOSED matches; assertion satisfies mypy.
     if side == Match.Side.AMBASSADOR:
         other = match.referee_registration
     else:
         other = match.ambassador_registration
+    assert other is not None, (
+        f"Expected non-null other-party FK on PROPOSED match pk={match.pk}"
+    )
 
     requeue_to_front(other)
 
@@ -455,8 +468,8 @@ def decline_match(match: Match, registration: Registration) -> Match:
     user.delete()
 
     logger.info(
-        "decline_match: match pk=%s DECLINED by registration pk=%s (user pk=%s deleted); "
-        "other party (pk=%s) queued to front.",
+        "decline_match: match pk=%s DECLINED by registration pk=%s "
+        "(user pk=%s deleted); other party (pk=%s) queued to front.",
         match.pk,
         registration.pk,
         user.pk,
@@ -632,6 +645,9 @@ def expire_lapsed_matches() -> int:
                 )
 
                 # Re-queue each side according to whether they had accepted.
+                # Both FKs are non-null on PROPOSED matches; assertions satisfy mypy.
+                assert match.ambassador_registration is not None
+                assert match.referee_registration is not None
                 ambassador_reg = match.ambassador_registration
                 referee_reg = match.referee_registration
 
@@ -734,6 +750,9 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
             )
 
             # Transition both registrations to CONFIRMED.
+            # Both FKs are non-null on PROPOSED matches; assertions satisfy mypy.
+            assert match.ambassador_registration is not None
+            assert match.referee_registration is not None
             ambassador_reg = match.ambassador_registration
             referee_reg = match.referee_registration
 
@@ -823,6 +842,9 @@ def report_no_show(match: Match, registration: Registration) -> Match:
             )
 
         side = match.side_of(registration)
+        # Both FKs are non-null on ACCEPTED matches; assertions satisfy mypy.
+        assert match.ambassador_registration is not None
+        assert match.referee_registration is not None
         # The accused is the other party.
         if side == Match.Side.AMBASSADOR:
             accused = match.referee_registration

@@ -286,7 +286,7 @@ def test_counterpart_decline_transitions_match_to_declined() -> None:
 
 @override_settings(DEBUG=True)
 def test_counterpart_decline_deletes_counterpart_and_requeues_user() -> None:
-    """counterpart_decline deletes the counterpart's registration and re-queues the user.
+    """counterpart_decline deletes the counterpart and re-queues the user.
 
     The counterpart (decliner) has their User and Registration deleted; the
     matched user (kept-faith party) is re-queued to the front of the pool.

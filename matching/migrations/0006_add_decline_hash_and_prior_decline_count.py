@@ -5,30 +5,47 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('matching', '0005_add_pending_status_to_registration'),
+        ("matching", "0005_add_pending_status_to_registration"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='match',
-            name='declined_by_email_hash',
-            field=models.CharField(blank=True, db_index=True, help_text="HMAC-SHA256 hex digest of the decliner's normalised email address, set at decline time so that prior-decline history is preserved after the decliner's User and Registration rows are deleted.", max_length=64),
+            model_name="match",
+            name="declined_by_email_hash",
+            field=models.CharField(
+                blank=True,
+                db_index=True,
+                help_text="HMAC-SHA256 hex digest of the decliner's normalised email address, set at decline time so that prior-decline history is preserved after the decliner's User and Registration rows are deleted.",
+                max_length=64,
+            ),
         ),
         migrations.AddField(
-            model_name='registration',
-            name='prior_decline_count',
-            field=models.PositiveIntegerField(default=0, help_text='Number of prior DECLINED matches associated with this email address before this registration was created. Computed at registration time from Match.declined_by_email_hash.'),
+            model_name="registration",
+            name="prior_decline_count",
+            field=models.PositiveIntegerField(
+                default=0,
+                help_text="Number of prior DECLINED matches associated with this email address before this registration was created. Computed at registration time from Match.declined_by_email_hash.",
+            ),
         ),
         migrations.AlterField(
-            model_name='match',
-            name='ambassador_registration',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='matches_as_ambassador', to='matching.registration'),
+            model_name="match",
+            name="ambassador_registration",
+            field=models.ForeignKey(
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="matches_as_ambassador",
+                to="matching.registration",
+            ),
         ),
         migrations.AlterField(
-            model_name='match',
-            name='referee_registration',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='matches_as_referee', to='matching.registration'),
+            model_name="match",
+            name="referee_registration",
+            field=models.ForeignKey(
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="matches_as_referee",
+                to="matching.registration",
+            ),
         ),
     ]

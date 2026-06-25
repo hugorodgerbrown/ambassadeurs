@@ -192,3 +192,61 @@ def test_match_side_of_raises_for_unrelated_registration() -> None:
     unrelated = RegistrationFactory.create(referee=True)
     with pytest.raises(ValueError, match=r"not a party on Match"):
         match.side_of(unrelated)
+
+
+# ---------------------------------------------------------------------------
+# MatchQuerySet.for_decline_hash (VERB-41)
+# ---------------------------------------------------------------------------
+
+
+def test_for_decline_hash_returns_matching_declined_matches() -> None:
+    """for_decline_hash returns DECLINED matches with the given hash."""
+    hash_val = "a" * 64  # 64-char placeholder hash
+    match = MatchFactory.create(
+        declined=True,
+        declined_by_email_hash=hash_val,
+    )
+    assert list(Match.objects.for_decline_hash(hash_val)) == [match]
+
+
+def test_for_decline_hash_excludes_other_hashes() -> None:
+    """for_decline_hash excludes DECLINED matches with a different hash."""
+    MatchFactory.create(
+        declined=True,
+        declined_by_email_hash="a" * 64,
+    )
+    assert not Match.objects.for_decline_hash("b" * 64).exists()
+
+
+def test_for_decline_hash_excludes_non_declined_matches() -> None:
+    """for_decline_hash only returns DECLINED matches, not PROPOSED or ACCEPTED."""
+    hash_val = "c" * 64
+    MatchFactory.create(
+        status=Match.Status.PROPOSED,
+        declined_by_email_hash=hash_val,
+    )
+    MatchFactory.create(
+        accepted=True,
+        declined_by_email_hash=hash_val,
+    )
+    assert not Match.objects.for_decline_hash(hash_val).exists()
+
+
+def test_match_to_string_with_null_ambassador_registration() -> None:
+    """Match.to_string handles a null ambassador_registration FK gracefully."""
+    match = MatchFactory.create(declined=True)
+    # Null out the ambassador FK directly (simulates post-deletion SET_NULL).
+    Match.objects.filter(pk=match.pk).update(ambassador_registration=None)
+    match.refresh_from_db()
+    s = str(match)
+    assert "(deleted)" in s
+    assert "Declined" in s
+
+
+def test_match_to_string_with_null_referee_registration() -> None:
+    """Match.to_string handles a null referee_registration FK gracefully."""
+    match = MatchFactory.create(declined=True)
+    Match.objects.filter(pk=match.pk).update(referee_registration=None)
+    match.refresh_from_db()
+    s = str(match)
+    assert "(deleted)" in s

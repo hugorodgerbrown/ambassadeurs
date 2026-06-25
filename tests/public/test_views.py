@@ -82,7 +82,9 @@ def test_register_get_with_ambassador_role_hint() -> None:
     """GET /register/?role=ambassador themes the form for the ambassador."""
     response = Client().get(reverse("public:register") + "?role=ambassador")
     assert response.status_code == 200
-    assert b"Ambassador details" in response.content
+    # The form heading is the generic "Your details"; the role is conveyed by
+    # the eligibility eyebrow and the (absent) referee theme class.
+    assert b"Eligibility \xc2\xb7 Ambassador" in response.content
     assert b"role-theme--referee" not in response.content
 
 
@@ -90,7 +92,7 @@ def test_register_get_with_referee_role_hint() -> None:
     """GET /register/?role=referee themes the form for the referee."""
     response = Client().get(reverse("public:register") + "?role=referee")
     assert response.status_code == 200
-    assert b"Referee details" in response.content
+    assert b"Eligibility \xc2\xb7 Referee" in response.content
     assert b"role-theme--referee" in response.content
 
 
@@ -98,7 +100,8 @@ def test_register_get_defaults_to_ambassador_on_unknown_role() -> None:
     """GET /register/?role=banana silently falls back to the ambassador form."""
     response = Client().get(reverse("public:register") + "?role=banana")
     assert response.status_code == 200
-    assert b"Ambassador details" in response.content
+    assert b"Eligibility \xc2\xb7 Ambassador" in response.content
+    assert b"role-theme--referee" not in response.content
 
 
 @override_settings(
@@ -498,7 +501,8 @@ def test_details_form_fragment_referee_contains_qualifying_criteria() -> None:
     assert response.status_code == 200
     assert b"What you'll need to qualify" in response.content
     assert b"Eligibility \xc2\xb7 Referee" in response.content
-    assert b"cannot be bought online" in response.content
+    # Referee-specific criterion: the no-prior-pass (mid-season) exclusion.
+    assert b"mid-season" in response.content
 
 
 def test_details_form_fragment_returns_role_form() -> None:
@@ -508,7 +512,7 @@ def test_details_form_fragment_returns_role_form() -> None:
         headers={"hx-request": "true"},
     )
     assert response.status_code == 200
-    assert b"Referee details" in response.content
+    assert b"Eligibility \xc2\xb7 Referee" in response.content
 
 
 def test_details_form_fragment_pushes_canonical_role_url() -> None:

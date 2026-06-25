@@ -35,6 +35,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
+from django.views.decorators.http import require_POST
 
 from accounts.services import mark_email_verified
 from accounts.tokens import (
@@ -602,13 +603,18 @@ def match_decline(request: HttpRequest, token: str) -> HttpResponse:
 
 
 @require_htmx
+@require_POST
 def match_report_no_show(request: HttpRequest, token: str) -> HttpResponse:
     """HTMX POST: report a post-accept no-show and return the updated actions partial.
 
-    Guarded by ``@require_htmx`` (Invariant 7). Re-validates the token,
-    confirms the match is still ACCEPTED with no existing report, then calls
-    ``report_no_show``. Renders ``public/partials/match_actions.html``
-    reflecting the resulting ABANDONED state.
+    Guarded by ``@require_htmx`` (Invariant 7) and ``@require_POST`` — the
+    action is irreversible (suspends the accused's registration) so a GET, even
+    with the HX header, must not trigger it.
+
+    Re-validates the token, confirms the match is still ACCEPTED with no
+    existing report, then calls ``report_no_show``. Renders
+    ``public/partials/match_actions.html`` reflecting the resulting ABANDONED
+    state.
 
     A second POST on a match that is already ABANDONED (or otherwise
     non-ACCEPTED) is a safe no-op: the service raises ``ValueError``, which is

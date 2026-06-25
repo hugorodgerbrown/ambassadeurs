@@ -1953,7 +1953,7 @@ def test_queue_position_role_scoped_referee_ignores_ambassadors() -> None:
 
 
 def test_queue_position_returns_none_for_ineligible_waiting_ambassador() -> None:
-    """queue_position returns None for a WAITING ambassador with an ineligible prior_pass.
+    """queue_position returns None for a WAITING ambassador with no prior pass.
 
     An ambassador with prior_pass=NONE is not in the eligible pool even though
     their status is WAITING (e.g. created via admin, bypassing the form

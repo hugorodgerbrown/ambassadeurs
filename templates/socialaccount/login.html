@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+    {% if process == "connect" %}
+        {% blocktranslate with name=provider.name %}Connect {{ name }}{% endblocktranslate %}
+    {% else %}
+        {% blocktranslate with name=provider.name %}Sign in via {{ name }}{% endblocktranslate %}
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-md text-center">
+        <h1 class="mb-4 text-3xl font-bold text-ink">
+            {% if process == "connect" %}
+                {% blocktranslate with name=provider.name %}Connect {{ name }}{% endblocktranslate %}
+            {% else %}
+                {% blocktranslate with name=provider.name %}Sign in via {{ name }}{% endblocktranslate %}
+            {% endif %}
+        </h1>
+        <p class="mb-8 text-body">
+            {% if process == "connect" %}
+                {% blocktranslate trimmed with name=provider.name %}
+                    You are about to connect a new third-party account from {{ name }}.
+                {% endblocktranslate %}
+            {% else %}
+                {% blocktranslate trimmed with name=provider.name %}
+                    You are about to sign in using a third-party account from {{ name }}.
+                {% endblocktranslate %}
+            {% endif %}
+        </p>
+
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn--primary">
+                {% translate "Continue" %}
+            </button>
+        </form>
+    </section>
+{% endblock %}

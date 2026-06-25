@@ -7,9 +7,9 @@ from django.contrib.auth.models import User
 from django.test import Client, override_settings
 from django.urls import reverse
 
-from matching.models import Registration
+from matching.models import Match, Registration
 from tests.accounts.factories import UserFactory
-from tests.matching.factories import RegistrationFactory
+from tests.matching.factories import MatchFactory, RegistrationFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -222,22 +222,70 @@ def test_detail_hides_resend_button_when_email_verified() -> None:
 @pytest.mark.parametrize(
     ("status", "expected_label"),
     [
-        (Registration.Status.PENDING, b"Pending email verification"),
-        (Registration.Status.WAITING, b"Available for match"),
-        (Registration.Status.MATCHED, b"Matched"),
-        (Registration.Status.CONFIRMED, b"Confirmed"),
-        (Registration.Status.WITHDRAWN, b"Withdrawn"),
-        (Registration.Status.SUSPENDED, b"Suspended"),
+        (Registration.Status.PENDING, b"Please confirm your email address to enter the pool"),
+        (Registration.Status.WAITING, b"You are in the queue"),
+        # MATCHED with no proposed match: i_have_accepted defaults to False.
+        (Registration.Status.MATCHED, b"Check your email to accept or decline"),
+        (Registration.Status.CONFIRMED, b"Your match is confirmed"),
+        (Registration.Status.WITHDRAWN, b"Your registration has been withdrawn"),
+        (Registration.Status.SUSPENDED, b"Your registration has been suspended"),
     ],
 )
-def test_detail_status_pill_label(status: str, expected_label: bytes) -> None:
-    """Each Registration.Status value renders with the correct richer label."""
+def test_detail_status_sentence(status: str, expected_label: bytes) -> None:
+    """Each Registration.Status value renders with the correct explanatory sentence."""
     registration = RegistrationFactory.create(status=status)
     client = Client()
     client.force_login(registration.user)
     response = client.get(reverse("accounts:detail"))
     assert response.status_code == 200
     assert expected_label in response.content
+
+
+# ---------------------------------------------------------------------------
+# MATCHED sub-states: i_have_accepted (VERB-37)
+# ---------------------------------------------------------------------------
+
+
+def test_detail_matched_not_yet_accepted_shows_check_email() -> None:
+    """A MATCHED ambassador who has not yet accepted sees the 'check email' sentence."""
+    from datetime import UTC, datetime
+
+    reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
+    # Create a PROPOSED match with ambassador_accepted_at=None (not yet accepted).
+    MatchFactory.create(
+        ambassador_registration=reg,
+        status=Match.Status.PROPOSED,
+        expires_at=datetime(2099, 12, 31, 23, 59, 59, tzinfo=UTC),
+    )
+    client = Client()
+    client.force_login(reg.user)
+    response = client.get(reverse("accounts:detail"))
+    assert response.status_code == 200
+    assert b"Check your email to accept or decline" in response.content
+    # PII invariant: the counterpart's contact details must not appear.
+    referee_email = reg.matches_as_ambassador.first().referee_registration.user.email
+    assert referee_email.encode() not in response.content
+    referee_phone = reg.matches_as_ambassador.first().referee_registration.phone
+    assert referee_phone.encode() not in response.content
+
+
+def test_detail_matched_accepted_shows_waiting_for_partner() -> None:
+    """A MATCHED ambassador who has accepted sees the 'waiting for partner' sentence."""
+    from datetime import UTC, datetime
+
+    accepted_at = datetime(2026, 9, 2, 10, 0, 0, tzinfo=UTC)
+    reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
+    MatchFactory.create(
+        ambassador_registration=reg,
+        status=Match.Status.PROPOSED,
+        expires_at=datetime(2099, 12, 31, 23, 59, 59, tzinfo=UTC),
+        ambassador_accepted_at=accepted_at,
+    )
+    client = Client()
+    client.force_login(reg.user)
+    response = client.get(reverse("accounts:detail"))
+    assert response.status_code == 200
+    assert b"Waiting for your partner" in response.content
 
 
 # ---------------------------------------------------------------------------

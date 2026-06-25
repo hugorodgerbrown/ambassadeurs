@@ -13,6 +13,10 @@
 #
 # expire_lapsed_matches is the periodic sweep entry point: it transitions all
 # PROPOSED matches past their contact window to EXPIRED and re-queues each side.
+#
+# report_no_show (VERB-21) implements the post-accept no-show path (ADR 0007):
+# the reporter's registration is re-queued to the front; the accused is
+# suspended and emailed (no reporter PII in the email — Invariant 1).
 
 from __future__ import annotations
 
@@ -740,6 +744,145 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
             )
 
     return match
+
+
+def report_no_show(match: Match, registration: Registration) -> Match:
+    """Record a post-accept no-show report and apply the asymmetric re-queue.
+
+    ``registration`` is the **reporter** (the party who showed up). The
+    accused is the other party on the match.
+
+    Atomically:
+    1. Transitions ``match.status`` ACCEPTED → ABANDONED and sets
+       ``no_show_reported_by`` / ``no_show_reported_at``.
+    2. Writes one ``StateTransitionLog`` row for ``Match.status``.
+    3. Suspends the accused (``SUSPENDED``, ``flake_count += 1``) and logs
+       the accused's ``Registration.status`` transition.
+    4. Re-queues the reporter to the front of the pool (``WAITING``,
+       ``priority += 1``). The reporter's status transition is **not** logged,
+       consistent with the decline path.
+    5. Queues ``send_no_show_notification`` to fire after the transaction
+       commits.
+
+    Args:
+        match: The match being reported. Must be in ``ACCEPTED`` status with
+            no existing ``no_show_reported_by``.
+        registration: The reporter's registration (the party who was let down).
+
+    Returns:
+        The updated ``Match`` instance.
+
+    Raises:
+        ValueError: if ``match.status != ACCEPTED`` or if
+            ``no_show_reported_by`` is already set (first-report-wins).
+    """
+    with transaction.atomic():
+        match = (
+            Match.objects.select_for_update()
+            .select_related("ambassador_registration", "referee_registration")
+            .get(pk=match.pk)
+        )
+
+        if match.status != Match.Status.ACCEPTED:
+            raise ValueError(
+                f"Cannot report no-show on match pk={match.pk}: status is "
+                f"{match.status!r}, expected {Match.Status.ACCEPTED!r}."
+            )
+        if match.no_show_reported_by:
+            raise ValueError(
+                f"Cannot report no-show on match pk={match.pk}: already "
+                f"reported by {match.no_show_reported_by!r}."
+            )
+
+        side = match.side_of(registration)
+        # The accused is the other party.
+        if side == Match.Side.AMBASSADOR:
+            accused = match.referee_registration
+        else:
+            accused = match.ambassador_registration
+
+        # Transition the match to ABANDONED.
+        status_before = match.status
+        match.no_show_reported_by = side
+        match.no_show_reported_at = timezone.now()
+        match.status = Match.Status.ABANDONED
+        match.save(
+            update_fields=[
+                "no_show_reported_by",
+                "no_show_reported_at",
+                "status",
+                "updated_at",
+            ]
+        )
+        record_transition(
+            match,
+            "status",
+            before=status_before,
+            after=match.status,
+        )
+
+        # Suspend the accused and log the transition.
+        accused_status_before = accused.status
+        suspend_for_no_show(accused)
+        record_transition(
+            accused,
+            "status",
+            before=accused_status_before,
+            after=accused.status,
+        )
+
+        # Re-queue the reporter to the front (no transition log — consistent
+        # with the decline path which does not log reporter re-queue either).
+        requeue_to_front(registration)
+
+        logger.info(
+            "report_no_show: match pk=%s ABANDONED by %s (registration pk=%s); "
+            "accused (pk=%s) SUSPENDED, reporter re-queued to front.",
+            match.pk,
+            side,
+            registration.pk,
+            accused.pk,
+        )
+
+        transaction.on_commit(lambda: send_no_show_notification(match, accused))
+
+    return match
+
+
+def send_no_show_notification(match: Match, accused_registration: Registration) -> None:
+    """Send a no-show suspension notification to the accused party.
+
+    Informs the accused that a partner reported them as a no-show and that
+    their registration has been removed from the pool. No reporter PII is
+    included (Invariant 1).
+
+    Each email is rendered under the accused's ``preferred_language``.
+
+    Args:
+        match: The match that was abandoned.
+        accused_registration: The registration of the party being notified.
+    """
+    # Reload to ensure we have the latest related user.
+    accused_registration = Registration.objects.select_related("user").get(
+        pk=accused_registration.pk
+    )
+    lang = accused_registration.preferred_language or settings.LANGUAGE_CODE
+    with translation.override(lang):
+        subject = _("Your match has been reported as a no-show")
+        body = _(
+            "We have received a no-show report from your match partner for the "
+            "4 Vallées Ambassadors Program.\n\n"
+            "Your registration has been removed from the pool. If you believe "
+            "this report was made in error, please contact us for help.\n\n"
+            "If you did not register for this programme, please ignore this email."
+        )
+    recipient_email = accused_registration.user.email
+    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [recipient_email])
+    logger.info(
+        "Sent no-show notification for match pk=%s to registration pk=%s",
+        match.pk,
+        accused_registration.pk,
+    )
 
 
 def record_decline(match: Match, registration: Registration) -> Match:

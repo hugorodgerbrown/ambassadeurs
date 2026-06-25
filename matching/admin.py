@@ -94,6 +94,7 @@ class RegistrationAdmin(admin.ModelAdmin):
         "prior_pass",
         "status",
         "flake_count",
+        "prior_decline_count",
         "priority",
         "preferred_location",
         "created_at",
@@ -108,6 +109,7 @@ class RegistrationAdmin(admin.ModelAdmin):
     search_fields = ["user__email", "user__first_name", "user__last_name"]
     raw_id_fields = ["user"]
     readonly_fields = [
+        "prior_decline_count",
         "accepted_terms",
         "terms_accepted_at",
         "created_at",
@@ -142,6 +144,7 @@ class MatchAdmin(admin.ModelAdmin):
         "referee_accepted_at",
         "declined_by",
         "declined_at",
+        "declined_by_email_hash",
         "no_show_reported_by",
         "no_show_reported_at",
         "created_at",

@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import cast
 
+from allauth.account.models import EmailAddress
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
@@ -21,7 +23,7 @@ from django.utils.translation import gettext as _
 from matching.models import Registration
 
 from .forms import AccountForm
-from .services import delete_account, update_account
+from .services import delete_account, send_confirmation_email, update_account
 
 
 @login_required
@@ -32,11 +34,56 @@ def account_detail(request: HttpRequest) -> HttpResponse:
         registration: Registration | None = Registration.objects.get(user=user)
     except Registration.DoesNotExist:
         registration = None
+
+    email_verified = EmailAddress.objects.filter(user=user, verified=True).exists()
+
+    debug_verify_url = None
+    if settings.DEBUG:
+        debug_verify_url = request.session.pop("debug_verify_url", None)
+
     return render(
         request,
         "accounts/detail.html",
-        {"registration": registration},
+        {
+            "registration": registration,
+            "email_verified": email_verified,
+            "debug_verify_url": debug_verify_url,
+        },
     )
+
+
+@login_required
+def account_resend_confirmation(request: HttpRequest) -> HttpResponse:
+    """Resend the confirmation email for a PENDING registration.
+
+    POST-only. Looks up the authenticated user's PENDING registration; if found,
+    resends the confirmation email and stashes the URL in the session under DEBUG.
+    On any other method, redirects to the account detail page without sending.
+    """
+    if request.method != "POST":
+        return redirect("accounts:detail")
+
+    user = cast(User, request.user)
+    try:
+        registration = Registration.objects.get(
+            user=user, status=Registration.Status.PENDING
+        )
+    except Registration.DoesNotExist:
+        messages.error(
+            request,
+            _("No pending registration found. Your email may already be confirmed."),
+        )
+        return redirect("accounts:detail")
+
+    confirm_url = send_confirmation_email(request, registration)
+    messages.success(
+        request,
+        _("Confirmation email resent. Please check your inbox."),
+    )
+    if settings.DEBUG:
+        request.session["debug_verify_url"] = confirm_url
+
+    return redirect("accounts:detail")
 
 
 @login_required

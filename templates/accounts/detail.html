@@ -34,7 +34,49 @@
                 <dt class="text-meta">{% translate "Name" %}</dt>
                 <dd class="col-span-2 text-ink">{{ user.get_full_name|default:"—" }}</dd>
                 <dt class="text-meta">{% translate "Email" %}</dt>
-                <dd class="col-span-2 text-ink">{{ user.email }}</dd>
+                <dd class="col-span-2 text-ink">
+                    {{ user.email }}
+                    {% if email_verified %}
+                        {% comment %}
+                            Tick icon shown when the user's email address has been
+                            verified via the confirmation link or social login.
+                        {% endcomment %}
+                        <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="ml-1 inline-block text-success"
+                            role="img"
+                            aria-label='{% translate "Email verified" %}'
+                        >
+                            <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                    {% else %}
+                        <span class="ml-1 text-xs font-medium text-warning">
+                            {% translate "Unverified" %}
+                        </span>
+                    {% endif %}
+                    {% if not email_verified and registration and registration.status == 'PENDING' %}
+                        <form
+                            method="post"
+                            action="{% url 'accounts:resend_confirmation' %}"
+                            class="mt-1"
+                        >
+                            {% csrf_token %}
+                            <button
+                                type="submit"
+                                class="text-xs font-medium text-accent underline"
+                            >
+                                {% translate "Resend confirmation email" %}
+                            </button>
+                        </form>
+                    {% endif %}
+                </dd>
                 {% if registration %}
                     <dt class="text-meta">{% translate "Phone" %}</dt>
                     <dd class="col-span-2 text-ink">{{ registration.phone|default:"—" }}</dd>
@@ -58,10 +100,30 @@
                 <dl class="grid grid-cols-3 items-center gap-2 text-sm">
                     <dt class="text-meta">{% translate "Status" %}</dt>
                     <dd class="col-span-2">
+                        {% comment %}
+                            Richer status labels covering all six Registration.Status
+                            values. Pill tone: status--action for MATCHED (needs
+                            attention), status--done for CONFIRMED (success),
+                            status--queue for all others (neutral / informational).
+                        {% endcomment %}
                         <span
                             class="status {% if registration.status == 'MATCHED' %}status--action{% elif registration.status == 'CONFIRMED' %}status--done{% else %}status--queue{% endif %}"
                         >
-                            {{ registration.get_status_display }}
+                            {% if registration.status == 'PENDING' %}
+                                {% translate "Pending email verification" %}
+                            {% elif registration.status == 'WAITING' %}
+                                {% translate "Available for match" %}
+                            {% elif registration.status == 'MATCHED' %}
+                                {% translate "Matched" %}
+                            {% elif registration.status == 'CONFIRMED' %}
+                                {% translate "Confirmed" %}
+                            {% elif registration.status == 'WITHDRAWN' %}
+                                {% translate "Withdrawn" %}
+                            {% elif registration.status == 'SUSPENDED' %}
+                                {% translate "Suspended" %}
+                            {% else %}
+                                {{ registration.get_status_display }}
+                            {% endif %}
                         </span>
                     </dd>
                 </dl>

@@ -15,6 +15,10 @@ SECRET_KEY = config(
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]  # noqa: S104
 
+# Required for django.template.context_processors.debug to set {{ debug }}=True.
+# The test client sends requests from 127.0.0.1 by default.
+INTERNAL_IPS = ["127.0.0.1"]
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",

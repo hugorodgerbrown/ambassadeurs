@@ -1,8 +1,11 @@
 # Tests for the account service functions.
 
 import pytest
+from django.core import mail
+from django.test import RequestFactory
 
-from accounts.services import update_account
+from accounts.services import send_confirmation_email, update_account
+from matching.models import Registration
 from tests.accounts.factories import UserFactory
 from tests.matching.factories import RegistrationFactory
 
@@ -44,3 +47,39 @@ def test_update_account_without_registration_does_not_raise() -> None:
     update_account(user=user, first_name="Augusta", last_name="King")
     user.refresh_from_db()
     assert user.first_name == "Augusta"
+
+
+# ---------------------------------------------------------------------------
+# send_confirmation_email (VERB-25)
+# ---------------------------------------------------------------------------
+
+
+def test_send_confirmation_email_sends_mail_and_returns_confirm_url() -> None:
+    """send_confirmation_email sends one email and returns the confirm URL."""
+    registration = RegistrationFactory.create(status=Registration.Status.PENDING)
+    request = RequestFactory().get("/")
+    request.META["SERVER_NAME"] = "testserver"
+    request.META["SERVER_PORT"] = "80"
+    mail.outbox.clear()
+
+    confirm_url = send_confirmation_email(request, registration)
+
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == [registration.user.email]
+    assert "register/confirm/" in mail.outbox[0].body
+    assert confirm_url.startswith("http://testserver/")
+    assert "register/confirm/" in confirm_url
+
+
+def test_send_confirmation_email_subject_contains_confirm_phrase() -> None:
+    """The confirmation email subject references email confirmation."""
+    registration = RegistrationFactory.create(status=Registration.Status.PENDING)
+    request = RequestFactory().get("/")
+    request.META["SERVER_NAME"] = "testserver"
+    request.META["SERVER_PORT"] = "80"
+    mail.outbox.clear()
+
+    send_confirmation_email(request, registration)
+
+    assert len(mail.outbox) == 1
+    assert "Confirm" in mail.outbox[0].subject

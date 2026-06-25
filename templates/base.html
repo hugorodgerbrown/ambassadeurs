@@ -23,5 +23,26 @@
             {% block content %}{% endblock %}
         </main>
         {% include "includes/footer.html" %}
+        {% if debug %}
+            {% comment %}
+                Development-only panel. Shown on every page when settings.DEBUG is
+                True and the request IP is in INTERNAL_IPS (the django.template
+                context_processors.debug processor sets the ``debug`` variable).
+                Never rendered in production. Optional inner entries (e.g. the
+                email-confirmation shortcut link) render only when their context
+                variable is present.
+            {% endcomment %}
+            <div class="fixed bottom-0 left-0 right-0 z-50 border-t-2 border-warning bg-warning/10 px-4 py-3">
+                <p class="mb-1 text-xs font-semibold uppercase tracking-widest text-warning">
+                    {% translate "Development panel" %}
+                </p>
+                {% if debug_verify_url %}
+                    <p class="text-xs font-semibold text-ink">{% translate "Development shortcut" %}</p>
+                    <a href="{{ debug_verify_url }}" class="break-all text-xs font-medium text-accent underline">
+                        {{ debug_verify_url }}
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
     </body>
 </html>

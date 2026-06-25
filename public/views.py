@@ -28,18 +28,15 @@ import logging
 from django.conf import settings
 from django.contrib.auth import login
 from django.contrib.auth.models import User
-from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
-from accounts.services import mark_email_verified
+from accounts.services import mark_email_verified, send_confirmation_email
 from accounts.tokens import (
-    make_registration_confirmation_token,
     read_match_access_token,
     read_registration_confirmation_token,
 )
@@ -128,40 +125,6 @@ _SERVICE_WORKER_BODY = "/* 4 Vallées Ambassadors — intentionally minimal. */\
 def service_worker(request: HttpRequest) -> HttpResponse:
     """Serve a minimal no-op service worker at /sw.js."""
     return HttpResponse(_SERVICE_WORKER_BODY, content_type="application/javascript")
-
-
-def _send_confirmation_email(request: HttpRequest, registration: Registration) -> str:
-    """Email a signed confirmation link for ``registration``.
-
-    The token carries ``registration.pk`` scoped to the single-purpose salt
-    ``accounts.registration-confirm`` (Invariant 6). Returns the confirm URL
-    so the caller can stash it for the DEBUG shortcut.
-    """
-    token = make_registration_confirmation_token(registration.pk)
-    confirm_url = request.build_absolute_uri(
-        reverse("public:register_confirm", args=[token])
-    )
-    subject = _("Confirm your email to join the queue")
-    body = _(
-        "Click the link below to confirm your email and join the matching queue "
-        "for the 4 Vallées Ambassadors Program:\n\n"
-        "%(url)s\n\n"
-        "This link expires in 24 hours. If you didn't request it, ignore this email."
-    ) % {"url": confirm_url}
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [registration.user.email])
-
-    # In development the email is written to the console, where the long confirm
-    # URL is quoted-printable soft-wrapped and awkward to copy. Log the
-    # unwrapped link on a single line for convenience. Gated on DEBUG so the
-    # signed token never reaches production logs.
-    if settings.DEBUG:
-        logger.info(
-            "Confirmation link for registration pk=%s: %s",
-            registration.pk,
-            confirm_url,
-        )
-
-    return confirm_url
 
 
 def register(request: HttpRequest) -> HttpResponse:
@@ -261,7 +224,7 @@ def register(request: HttpRequest) -> HttpResponse:
                 pending_reg = Registration.objects.select_for_update().get(
                     user__email=email, status=Registration.Status.PENDING
                 )
-                confirm_url = _send_confirmation_email(request, pending_reg)
+                confirm_url = send_confirmation_email(request, pending_reg)
             except Registration.DoesNotExist:
                 registration = register_participant(
                     role=role_value,
@@ -275,7 +238,7 @@ def register(request: HttpRequest) -> HttpResponse:
                     accepted_terms=form.accepted_statements(),
                     status=Registration.Status.PENDING,
                 )
-                confirm_url = _send_confirmation_email(request, registration)
+                confirm_url = send_confirmation_email(request, registration)
     except IntegrityError:
         # A concurrent request created/confirmed a registration for this email
         # between our DoesNotExist branch and our create attempt. Resend for
@@ -289,7 +252,7 @@ def register(request: HttpRequest) -> HttpResponse:
             existing = Registration.objects.get(
                 user__email=email, status=Registration.Status.PENDING
             )
-            confirm_url = _send_confirmation_email(request, existing)
+            confirm_url = send_confirmation_email(request, existing)
         except Registration.DoesNotExist:
             # The race winner already confirmed: redirect without sending so the
             # user proceeds to login normally.

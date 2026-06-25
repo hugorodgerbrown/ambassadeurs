@@ -36,7 +36,7 @@ def test_detail_renders_with_registration_role_readonly() -> None:
     assert response.status_code == 200
     assert b"ada@example.com" in response.content
     assert b"Ambassador" in response.content
-    assert b"role is fixed" in response.content
+    assert b"delete your account" in response.content
 
 
 def test_detail_without_registration_shows_register_link() -> None:

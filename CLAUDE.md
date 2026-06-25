@@ -257,6 +257,14 @@ Normalise every email to lowercase at every entry point before storage and looku
   `partials/` prefix and guard them with `require_htmx` (reject plain HTTP with 400).
 - Use `hx-target`, `hx-swap="innerHTML"`, and `hx-indicator` for dynamic requests.
 
+**Template comments:**
+
+- `{# … #}` is **single-line only** — content after the first line renders as
+  visible page text. Any comment **longer than 50 characters must use
+  `{% comment %} … {% endcomment %}`**, even when it fits on one line. Keep
+  `{# #}` for short (≤50 char), single-line notes. Neither `djangofmt` nor `tox`
+  flags a multi-line `{# #}`, so this is on the author.
+
 ## Internationalisation
 
 The UI ships in **English (default) and French**. Wrap all user-facing strings in

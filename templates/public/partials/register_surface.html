@@ -15,7 +15,7 @@ Context:
                 update of the above-nav tone band)
 {% endcomment %}
 {% if is_htmx %}
-    {# Keep the above-nav tone band in sync with the role on an HTMX swap. #}
+    {% comment %}Keep the above-nav tone band in sync with the role on an HTMX swap.{% endcomment %}
     <div
         id="topband"
         class="role-theme{% if role_value != 'AMBASSADOR' %} role-theme--referee{% endif %}"
@@ -44,7 +44,7 @@ Context:
         {% endif %}
     </p>
 
-    {# ── Role zone — the dropdown that drives the whole surface's palette. ── #}
+    {% comment %}── Role zone — the dropdown that drives the whole surface's palette. ──{% endcomment %}
     <div class="role-zone mb-6">
         <p class="label mb-2">{% translate "Your role" %}</p>
 
@@ -223,7 +223,7 @@ Context:
         </p>
     </div>
 
-    {# ── Eligibility callout — the official 4 Vallées qualifying rubric. ── #}
+    {% comment %}── Eligibility callout — the official 4 Vallées qualifying rubric. ──{% endcomment %}
     {% include "public/partials/register_eligibility.html" with role_value=role_value %}
 
     {# ── Form card. ── #}

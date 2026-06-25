@@ -46,8 +46,8 @@
             </dl>
         </div>
 
-        {# Registration — role is read-only. Role identity uses the .role-zone tone;
-           the match status keeps the semantic .status tokens. #}
+        {% comment %}Registration — role is read-only. Role identity uses the .role-zone tone;
+           the match status keeps the semantic .status tokens.{% endcomment %}
         <div class="card mb-6">
             <h2 class="mb-4 text-h3 text-ink">{% translate "Your registration" %}</h2>
             {% if registration %}

@@ -57,17 +57,6 @@
             </p>
         </div>
 
-        {% if debug_verify_url %}
-            {% comment %}Development only: the view only populates this under DEBUG so the
-               signed link can be clicked directly without opening the inbox.{% endcomment %}
-            <div class="card mt-4 text-left text-sm">
-                <p class="mb-2 font-semibold text-ink">{% translate "Development shortcut" %}</p>
-                <a href="{{ debug_verify_url }}" class="break-all font-medium text-accent underline">
-                    {{ debug_verify_url }}
-                </a>
-            </div>
-        {% endif %}
-
         <p class="mt-6">
             <a href="{% url 'public:home' %}" class="font-medium text-accent underline">
                 {% translate "Back to home" %}

@@ -23,5 +23,22 @@
             {% block content %}{% endblock %}
         </main>
         {% include "includes/footer.html" %}
+        {% if debug_verify_url %}
+            {% comment %}
+                Development-only panel. Populated only when settings.DEBUG is True
+                (views gate the session key on settings.DEBUG before passing it to
+                context). Never rendered in production. Provides a click-through
+                shortcut to the confirmation link without opening an inbox.
+            {% endcomment %}
+            <div class="fixed bottom-0 left-0 right-0 z-50 border-t-2 border-warning bg-warning/10 px-4 py-3">
+                <p class="mb-1 text-xs font-semibold uppercase tracking-widest text-warning">
+                    {% translate "Development panel" %}
+                </p>
+                <p class="text-xs font-semibold text-ink">{% translate "Development shortcut" %}</p>
+                <a href="{{ debug_verify_url }}" class="break-all text-xs font-medium text-accent underline">
+                    {{ debug_verify_url }}
+                </a>
+            </div>
+        {% endif %}
     </body>
 </html>

@@ -36,6 +36,7 @@ LOCAL_APPS = [
     "accounts",
     "matching",
     "public",
+    "debug",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -72,6 +73,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "django.template.context_processors.i18n",
                 "django.template.context_processors.debug",
+                "debug.context_processors.debug_panel",
             ],
         },
     },

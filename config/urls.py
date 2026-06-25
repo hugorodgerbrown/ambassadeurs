@@ -14,5 +14,8 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("account/", include("accounts.urls")),
     path("i18n/", include("django.conf.urls.i18n")),
+    # DEBUG-only test-data panel. Always mounted; every view raises Http404
+    # when settings.DEBUG is false (via require_debug decorator).
+    path("debug/", include("debug.urls")),
     path("", include("public.urls")),
 ]

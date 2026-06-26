@@ -28,3 +28,8 @@ DATABASES = {
 
 # Signed-link / verification emails are written to the console in development.
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+EMAIL_HASH_SECRET = config(
+    "EMAIL_HASH_SECRET",
+    default="insecure-dev-email-hash-secret",  # noqa: S106
+)

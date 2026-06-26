@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-25 20:14+0200\n"
+"POT-Creation-Date: 2026-06-25 23:45+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -881,6 +881,20 @@ msgid ""
 "recently, please contact us for help."
 msgstr ""
 
+msgid "Registration removed"
+msgstr ""
+
+msgid "Your registration has been removed"
+msgstr ""
+
+msgid ""
+"You declined this match, so your registration has been removed from the "
+"pool. You can re-register at any time if you change your mind."
+msgstr ""
+
+msgid "Re-register"
+msgstr ""
+
 #, python-format
 msgid "You have until %(deadline)s to respond to this match."
 msgstr ""
@@ -888,7 +902,17 @@ msgstr ""
 msgid "Accept"
 msgstr ""
 
+msgid ""
+"Declining will remove your registration. You can re-register at any time. "
+"Are you sure?"
+msgstr ""
+
 msgid "Decline"
+msgstr ""
+
+msgid ""
+"Declining this match will remove your registration from the pool. You can re-"
+"register at any time."
 msgstr ""
 
 msgid "Waiting for your partner to respond"
@@ -918,6 +942,11 @@ msgid "Report no-show"
 msgstr ""
 
 msgid "Match declined"
+msgstr ""
+
+msgid ""
+"You declined this match. Your registration has been removed. You can re-"
+"register at any time."
 msgstr ""
 
 msgid ""

@@ -553,9 +553,15 @@ def match_detail(request: HttpRequest, token: str) -> HttpResponse:
                     accept_match(match, token_registration)
                 else:
                     decline_match(match, token_registration)
+                    # After a successful decline the decliner's User and
+                    # Registration are deleted. Redirecting would re-resolve
+                    # the token, find the FK NULL, and return 400. Render the
+                    # removed page directly instead (no PRG for this terminal
+                    # path).
+                    return render(request, "public/match_removed.html")
             except ValueError:
                 # Match status changed between read and action; fall through
-                # to re-render the updated state.
+                # to PRG redirect so the updated state is displayed.
                 pass
         elif (
             action == "report_no_show"
@@ -594,13 +600,15 @@ def match_detail(request: HttpRequest, token: str) -> HttpResponse:
 
 
 @require_htmx
+@require_POST
 def match_accept(request: HttpRequest, token: str) -> HttpResponse:
     """HTMX POST: accept the match and return the updated actions partial.
 
-    Guarded by ``@require_htmx`` (Invariant 7). Re-validates the token,
-    confirms the match is still PROPOSED and within the window, then calls
-    ``accept_match``. Renders ``public/partials/match_actions.html`` reflecting
-    the resulting state.
+    Guarded by ``@require_htmx`` (Invariant 7) and ``@require_POST`` — a GET,
+    even with the HX header, must not trigger the accept transition. Re-validates
+    the token, confirms the match is still PROPOSED and within the window, then
+    calls ``accept_match``. Renders ``public/partials/match_actions.html``
+    reflecting the resulting state.
     """
     resolved = _resolve_match_token(token)
     if resolved is None:
@@ -642,13 +650,15 @@ def match_accept(request: HttpRequest, token: str) -> HttpResponse:
 
 
 @require_htmx
+@require_POST
 def match_decline(request: HttpRequest, token: str) -> HttpResponse:
     """HTMX POST: decline the match and return the updated actions partial.
 
-    Guarded by ``@require_htmx`` (Invariant 7). Re-validates the token,
-    confirms the match is still PROPOSED and within the window, then calls
-    ``decline_match``. Renders ``public/partials/match_actions.html`` reflecting
-    the resulting state.
+    Guarded by ``@require_htmx`` (Invariant 7) and ``@require_POST`` — decline
+    is destructive (deletes the decliner's User) so a GET, even with the HX
+    header, must not trigger it. Re-validates the token, confirms the match is
+    still PROPOSED and within the window, then calls ``decline_match``. Renders
+    ``public/partials/match_actions.html`` reflecting the resulting state.
     """
     resolved = _resolve_match_token(token)
     if resolved is None:

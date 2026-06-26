@@ -74,10 +74,15 @@ def _get_active_match(registration: Registration) -> Match | None:
 def _get_counterpart(match: Match, registration: Registration) -> Registration:
     """Return the other registration in ``match``.
 
+    Both FKs are non-null on PROPOSED matches (the only state this is called
+    from); assertions satisfy mypy's nullability check.
+
     Args:
         match: A proposed match.
         registration: One side of the match (ambassador or referee).
     """
+    assert match.ambassador_registration is not None
+    assert match.referee_registration is not None
     if registration.role == Registration.Role.AMBASSADOR:
         return match.referee_registration
     return match.ambassador_registration

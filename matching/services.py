@@ -39,6 +39,8 @@ from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 
 from accounts.tokens import make_match_access_token
+from core.emails import normalise_email
+from core.hashing import hash_email
 from core.services import record_transition
 
 from .models import Match, Registration
@@ -348,6 +350,10 @@ def send_match_notification(match: Match) -> None:
     no contact PII (Invariant 1) — contact details are only revealed after
     mutual accept.
     """
+    # Both FKs are non-null on PROPOSED matches (the only state this is called
+    # from); assertions make the nullability explicit for the type checker.
+    assert match.ambassador_registration is not None
+    assert match.referee_registration is not None
     for registration in (
         match.ambassador_registration,
         match.referee_registration,
@@ -393,6 +399,11 @@ def send_match_confirmed_email(match: Match) -> None:
         "ambassador_registration__user",
         "referee_registration__user",
     ).get(pk=match.pk)
+
+    # Both FKs are non-null on ACCEPTED matches (the only state this is called
+    # from); assertions make the nullability explicit for the type checker.
+    assert match.ambassador_registration is not None
+    assert match.referee_registration is not None
 
     registrations = (
         match.ambassador_registration,
@@ -463,11 +474,26 @@ def accept_match(match: Match, registration: Registration) -> Match:
 
 
 def decline_match(match: Match, registration: Registration) -> Match:
-    """Record a decline by ``registration`` and re-queue both parties asymmetrically.
+    """Record a decline, delete the decliner's account, and re-queue the other party.
 
-    Calls ``record_decline`` then applies the VERB-17 re-queue services:
-    the decliner goes to the back of the queue (priority -= 1) and the other
-    party (who had not yet declined) goes to the front (priority += 1).
+    Calls ``record_decline`` (which records ``declined_by_email_hash`` while
+    the registration still exists), then:
+    - Re-queues the other party to the front of the pool (``requeue_to_front``).
+    - Deletes the decliner's ``User`` row (which cascades to their
+      ``Registration`` via the OneToOneField). The match is preserved with its
+      FK set to NULL (``SET_NULL``); ``declined_by_email_hash`` carries the
+      decline record for post-season analysis and re-registration cross-checks.
+
+    Re-registering after declining is treated as no big deal — the participant
+    can use the same email at any time and their ``prior_decline_count`` will
+    reflect the history.
+
+    All three steps (record_decline, requeue_to_front, user.delete) run inside
+    a single outer ``transaction.atomic()`` block so that a crash between steps
+    cannot leave a partial state (e.g. match DECLINED but decliner still
+    present). The inner atomics in ``record_decline`` and ``requeue_to_front``
+    nest via savepoints — mirroring the pattern used in
+    ``expire_lapsed_matches``.
 
     Args:
         match: The match being declined.
@@ -480,22 +506,34 @@ def decline_match(match: Match, registration: Registration) -> Match:
         ValueError: propagated from ``record_decline`` if match is not PROPOSED.
     """
     side = match.side_of(registration)
-    match = record_decline(match, registration)
+    # Capture the user reference before record_decline returns (we need it after).
+    user = registration.user
 
-    # Determine the other party from the match before re-queuing.
-    if side == Match.Side.AMBASSADOR:
-        other = match.referee_registration
-    else:
-        other = match.ambassador_registration
+    with transaction.atomic():
+        match = record_decline(match, registration)
 
-    requeue_to_back(registration)
-    requeue_to_front(other)
+        # Determine the other party from the match before deleting the decliner.
+        # Both FKs are non-null on PROPOSED matches; assertion satisfies mypy.
+        if side == Match.Side.AMBASSADOR:
+            other = match.referee_registration
+        else:
+            other = match.ambassador_registration
+        assert other is not None, (
+            f"Expected non-null other-party FK on PROPOSED match pk={match.pk}"
+        )
+
+        requeue_to_front(other)
+
+        # Delete the decliner's User (cascades to Registration via OneToOneField).
+        # The Match row survives with the FK set to NULL (SET_NULL).
+        user.delete()
 
     logger.info(
-        "decline_match: match pk=%s DECLINED by registration pk=%s; "
-        "decliner queued to back, other party (pk=%s) queued to front.",
+        "decline_match: match pk=%s DECLINED by registration pk=%s "
+        "(user pk=%s deleted); other party (pk=%s) queued to front.",
         match.pk,
         registration.pk,
+        user.pk,
         other.pk,
     )
     return match
@@ -537,7 +575,7 @@ def register_participant(
     """
     with transaction.atomic():
         if user is None:
-            email = email.lower()
+            email = normalise_email(email)
             user, created = User.objects.get_or_create(
                 username=email,
                 defaults={
@@ -554,6 +592,14 @@ def register_participant(
             user.last_name = last_name
             user.save(update_fields=["first_name", "last_name"])
 
+        # Count prior declines by this email address using the hash so that
+        # decline history is preserved even after the original User row was
+        # deleted (VERB-41).  hash_email normalises internally.
+        email_for_hash = email if email else user.email
+        prior_decline_count = Match.objects.for_decline_hash(
+            hash_email(email_for_hash)
+        ).count()
+
         registration = Registration.objects.create(
             user=user,
             role=role,
@@ -564,6 +610,7 @@ def register_participant(
             accepted_terms=accepted_terms or [],
             terms_accepted_at=timezone.now() if accepted_terms else None,
             status=status,
+            prior_decline_count=prior_decline_count,
         )
 
         # Only propose a match for WAITING registrations; PENDING rows must
@@ -659,6 +706,9 @@ def expire_lapsed_matches() -> int:
                 )
 
                 # Re-queue each side according to whether they had accepted.
+                # Both FKs are non-null on PROPOSED matches; assertions satisfy mypy.
+                assert match.ambassador_registration is not None
+                assert match.referee_registration is not None
                 ambassador_reg = match.ambassador_registration
                 referee_reg = match.referee_registration
 
@@ -761,6 +811,9 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
             )
 
             # Transition both registrations to CONFIRMED.
+            # Both FKs are non-null on PROPOSED matches; assertions satisfy mypy.
+            assert match.ambassador_registration is not None
+            assert match.referee_registration is not None
             ambassador_reg = match.ambassador_registration
             referee_reg = match.referee_registration
 
@@ -850,6 +903,9 @@ def report_no_show(match: Match, registration: Registration) -> Match:
             )
 
         side = match.side_of(registration)
+        # Both FKs are non-null on ACCEPTED matches; assertions satisfy mypy.
+        assert match.ambassador_registration is not None
+        assert match.referee_registration is not None
         # The accused is the other party.
         if side == Match.Side.AMBASSADOR:
             accused = match.referee_registration
@@ -945,13 +1001,18 @@ def send_no_show_notification(match: Match, accused_registration: Registration) 
 def record_decline(match: Match, registration: Registration) -> Match:
     """Record that ``registration`` has declined ``match``.
 
-    Sets ``declined_by``, ``declined_at``, and transitions the match from
-    ``PROPOSED → DECLINED``. One ``StateTransitionLog`` row is written for the
-    status change.
+    Sets ``declined_by``, ``declined_at``, ``declined_by_email_hash``, and
+    transitions the match from ``PROPOSED → DECLINED``. One
+    ``StateTransitionLog`` row is written for the status change.
 
-    NOTE: re-queuing registrations and adjusting ``priority`` are **not** done
-    here; that belongs to VERB-17. This function deliberately leaves both
-    ``Registration.status`` values untouched so it is not mistaken for a bug.
+    The email hash is captured here, before ``decline_match`` deletes the
+    registration — it is the only place that has access to both the live
+    registration FK and the email address simultaneously.
+
+    NOTE: re-queuing / deleting the decliner's registration is **not** done
+    here; that belongs to ``decline_match``. This function deliberately leaves
+    both ``Registration.status`` values untouched so it is not mistaken for a
+    bug.
 
     Args:
         match: The match to decline.
@@ -977,8 +1038,17 @@ def record_decline(match: Match, registration: Registration) -> Match:
 
         match.declined_by = side
         match.declined_at = timezone.now()
+        match.declined_by_email_hash = hash_email(registration.user.email)
         match.status = Match.Status.DECLINED
-        match.save(update_fields=["declined_by", "declined_at", "status", "updated_at"])
+        match.save(
+            update_fields=[
+                "declined_by",
+                "declined_at",
+                "declined_by_email_hash",
+                "status",
+                "updated_at",
+            ]
+        )
 
         record_transition(
             match,

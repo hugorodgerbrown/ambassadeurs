@@ -18,6 +18,8 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
 
+from core.emails import normalise_email
+
 from .models import Registration, Resort
 
 # Design-system class applied to text-like inputs. ``.input`` (src/css/main.css)
@@ -165,9 +167,9 @@ class RegistrationForm(forms.Form):
         return [eligibility_label, terms_label]
 
     def clean_email(self) -> str:
-        """Normalise the email to lowercase (CLAUDE.md invariant 5)."""
+        """Normalise the email address (CLAUDE.md invariant 5)."""
         email: str = self.cleaned_data["email"]
-        return email.lower()
+        return normalise_email(email)
 
     def clean(self) -> dict[str, Any]:
         """Validate the form.

@@ -17,6 +17,10 @@
 # report_no_show (VERB-21) implements the post-accept no-show path (ADR 0007):
 # the reporter's registration is re-queued to the front; the accused is
 # suspended and emailed (no reporter PII in the email — Invariant 1).
+#
+# queue_position and total_accepted_matches (VERB-40) are read-only query helpers
+# that return a participant's ordinal position in the eligible same-role pool and
+# the season-wide count of mutually-accepted matches respectively.
 
 from __future__ import annotations
 
@@ -28,7 +32,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.db import transaction
-from django.db.models import Case, IntegerField, Value, When
+from django.db.models import Case, IntegerField, Q, Value, When
 from django.urls import reverse
 from django.utils import timezone, translation
 from django.utils.dateparse import parse_date
@@ -90,6 +94,53 @@ def is_eligible_pair(ambassador: Registration, referee: Registration) -> bool:
     if referee.prior_pass != Registration.PriorPass.NONE:
         return False
     return True
+
+
+def queue_position(registration: Registration) -> int | None:
+    """Return the 1-based position of ``registration`` in the eligible waiting pool.
+
+    Returns ``None`` if the registration is not in ``WAITING`` status, or if it
+    is not a member of the eligible pool (e.g. an ambassador with an ineligible
+    ``prior_pass`` value). The position is only meaningful for participants
+    actively queuing in an eligible state.
+
+    Picks the same-role eligible pool (``eligible_ambassadors`` or
+    ``eligible_referees``) and counts the rows ranked strictly ahead using the
+    same ``-priority, created_at`` ordering used by the matching engine. The
+    result is that count plus 1.
+
+    Args:
+        registration: The registration whose position to determine.
+
+    Returns:
+        1-based queue ordinal, or ``None`` if not WAITING or not in the eligible
+        pool.
+    """
+    if registration.status != Registration.Status.WAITING:
+        return None
+
+    if registration.role == Registration.Role.AMBASSADOR:
+        pool = Registration.objects.eligible_ambassadors()
+    else:
+        pool = Registration.objects.eligible_referees()
+
+    if not pool.filter(pk=registration.pk).exists():
+        return None
+
+    ahead = pool.filter(
+        Q(priority__gt=registration.priority)
+        | Q(priority=registration.priority, created_at__lt=registration.created_at)
+    ).count()
+    return ahead + 1
+
+
+def total_accepted_matches() -> int:
+    """Return the total count of mutually-accepted matches this season.
+
+    Counts all ``Match`` rows in ``ACCEPTED`` status. Used to show participants
+    how many pairs have already been successfully matched.
+    """
+    return Match.objects.filter(status=Match.Status.ACCEPTED).count()
 
 
 def propose_match(registration: Registration) -> Match | None:

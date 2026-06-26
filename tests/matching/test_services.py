@@ -18,6 +18,7 @@ from matching.services import (
     is_eligible_pair,
     is_registration_open,
     propose_match,
+    queue_position,
     record_acceptance,
     record_decline,
     record_flake_and_requeue,
@@ -29,6 +30,7 @@ from matching.services import (
     send_match_notification,
     send_no_show_notification,
     suspend_for_no_show,
+    total_accepted_matches,
 )
 from tests.accounts.factories import UserFactory
 from tests.matching.factories import MatchFactory, RegistrationFactory
@@ -1907,3 +1909,176 @@ def test_send_no_show_notification_respects_preferred_language() -> None:
     # does not compile message catalogues, so gettext returns the source string.
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == [accused_reg.user.email]
+
+
+# ---------------------------------------------------------------------------
+# queue_position
+# ---------------------------------------------------------------------------
+
+
+def test_queue_position_returns_none_for_non_waiting_registration() -> None:
+    """queue_position returns None when the registration is not WAITING."""
+    reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    assert queue_position(reg) is None
+
+
+def test_queue_position_returns_one_for_sole_eligible_participant() -> None:
+    """queue_position returns 1 when the registration is the only one in the pool."""
+    reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.WAITING,
+        priority=0,
+    )
+    assert queue_position(reg) == 1
+
+
+def test_queue_position_ranks_by_priority_desc_then_created_at_asc() -> None:
+    """queue_position reflects -priority, created_at ordering.
+
+    Three ambassadors: high-priority, mid-priority (our subject), low-priority.
+    The subject is second.
+    """
+    base_time = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+
+    high = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        priority=10,
+    )
+    Registration.objects.filter(pk=high.pk).update(created_at=base_time)
+
+    subject = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.ANNUAL,
+        priority=5,
+    )
+    Registration.objects.filter(pk=subject.pk).update(
+        created_at=base_time + timedelta(hours=1)
+    )
+
+    low = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.MONT4,
+        priority=0,
+    )
+    Registration.objects.filter(pk=low.pk).update(
+        created_at=base_time + timedelta(hours=2)
+    )
+
+    # Reload all instances so in-memory created_at reflects the .update() calls.
+    high.refresh_from_db()
+    subject.refresh_from_db()
+    low.refresh_from_db()
+
+    assert queue_position(high) == 1
+    assert queue_position(subject) == 2
+    assert queue_position(low) == 3
+
+
+def test_queue_position_equal_priority_fifo_on_created_at() -> None:
+    """queue_position uses created_at ascending as the tiebreak for equal priority."""
+    base_time = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+
+    earlier = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        priority=0,
+    )
+    Registration.objects.filter(pk=earlier.pk).update(created_at=base_time)
+
+    later = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        priority=0,
+    )
+    Registration.objects.filter(pk=later.pk).update(
+        created_at=base_time + timedelta(hours=1)
+    )
+
+    earlier.refresh_from_db()
+    later.refresh_from_db()
+
+    assert queue_position(earlier) == 1
+    assert queue_position(later) == 2
+
+
+def test_queue_position_role_scoped_ambassador_ignores_referees() -> None:
+    """An ambassador's queue position is computed only from the ambassador pool.
+
+    Waiting referees must not affect the ambassador's ordinal.
+    """
+    # One waiting referee in the pool.
+    RegistrationFactory.create(referee=True, priority=99)
+
+    ambassador = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        priority=0,
+    )
+
+    # Ambassador should be 1st in the ambassador pool regardless of referee count.
+    assert queue_position(ambassador) == 1
+
+
+def test_queue_position_role_scoped_referee_ignores_ambassadors() -> None:
+    """A referee's queue position is computed only from the referee pool.
+
+    Waiting ambassadors must not affect the referee's ordinal.
+    """
+    # One waiting ambassador in the pool.
+    RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        priority=99,
+    )
+
+    referee = RegistrationFactory.create(referee=True, priority=0)
+
+    # Referee should be 1st in the referee pool regardless of ambassador count.
+    assert queue_position(referee) == 1
+
+
+def test_queue_position_returns_none_for_ineligible_waiting_ambassador() -> None:
+    """queue_position returns None for a WAITING ambassador with no prior pass.
+
+    An ambassador with prior_pass=NONE is not in the eligible pool even though
+    their status is WAITING (e.g. created via admin, bypassing the form
+    validation). The function must return None rather than a misleading ordinal.
+    """
+    reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.NONE,
+        status=Registration.Status.WAITING,
+    )
+    assert queue_position(reg) is None
+
+
+# ---------------------------------------------------------------------------
+# total_accepted_matches
+# ---------------------------------------------------------------------------
+
+
+def test_total_accepted_matches_returns_zero_with_no_matches() -> None:
+    """total_accepted_matches returns 0 when no matches exist."""
+    assert total_accepted_matches() == 0
+
+
+def test_total_accepted_matches_counts_only_accepted() -> None:
+    """total_accepted_matches counts only ACCEPTED matches, not other statuses.
+
+    Includes an ABANDONED match (a no-show that was previously ACCEPTED) to
+    confirm it does not inflate the count — ABANDONED is a distinct terminal
+    status and must not be conflated with ACCEPTED.
+    """
+    MatchFactory.create(accepted=True)
+    MatchFactory.create(accepted=True)
+    MatchFactory.create()  # PROPOSED
+    MatchFactory.create(declined=True)
+    MatchFactory.create(abandoned=True)  # was ACCEPTED, then reported as no-show
+
+    assert total_accepted_matches() == 2

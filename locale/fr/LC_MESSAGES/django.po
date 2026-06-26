@@ -418,6 +418,16 @@ msgstr ""
 msgid "You are in the queue. We'll email you when a match is found."
 msgstr ""
 
+#, python-format
+msgid "You are number %(position)s in the queue."
+msgstr ""
+
+#, python-format
+msgid "%(counter)s pair matched so far this season."
+msgid_plural "%(counter)s pairs matched so far this season."
+msgstr[0] ""
+msgstr[1] ""
+
 msgid "You have accepted. Waiting for your partner to respond."
 msgstr ""
 

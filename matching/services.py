@@ -39,6 +39,7 @@ from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 
 from accounts.tokens import make_match_access_token
+from core.emails import normalise_email
 from core.hashing import hash_email
 from core.services import record_transition
 
@@ -574,7 +575,7 @@ def register_participant(
     """
     with transaction.atomic():
         if user is None:
-            email = email.lower()
+            email = normalise_email(email)
             user, created = User.objects.get_or_create(
                 username=email,
                 defaults={

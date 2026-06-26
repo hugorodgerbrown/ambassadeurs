@@ -22,6 +22,7 @@ from django.urls import reverse
 from django.utils.translation import gettext as _
 
 from accounts.tokens import make_registration_confirmation_token
+from core.emails import normalise_email
 from matching.models import Registration
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ def mark_email_verified(user: User) -> None:
     ``get_or_create_participant_user`` does at email-verification time.  If the
     EmailAddress row already exists with ``verified=True`` this is a no-op.
     """
-    email = user.email.lower()
+    email = normalise_email(user.email)
     EmailAddress.objects.update_or_create(
         user=user,
         email=email,

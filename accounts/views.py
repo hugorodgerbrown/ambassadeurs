@@ -22,6 +22,8 @@ from django.shortcuts import redirect, render
 from django.utils.translation import gettext as _
 
 from matching.models import Match, Registration
+from matching.services import queue_position as get_queue_position
+from matching.services import total_accepted_matches
 from public.views import _render_match_page
 
 from .forms import AccountForm
@@ -64,6 +66,13 @@ def account_detail(request: HttpRequest) -> HttpResponse:
             if match is not None:
                 i_have_accepted = match.referee_accepted_at is not None
 
+    # Queue position and accepted-match count — only computed for WAITING registrations.
+    position: int | None = None
+    accepted_count: int = 0
+    if registration is not None and registration.status == Registration.Status.WAITING:
+        position = get_queue_position(registration)
+        accepted_count = total_accepted_matches()
+
     return render(
         request,
         "accounts/detail.html",
@@ -72,6 +81,8 @@ def account_detail(request: HttpRequest) -> HttpResponse:
             "email_verified": email_verified,
             "debug_verify_url": debug_verify_url,
             "i_have_accepted": i_have_accepted,
+            "queue_position": position,
+            "total_accepted_matches": accepted_count,
         },
     )
 

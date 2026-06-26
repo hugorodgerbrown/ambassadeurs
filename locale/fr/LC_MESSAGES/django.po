@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-25 19:21+0200\n"
+"POT-Creation-Date: 2026-06-25 20:14+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -417,6 +417,16 @@ msgstr ""
 
 msgid "You are in the queue. We'll email you when a match is found."
 msgstr ""
+
+#, python-format
+msgid "You are number %(position)s in the queue."
+msgstr ""
+
+#, python-format
+msgid "%(counter)s pair matched so far this season."
+msgid_plural "%(counter)s pairs matched so far this season."
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "You have accepted. Waiting for your partner to respond."
 msgstr ""

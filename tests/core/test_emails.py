@@ -26,7 +26,7 @@ def test_normalise_email_removes_null_byte() -> None:
 
 
 def test_normalise_email_removes_interior_control_chars() -> None:
-    """normalise_email removes non-printable control characters anywhere in the string."""
+    """normalise_email removes non-printable control characters anywhere."""
     # Interior tab (\t is not printable, so it is stripped out).
     assert normalise_email("alice\t@example.com") == "alice@example.com"
     # Embedded newline.
@@ -36,7 +36,7 @@ def test_normalise_email_removes_interior_control_chars() -> None:
 
 
 def test_normalise_email_removes_non_printable_unicode() -> None:
-    """normalise_email removes zero-width and other non-printable Unicode code points."""
+    """normalise_email removes zero-width and non-printable Unicode code points."""
     # Zero-width space (U+200B) — not printable.
     assert normalise_email("alice​@example.com") == "alice@example.com"
     # Soft hyphen (U+00AD) — not printable.

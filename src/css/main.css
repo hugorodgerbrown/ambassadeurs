@@ -491,4 +491,97 @@
      A large role-tinted circle holding one line icon. Confirmation / success
      screen headers (e.g. "Confirm your email", "You're in the queue"). */
   .medallion { width: 64px; height: 64px; border-radius: var(--radius-pill); background: var(--role-tint); color: var(--role); display: flex; align-items: center; justify-content: center; }
+
+  /* ════════════════════════════════════════════════════════════════════════
+     MATCH PAGE — the paired-with-a-partner screen (VERB / match redesign).
+     Ported from the design handoff's match-components.css; variable names are
+     reconciled to the @theme vocabulary (--color-border → --color-line,
+     --color-text-3 → --color-meta, secondary = the Referee/warm tone, …). Every
+     class is token-driven so dark mode inverts automatically. Usage rubric:
+
+       .status-line   Page eyebrow: a state dot + mono kicker, above the <h1>.
+       .match-roster  THE two-party status list (Ambassador row first, Referee
+                      second) so the page never reads as one-sided.
+       .avatar        Role-tinted initials circle (accent = Ambassador, secondary
+                      = Referee). Reused in the roster and the contact card.
+       .tag-status    Compact inline pill: --done (accept), --wait (outstanding),
+                      --muted (declined / no-response — neutral, never red).
+       .callout       Full-width banner that gates an action (--warm / --success).
+       .deadline      Mono clock + time strip: --warm when it is the viewer's
+                      deadline to beat, --neutral when it is the partner's.
+       .contact-card  Confirmed-only contact panel (success header + rows +
+                      mailto:/tel: actions; there is no in-app messaging).
+       .steps         Numbered "what to do next" list.
+     ════════════════════════════════════════════════════════════════════════ */
+
+  /* Status line (page eyebrow with state dot). */
+  .status-line { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+  .status-line__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--color-meta); }
+  .status-line__dot--warm    { background: var(--color-secondary); }
+  .status-line__dot--accent  { background: var(--color-accent); }
+  .status-line__dot--success { background: var(--color-success); }
+  .status-line__dot--muted   { background: #9aa6aa; }
+  .status-line__text { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--color-meta); }
+
+  /* Match roster (two-party status list). */
+  .match-roster { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-card); overflow: hidden; }
+  .match-roster__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; }
+  .match-roster__row + .match-roster__row { border-top: 1px solid var(--color-line); }
+  .match-roster__id { display: flex; align-items: center; gap: 11px; }
+  .match-roster__name { font-weight: 600; color: var(--color-ink); font-size: 0.98rem; }
+  .match-roster__role { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; margin-top: 1px; }
+  .match-roster__role--amb { color: var(--color-accent); }
+  .match-roster__role--ref { color: var(--color-secondary); }
+
+  /* Avatar (role-tinted initials circle). */
+  .avatar { flex: none; width: 34px; height: 34px; border-radius: var(--radius-pill); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; font-size: 0.82rem; }
+  .avatar--amb { background: var(--color-accent-tint);    color: var(--color-accent-ink);    border: 1px solid color-mix(in srgb, var(--color-accent) 20%, transparent); }
+  .avatar--ref { background: var(--color-secondary-tint); color: var(--color-secondary-ink); border: 1px solid color-mix(in srgb, var(--color-secondary) 22%, transparent); }
+  .avatar--lg  { width: 46px; height: 46px; font-size: 1.05rem; }
+
+  /* Status pill (compact, inline). Pick the modifier by MEANING, not by who. */
+  .tag-status { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; padding: 5px 11px; border-radius: var(--radius-pill); white-space: nowrap; }
+  .tag-status svg { flex: none; }
+  .tag-status--done  { background: var(--color-success-tint);   color: var(--color-success-ink); }
+  .tag-status--wait  { background: var(--color-secondary-tint); color: var(--color-secondary-ink); }
+  .tag-status--muted { background: var(--color-surface-disabled); color: var(--color-meta); } /* declined / no-response — neutral, never danger */
+
+  /* Callout banner (icon + message, gates an action). */
+  .callout { display: flex; gap: 9px; align-items: flex-start; border-radius: var(--radius-control); padding: 11px 13px; font-size: 13.5px; line-height: 1.4; font-weight: 600; }
+  .callout svg { flex: none; margin-top: 1px; }
+  .callout--warm    { background: var(--color-secondary-tint); border: 1px solid color-mix(in srgb, var(--color-secondary) 24%, transparent); color: var(--color-secondary-ink); }
+  .callout--success { background: var(--color-success-tint);   border: 1px solid color-mix(in srgb, var(--color-success) 22%, transparent);   color: var(--color-success-ink); }
+
+  /* Deadline strip (mono clock + time). */
+  .deadline { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; border-radius: var(--radius-control); padding: 9px 12px; }
+  .deadline svg { flex: none; }
+  .deadline--warm    { color: var(--color-secondary-ink); background: var(--color-secondary-tint); }
+  .deadline--neutral { color: var(--color-meta); background: var(--color-surface-2); border: 1px solid var(--color-line); }
+
+  /* Contact card (confirmed state only). */
+  .contact-card { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-card); overflow: hidden; }
+  .contact-card__banner { display: flex; align-items: center; gap: 8px; background: var(--color-success-tint); color: var(--color-success-ink); padding: 11px 18px; font-size: 13px; font-weight: 600; border-bottom: 1px solid color-mix(in srgb, var(--color-success) 18%, transparent); }
+  .contact-card__banner svg { flex: none; }
+  .contact-card__body { padding: 18px; }
+  .contact-card__identity { display: flex; align-items: center; gap: 13px; margin-bottom: 16px; }
+  .contact-card__name { font-family: var(--font-display); font-weight: 700; font-size: 1.18rem; letter-spacing: -0.01em; color: var(--color-ink); }
+  .contact-card__meta { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-accent); margin-top: 1px; }
+  .contact-rows { display: flex; flex-direction: column; gap: 1px; border: 1px solid var(--color-line); border-radius: var(--radius-control); overflow: hidden; margin-bottom: 14px; }
+  .contact-row { display: flex; align-items: center; gap: 11px; padding: 12px 14px; background: var(--color-surface-2); }
+  .contact-row + .contact-row { border-top: 1px solid var(--color-line); }
+  .contact-row svg { flex: none; color: var(--color-meta); }
+  .contact-row__value { font-family: var(--font-mono); font-size: 13px; color: var(--color-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .contact-card__actions { display: flex; gap: 10px; }
+
+  /* Decline button — a ghost button whose hover goes soft red rather than the
+     default accent, marking it as the path away from the match (never alarming
+     red; the product frames a decline as neutral). */
+  .match-decline:hover { border-color: #b4554f; color: #b4554f; }
+
+  /* Steps (numbered "what to do next"). */
+  .steps { display: flex; flex-direction: column; gap: 14px; }
+  .steps__item { display: flex; gap: 13px; }
+  .steps__num { flex: none; width: 26px; height: 26px; border-radius: var(--radius-pill); background: var(--color-accent-tint); color: var(--color-accent); font-family: var(--font-mono); font-weight: 600; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+  .steps__title { font-weight: 600; color: var(--color-ink); font-size: 0.97rem; margin-bottom: 2px; }
+  .steps__text { font-size: 0.89rem; color: var(--color-body); line-height: 1.45; }
 }

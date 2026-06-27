@@ -10,6 +10,7 @@
 # require_htmx; contact PII is only revealed after mutual accept.
 
 import re
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -1039,8 +1040,10 @@ def test_match_detail_htmx_accept_transitions_to_waiting_state() -> None:
 
     assert response.status_code == 200
     content = response.content.decode()
-    # Waiting state: no action buttons, no counterpart PII.
-    assert "Waiting for your partner to respond" in content
+    # Waiting state markers (the viewer accepted, awaiting the partner).
+    assert "You've accepted" in content
+    assert "1 of 2 accepted" in content
+    # No counterpart contact PII (phone) in the waiting state.
     assert "+41790008888" not in content
 
 
@@ -1488,8 +1491,8 @@ def test_match_report_no_show_abandoned_fragment_shows_reporter_copy() -> None:
         response = Client().post(url, headers={"hx-request": "true"})
 
     content = response.content.decode()
-    assert "reported a no-show" in content.lower()
-    # The accused-facing "contact support" copy must not appear to the reporter.
+    # Reporter sees the reassurance copy, not the accused's "contact support" line.
+    assert "no-show reported" in content.lower()
     assert "contact support" not in content.lower()
 
 
@@ -1624,8 +1627,9 @@ def test_both_sides_panel_shows_pending_for_proposed_match() -> None:
     url = _make_match_url(match, match.ambassador_registration)
     response = Client().get(url)
     content = response.content.decode()
-    # Both sides pending — the panel should appear twice with "Pending".
-    assert content.count("Pending") >= 2
+    # Proposed: the viewer's row reads "Your turn", the partner's reads "Pending".
+    assert "Your turn" in content
+    assert "Pending" in content
 
 
 def test_both_sides_panel_shows_accepted_after_ambassador_accepts() -> None:
@@ -1665,16 +1669,19 @@ def test_both_sides_panel_shows_declined_for_declining_party() -> None:
 
 
 def test_both_sides_panel_marks_viewer_with_you() -> None:
-    """The viewer's own row is marked with '(you)'."""
+    """The viewer's own roster row is labelled 'You'; the partner shows their name."""
     match = MatchFactory.create()
     url = _make_match_url(match, match.ambassador_registration)
     response = Client().get(url)
     content = response.content.decode()
-    assert "(you)" in content
+    # The viewer's own row reads "You"; the partner's row shows their first name.
+    assert "You" in content
+    assert match.referee_registration.user.first_name in content
 
 
-def test_both_sides_panel_no_counterpart_pii_in_proposed_match() -> None:
-    """The panel never emits the counterpart's name, email, or phone for PROPOSED."""
+def test_both_sides_panel_reveals_only_first_name_in_proposed_match() -> None:
+    """The roster reveals the counterpart's first name on a PROPOSED match, but
+    never their email, phone, or full name (Invariant 1, re-scoped — ADR 0009)."""
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
@@ -1694,9 +1701,52 @@ def test_both_sides_panel_no_counterpart_pii_in_proposed_match() -> None:
     url = _make_match_url(match, ambassador_reg)
     response = Client().get(url)
     content = response.content.decode()
-    # Referee's PII must not appear anywhere on the page.
+    # First name is revealed early (ADR 0009)...
+    assert referee_reg.user.first_name in content
+    # ...but email, phone, and full name stay hidden until mutual accept.
     assert referee_reg.phone not in content
     assert referee_reg.user.email not in content
-    referee_name = referee_reg.user.get_full_name()
-    if referee_name:
-        assert referee_name not in content
+    full_name = referee_reg.user.get_full_name()
+    if full_name and referee_reg.user.last_name:
+        assert full_name not in content
+
+
+def test_match_detail_partner_accepted_shows_callout_and_actions() -> None:
+    """When the partner has accepted but the viewer has not, the page shows the
+    'already accepted' callout and still offers Accept/Decline."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    # Referee (the partner) has accepted; ambassador (the viewer) has not.
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+        referee_accepted_at=datetime(2026, 9, 2, 10, 0, 0, tzinfo=UTC),
+    )
+    url = _make_match_url(match, ambassador_reg)
+    response = Client().get(url)
+    content = response.content.decode()
+    assert response.context["view"] == "partner_accepted"
+    assert "already accepted" in content.lower()
+    assert "Accept match" in content
+    assert "Decline" in content
+
+
+def test_match_detail_expired_match_shows_expired_outcome() -> None:
+    """An EXPIRED match renders the expired outcome with no action buttons."""
+    match = MatchFactory.create(
+        status=Match.Status.EXPIRED,
+        expires_at=datetime(2020, 1, 1, 0, 0, 0, tzinfo=UTC),
+    )
+    url = _make_match_url(match, match.ambassador_registration)
+    response = Client().get(url)
+    content = response.content.decode()
+    assert response.context["view"] == "expired"
+    assert "This match expired" in content
+    assert b"<button" not in response.content

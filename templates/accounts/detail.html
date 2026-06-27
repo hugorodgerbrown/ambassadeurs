@@ -132,18 +132,18 @@
                             {% endblocktranslate %}
                         {% endif %}
                     {% elif registration.status == 'MATCHED' %}
-                        {% if i_have_accepted %}
-                            {% blocktranslate trimmed %}
-                                You have accepted. Waiting for your partner to respond.
+                        {% if partner_accepted %}
+                            {% blocktranslate trimmed with name=partner_first_name %}
+                                You have been matched with {{ name }}. They are waiting for you to respond.
                             {% endblocktranslate %}
                         {% else %}
-                            {% blocktranslate trimmed %}
-                                You have been matched. Check your email to accept or decline.
+                            {% blocktranslate trimmed with name=partner_first_name %}
+                                You have been matched with {{ name }}. They have not yet responded.
                             {% endblocktranslate %}
                         {% endif %}
                     {% elif registration.status == 'CONFIRMED' %}
-                        {% blocktranslate trimmed %}
-                            Your match is confirmed. Contact your partner to buy your passes together.
+                        {% blocktranslate trimmed with name=partner_first_name %}
+                            You have been matched with {{ name }} — view the match to see their contact details.
                         {% endblocktranslate %}
                     {% elif registration.status == 'WITHDRAWN' %}
                         {% blocktranslate trimmed %}

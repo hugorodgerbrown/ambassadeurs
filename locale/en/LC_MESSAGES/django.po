@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-25 23:45+0200\n"
+"POT-Creation-Date: 2026-06-27 17:45+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -42,6 +42,9 @@ msgid ""
 "%(url)s\n"
 "\n"
 "This link expires in 24 hours. If you didn't request it, ignore this email."
+msgstr ""
+
+msgid "your partner"
 msgstr ""
 
 msgid "No pending registration found. Your email may already be confirmed."
@@ -380,14 +383,19 @@ msgid_plural "%(counter)s pairs matched so far this season."
 msgstr[0] ""
 msgstr[1] ""
 
-msgid "You have accepted. Waiting for your partner to respond."
-msgstr ""
-
-msgid "You have been matched. Check your email to accept or decline."
-msgstr ""
-
+#, python-format
 msgid ""
-"Your match is confirmed. Contact your partner to buy your passes together."
+"You have been matched with %(name)s. They are waiting for you to respond."
+msgstr ""
+
+#, python-format
+msgid "You have been matched with %(name)s. They have not yet responded."
+msgstr ""
+
+#, python-format
+msgid ""
+"You have been matched with %(name)s — view the match to see their contact "
+"details."
 msgstr ""
 
 msgid "Your registration has been withdrawn."

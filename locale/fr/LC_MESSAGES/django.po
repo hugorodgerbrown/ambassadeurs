@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-25 23:45+0200\n"
+"POT-Creation-Date: 2026-06-27 17:45+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -51,6 +51,9 @@ msgstr ""
 "\n"
 "Ce lien expire dans 24 heures. Si vous n'avez pas fait cette demande, "
 "ignorez cet e-mail."
+
+msgid "your partner"
+msgstr "votre partenaire"
 
 msgid "No pending registration found. Your email may already be confirmed."
 msgstr ""
@@ -289,7 +292,9 @@ msgstr "Saisir le code de connexion"
 
 #, python-format
 msgid "We've sent a code to %(recipient)s. Enter it below to sign in."
-msgstr "Nous avons envoyé un code à %(recipient)s. Saisissez-le ci-dessous pour vous connecter."
+msgstr ""
+"Nous avons envoyé un code à %(recipient)s. Saisissez-le ci-dessous pour vous "
+"connecter."
 
 msgid "We've sent you a sign-in code. Enter it below."
 msgstr "Nous vous avons envoyé un code de connexion. Saisissez-le ci-dessous."
@@ -354,7 +359,9 @@ msgid "Are you sure you want to log out?"
 msgstr "Voulez-vous vraiment vous déconnecter ?"
 
 msgid "Enter your email address and we'll send you a one-time sign-in code."
-msgstr "Saisissez votre adresse e-mail et nous vous enverrons un code de connexion à usage unique."
+msgstr ""
+"Saisissez votre adresse e-mail et nous vous enverrons un code de connexion à "
+"usage unique."
 
 msgid "Request code"
 msgstr "Demander un code"
@@ -428,15 +435,26 @@ msgid_plural "%(counter)s pairs matched so far this season."
 msgstr[0] ""
 msgstr[1] ""
 
-msgid "You have accepted. Waiting for your partner to respond."
-msgstr ""
-
-msgid "You have been matched. Check your email to accept or decline."
-msgstr ""
-
+#, python-format
 msgid ""
-"Your match is confirmed. Contact your partner to buy your passes together."
+"You have been matched with %(name)s. They are waiting for you to respond."
 msgstr ""
+"Vous avez été mis·e en relation avec %(name)s. Cette personne attend votre "
+"réponse."
+
+#, python-format
+msgid "You have been matched with %(name)s. They have not yet responded."
+msgstr ""
+"Vous avez été mis·e en relation avec %(name)s. Cette personne n'a pas encore "
+"répondu."
+
+#, python-format
+msgid ""
+"You have been matched with %(name)s — view the match to see their contact "
+"details."
+msgstr ""
+"Vous avez été mis·e en relation avec %(name)s — consultez le match pour voir "
+"ses coordonnées."
 
 msgid "Your registration has been withdrawn."
 msgstr ""
@@ -1445,11 +1463,14 @@ msgstr "Se connecter via %(name)s"
 
 #, python-format
 msgid "You are about to connect a new third-party account from %(name)s."
-msgstr "Vous êtes sur le point de connecter un nouveau compte tiers depuis %(name)s."
+msgstr ""
+"Vous êtes sur le point de connecter un nouveau compte tiers depuis %(name)s."
 
 #, python-format
 msgid "You are about to sign in using a third-party account from %(name)s."
-msgstr "Vous êtes sur le point de vous connecter à l'aide d'un compte tiers depuis %(name)s."
+msgstr ""
+"Vous êtes sur le point de vous connecter à l'aide d'un compte tiers depuis "
+"%(name)s."
 
 msgid "Continue"
 msgstr "Continuer"
@@ -1463,8 +1484,8 @@ msgid ""
 "%(site_name)s. As a final step, please confirm your email address."
 msgstr ""
 "Vous êtes sur le point d'utiliser votre compte %(provider_name)s pour vous "
-"connecter à %(site_name)s. Pour terminer, veuillez confirmer votre adresse "
-"e-mail."
+"connecter à %(site_name)s. Pour terminer, veuillez confirmer votre adresse e-"
+"mail."
 
 #~ msgid "You've been matched!"
 #~ msgstr "Vous avez été mis en relation !"

@@ -1625,8 +1625,12 @@ def test_both_sides_panel_marks_viewer_with_you() -> None:
     assert "(you)" in content
 
 
-def test_both_sides_panel_no_counterpart_pii_in_proposed_match() -> None:
-    """The panel never emits the counterpart's name, email, or phone for PROPOSED."""
+def test_both_sides_panel_shows_partner_first_name_only_for_proposed() -> None:
+    """The panel shows the partner's first name but not their surname, email or phone.
+
+    Invariant 1 permits a first-name reveal once a match is PROPOSED; contact PII
+    (email, phone) and the surname remain hidden until both parties accept.
+    """
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
@@ -1637,6 +1641,8 @@ def test_both_sides_panel_no_counterpart_pii_in_proposed_match() -> None:
         referee=True,
         phone="+41790008888",
         status=Registration.Status.MATCHED,
+        user__first_name="Bernard",
+        user__last_name="Borel",
     )
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -1646,9 +1652,9 @@ def test_both_sides_panel_no_counterpart_pii_in_proposed_match() -> None:
     url = _make_match_url(match, ambassador_reg)
     response = Client().get(url)
     content = response.content.decode()
-    # Referee's PII must not appear anywhere on the page.
+    # First name IS shown on the partner's row.
+    assert "Bernard" in content
+    # Surname and contact PII must not appear before mutual accept.
+    assert "Borel" not in content
     assert referee_reg.phone not in content
     assert referee_reg.user.email not in content
-    referee_name = referee_reg.user.get_full_name()
-    if referee_name:
-        assert referee_name not in content

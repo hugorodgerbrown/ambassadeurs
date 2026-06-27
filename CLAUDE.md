@@ -79,8 +79,9 @@ database rows. See `docs/decisions/0005-single-season-matching-engine.md`.
 - **Match** — a system-created link of one ambassador registration and one
   referee registration. Terminal matches accumulate as history (no unique
   constraint on the registration FKs). State machine:
-  - `PROPOSED` — the engine paired them; both are notified; **neither sees the
-    other's identity or contact details**.
+  - `PROPOSED` — the engine paired them; both are notified and see **the
+    partner's first name**, but **neither sees the other's contact details**
+    (email, phone, surname) until both accept.
   - each side accepts or declines within the contact window.
   - both accept → `ACCEPTED` — contact details are revealed and the pair
     proceeds to the off-app application. Terminal success; both leave the pool.
@@ -345,9 +346,11 @@ These must hold at all times. The QA agent and security-auditor check for drift
 against this list on every PR.
 
 1. **Contact PII hidden until mutual accept** — a matched user must not see the
-   other party's name, email, or phone until *both* have accepted the match.
-   Declines and expiry never reveal it. This is the core privacy guarantee of the
-   product.
+   other party's **email, phone, or full name** until *both* have accepted the
+   match. The partner's **first name** may be shown from the moment a match is
+   `PROPOSED`, so a participant knows who they have been matched with; email,
+   phone and surname stay hidden until mutual accept. Declines and expiry never
+   reveal contact details. This is the core privacy guarantee of the product.
 2. **Matches are only ever proposed between an eligible pair** — the engine enforces
    the price-category ordering and the prior-season (returning-ambassador /
    genuinely-new-referee) rules before a `proposed` match exists. No view or admin

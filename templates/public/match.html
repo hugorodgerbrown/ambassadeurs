@@ -21,8 +21,9 @@
         {% comment %}
             Both-sides status panel (VERB-32). Shows each party's participation
             status (Pending / Accepted / Declined) derived from match fields.
-            Role labels and status only — no names, email, or phone (Invariant 1).
-            The viewer's own row is marked with "(you)".
+            The partner's first name is shown on their row (Invariant 1 permits a
+            first-name reveal pre-accept); email, phone and full name stay hidden
+            until mutual accept. The viewer's own row is marked with "(you)".
         {% endcomment %}
         <div class="card mb-6">
             <h2 class="mb-3 text-h3 text-ink">{% translate "Participation status" %}</h2>
@@ -32,6 +33,8 @@
                         {% translate "Ambassador" %}
                         {% if side == 'AMBASSADOR' %}
                             <span class="ml-1 text-xs text-meta">{% translate "(you)" %}</span>
+                        {% elif partner_first_name %}
+                            <span class="ml-1 text-xs text-meta">{{ partner_first_name }}</span>
                         {% endif %}
                     </dt>
                     <dd>
@@ -49,6 +52,8 @@
                         {% translate "Referee" %}
                         {% if side == 'REFEREE' %}
                             <span class="ml-1 text-xs text-meta">{% translate "(you)" %}</span>
+                        {% elif partner_first_name %}
+                            <span class="ml-1 text-xs text-meta">{{ partner_first_name }}</span>
                         {% endif %}
                     </dt>
                     <dd>

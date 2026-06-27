@@ -230,9 +230,13 @@ def test_detail_hides_resend_button_when_email_verified() -> None:
             b"Please confirm your email address to enter the pool",
         ),
         (Registration.Status.WAITING, b"You are in the queue"),
-        # MATCHED with no proposed match: i_have_accepted defaults to False.
-        (Registration.Status.MATCHED, b"Check your email to accept or decline"),
-        (Registration.Status.CONFIRMED, b"Your match is confirmed"),
+        # MATCHED / CONFIRMED with no active match: partner name falls back to the
+        # generic "your partner", so assert on the stable lead-in copy.
+        (Registration.Status.MATCHED, b"You have been matched with"),
+        (
+            Registration.Status.CONFIRMED,
+            b"view the match to see their contact details",
+        ),
         (Registration.Status.WITHDRAWN, b"Your registration has been withdrawn"),
         (Registration.Status.SUSPENDED, b"Your registration has been suspended"),
     ],
@@ -248,91 +252,116 @@ def test_detail_status_sentence(status: str, expected_label: bytes) -> None:
 
 
 # ---------------------------------------------------------------------------
-# MATCHED sub-states: i_have_accepted (VERB-37)
+# MATCHED sub-states: partner name + partner response (VERB-37, amended)
 # ---------------------------------------------------------------------------
 
+_FAR_FUTURE = datetime(2099, 12, 31, 23, 59, 59, tzinfo=UTC)
+_ACCEPTED_AT = datetime(2026, 9, 2, 10, 0, 0, tzinfo=UTC)
 
-def test_detail_matched_not_yet_accepted_shows_check_email() -> None:
-    """A MATCHED ambassador who has not yet accepted sees the 'check email' sentence."""
+
+def test_detail_matched_partner_pending_names_partner() -> None:
+    """A MATCHED ambassador whose partner has not responded sees the partner's name."""
     reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
-    # Create a PROPOSED match with ambassador_accepted_at=None (not yet accepted).
+    ref_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+        user__first_name="Bernard",
+        user__last_name="Borel",
+    )
     MatchFactory.create(
         ambassador_registration=reg,
+        referee_registration=ref_reg,
         status=Match.Status.PROPOSED,
-        expires_at=datetime(2099, 12, 31, 23, 59, 59, tzinfo=UTC),
+        expires_at=_FAR_FUTURE,
     )
     client = Client()
     client.force_login(reg.user)
     response = client.get(reverse("accounts:detail"))
     assert response.status_code == 200
-    assert b"Check your email to accept or decline" in response.content
-    # PII invariant: the counterpart's contact details must not appear.
-    referee_email = reg.matches_as_ambassador.first().referee_registration.user.email
-    assert referee_email.encode() not in response.content
-    referee_phone = reg.matches_as_ambassador.first().referee_registration.phone
-    assert referee_phone.encode() not in response.content
+    assert b"You have been matched with Bernard" in response.content
+    assert b"They have not yet responded" in response.content
+    # PII invariant: surname, email and phone must not appear before mutual accept.
+    assert b"Borel" not in response.content
+    assert ref_reg.user.email.encode() not in response.content
+    assert ref_reg.phone.encode() not in response.content
 
 
-def test_detail_matched_accepted_shows_waiting_for_partner() -> None:
-    """A MATCHED ambassador who has accepted sees the 'waiting for partner' sentence."""
-    accepted_at = datetime(2026, 9, 2, 10, 0, 0, tzinfo=UTC)
+def test_detail_matched_partner_accepted_says_waiting_on_you() -> None:
+    """When the partner has accepted, the viewer is told the partner waits on them."""
     reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
+    ref_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+        user__first_name="Bernard",
+    )
     MatchFactory.create(
         ambassador_registration=reg,
+        referee_registration=ref_reg,
         status=Match.Status.PROPOSED,
-        expires_at=datetime(2099, 12, 31, 23, 59, 59, tzinfo=UTC),
-        ambassador_accepted_at=accepted_at,
+        expires_at=_FAR_FUTURE,
+        referee_accepted_at=_ACCEPTED_AT,
     )
     client = Client()
     client.force_login(reg.user)
     response = client.get(reverse("accounts:detail"))
     assert response.status_code == 200
-    assert b"Waiting for your partner" in response.content
+    assert b"You have been matched with Bernard" in response.content
+    assert b"They are waiting for you to respond" in response.content
 
 
-def test_detail_matched_referee_not_yet_accepted_shows_check_email() -> None:
-    """A MATCHED referee who has not yet accepted sees the 'check email' sentence."""
+def test_detail_matched_referee_view_names_ambassador_partner() -> None:
+    """A MATCHED referee sees the ambassador partner's first name, partner pending."""
+    amb_reg = RegistrationFactory.create(
+        status=Registration.Status.MATCHED,
+        user__first_name="Astrid",
+        user__last_name="Aebi",
+    )
     ref_reg = RegistrationFactory.create(
         referee=True,
         status=Registration.Status.MATCHED,
     )
     MatchFactory.create(
+        ambassador_registration=amb_reg,
         referee_registration=ref_reg,
         status=Match.Status.PROPOSED,
-        expires_at=datetime(2099, 12, 31, 23, 59, 59, tzinfo=UTC),
+        expires_at=_FAR_FUTURE,
     )
     client = Client()
     client.force_login(ref_reg.user)
     response = client.get(reverse("accounts:detail"))
     assert response.status_code == 200
-    assert b"Check your email to accept or decline" in response.content
-    # PII invariant: the counterpart's contact details must not appear.
-    ambassador_email = (
-        ref_reg.matches_as_referee.first().ambassador_registration.user.email
-    )
-    assert ambassador_email.encode() not in response.content
-    ambassador_phone = ref_reg.matches_as_referee.first().ambassador_registration.phone
-    assert ambassador_phone.encode() not in response.content
+    assert b"You have been matched with Astrid" in response.content
+    assert b"They have not yet responded" in response.content
+    # PII invariant: surname, email and phone must not appear before mutual accept.
+    assert b"Aebi" not in response.content
+    assert amb_reg.user.email.encode() not in response.content
+    assert amb_reg.phone.encode() not in response.content
 
 
-def test_detail_matched_referee_accepted_shows_waiting_for_partner() -> None:
-    """A MATCHED referee who has accepted sees the 'waiting for partner' sentence."""
-    accepted_at = datetime(2026, 9, 2, 10, 0, 0, tzinfo=UTC)
+def test_detail_confirmed_names_partner_and_points_to_match() -> None:
+    """A CONFIRMED registration names the partner and links to the match page."""
     ref_reg = RegistrationFactory.create(
         referee=True,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.CONFIRMED,
+    )
+    amb_reg = RegistrationFactory.create(
+        status=Registration.Status.CONFIRMED,
+        user__first_name="Astrid",
     )
     MatchFactory.create(
+        ambassador_registration=amb_reg,
         referee_registration=ref_reg,
-        status=Match.Status.PROPOSED,
-        expires_at=datetime(2099, 12, 31, 23, 59, 59, tzinfo=UTC),
-        referee_accepted_at=accepted_at,
+        status=Match.Status.ACCEPTED,
+        ambassador_accepted_at=_ACCEPTED_AT,
+        referee_accepted_at=_ACCEPTED_AT,
+        expires_at=_FAR_FUTURE,
     )
     client = Client()
     client.force_login(ref_reg.user)
     response = client.get(reverse("accounts:detail"))
     assert response.status_code == 200
-    assert b"Waiting for your partner" in response.content
+    assert b"You have been matched with Astrid" in response.content
+    assert b"view the match to see their contact details" in response.content
 
 
 # ---------------------------------------------------------------------------

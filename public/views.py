@@ -496,11 +496,16 @@ def _render_match_page(
         if side == Match.Side.AMBASSADOR
         else match.ambassador_registration
     )
+    # The partner's first name may be shown in every state (Invariant 1): it
+    # identifies who the pair is matched with without exposing contact details.
+    # Full name, email and phone remain gated behind mutual accept (counterpart).
+    partner_first_name = counterpart.user.first_name if counterpart is not None else ""
     context: dict[str, object] = {
         "match": match,
         "registration": registration,
         "side": side,
         "display_state": display_state,
+        "partner_first_name": partner_first_name,
         "state_actionable": _STATE_ACTIONABLE,
         "state_waiting": _STATE_WAITING,
         "state_terminal": _STATE_TERMINAL,

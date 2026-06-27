@@ -100,6 +100,68 @@
                     {% endblocktranslate %}
                 </p>
             </div>
+
+            {% comment %}
+                Next steps card — shown only after both parties accept (guarded by
+                the {% if counterpart %} block above, satisfying Invariant 1).
+                Describes the five-step off-app email application process.
+            {% endcomment %}
+            <div class="card mb-6" id="next-steps">
+                <h2 class="mb-3 text-h3 text-ink">{% translate "Next steps" %}</h2>
+                <p class="mb-4 text-body">
+                    {% blocktranslate trimmed %}
+                        Now that you are matched, you need to complete the application together. Here is what to do:
+                    {% endblocktranslate %}
+                </p>
+                <ol class="list-decimal space-y-3 pl-5 text-body">
+                    <li>
+                        {% blocktranslate trimmed %}
+                            Download and fill in the official Ambassador Program application form together. Both
+                            partners must sign it.
+                        {% endblocktranslate %}
+                        <div class="mt-2">
+                            <a
+                                href="{% url 'public:application_form' %}"
+                                class="btn btn--primary"
+                                target="_blank"
+                                rel="noopener"
+                            >
+                                {% translate "Download application form" %}
+                            </a>
+                        </div>
+                    </li>
+                    <li>
+                        {% blocktranslate trimmed %}
+                            Compile photo ID (passport or national identity card) and a digital passport photo for both
+                            applicants.
+                        {% endblocktranslate %}
+                    </li>
+                    <li>
+                        {% blocktranslate trimmed %}
+                            Email the signed form, photo IDs, and passport photos to customer@televerbier.ch
+                            (Téléverbier). The back-office team will check your eligibility.
+                        {% endblocktranslate %}
+                    </li>
+                    <li>
+                        {% blocktranslate trimmed %}
+                            If approved, Téléverbier will issue a payment link or invoice. Once payment is received,
+                            your passes will be approved.
+                        {% endblocktranslate %}
+                    </li>
+                    <li>
+                        {% blocktranslate trimmed %}
+                            Collect your physical pass cards at the ticket desk. If you provided your keycard numbers in
+                            the application, the passes can be loaded onto your existing keycards instead.
+                        {% endblocktranslate %}
+                    </li>
+                </ol>
+                <p class="mt-4 text-sm text-meta">
+                    {% blocktranslate trimmed %}
+                        Eligibility is verified by Téléverbier during the application process. Registering on this
+                        site does not guarantee a discount; the off-app application is the definitive step.
+                    {% endblocktranslate %}
+                </p>
+            </div>
         {% endif %}
 
         <div class="card">

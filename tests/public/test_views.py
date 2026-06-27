@@ -954,6 +954,54 @@ def test_match_detail_accepted_reveals_counterpart_pii() -> None:
     assert referee_reg.user.email in content
 
 
+def test_match_detail_accepted_shows_next_steps_block() -> None:
+    """After mutual accept the next-steps application block is shown."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.CONFIRMED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.CONFIRMED,
+    )
+    match = MatchFactory.create(
+        accepted=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    url = _make_match_url(match, ambassador_reg)
+    response = Client().get(url)
+    content = response.content
+    # Stable markers: the next-steps card id, the form download URL, and the
+    # application email address must all appear once the match is accepted.
+    assert b'id="next-steps"' in content
+    assert reverse("public:application_form").encode() in content
+    assert b"customer@televerbier.ch" in content
+
+
+def test_match_detail_next_steps_absent_before_mutual_accept() -> None:
+    """A PROPOSED match must not show the next-steps application block."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    url = _make_match_url(match, ambassador_reg)
+    response = Client().get(url)
+    content = response.content
+    # Next-steps block must not appear before both parties accept.
+    assert b'id="next-steps"' not in content
+
+
 def test_match_detail_terminal_match_shows_no_action_buttons() -> None:
     """A terminal match (DECLINED) renders no Accept or Decline buttons."""
     match = MatchFactory.create(declined=True)

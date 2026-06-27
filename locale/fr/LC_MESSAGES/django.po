@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-27 17:45+0200\n"
+"POT-Creation-Date: 2026-06-27 17:56+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -86,28 +86,28 @@ msgid "Ambassador"
 msgstr "Ambassadeur"
 
 msgid "Create counterpart"
-msgstr ""
+msgstr "Créer un partenaire"
 
 msgid "State"
 msgstr "Statut"
 
 msgid "Waiting (match immediately)"
-msgstr ""
+msgstr "En file d'attente (mise en relation immédiate)"
 
 msgid "Pending (email confirm required)"
-msgstr ""
+msgstr "En attente (confirmation de l'e-mail requise)"
 
 msgid "Create"
-msgstr ""
+msgstr "Créer"
 
 msgid "Accept as counterpart"
-msgstr ""
+msgstr "Accepter en tant que partenaire"
 
 msgid "Decline as counterpart"
-msgstr ""
+msgstr "Refuser en tant que partenaire"
 
 msgid "Log in as counterpart"
-msgstr ""
+msgstr "Se connecter en tant que partenaire"
 
 msgid "has flakes"
 msgstr "a des désistements"
@@ -231,8 +231,10 @@ msgstr ""
 "Bonne nouvelle — le système de mise en relation vous a trouvé un partenaire "
 "pour le programme Ambassadeurs des 4 Vallées.\n"
 "\n"
-"Connectez-vous à votre compte pour consulter la mise en relation et agir "
-"dans le délai imparti.\n"
+"Ouvrez le lien ci-dessous pour consulter votre mise en relation et accepter "
+"ou refuser dans le délai imparti :\n"
+"\n"
+"%(url)s\n"
 "\n"
 "Si vous ne vous êtes pas inscrit(e) à ce programme, ignorez cet e-mail."
 
@@ -384,7 +386,7 @@ msgid "Yes, delete my account"
 msgstr "Oui, supprimer mon compte"
 
 msgid "Account details"
-msgstr ""
+msgstr "Détails du compte"
 
 msgid "Your account"
 msgstr "Votre compte"
@@ -392,8 +394,15 @@ msgstr "Votre compte"
 msgid "Your role"
 msgstr "Votre rôle"
 
-msgid "To change role you must delete your account and start again."
+msgid "You held a 4 Vallées pass recently and are referring a newcomer."
 msgstr ""
+"Vous avez détenu un abonnement des 4 Vallées récemment et parrainez un "
+"nouveau venu."
+
+msgid "You're new to the 4 Vallées and need an Ambassador to refer you."
+msgstr ""
+"Vous êtes nouveau aux 4 Vallées et avez besoin d'un Ambassadeur pour vous "
+"parrainer."
 
 msgid "Your details"
 msgstr "Vos informations"
@@ -420,32 +429,34 @@ msgid "Match status"
 msgstr "Statut de la mise en relation"
 
 msgid "Please confirm your email address to enter the pool."
-msgstr ""
+msgstr "Veuillez confirmer votre adresse e-mail pour rejoindre la file."
 
 msgid "You are in the queue. We'll email you when a match is found."
 msgstr ""
+"Vous êtes dans la file d'attente. Nous vous enverrons un e-mail dès qu'une "
+"mise en relation sera trouvée."
 
 #, python-format
 msgid "You are number %(position)s in the queue."
-msgstr ""
+msgstr "Vous êtes en position %(position)s dans la file d'attente."
 
 #, python-format
 msgid "%(counter)s pair matched so far this season."
 msgid_plural "%(counter)s pairs matched so far this season."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%(counter)s paire mise en relation jusqu'ici cette saison."
+msgstr[1] "%(counter)s paires mises en relation jusqu'ici cette saison."
 
 #, python-format
 msgid ""
 "You have been matched with %(name)s. They are waiting for you to respond."
 msgstr ""
-"Vous avez été mis·e en relation avec %(name)s. Cette personne attend votre "
+"Vous avez été mis(e) en relation avec %(name)s. Cette personne attend votre "
 "réponse."
 
 #, python-format
 msgid "You have been matched with %(name)s. They have not yet responded."
 msgstr ""
-"Vous avez été mis·e en relation avec %(name)s. Cette personne n'a pas encore "
+"Vous avez été mis(e) en relation avec %(name)s. Cette personne n'a pas encore "
 "répondu."
 
 #, python-format
@@ -453,16 +464,18 @@ msgid ""
 "You have been matched with %(name)s — view the match to see their contact "
 "details."
 msgstr ""
-"Vous avez été mis·e en relation avec %(name)s — consultez le match pour voir "
-"ses coordonnées."
+"Vous avez été mis(e) en relation avec %(name)s — consultez votre match pour "
+"voir ses coordonnées."
 
 msgid "Your registration has been withdrawn."
-msgstr ""
+msgstr "Votre inscription a été retirée."
 
 msgid ""
 "Your registration has been suspended. Contact support if you think this is "
 "an error."
 msgstr ""
+"Votre inscription a été suspendue. Contactez le support si vous pensez qu'il "
+"s'agit d'une erreur."
 
 msgid "View your match"
 msgstr "Voir votre mise en relation"
@@ -480,13 +493,13 @@ msgid "Delete account"
 msgstr "Supprimer le compte"
 
 msgid "Permanently delete your account. This cannot be undone."
-msgstr ""
+msgstr "Supprimez définitivement votre compte. Cette action est irréversible."
 
 msgid "Delete account "
-msgstr ""
+msgstr "Supprimer le compte "
 
 msgid "Edit your details"
-msgstr ""
+msgstr "Modifier vos informations"
 
 msgid "Your role and email can't be changed here."
 msgstr "Votre rôle et votre e-mail ne peuvent pas être modifiés ici."
@@ -667,15 +680,17 @@ msgstr "Comment postuler ?"
 
 msgid ""
 "Download the application form, fill it in together with your partner, and "
-"email it to customer@televerbier.ch. Both parties must sign the form and "
-"provide proof of identity (passport or national ID card) at the point of "
-"application. If applying by email this can be a photograph attachment."
+"email it to customer@televerbier.ch (Téléverbier). Both parties must sign "
+"the form and provide proof of identity (passport or national ID card) and a "
+"digital passport photo. If applying by email these can be photograph "
+"attachments."
 msgstr ""
 "Téléchargez le formulaire de demande, remplissez-le avec votre partenaire et "
-"envoyez-le par e-mail à customer@televerbier.ch. Les deux parties doivent "
-"signer le formulaire et fournir une pièce d'identité (passeport ou carte "
-"d'identité nationale) au moment de la demande. En cas d'envoi par e-mail, il "
-"peut s'agir d'une photo en pièce jointe."
+"envoyez-le par e-mail à customer@televerbier.ch (Téléverbier). Les deux "
+"parties doivent signer le formulaire et fournir une pièce d'identité "
+"(passeport ou carte d'identité nationale) ainsi qu'une photo d'identité "
+"numérique. En cas d'envoi par e-mail, ces documents peuvent être des photos "
+"en pièce jointe."
 
 msgid "Download application form"
 msgstr "Télécharger le formulaire de demande"
@@ -684,18 +699,17 @@ msgid "What is the approval process?"
 msgstr "Comment se déroule l'approbation ?"
 
 msgid ""
-"Once the application form is received it will be assessed for approval. If "
-"approved, you will receive a confirmation email that includes payment "
-"details, and once payment is made you will receive instructions on how to "
-"pick up your pass. (This is typically from the Medran ticket office, "
-"although you may be able to pick up elsewhere if you request it?)"
+"Once Téléverbier receives the application form they will assess your "
+"eligibility. If approved, they will issue a payment link or invoice. Once "
+"payment is received your passes will be approved. You can then collect your "
+"physical pass cards at the ticket desk, or have them loaded onto your "
+"existing keycards if you provided your keycard numbers in the application."
 msgstr ""
-"Une fois le formulaire de demande reçu, il sera examiné en vue de son "
-"approbation. S'il est approuvé, vous recevrez un e-mail de confirmation "
-"contenant les modalités de paiement et, une fois le paiement effectué, vous "
-"recevrez les instructions pour retirer votre abonnement. (En général au "
-"guichet de Médran, mais vous pourrez peut-être le retirer ailleurs sur "
-"demande.)"
+"Une fois le formulaire reçu, Téléverbier examinera votre éligibilité. En cas "
+"d'approbation, ils émettront un lien de paiement ou une facture. Une fois le "
+"paiement reçu, vos abonnements seront validés. Vous pouvez ensuite retirer "
+"vos cartes physiques au guichet, ou les faire charger sur vos cartes "
+"existantes si vous avez fourni vos numéros de carte dans la demande."
 
 msgid "What are the requirements?"
 msgstr "Quelles sont les conditions ?"
@@ -1036,34 +1050,23 @@ msgstr ""
 msgid "Your match"
 msgstr "Votre mise en relation"
 
-msgid "Match"
-msgstr "Mise en relation"
+msgid "Match details"
+msgstr "Détails de la mise en relation"
 
-#, python-format
-msgid "Contact window closes: %(deadline)s"
-msgstr "Délai de contact : %(deadline)s"
+msgid "You"
+msgstr "Vous"
 
-msgid "Participation status"
-msgstr "Statut de participation"
+msgid "Your partner"
+msgstr "Votre partenaire"
 
-msgid "(you)"
-msgstr "(vous)"
+msgid "No response"
+msgstr "Aucune réponse"
 
-msgid "Your partner's contact details"
-msgstr "Coordonnées de votre partenaire"
+msgid "Your turn"
+msgstr "À vous"
 
-msgid ""
-"Please get in touch with your partner to arrange buying your passes together "
-"at the ticket office."
-msgstr ""
-"Prenez contact avec votre partenaire pour organiser l'achat de vos "
-"abonnements ensemble au guichet."
-
-msgid "Your response"
-msgstr "Votre réponse"
-
-msgid "Back to home"
-msgstr "Retour à l'accueil"
+msgid "Back to my status"
+msgstr "Revenir à mon statut"
 
 msgid "Access denied"
 msgstr "Accès refusé"
@@ -1112,12 +1115,27 @@ msgid "Re-register"
 msgstr "Se réinscrire"
 
 #, python-format
-msgid "You have until %(deadline)s to respond to this match."
-msgstr ""
-"Vous avez jusqu'au %(deadline)s pour répondre à cette mise en relation."
+msgid "%(partner)s has already accepted — you're the last yes needed."
+msgstr "%(partner)s a déjà accepté — il ne manque plus que votre accord."
 
-msgid "Accept"
-msgstr "Accepter"
+msgid "Your response"
+msgstr "Votre réponse"
+
+msgid "Accept this match?"
+msgstr "Accepter cette mise en relation ?"
+
+msgid ""
+"Once you accept your contact details will be shared with your partner. If "
+"you choose not to accept (by declining, or not responding in time), your "
+"registration will be cancelled and you will need to re-register."
+msgstr ""
+
+#, python-format
+msgid "Match expires in %(countdown)s"
+msgstr ""
+
+msgid "Accept match"
+msgstr "Accepter la mise en relation"
 
 msgid ""
 "Declining will remove your registration. You can re-register at any time. "
@@ -1129,37 +1147,110 @@ msgstr ""
 msgid "Decline"
 msgstr "Refuser"
 
+msgid "You've accepted"
+msgstr "Vous avez accepté"
+
+msgid "1 of 2 accepted"
+msgstr "1 sur 2 a accepté"
+
+#, python-format
 msgid ""
-"Declining this match will remove your registration from the pool. You can re-"
-"register at any time."
+"Waiting for %(partner)s to accept. The match confirms the moment they do — "
+"we'll email you straight away, and their contact details appear here."
 msgstr ""
-"Refuser cette mise en relation supprimera votre inscription de la file. Vous "
-"pouvez vous réinscrire à tout moment."
+"En attente de l'acceptation de %(partner)s. La mise en relation est "
+"confirmée dès qu'il ou elle accepte — nous vous enverrons un e-mail "
+"immédiatement et ses coordonnées apparaîtront ici."
 
-msgid "Waiting for your partner to respond"
-msgstr "En attente de la réponse de votre partenaire"
+#, python-format
+msgid "%(partner)s has until %(deadline)s"
+msgstr "%(partner)s a jusqu'au %(deadline)s"
+
+msgid "Withdraw my acceptance"
+msgstr "Retirer mon acceptation"
+
+msgid "Match confirmed — you can now reach each other"
+msgstr "Mise en relation confirmée — vous pouvez désormais vous contacter"
+
+msgid "Ambassador · returning holder"
+msgstr "Ambassadeur · détenteur existant"
+
+msgid "Referee · new holder"
+msgstr "Filleul · nouveau détenteur"
+
+#, python-format
+msgid "Email %(partner)s"
+msgstr "Envoyer un e-mail à %(partner)s"
+
+msgid "Call"
+msgstr "Appeler"
+
+msgid "What to do next"
+msgstr "À faire ensuite"
+
+msgid "Reach out"
+msgstr "Prenez contact"
+
+#, python-format
+msgid ""
+"Send %(partner)s a quick email or text so you've both got each other's "
+"details saved."
+msgstr ""
+"Envoyez un e-mail ou un message rapide à %(partner)s afin que vous ayez tous "
+"les deux enregistré les coordonnées de l'autre."
+
+msgid "Fill in the application form together"
+msgstr "Remplissez le formulaire de demande ensemble"
 
 msgid ""
-"You have accepted this match. We are waiting for your partner to respond. "
-"You will be notified by email when they do."
+"Download and complete the official Ambassador Program application form. Both "
+"partners must sign it."
 msgstr ""
-"Vous avez accepté cette mise en relation. Nous attendons la réponse de votre "
-"partenaire. Vous serez notifié(e) par e-mail dès qu'il ou elle répondra."
+"Téléchargez et remplissez le formulaire de demande officiel du programme "
+"Ambassadeurs. Les deux partenaires doivent le signer."
 
-msgid "Match accepted"
-msgstr "Mise en relation acceptée"
-
-msgid "Both parties have accepted. Here are your partner's contact details."
-msgstr ""
-"Les deux parties ont accepté. Voici les coordonnées de votre partenaire."
+msgid "Email it to Téléverbier"
+msgstr "Envoyez-le à Téléverbier"
 
 msgid ""
-"If your partner did not show up to complete the application, you can report "
-"a no-show. This will remove them from the pool and return you to the front "
-"of the queue."
+"Send the signed form, photo ID (passport or national identity card), and a "
+"digital passport photo for both applicants to customer@televerbier.ch. The "
+"back-office team checks your eligibility."
 msgstr ""
-"Si votre partenaire ne s'est pas présenté(e) pour finaliser la demande, vous "
-"pouvez signaler une absence. Cela le retirera de la file et vous replacera "
+"Envoyez le formulaire signé, une pièce d'identité (passeport ou carte "
+"d'identité nationale) et une photo d'identité numérique pour les deux "
+"candidats à customer@televerbier.ch. L'équipe administrative vérifie votre "
+"éligibilité."
+
+msgid "Pay and collect your passes"
+msgstr "Payez et récupérez vos forfaits"
+
+msgid ""
+"If approved, Téléverbier issues a payment link or invoice. Once paid, "
+"collect your pass cards at the ticket desk — or have them loaded onto your "
+"existing keycards."
+msgstr ""
+"En cas d'approbation, Téléverbier émet un lien de paiement ou une facture. "
+"Une fois le paiement effectué, retirez vos cartes d'abonnement au guichet — "
+"ou faites-les charger sur vos keycards existantes."
+
+msgid ""
+"Eligibility is verified by Téléverbier during the application process. "
+"Registering on this site does not guarantee a discount; the off-app "
+"application is the definitive step."
+msgstr ""
+"L'éligibilité est vérifiée par Téléverbier au cours de la procédure de "
+"demande. L'inscription sur ce site ne garantit pas une réduction ; la "
+"demande hors application est l'étape déterminante."
+
+#, python-format
+msgid ""
+"If %(partner)s did not show up to complete the application, you can report a "
+"no-show. This removes them from the pool and returns you to the front of the "
+"queue."
+msgstr ""
+"Si %(partner)s ne s'est pas présenté(e) pour finaliser la demande, vous "
+"pouvez signaler une absence. Cela le ou la retire de la file et vous replace "
 "en tête de file."
 
 msgid "Are you sure you want to report a no-show? This cannot be undone."
@@ -1169,57 +1260,58 @@ msgstr ""
 msgid "Report no-show"
 msgstr "Signaler une absence"
 
-msgid "Match declined"
-msgstr "Mise en relation refusée"
+msgid "You're back in the queue"
+msgstr "Vous êtes de retour dans la file d'attente"
+
+#, python-format
+msgid ""
+"%(partner)s declined this match — it happens, and it's nothing to do with "
+"you. We've put you straight back in the queue and we're already looking for "
+"your next partner. We'll email you the moment we find one."
+msgstr ""
+"%(partner)s a refusé cette mise en relation — cela arrive, et cela n'a rien "
+"à voir avec vous. Nous vous avons immédiatement replacé(e) dans la file et "
+"cherchons déjà votre prochain partenaire. Nous vous enverrons un e-mail dès "
+"que nous en trouvons un."
 
 msgid ""
-"You declined this match. Your registration has been removed. You can re-"
-"register at any time."
+"You declined this match, so we've taken you out of the queue. No hard "
+"feelings — re-register whenever you'd like to be matched with someone new."
 msgstr ""
-"Vous avez refusé cette mise en relation. Votre inscription a été supprimée. "
-"Vous pouvez vous réinscrire à tout moment."
+"Vous avez refusé cette mise en relation, nous vous avons donc retiré(e) de "
+"la file. Sans rancune — réinscrivez-vous quand vous souhaitez être mis(e) en "
+"relation avec quelqu'un de nouveau."
+
+msgid "No-show reported"
+msgstr "Absence signalée"
 
 msgid ""
-"This match was declined. You have been re-queued and will be matched again "
-"shortly."
+"Thanks for letting us know. You're back near the front of the queue and "
+"we'll match you again shortly."
 msgstr ""
-"Cette mise en relation a été refusée. Vous avez été replacé(e) dans la file "
-"et serez associé(e) à nouveau prochainement."
+"Merci de nous l'avoir signalé. Vous êtes à nouveau en tête de file et nous "
+"vous mettrons en relation prochainement."
 
-msgid "Match expired"
-msgstr "Mise en relation expirée"
+msgid "This match was closed"
+msgstr "Cette mise en relation a été clôturée"
 
 msgid ""
-"The contact window for this match has closed without a mutual response. You "
-"have been re-queued."
+"This match was reported as a no-show after acceptance. If you believe this "
+"is a mistake, please contact support."
 msgstr ""
-"Le délai de contact pour cette mise en relation s'est fermé sans réponse "
-"mutuelle. Vous avez été replacé(e) dans la file."
+"Cette mise en relation a été signalée comme absence après acceptation. Si "
+"vous pensez qu'il s'agit d'une erreur, contactez le support."
 
-msgid "Match abandoned"
-msgstr "Mise en relation abandonnée"
+msgid "This match expired"
+msgstr "Cette mise en relation a expiré"
 
 msgid ""
-"You reported a no-show. You are back near the front of the queue and will be "
-"matched again shortly."
+"The window closed before you both accepted, so this match has expired. "
+"You've gone back in the queue and we'll pair you with someone new shortly."
 msgstr ""
-"Vous avez signalé une absence. Vous êtes à nouveau en tête de file et serez "
-"mis(e) en relation prochainement."
-
-msgid ""
-"This match was reported as a no-show after acceptance. Please contact "
-"support if you believe this is an error."
-msgstr ""
-"Cette mise en relation a été signalée comme absence après acceptation. "
-"Contactez le support si vous pensez qu'il s'agit d'une erreur."
-
-msgid "Contact window closed"
-msgstr "Délai de contact fermé"
-
-msgid "The contact window for this match has closed. You have been re-queued."
-msgstr ""
-"Le délai de contact pour cette mise en relation est fermé. Vous avez été "
-"replacé(e) dans la file."
+"Le délai s'est fermé avant que vous ayez tous les deux accepté, cette mise "
+"en relation a donc expiré. Vous êtes de retour dans la file et nous vous "
+"associerons à quelqu'un de nouveau prochainement."
 
 msgid "Eligibility · Ambassador"
 msgstr "Éligibilité · Ambassadeur"
@@ -1305,16 +1397,6 @@ msgstr "Détenteur actuel parrainant un nouveau venu."
 msgid "New holder who needs an Ambassador."
 msgstr "Nouveau détenteur ayant besoin d'un Ambassadeur."
 
-msgid "You held a 4 Vallées pass recently and are referring a newcomer."
-msgstr ""
-"Vous avez détenu un abonnement des 4 Vallées récemment et parrainez un "
-"nouveau venu."
-
-msgid "You're new to the 4 Vallées and need an Ambassador to refer you."
-msgstr ""
-"Vous êtes nouveau aux 4 Vallées et avez besoin d'un Ambassadeur pour vous "
-"parrainer."
-
 msgid "Your role can't be changed once you've registered."
 msgstr "Votre rôle ne peut pas être modifié une fois inscrit(e)."
 
@@ -1358,6 +1440,9 @@ msgid ""
 msgstr ""
 "Aucune saison n'est actuellement ouverte aux inscriptions. Revenez plus près "
 "du début de la saison."
+
+msgid "Back to home"
+msgstr "Retour à l'accueil"
 
 msgid "You're in the queue"
 msgstr "Vous êtes dans la file d'attente"
@@ -1487,11 +1572,257 @@ msgstr ""
 "connecter à %(site_name)s. Pour terminer, veuillez confirmer votre adresse e-"
 "mail."
 
-#~ msgid "You've been matched!"
-#~ msgstr "Vous avez été mis en relation !"
+#~ msgid ""
+#~ "Your match is confirmed. Contact your partner to buy your passes together."
+#~ msgstr ""
+#~ "Votre mise en relation est confirmée. Contactez votre partenaire pour "
+#~ "acheter vos abonnements ensemble."
 
-#~ msgid "Match confirmed."
-#~ msgstr "Mise en relation confirmée."
+#~ msgid "To change role you must delete your account and start again."
+#~ msgstr ""
+#~ "Pour changer de rôle, vous devez supprimer votre compte et recommencer."
+
+#, python-format
+#~ msgid ""
+#~ "Accepting shares your contact details with %(partner)s so you can apply "
+#~ "together. Declining removes you from this match and puts you back in the "
+#~ "queue."
+#~ msgstr ""
+#~ "En acceptant, vous partagez vos coordonnées avec %(partner)s afin de "
+#~ "pouvoir postuler ensemble. En refusant, vous quittez cette mise en "
+#~ "relation et retournez dans la file d'attente."
+
+#, python-format
+#~ msgid "%(deadline)s · %(countdown)s left"
+#~ msgstr "%(deadline)s · %(countdown)s restant"
+
+#~ msgid "Match · Action needed"
+#~ msgstr "Mise en relation · Action requise"
+
+#, python-format
+#~ msgid "Match · Waiting on %(partner)s"
+#~ msgstr "Mise en relation · En attente de %(partner)s"
+
+#~ msgid "Match · Your move"
+#~ msgstr "Mise en relation · À vous de jouer"
+
+#~ msgid "Match · Confirmed"
+#~ msgstr "Mise en relation · Confirmée"
+
+#~ msgid "Match · Declined"
+#~ msgstr "Mise en relation · Refusée"
+
+#~ msgid "Match · Re-queued"
+#~ msgstr "Mise en relation · Remis(e) en file"
+
+#~ msgid "Match · Closed"
+#~ msgstr "Mise en relation · Clôturée"
+
+#~ msgid "Match · Expired"
+#~ msgstr "Mise en relation · Expirée"
+
+#~ msgid "You've been matched"
+#~ msgstr "Vous avez été mis(e) en relation"
+
+#, python-format
+#~ msgid "You're in — waiting on %(partner)s"
+#~ msgstr "C'est bon de votre côté — en attente de %(partner)s"
+
+#, python-format
+#~ msgid "%(partner)s's in. Your move."
+#~ msgstr "%(partner)s a accepté. À vous de jouer."
+
+#, python-format
+#~ msgid "You're paired with %(partner)s"
+#~ msgstr "Vous êtes associé(e) à %(partner)s"
+
+#~ msgid "You declined this match"
+#~ msgstr "Vous avez refusé cette mise en relation"
+
+#, python-format
+#~ msgid "%(partner)s can't make this one"
+#~ msgstr "%(partner)s ne peut pas donner suite cette fois"
+
+#, python-format
+#~ msgid ""
+#~ "You and %(partner)s have been paired for the Ambassadors pass. You both "
+#~ "need to accept before the window closes."
+#~ msgstr ""
+#~ "Vous et %(partner)s avez été associé(e)s pour l'abonnement Ambassadeurs. "
+#~ "Vous devez tous les deux accepter avant la fermeture du délai."
+
+#, python-format
+#~ msgid ""
+#~ "You've accepted. The match is confirmed the moment %(partner)s accepts "
+#~ "too."
+#~ msgstr ""
+#~ "Vous avez accepté. La mise en relation est confirmée dès que %(partner)s "
+#~ "accepte également."
+
+#, python-format
+#~ msgid ""
+#~ "%(partner)s has accepted the match. Accept to confirm and swap contact "
+#~ "details."
+#~ msgstr ""
+#~ "%(partner)s a accepté la mise en relation. Acceptez pour confirmer et "
+#~ "échanger vos coordonnées."
+
+#~ msgid ""
+#~ "You've both accepted. Here's how to reach each other and what to do next."
+#~ msgstr ""
+#~ "Vous avez tous les deux accepté. Voici comment vous contacter et ce qu'il "
+#~ "reste à faire."
+
+#~ msgid "You turned this match down, so your registration has been removed."
+#~ msgstr ""
+#~ "Vous avez refusé cette mise en relation, votre inscription a donc été "
+#~ "supprimée."
+
+#, python-format
+#~ msgid ""
+#~ "%(partner)s declined the match. You're back in the queue for a new "
+#~ "partner — nothing's lost."
+#~ msgstr ""
+#~ "%(partner)s a refusé la mise en relation. Vous êtes de retour dans la "
+#~ "file pour un nouveau partenaire — rien n'est perdu."
+
+#~ msgid ""
+#~ "Thanks for letting us know — you're back near the front of the queue."
+#~ msgstr ""
+#~ "Merci de nous l'avoir signalé — vous êtes à nouveau en tête de file."
+
+#~ msgid "This match was reported as a no-show after acceptance."
+#~ msgstr ""
+#~ "Cette mise en relation a été signalée comme absence après acceptation."
+
+#~ msgid ""
+#~ "The window closed before you both accepted. You've gone back in the queue."
+#~ msgstr ""
+#~ "Le délai s'est fermé avant que vous ayez tous les deux accepté. Vous êtes "
+#~ "de retour dans la file d'attente."
+
+#~ msgid "Match"
+#~ msgstr "Mise en relation"
+
+#, python-format
+#~ msgid "Contact window closes: %(deadline)s"
+#~ msgstr "Délai de contact : %(deadline)s"
+
+#~ msgid "Participation status"
+#~ msgstr "Statut de participation"
+
+#~ msgid "(you)"
+#~ msgstr "(vous)"
+
+#~ msgid "Your partner's contact details"
+#~ msgstr "Coordonnées de votre partenaire"
+
+#~ msgid ""
+#~ "Please get in touch with your partner to arrange buying your passes "
+#~ "together at the ticket office."
+#~ msgstr ""
+#~ "Prenez contact avec votre partenaire pour organiser l'achat de vos "
+#~ "abonnements ensemble au guichet."
+
+# TODO: translate
+#~ msgid "Next steps"
+#~ msgstr "Next steps"
+
+# TODO: translate
+#~ msgid ""
+#~ "Now that you are matched, you need to complete the application together. "
+#~ "Here is what to do:"
+#~ msgstr ""
+#~ "Now that you are matched, you need to complete the application together. "
+#~ "Here is what to do:"
+
+# TODO: translate
+#~ msgid ""
+#~ "Compile photo ID (passport or national identity card) and a digital "
+#~ "passport photo for both applicants."
+#~ msgstr ""
+#~ "Compile photo ID (passport or national identity card) and a digital "
+#~ "passport photo for both applicants."
+
+# TODO: translate
+#~ msgid ""
+#~ "Collect your physical pass cards at the ticket desk. If you provided your "
+#~ "keycard numbers in the application, the passes can be loaded onto your "
+#~ "existing keycards instead."
+#~ msgstr ""
+#~ "Collect your physical pass cards at the ticket desk. If you provided your "
+#~ "keycard numbers in the application, the passes can be loaded onto your "
+#~ "existing keycards instead."
+
+#, python-format
+#~ msgid "You have until %(deadline)s to respond to this match."
+#~ msgstr ""
+#~ "Vous avez jusqu'au %(deadline)s pour répondre à cette mise en relation."
+
+#~ msgid ""
+#~ "Declining this match will remove your registration from the pool. You can "
+#~ "re-register at any time."
+#~ msgstr ""
+#~ "Refuser cette mise en relation supprimera votre inscription de la file. "
+#~ "Vous pouvez vous réinscrire à tout moment."
+
+#~ msgid "Waiting for your partner to respond"
+#~ msgstr "En attente de la réponse de votre partenaire"
+
+#~ msgid ""
+#~ "You have accepted this match. We are waiting for your partner to respond. "
+#~ "You will be notified by email when they do."
+#~ msgstr ""
+#~ "Vous avez accepté cette mise en relation. Nous attendons la réponse de "
+#~ "votre partenaire. Vous serez notifié(e) par e-mail dès qu'il ou elle "
+#~ "répondra."
+
+#~ msgid ""
+#~ "You declined this match. Your registration has been removed. You can re-"
+#~ "register at any time."
+#~ msgstr ""
+#~ "Vous avez refusé cette mise en relation. Votre inscription a été "
+#~ "supprimée. Vous pouvez vous réinscrire à tout moment."
+
+#~ msgid ""
+#~ "This match was declined. You have been re-queued and will be matched "
+#~ "again shortly."
+#~ msgstr ""
+#~ "Cette mise en relation a été refusée. Vous avez été replacé(e) dans la "
+#~ "file et serez associé(e) à nouveau prochainement."
+
+#~ msgid ""
+#~ "The contact window for this match has closed without a mutual response. "
+#~ "You have been re-queued."
+#~ msgstr ""
+#~ "Le délai de contact pour cette mise en relation s'est fermé sans réponse "
+#~ "mutuelle. Vous avez été replacé(e) dans la file."
+
+#~ msgid "Match abandoned"
+#~ msgstr "Mise en relation abandonnée"
+
+#~ msgid "Contact window closed"
+#~ msgstr "Délai de contact fermé"
+
+#~ msgid ""
+#~ "The contact window for this match has closed. You have been re-queued."
+#~ msgstr ""
+#~ "Le délai de contact pour cette mise en relation est fermé. Vous avez été "
+#~ "replacé(e) dans la file."
+
+#~ msgid ""
+#~ "Once the application form is received it will be assessed for approval. "
+#~ "If approved, you will receive a confirmation email that includes payment "
+#~ "details, and once payment is made you will receive instructions on how to "
+#~ "pick up your pass. (This is typically from the Medran ticket office, "
+#~ "although you may be able to pick up elsewhere if you request it?)"
+#~ msgstr ""
+#~ "Une fois le formulaire de demande reçu, il sera examiné en vue de son "
+#~ "approbation. S'il est approuvé, vous recevrez un e-mail de confirmation "
+#~ "contenant les modalités de paiement et, une fois le paiement effectué, "
+#~ "vous recevrez les instructions pour retirer votre abonnement. (En général "
+#~ "au guichet de Médran, mais vous pourrez peut-être le retirer ailleurs sur "
+#~ "demande.)"
 
 #~ msgid "Pending email verification"
 #~ msgstr "En attente de vérification de l'e-mail"

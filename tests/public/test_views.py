@@ -10,6 +10,7 @@
 # require_htmx; contact PII is only revealed after mutual accept.
 
 import re
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -954,6 +955,54 @@ def test_match_detail_accepted_reveals_counterpart_pii() -> None:
     assert referee_reg.user.email in content
 
 
+def test_match_detail_accepted_shows_next_steps_block() -> None:
+    """After mutual accept the next-steps application block is shown."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.CONFIRMED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.CONFIRMED,
+    )
+    match = MatchFactory.create(
+        accepted=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    url = _make_match_url(match, ambassador_reg)
+    response = Client().get(url)
+    content = response.content
+    # Stable markers: the next-steps card id, the form download URL, and the
+    # application email address must all appear once the match is accepted.
+    assert b'id="next-steps"' in content
+    assert reverse("public:application_form").encode() in content
+    assert b"customer@televerbier.ch" in content
+
+
+def test_match_detail_next_steps_absent_before_mutual_accept() -> None:
+    """A PROPOSED match must not show the next-steps application block."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    url = _make_match_url(match, ambassador_reg)
+    response = Client().get(url)
+    content = response.content
+    # Next-steps block must not appear before both parties accept.
+    assert b'id="next-steps"' not in content
+
+
 def test_match_detail_terminal_match_shows_no_action_buttons() -> None:
     """A terminal match (DECLINED) renders no Accept or Decline buttons."""
     match = MatchFactory.create(declined=True)
@@ -991,8 +1040,10 @@ def test_match_detail_htmx_accept_transitions_to_waiting_state() -> None:
 
     assert response.status_code == 200
     content = response.content.decode()
-    # Waiting state: no action buttons, no counterpart PII.
-    assert "Waiting for your partner to respond" in content
+    # Waiting state markers (the viewer accepted, awaiting the partner).
+    assert "You've accepted" in content
+    assert "1 of 2 accepted" in content
+    # No counterpart contact PII (phone) in the waiting state.
     assert "+41790008888" not in content
 
 
@@ -1263,6 +1314,84 @@ def test_match_decline_htmx_get_is_rejected() -> None:
     assert match.ambassador_registration is not None
 
 
+def test_match_withdraw_requires_htmx() -> None:
+    """match_withdraw returns 400 for a plain (non-HTMX) POST (Invariant 7)."""
+    match = MatchFactory.create()
+    token = make_match_access_token(match.pk, match.ambassador_registration_id)
+    url = reverse("public:match_withdraw", args=[token])
+    response = Client().post(url)
+    assert response.status_code == 400
+
+
+def test_match_withdraw_htmx_get_is_rejected() -> None:
+    """An HTMX GET to match_withdraw is rejected with 405 Method Not Allowed.
+
+    @require_POST must guard the view even when the HX-Request header is present,
+    so a GET cannot retract an acceptance.
+    """
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    with TestCase.captureOnCommitCallbacks(execute=False):
+        accept_match(match, ambassador_reg)
+
+    token = make_match_access_token(match.pk, ambassador_reg.pk)
+    url = reverse("public:match_withdraw", args=[token])
+    response = Client().get(url, headers={"hx-request": "true"})
+    assert response.status_code == 405
+    # The acceptance must be unchanged.
+    match.refresh_from_db()
+    assert match.ambassador_accepted_at is not None
+
+
+def test_match_withdraw_htmx_returns_to_proposed_view() -> None:
+    """HTMX withdraw after a first accept → actionable view; timestamp cleared."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    # First accept by the ambassador (outside HTMX; use the service directly).
+    with TestCase.captureOnCommitCallbacks(execute=False):
+        accept_match(match, ambassador_reg)
+    match.refresh_from_db()
+    assert match.ambassador_accepted_at is not None
+
+    token = make_match_access_token(match.pk, ambassador_reg.pk)
+    url = reverse("public:match_withdraw", args=[token])
+    response = Client().post(url, headers={"hx-request": "true"})
+
+    assert response.status_code == 200
+    match.refresh_from_db()
+    assert match.status == Match.Status.PROPOSED
+    assert match.ambassador_accepted_at is None
+
+    content = response.content.decode()
+    # Back in the actionable view: the accept/decline form actions are present,
+    # and the waiting/withdraw control is gone.
+    assert reverse("public:match_accept", args=[token]) in content
+    assert reverse("public:match_decline", args=[token]) in content
+    assert reverse("public:match_withdraw", args=[token]) not in content
+
+
 def test_match_detail_post_fallback_accept_redirects() -> None:
     """A no-JS POST with action=accept performs PRG redirect back to the match page."""
     ambassador_reg = RegistrationFactory.create(
@@ -1440,8 +1569,8 @@ def test_match_report_no_show_abandoned_fragment_shows_reporter_copy() -> None:
         response = Client().post(url, headers={"hx-request": "true"})
 
     content = response.content.decode()
-    assert "reported a no-show" in content.lower()
-    # The accused-facing "contact support" copy must not appear to the reporter.
+    # Reporter sees the reassurance copy, not the accused's "contact support" line.
+    assert "no-show reported" in content.lower()
     assert "contact support" not in content.lower()
 
 
@@ -1576,8 +1705,9 @@ def test_both_sides_panel_shows_pending_for_proposed_match() -> None:
     url = _make_match_url(match, match.ambassador_registration)
     response = Client().get(url)
     content = response.content.decode()
-    # Both sides pending — the panel should appear twice with "Pending".
-    assert content.count("Pending") >= 2
+    # Proposed: the viewer's row reads "Your turn", the partner's reads "Pending".
+    assert "Your turn" in content
+    assert "Pending" in content
 
 
 def test_both_sides_panel_shows_accepted_after_ambassador_accepts() -> None:
@@ -1617,20 +1747,19 @@ def test_both_sides_panel_shows_declined_for_declining_party() -> None:
 
 
 def test_both_sides_panel_marks_viewer_with_you() -> None:
-    """The viewer's own row is marked with '(you)'."""
+    """The viewer's own roster row is labelled 'You'; the partner shows their name."""
     match = MatchFactory.create()
     url = _make_match_url(match, match.ambassador_registration)
     response = Client().get(url)
     content = response.content.decode()
-    assert "(you)" in content
+    # The viewer's own row reads "You"; the partner's row shows their first name.
+    assert "You" in content
+    assert match.referee_registration.user.first_name in content
 
 
-def test_both_sides_panel_shows_partner_first_name_only_for_proposed() -> None:
-    """The panel shows the partner's first name but not their surname, email or phone.
-
-    Invariant 1 permits a first-name reveal once a match is PROPOSED; contact PII
-    (email, phone) and the surname remain hidden until both parties accept.
-    """
+def test_both_sides_panel_reveals_only_first_name_in_proposed_match() -> None:
+    """The roster reveals the counterpart's first name on a PROPOSED match, but
+    never their email, phone, or full name (Invariant 1, re-scoped — ADR 0009)."""
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
@@ -1641,8 +1770,6 @@ def test_both_sides_panel_shows_partner_first_name_only_for_proposed() -> None:
         referee=True,
         phone="+41790008888",
         status=Registration.Status.MATCHED,
-        user__first_name="Bernard",
-        user__last_name="Borel",
     )
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -1652,9 +1779,52 @@ def test_both_sides_panel_shows_partner_first_name_only_for_proposed() -> None:
     url = _make_match_url(match, ambassador_reg)
     response = Client().get(url)
     content = response.content.decode()
-    # First name IS shown on the partner's row.
-    assert "Bernard" in content
-    # Surname and contact PII must not appear before mutual accept.
-    assert "Borel" not in content
+    # First name is revealed early (ADR 0009)...
+    assert referee_reg.user.first_name in content
+    # ...but email, phone, and full name stay hidden until mutual accept.
     assert referee_reg.phone not in content
     assert referee_reg.user.email not in content
+    full_name = referee_reg.user.get_full_name()
+    if full_name and referee_reg.user.last_name:
+        assert full_name not in content
+
+
+def test_match_detail_partner_accepted_shows_callout_and_actions() -> None:
+    """When the partner has accepted but the viewer has not, the page shows the
+    'already accepted' callout and still offers Accept/Decline."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    # Referee (the partner) has accepted; ambassador (the viewer) has not.
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+        referee_accepted_at=datetime(2026, 9, 2, 10, 0, 0, tzinfo=UTC),
+    )
+    url = _make_match_url(match, ambassador_reg)
+    response = Client().get(url)
+    content = response.content.decode()
+    assert response.context["view"] == "partner_accepted"
+    assert "already accepted" in content.lower()
+    assert "Accept match" in content
+    assert "Decline" in content
+
+
+def test_match_detail_expired_match_shows_expired_outcome() -> None:
+    """An EXPIRED match renders the expired outcome with no action buttons."""
+    match = MatchFactory.create(
+        status=Match.Status.EXPIRED,
+        expires_at=datetime(2020, 1, 1, 0, 0, 0, tzinfo=UTC),
+    )
+    url = _make_match_url(match, match.ambassador_registration)
+    response = Client().get(url)
+    content = response.content.decode()
+    assert response.context["view"] == "expired"
+    assert "This match expired" in content
+    assert b"<button" not in response.content

@@ -382,3 +382,77 @@ def test_counterpart_login_redirects_to_match_when_counterpart_has_match() -> No
     response = client.post(reverse("debug:counterpart_login"))
 
     assert response["Location"] == reverse("accounts:match")
+
+
+# ---------------------------------------------------------------------------
+# match_preview (forced-state visual QA of the match page)
+# ---------------------------------------------------------------------------
+
+_PREVIEW_VIEW_KEYS = [
+    "proposed",
+    "you_accepted",
+    "partner_accepted",
+    "confirmed",
+    "declined_you",
+    "declined_partner",
+    "expired",
+    "abandoned_you",
+    "abandoned_partner",
+]
+
+
+@override_settings(DEBUG=False)
+def test_match_preview_404_when_not_debug() -> None:
+    """match_preview returns 404 in production (require_debug guard)."""
+    response = Client().get(reverse("debug:match_preview"))
+    assert response.status_code == 404
+
+
+@override_settings(DEBUG=True)
+@pytest.mark.parametrize("view_key", _PREVIEW_VIEW_KEYS)
+def test_match_preview_renders_each_state(view_key: str) -> None:
+    """Every forced state renders the real match page with the derived view."""
+    response = Client().get(reverse("debug:match_preview"), {"view": view_key})
+    assert response.status_code == 200
+    assert "public/match.html" in [t.name for t in response.templates]
+    assert response.context["view"] == view_key
+
+
+@override_settings(DEBUG=True)
+def test_match_preview_unknown_view_defaults_to_proposed() -> None:
+    """An unknown ?view value falls back to the proposed state."""
+    response = Client().get(reverse("debug:match_preview"), {"view": "nope"})
+    assert response.status_code == 200
+    assert response.context["view"] == "proposed"
+
+
+@override_settings(DEBUG=True)
+def test_match_preview_renders_state_switcher() -> None:
+    """The preview page shows the debug-only state switcher."""
+    response = Client().get(reverse("debug:match_preview"))
+    assert b"Preview state" in response.content
+
+
+@override_settings(DEBUG=True)
+def test_match_preview_reveals_contact_only_when_confirmed() -> None:
+    """Email/phone appear in the confirmed contact card but not in proposed.
+
+    Guards against the preview leaking PII before mutual accept — the same
+    Invariant 1 boundary the real page enforces. The partner's first name is
+    shown in both (the redesign reveals it early; see ADR 0009)."""
+    confirmed = (
+        Client()
+        .get(reverse("debug:match_preview"), {"view": "confirmed"})
+        .content.decode()
+    )
+    assert "lea.maret@example.com" in confirmed
+    assert "+41 79 482 16 03" in confirmed
+
+    proposed = (
+        Client()
+        .get(reverse("debug:match_preview"), {"view": "proposed"})
+        .content.decode()
+    )
+    assert "lea.maret@example.com" not in proposed
+    assert "+41 79 482 16 03" not in proposed
+    assert "Léa" in proposed

@@ -79,8 +79,10 @@ database rows. See `docs/decisions/0005-single-season-matching-engine.md`.
 - **Match** — a system-created link of one ambassador registration and one
   referee registration. Terminal matches accumulate as history (no unique
   constraint on the registration FKs). State machine:
-  - `PROPOSED` — the engine paired them; both are notified; **neither sees the
-    other's identity or contact details**.
+  - `PROPOSED` — the engine paired them; both are notified. The match page shows
+    each party the other's **first name** (so the pairing reads as human), but
+    **neither sees the other's email or phone** — the data needed to actually make
+    contact — until both accept (see [ADR 0009](docs/decisions/0009-reveal-partner-first-name.md)).
   - each side accepts or declines within the contact window.
   - both accept → `ACCEPTED` — contact details are revealed and the pair
     proceeds to the off-app application. Terminal success; both leave the pool.
@@ -344,10 +346,13 @@ run from either service (they are idempotent).
 These must hold at all times. The QA agent and security-auditor check for drift
 against this list on every PR.
 
-1. **Contact PII hidden until mutual accept** — a matched user must not see the
-   other party's name, email, or phone until *both* have accepted the match.
-   Declines and expiry never reveal it. This is the core privacy guarantee of the
-   product.
+1. **Contact PII (email + phone) hidden until mutual accept** — a matched user
+   must not see the other party's **email or phone** until *both* have accepted the
+   match. Declines and expiry never reveal them. The match page does show the other
+   party's **first name and initials** from the proposed state (so the pairing
+   reads as human), but the contact data needed to reach them stays hidden until
+   mutual accept. This is the core privacy guarantee of the product. See
+   [ADR 0009](docs/decisions/0009-reveal-partner-first-name.md).
 2. **Matches are only ever proposed between an eligible pair** — the engine enforces
    the price-category ordering and the prior-season (returning-ambassador /
    genuinely-new-referee) rules before a `proposed` match exists. No view or admin

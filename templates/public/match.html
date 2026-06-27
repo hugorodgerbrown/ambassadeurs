@@ -3,178 +3,121 @@
 
 {% block title %}{% translate "Your match" %}{% endblock %}
 
+{% comment %}
+    Role tone-cue band above the nav, matching the account page so switching
+    between the two pages does not shift the layout. Tone follows the viewer's
+    role (Ambassador = accent, Referee = secondary).
+{% endcomment %}
+{% block topband %}
+    <div class="role-theme{% if side == 'REFEREE' %} role-theme--referee{% endif %}">
+        <div class="role-band"></div>
+    </div>
+{% endblock %}
+
 {% block content %}
-    <section class="mx-auto max-w-md">
-        <p class="eyebrow mb-3" style="color: var(--role)">{% translate "Match" %}</p>
-        <h1 class="mb-4 text-ink">{% translate "Your match" %}</h1>
-
-        <div class="card mb-6">
-            <h2 class="mb-2 text-h3 text-ink">{% translate "Match status" %}</h2>
-            <p class="text-body">{{ match.get_status_display }}</p>
-            <p class="mt-1 text-sm text-meta">
-                {% blocktranslate trimmed with deadline=match.expires_at %}
-                    Contact window closes: {{ deadline }}
-                {% endblocktranslate %}
-            </p>
-        </div>
-
+    {% if preview_states %}
         {% comment %}
-            Both-sides status panel (VERB-32). Shows each party's participation
-            status (Pending / Accepted / Declined) derived from match fields.
-            Role labels and status only — no names, email, or phone (Invariant 1).
-            The viewer's own row is marked with "(you)".
+            DEBUG-only state switcher (debug.views.match_preview). Never rendered
+            in the real flow — the production views do not set `preview_states`.
         {% endcomment %}
-        <div class="card mb-6">
-            <h2 class="mb-3 text-h3 text-ink">{% translate "Participation status" %}</h2>
-            <dl class="space-y-3 text-sm">
-                <div class="flex items-center justify-between gap-2">
-                    <dt class="font-medium text-ink">
-                        {% translate "Ambassador" %}
-                        {% if side == 'AMBASSADOR' %}
-                            <span class="ml-1 text-xs text-meta">{% translate "(you)" %}</span>
-                        {% endif %}
-                    </dt>
-                    <dd>
-                        {% if match.ambassador_accepted_at %}
-                            <span class="status status--done">{% translate "Accepted" %}</span>
-                        {% elif match.declined_by == 'AMBASSADOR' %}
-                            <span class="status status--queue">{% translate "Declined" %}</span>
-                        {% else %}
-                            <span class="status status--action">{% translate "Pending" %}</span>
-                        {% endif %}
-                    </dd>
-                </div>
-                <div class="flex items-center justify-between gap-2">
-                    <dt class="font-medium text-ink">
-                        {% translate "Referee" %}
-                        {% if side == 'REFEREE' %}
-                            <span class="ml-1 text-xs text-meta">{% translate "(you)" %}</span>
-                        {% endif %}
-                    </dt>
-                    <dd>
-                        {% if match.referee_accepted_at %}
-                            <span class="status status--done">{% translate "Accepted" %}</span>
-                        {% elif match.declined_by == 'REFEREE' %}
-                            <span class="status status--queue">{% translate "Declined" %}</span>
-                        {% else %}
-                            <span class="status status--action">{% translate "Pending" %}</span>
-                        {% endif %}
-                    </dd>
-                </div>
-            </dl>
-        </div>
-
-        {% comment %}
-            Contact details are revealed ONLY when both parties have accepted
-            (Invariant 1). The counterpart context variable is absent until then.
-        {% endcomment %}
-        {% if counterpart %}
-            <div class="card mb-6">
-                <h2 class="mb-3 text-h3 text-ink">{% translate "Your partner's contact details" %}</h2>
-                <dl class="space-y-2 text-sm">
-                    <div class="flex gap-2">
-                        <dt class="w-20 shrink-0 font-medium text-ink">{% translate "Name" %}</dt>
-                        <dd class="text-body">{{ counterpart.user.first_name }} {{ counterpart.user.last_name }}</dd>
-                    </div>
-                    <div class="flex gap-2">
-                        <dt class="w-20 shrink-0 font-medium text-ink">{% translate "Email" %}</dt>
-                        <dd class="text-body">
-                            <a href="mailto:{{ counterpart.user.email }}" class="text-accent underline">
-                                {{ counterpart.user.email }}
-                            </a>
-                        </dd>
-                    </div>
-                    <div class="flex gap-2">
-                        <dt class="w-20 shrink-0 font-medium text-ink">{% translate "Phone" %}</dt>
-                        <dd class="text-body">
-                            <a href="tel:{{ counterpart.phone }}" class="text-accent underline">
-                                {{ counterpart.phone }}
-                            </a>
-                        </dd>
-                    </div>
-                </dl>
-                <p class="mt-4 text-sm text-meta">
-                    {% blocktranslate trimmed %}
-                        Please get in touch with your partner to arrange buying your passes together at the ticket
-                        office.
-                    {% endblocktranslate %}
-                </p>
+        <div class="mx-auto mb-5 max-w-xl">
+            <p class="label mb-2">Preview state · debug only</p>
+            <div class="flex flex-wrap gap-1.5">
+                {% for s in preview_states %}
+                    <a
+                        href="?view={{ s.key }}"
+                        class="rounded-pill border px-3 py-1.5 text-xs font-semibold {% if s.current %}border-accent bg-accent-tint text-accent-ink{% else %}border-line-strong text-ink{% endif %}"
+                    >{{ s.label }}</a>
+                {% endfor %}
             </div>
+        </div>
+    {% endif %}
+    <section class="role-theme{% if side == 'REFEREE' %} role-theme--referee{% endif %} mx-auto max-w-xl">
+        <p class="eyebrow mb-2" style="color: var(--role)">{% translate "Match details" %}</p>
+        <h1 class="mb-6 text-ink">{% translate "Your match" %}</h1>
 
+        <div class="flex flex-col gap-[18px]">
             {% comment %}
-                Next steps card — shown only after both parties accept (guarded by
-                the {% if counterpart %} block above, satisfying Invariant 1).
-                Describes the five-step off-app email application process.
-            {% endcomment %}
-            <div class="card mb-6" id="next-steps">
-                <h2 class="mb-3 text-h3 text-ink">{% translate "Next steps" %}</h2>
-                <p class="mb-4 text-body">
-                    {% blocktranslate trimmed %}
-                        Now that you are matched, you need to complete the application together. Here is what to do:
-                    {% endblocktranslate %}
-                </p>
-                <ol class="list-decimal space-y-3 pl-5 text-body">
-                    <li>
-                        {% blocktranslate trimmed %}
-                            Download and fill in the official Ambassador Program application form together. Both
-                            partners must sign it.
-                        {% endblocktranslate %}
-                        <div class="mt-2">
-                            <a
-                                href="{% url 'public:application_form' %}"
-                                class="btn btn--primary"
-                                target="_blank"
-                                rel="noopener"
+            Two-party roster (Ambassador row first, Referee second). Each row's
+            status pill is derived from the match alone (public.views._side_status_key),
+            so both rows read true regardless of who is viewing. The viewer's own
+            row is labelled "You". Only first names are shown here; contact PII
+            stays hidden until the confirmed state (Invariant 1).
+        {% endcomment %}
+            <div class="match-roster">
+                {% for row in roster %}
+                    <div class="match-roster__row">
+                        <div class="match-roster__id">
+                            <span
+                                class="avatar {% if row.side == 'AMBASSADOR' %}avatar--amb{% else %}avatar--ref{% endif %}"
                             >
-                                {% translate "Download application form" %}
-                            </a>
+                                {% if row.is_you %}
+                                    {% translate "You" %}
+                                {% elif row.initials %}
+                                    {{ row.initials }}
+                                {% else %}
+                                    ·
+                                {% endif %}
+                            </span>
+                            <div>
+                                <div class="match-roster__name">
+                                    {% if row.is_you %}
+                                        {% translate "You" %}
+                                    {% elif row.name %}
+                                        {{ row.name }}
+                                    {% else %}
+                                        {% translate "Your partner" %}
+                                    {% endif %}
+                                </div>
+                                <div class="match-roster__role {% if row.side == 'AMBASSADOR' %}match-roster__role--amb{% else %}match-roster__role--ref{% endif %}">
+                                    {% if row.side == 'AMBASSADOR' %}
+                                        {% translate "Ambassador" %}
+                                    {% else %}
+                                        {% translate "Referee" %}
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
-                    </li>
-                    <li>
-                        {% blocktranslate trimmed %}
-                            Compile photo ID (passport or national identity card) and a digital passport photo for both
-                            applicants.
-                        {% endblocktranslate %}
-                    </li>
-                    <li>
-                        {% blocktranslate trimmed %}
-                            Email the signed form, photo IDs, and passport photos to customer@televerbier.ch
-                            (Téléverbier). The back-office team will check your eligibility.
-                        {% endblocktranslate %}
-                    </li>
-                    <li>
-                        {% blocktranslate trimmed %}
-                            If approved, Téléverbier will issue a payment link or invoice. Once payment is received,
-                            your passes will be approved.
-                        {% endblocktranslate %}
-                    </li>
-                    <li>
-                        {% blocktranslate trimmed %}
-                            Collect your physical pass cards at the ticket desk. If you provided your keycard numbers in
-                            the application, the passes can be loaded onto your existing keycards instead.
-                        {% endblocktranslate %}
-                    </li>
-                </ol>
-                <p class="mt-4 text-sm text-meta">
-                    {% blocktranslate trimmed %}
-                        Eligibility is verified by Téléverbier during the application process. Registering on this
-                        site does not guarantee a discount; the off-app application is the definitive step.
-                    {% endblocktranslate %}
-                </p>
+                        {% if row.status == "accepted" %}
+                            <span class="tag-status tag-status--done">
+                                <svg
+                                    width="12"
+                                    height="12"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2.6"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                >
+                                    <path d="m5 12 5 5L20 7" />
+                                </svg>
+                                {% translate "Accepted" %}
+                            </span>
+                        {% elif row.status == "declined" %}
+                            <span class="tag-status tag-status--muted">{% translate "Declined" %}</span>
+                        {% elif row.status == "no_response" %}
+                            <span class="tag-status tag-status--muted">{% translate "No response" %}</span>
+                        {% elif row.is_you %}
+                            <span class="tag-status tag-status--wait">{% translate "Your turn" %}</span>
+                        {% else %}
+                            <span class="tag-status tag-status--wait">{% translate "Pending" %}</span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
             </div>
-        {% endif %}
 
-        <div class="card">
-            <h2 class="mb-4 text-h3 text-ink">{% translate "Your response" %}</h2>
+            {% comment %}State-driven outcome block; swapped in place by the HTMX action endpoints.{% endcomment %}
             <div id="match-actions">
                 {% include "public/partials/match_actions.html" %}
             </div>
-        </div>
 
-        <p class="mt-6 text-center">
-            <a href="{% url 'public:home' %}" class="font-medium text-meta underline">
-                {% translate "Back to home" %}
+            <a
+                href="{% url 'accounts:detail' %}"
+                class="self-center border-b border-line-strong pb-px text-[0.9rem] text-meta no-underline"
+            >
+                {% translate "Back to my status" %}
             </a>
-        </p>
+        </div>
     </section>
 {% endblock %}

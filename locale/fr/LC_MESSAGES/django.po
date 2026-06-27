@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-27 15:30+0200\n"
+"POT-Creation-Date: 2026-06-27 16:20+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -1156,6 +1156,9 @@ msgstr ""
 #, python-format
 msgid "%(partner)s has until %(deadline)s"
 msgstr "%(partner)s a jusqu'au %(deadline)s"
+
+msgid "Withdraw my acceptance"
+msgstr "Retirer mon acceptation"
 
 msgid "Match confirmed — you can now reach each other"
 msgstr "Mise en relation confirmée — vous pouvez désormais vous contacter"

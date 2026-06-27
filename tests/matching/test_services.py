@@ -31,6 +31,7 @@ from matching.services import (
     send_no_show_notification,
     suspend_for_no_show,
     total_accepted_matches,
+    withdraw_acceptance,
 )
 from tests.accounts.factories import UserFactory
 from tests.matching.factories import MatchFactory, RegistrationFactory
@@ -1395,6 +1396,109 @@ def test_accept_match_second_accept_transitions_accepted_and_sends_email() -> No
 
     # Two confirmed emails sent (one per party).
     assert len(mail.outbox) == 2
+
+
+# ---------------------------------------------------------------------------
+# withdraw_acceptance
+# ---------------------------------------------------------------------------
+
+
+def test_withdraw_acceptance_clears_ambassador_timestamp() -> None:
+    """Ambassador withdraws → ambassador_accepted_at cleared, status stays PROPOSED."""
+    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    record_acceptance(match, ambassador_reg)
+    match.refresh_from_db()
+    assert match.ambassador_accepted_at is not None
+
+    result = withdraw_acceptance(match, ambassador_reg)
+
+    result.refresh_from_db()
+    assert result.status == Match.Status.PROPOSED
+    assert result.ambassador_accepted_at is None
+    assert result.referee_accepted_at is None
+
+
+def test_withdraw_acceptance_clears_referee_timestamp() -> None:
+    """Referee withdraws → referee_accepted_at cleared, status stays PROPOSED."""
+    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    record_acceptance(match, referee_reg)
+    match.refresh_from_db()
+    assert match.referee_accepted_at is not None
+
+    result = withdraw_acceptance(match, referee_reg)
+
+    result.refresh_from_db()
+    assert result.status == Match.Status.PROPOSED
+    assert result.referee_accepted_at is None
+
+
+def test_withdraw_acceptance_applies_no_penalty_and_writes_no_log() -> None:
+    """Withdraw leaves status/priority/flake untouched and writes no log row."""
+    ambassador_reg = RegistrationFactory.create(
+        status=Registration.Status.MATCHED, priority=0, flake_count=0
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    record_acceptance(match, ambassador_reg)
+
+    withdraw_acceptance(match, ambassador_reg)
+
+    ambassador_reg.refresh_from_db()
+    # No re-queue and no flake — the registration is unchanged.
+    assert ambassador_reg.status == Registration.Status.MATCHED
+    assert ambassador_reg.priority == 0
+    assert ambassador_reg.flake_count == 0
+    # The match never left PROPOSED, so no transition is logged.
+    assert StateTransitionLog.objects.count() == 0
+
+
+def test_withdraw_acceptance_raises_for_non_proposed_match() -> None:
+    """withdraw_acceptance raises ValueError if match.status != PROPOSED."""
+    ambassador_reg = RegistrationFactory.create(status=Registration.Status.CONFIRMED)
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.CONFIRMED
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+        status=Match.Status.ACCEPTED,
+    )
+    with pytest.raises(ValueError, match="expected"):
+        withdraw_acceptance(match, ambassador_reg)
+
+
+def test_withdraw_acceptance_raises_when_side_has_not_accepted() -> None:
+    """withdraw_acceptance raises ValueError if the calling side never accepted."""
+    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.MATCHED
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    # Neither side has accepted; the ambassador has nothing to withdraw.
+    with pytest.raises(ValueError, match="has not accepted"):
+        withdraw_acceptance(match, ambassador_reg)
 
 
 # ---------------------------------------------------------------------------

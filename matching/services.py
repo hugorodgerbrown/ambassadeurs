@@ -11,6 +11,11 @@
 # the post-match confirmation workflow (ADR 0007 / VERB-18). Both are atomic
 # and call core.services.record_transition inline for the audit log.
 #
+# withdraw_acceptance (VERB-43 / ADR 0010) is the inverse of the first accept:
+# while a match is still PROPOSED and the other side has not accepted, the
+# viewing party clears their own *_accepted_at timestamp — a clean, no-penalty
+# un-accept (PROPOSED → PROPOSED) that re-queues nothing and writes no log row.
+#
 # expire_lapsed_matches is the periodic sweep entry point: it transitions all
 # PROPOSED matches past their contact window to EXPIRED and re-queues each side.
 #
@@ -736,6 +741,81 @@ def expire_lapsed_matches() -> int:
             logger.exception("Error expiring match pk=%s; skipping", pk)
 
     return expired_count
+
+
+def withdraw_acceptance(match: Match, registration: Registration) -> Match:
+    """Clear ``registration``'s acceptance on a still-PROPOSED ``match``.
+
+    A clean, no-penalty un-accept: while the match is ``PROPOSED`` and the
+    *other* side has not yet accepted, the viewing party may retract their own
+    acceptance. This returns them from the "waiting on partner" view to the
+    actionable ``proposed`` view (VERB-43 / ADR 0010).
+
+    Only the accepting side's ``*_accepted_at`` timestamp is cleared. Nothing is
+    re-queued and no flake penalty is applied — withdrawing differs from a
+    decline (which removes the registration) and from a non-response flake. No
+    ``StateTransitionLog`` row is written: the match never left ``PROPOSED``, so
+    there is no status transition to log (symmetric with the first accept, which
+    also writes no log row).
+
+    The guard that the other side has not accepted is what keeps the operation
+    safe: if both sides had accepted the match would already be ``ACCEPTED`` (a
+    terminal, contact-revealed state), so there is no window in which a
+    withdrawal could un-reveal PII.
+
+    Args:
+        match: The match to withdraw acceptance from.
+        registration: The registration (ambassador or referee) withdrawing.
+
+    Returns:
+        The updated ``Match`` instance.
+
+    Raises:
+        ValueError: if ``match.status`` is not ``PROPOSED``, or if this side has
+            not accepted (nothing to withdraw).
+    """
+    with transaction.atomic():
+        match = (
+            Match.objects.select_for_update()
+            .select_related("ambassador_registration", "referee_registration")
+            .get(pk=match.pk)
+        )
+
+        if match.status != Match.Status.PROPOSED:
+            raise ValueError(
+                f"Cannot withdraw acceptance on match pk={match.pk}: status is "
+                f"{match.status!r}, expected {Match.Status.PROPOSED!r}."
+            )
+
+        side = match.side_of(registration)
+
+        if side == Match.Side.AMBASSADOR:
+            if match.ambassador_accepted_at is None:
+                raise ValueError(
+                    f"Cannot withdraw acceptance on match pk={match.pk}: the "
+                    f"ambassador side has not accepted."
+                )
+            match.ambassador_accepted_at = None
+            field = "ambassador_accepted_at"
+        else:
+            if match.referee_accepted_at is None:
+                raise ValueError(
+                    f"Cannot withdraw acceptance on match pk={match.pk}: the "
+                    f"referee side has not accepted."
+                )
+            match.referee_accepted_at = None
+            field = "referee_accepted_at"
+
+        match.save(update_fields=[field, "updated_at"])
+
+        logger.info(
+            "Match pk=%s acceptance withdrawn by %s (registration pk=%s)",
+            match.pk,
+            side,
+            registration.pk,
+        )
+
+    return match
 
 
 def record_acceptance(match: Match, registration: Registration) -> Match:

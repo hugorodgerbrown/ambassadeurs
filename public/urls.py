@@ -31,6 +31,7 @@ urlpatterns = [
     # token IS the authentication for these views.
     path("match/<str:token>/", views.match_detail, name="match"),
     path("match/<str:token>/accept/", views.match_accept, name="match_accept"),
+    path("match/<str:token>/withdraw/", views.match_withdraw, name="match_withdraw"),
     path("match/<str:token>/decline/", views.match_decline, name="match_decline"),
     path(
         "match/<str:token>/report-no-show/",

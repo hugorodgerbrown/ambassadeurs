@@ -15,6 +15,11 @@
 # guarded with require_htmx (Invariant 7). Contact PII is revealed ONLY when
 # match.status == ACCEPTED (Invariant 1).
 #
+# Withdraw acceptance (VERB-43 / ADR 0010): while a match is still PROPOSED and
+# the partner has not accepted, the side that already accepted may retract via
+# match_withdraw (@require_htmx) — a clean, no-penalty un-accept that returns
+# them to the actionable proposed view.
+#
 # No-show reporting (VERB-21): once a match is ACCEPTED, either party may
 # report the other as a post-accept no-show via
 # match_report_no_show (@require_htmx) or the no-JS POST fallback in
@@ -59,6 +64,7 @@ from matching.services import (
     register_participant,
     report_no_show,
     total_accepted_matches,
+    withdraw_acceptance,
 )
 from public.models import FormDownload
 
@@ -627,6 +633,7 @@ def _match_context(
     if token is not None:
         context["accept_url"] = reverse("public:match_accept", args=[token])
         context["decline_url"] = reverse("public:match_decline", args=[token])
+        context["withdraw_url"] = reverse("public:match_withdraw", args=[token])
         context["report_no_show_url"] = reverse(
             "public:match_report_no_show", args=[token]
         )
@@ -757,6 +764,40 @@ def match_accept(request: HttpRequest, token: str) -> HttpResponse:
     if display_state == _STATE_ACTIONABLE:
         try:
             match = accept_match(match, registration)
+        except ValueError:
+            # Status changed between resolution and action; re-render current state.
+            pass
+
+    context = _match_context(match, registration, side, token=token)
+    return render(request, "public/partials/match_actions.html", context)
+
+
+@require_htmx
+@require_POST
+def match_withdraw(request: HttpRequest, token: str) -> HttpResponse:
+    """HTMX POST: withdraw this side's acceptance and return the actions partial.
+
+    Guarded by ``@require_htmx`` (Invariant 7) and ``@require_POST`` — a GET,
+    even with the HX header, must not retract an acceptance. Re-validates the
+    token, confirms this side is in the WAITING (already-accepted) display state,
+    then calls ``withdraw_acceptance``. The side returns to the actionable
+    ``proposed`` view. Renders ``public/partials/match_actions.html`` reflecting
+    the resulting state.
+
+    A POST once the state is no longer WAITING (e.g. the partner accepted and the
+    match is now ACCEPTED) is a safe no-op: the guard skips the service call and
+    the partial re-renders with the current state.
+    """
+    resolved = _resolve_match_token(token)
+    if resolved is None:
+        return HttpResponse(status=400)
+
+    match, registration, side = resolved
+    display_state = _compute_match_display_state(match, side)
+
+    if display_state == _STATE_WAITING:
+        try:
+            match = withdraw_acceptance(match, registration)
         except ValueError:
             # Status changed between resolution and action; re-render current state.
             pass

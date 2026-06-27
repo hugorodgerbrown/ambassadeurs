@@ -17,6 +17,7 @@ Context:
                        deleted on decline; the template falls back to a generic)
   show_deadline      — whether to render the contact-window strip
   accept_url / decline_url / report_no_show_url — HTMX action endpoints
+  withdraw_url       — HTMX withdraw-acceptance endpoint (token route only)
   counterpart        — the other party's Registration (present only when ACCEPTED;
                        email/phone are revealed only after mutual accept, Invariant 1)
 {% endcomment %}
@@ -176,6 +177,27 @@ Context:
                     {% endblocktranslate %}
                 </span>
             </div>
+        {% endif %}
+        {% comment %}
+            Withdraw acceptance (VERB-43 / ADR 0010): a clean, no-penalty
+            un-accept, available only on the token route (withdraw_url present)
+            while the partner has not yet accepted. Returns the viewer to the
+            proposed view.
+        {% endcomment %}
+        {% if withdraw_url %}
+            <form
+                method="post"
+                action="{{ withdraw_url }}"
+                hx-post="{{ withdraw_url }}"
+                hx-target="#match-actions"
+                hx-swap="innerHTML"
+                class="mt-4"
+            >
+                {% csrf_token %}
+                <button type="submit" class="btn btn--ghost">
+                    {% translate "Withdraw my acceptance" %}
+                </button>
+            </form>
         {% endif %}
     </div>
 {% elif view == "confirmed" %}

@@ -183,6 +183,14 @@ class Registration(BaseModel):
     class Meta:
         ordering = ["-created_at"]
 
+    def is_ambassador(self) -> bool:
+        """Return True if role is AMBASSADOR."""
+        return self.role == self.Role.AMBASSADOR
+
+    def is_referee(self) -> bool:
+        """Return True if role is REFEREE."""
+        return self.role == self.Role.REFEREE
+
     def to_string(self) -> str:
         """Return a human-readable label for the registration."""
         return f"{self.user} · {self.get_role_display()}"

@@ -27,13 +27,21 @@
             Sits above "Your details" so role context is immediately visible.
         {% endcomment %}
         {% if registration %}
-            <div class="role-zone mb-3">
-                <p class="label mb-1">{% translate "Your role" %}</p>
-                <p class="role-select__name">{{ registration.get_role_display }}</p>
-                <small>{% blocktranslate trimmed %}
-                        To change role you must delete your account and start again.
-                    {% endblocktranslate %}</small>
+        <div class="card mb-6">
+            <div class="mb-4 flex items-center justify-between">
+                <h2 class="text-h3 text-ink">{% translate "Your role" %}</h2>
             </div>
+            <div class="role-zone mb-3">
+                <p class="role-select__name">{{ registration.get_role_display }}</p>
+                <small>
+                {% if registration.is_ambassador %}
+                    {% translate "You held a 4 Vallées pass recently and are referring a newcomer." %}
+                {% else %}
+                    {% translate "You're new to the 4 Vallées and need an Ambassador to refer you." %}
+                {% endif %}
+                </small>
+            </div>
+        </div>
         {% endif %}
 
         {# Your details card #}

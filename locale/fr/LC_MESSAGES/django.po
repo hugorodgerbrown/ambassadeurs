@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-27 16:20+0200\n"
+"POT-Creation-Date: 2026-06-27 17:08+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -391,9 +391,15 @@ msgstr "Votre compte"
 msgid "Your role"
 msgstr "Votre rôle"
 
-msgid "To change role you must delete your account and start again."
+msgid "You held a 4 Vallées pass recently and are referring a newcomer."
 msgstr ""
-"Pour changer de rôle, vous devez supprimer votre compte et recommencer."
+"Vous avez détenu un abonnement des 4 Vallées récemment et parrainez un "
+"nouveau venu."
+
+msgid "You're new to the 4 Vallées and need an Ambassador to refer you."
+msgstr ""
+"Vous êtes nouveau aux 4 Vallées et avez besoin d'un Ambassadeur pour vous "
+"parrainer."
 
 msgid "Your details"
 msgstr "Vos informations"
@@ -1111,19 +1117,15 @@ msgstr "Votre réponse"
 msgid "Accept this match?"
 msgstr "Accepter cette mise en relation ?"
 
-#, python-format
 msgid ""
-"Accepting shares your contact details with %(partner)s so you can apply "
-"together. Declining removes you from this match and puts you back in the "
-"queue."
+"Once you accept your contact details will be shared with your partner. If "
+"you choose not to accept (by declining, or not responding in time), your "
+"registration will be cancelled and you will need to re-register."
 msgstr ""
-"En acceptant, vous partagez vos coordonnées avec %(partner)s afin de pouvoir "
-"postuler ensemble. En refusant, vous quittez cette mise en relation et "
-"retournez dans la file d'attente."
 
 #, python-format
-msgid "%(deadline)s · %(countdown)s left"
-msgstr "%(deadline)s · %(countdown)s restant"
+msgid "Match expires in %(countdown)s"
+msgstr ""
 
 msgid "Accept match"
 msgstr "Accepter la mise en relation"
@@ -1388,16 +1390,6 @@ msgstr "Détenteur actuel parrainant un nouveau venu."
 msgid "New holder who needs an Ambassador."
 msgstr "Nouveau détenteur ayant besoin d'un Ambassadeur."
 
-msgid "You held a 4 Vallées pass recently and are referring a newcomer."
-msgstr ""
-"Vous avez détenu un abonnement des 4 Vallées récemment et parrainez un "
-"nouveau venu."
-
-msgid "You're new to the 4 Vallées and need an Ambassador to refer you."
-msgstr ""
-"Vous êtes nouveau aux 4 Vallées et avez besoin d'un Ambassadeur pour vous "
-"parrainer."
-
 msgid "Your role can't be changed once you've registered."
 msgstr "Votre rôle ne peut pas être modifié une fois inscrit(e)."
 
@@ -1572,6 +1564,24 @@ msgstr ""
 "Vous êtes sur le point d'utiliser votre compte %(provider_name)s pour vous "
 "connecter à %(site_name)s. Pour terminer, veuillez confirmer votre adresse e-"
 "mail."
+
+#~ msgid "To change role you must delete your account and start again."
+#~ msgstr ""
+#~ "Pour changer de rôle, vous devez supprimer votre compte et recommencer."
+
+#, python-format
+#~ msgid ""
+#~ "Accepting shares your contact details with %(partner)s so you can apply "
+#~ "together. Declining removes you from this match and puts you back in the "
+#~ "queue."
+#~ msgstr ""
+#~ "En acceptant, vous partagez vos coordonnées avec %(partner)s afin de "
+#~ "pouvoir postuler ensemble. En refusant, vous quittez cette mise en "
+#~ "relation et retournez dans la file d'attente."
+
+#, python-format
+#~ msgid "%(deadline)s · %(countdown)s left"
+#~ msgstr "%(deadline)s · %(countdown)s restant"
 
 #~ msgid "Match · Action needed"
 #~ msgstr "Mise en relation · Action requise"

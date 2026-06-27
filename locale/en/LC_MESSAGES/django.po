@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-27 16:20+0200\n"
+"POT-Creation-Date: 2026-06-27 17:08+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -337,7 +337,10 @@ msgstr ""
 msgid "Your role"
 msgstr ""
 
-msgid "To change role you must delete your account and start again."
+msgid "You held a 4 Vallées pass recently and are referring a newcomer."
+msgstr ""
+
+msgid "You're new to the 4 Vallées and need an Ambassador to refer you."
 msgstr ""
 
 msgid "Your details"
@@ -900,15 +903,14 @@ msgstr ""
 msgid "Accept this match?"
 msgstr ""
 
-#, python-format
 msgid ""
-"Accepting shares your contact details with %(partner)s so you can apply "
-"together. Declining removes you from this match and puts you back in the "
-"queue."
+"Once you accept your contact details will be shared with your partner. If "
+"you choose not to accept (by declining, or not responding in time), your "
+"registration will be cancelled and you will need to re-register."
 msgstr ""
 
 #, python-format
-msgid "%(deadline)s · %(countdown)s left"
+msgid "Match expires in %(countdown)s"
 msgstr ""
 
 msgid "Accept match"
@@ -1117,12 +1119,6 @@ msgid "Returning holder referring a newcomer."
 msgstr ""
 
 msgid "New holder who needs an Ambassador."
-msgstr ""
-
-msgid "You held a 4 Vallées pass recently and are referring a newcomer."
-msgstr ""
-
-msgid "You're new to the 4 Vallées and need an Ambassador to refer you."
 msgstr ""
 
 msgid "Your role can't be changed once you've registered."

@@ -54,8 +54,9 @@ Context:
         </h2>
         <p class="mb-3.5 text-small text-body">
             {% blocktranslate trimmed with partner=partner %}
-                Accepting shares your contact details with {{ partner }} so you can apply together. Declining removes
-                you from this match and puts you back in the queue.
+                Once you accept your contact details will be shared with your partner.
+                If you choose not to accept (by declining, or not responding in time),
+                your registration will be cancelled and you will need to re-register.
             {% endblocktranslate %}
         </p>
         {% if show_deadline %}
@@ -74,8 +75,8 @@ Context:
                     <path d="M12 7v5l3 2" />
                 </svg>
                 <span>
-                    {% blocktranslate trimmed with deadline=match.expires_at|date:"D j M, H:i" countdown=match.expires_at|timeuntil %}
-                        {{ deadline }} · {{ countdown }} left
+                    {% blocktranslate trimmed with countdown=match.expires_at|timeuntil %}
+                        Match expires in {{ countdown }}
                     {% endblocktranslate %}
                 </span>
             </div>

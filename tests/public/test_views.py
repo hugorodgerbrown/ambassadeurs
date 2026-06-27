@@ -1311,6 +1311,84 @@ def test_match_decline_htmx_get_is_rejected() -> None:
     assert match.ambassador_registration is not None
 
 
+def test_match_withdraw_requires_htmx() -> None:
+    """match_withdraw returns 400 for a plain (non-HTMX) POST (Invariant 7)."""
+    match = MatchFactory.create()
+    token = make_match_access_token(match.pk, match.ambassador_registration_id)
+    url = reverse("public:match_withdraw", args=[token])
+    response = Client().post(url)
+    assert response.status_code == 400
+
+
+def test_match_withdraw_htmx_get_is_rejected() -> None:
+    """An HTMX GET to match_withdraw is rejected with 405 Method Not Allowed.
+
+    @require_POST must guard the view even when the HX-Request header is present,
+    so a GET cannot retract an acceptance.
+    """
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    with TestCase.captureOnCommitCallbacks(execute=False):
+        accept_match(match, ambassador_reg)
+
+    token = make_match_access_token(match.pk, ambassador_reg.pk)
+    url = reverse("public:match_withdraw", args=[token])
+    response = Client().get(url, headers={"hx-request": "true"})
+    assert response.status_code == 405
+    # The acceptance must be unchanged.
+    match.refresh_from_db()
+    assert match.ambassador_accepted_at is not None
+
+
+def test_match_withdraw_htmx_returns_to_proposed_view() -> None:
+    """HTMX withdraw after a first accept → actionable view; timestamp cleared."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.MATCHED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.MATCHED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    # First accept by the ambassador (outside HTMX; use the service directly).
+    with TestCase.captureOnCommitCallbacks(execute=False):
+        accept_match(match, ambassador_reg)
+    match.refresh_from_db()
+    assert match.ambassador_accepted_at is not None
+
+    token = make_match_access_token(match.pk, ambassador_reg.pk)
+    url = reverse("public:match_withdraw", args=[token])
+    response = Client().post(url, headers={"hx-request": "true"})
+
+    assert response.status_code == 200
+    match.refresh_from_db()
+    assert match.status == Match.Status.PROPOSED
+    assert match.ambassador_accepted_at is None
+
+    content = response.content.decode()
+    # Back in the actionable view: the accept/decline form actions are present,
+    # and the waiting/withdraw control is gone.
+    assert reverse("public:match_accept", args=[token]) in content
+    assert reverse("public:match_decline", args=[token]) in content
+    assert reverse("public:match_withdraw", args=[token]) not in content
+
+
 def test_match_detail_post_fallback_accept_redirects() -> None:
     """A no-JS POST with action=accept performs PRG redirect back to the match page."""
     ambassador_reg = RegistrationFactory.create(

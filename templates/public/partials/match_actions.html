@@ -16,6 +16,7 @@ Context:
   state_actionable / state_waiting / state_terminal — the sentinel strings
   accept_url        — URL for the HTMX accept POST
   decline_url       — URL for the HTMX decline POST
+  withdraw_url      — URL for the HTMX withdraw-acceptance POST (token route only)
   report_no_show_url — URL for the HTMX report-no-show POST
   counterpart       — Registration of the other party (present only when ACCEPTED)
 {% endcomment %}
@@ -68,6 +69,26 @@ Context:
             they do.
         {% endblocktranslate %}
     </p>
+    {% comment %}
+        Withdraw acceptance (VERB-43 / ADR 0009): a clean, no-penalty un-accept,
+        available only on the token route (withdraw_url present) while the
+        partner has not yet accepted. Returns the viewer to the proposed view.
+    {% endcomment %}
+    {% if withdraw_url %}
+        <form
+            method="post"
+            action="{{ withdraw_url }}"
+            hx-post="{{ withdraw_url }}"
+            hx-target="#match-actions"
+            hx-swap="innerHTML"
+            class="mt-4"
+        >
+            {% csrf_token %}
+            <button type="submit" class="btn btn--ghost">
+                {% translate "Withdraw my acceptance" %}
+            </button>
+        </form>
+    {% endif %}
 {% else %}
     {% comment %}Terminal states — ACCEPTED, DECLINED, EXPIRED, ABANDONED, or window lapsed.{% endcomment %}
     {% if match.status == 'ACCEPTED' %}

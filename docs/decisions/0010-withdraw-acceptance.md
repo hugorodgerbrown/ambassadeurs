@@ -1,4 +1,4 @@
-# ADR 0009 — Withdraw acceptance (no-penalty un-accept)
+# ADR 0010 — Withdraw acceptance (no-penalty un-accept)
 
 **Status:** Accepted
 **Date:** 2026-06-27

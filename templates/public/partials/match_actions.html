@@ -1,133 +1,405 @@
 {% load i18n %}
 {% comment %}
-Match actions partial (VERB-19 / VERB-21).
+Match outcome block (match redesign).
 
-Renders the accept/decline buttons when the match is actionable, a waiting
-message when this side has already accepted, or a terminal state message.
-Returned by the full match page and by the match_accept / match_decline /
-match_report_no_show HTMX endpoints so hx-swap="innerHTML" replaces only this
-fragment.
+State-driven outcome rendered below the roster on the match page, and returned
+on its own by the match_accept / match_decline / match_report_no_show HTMX
+endpoints (hx-swap="innerHTML" replaces #match-actions). Switches on the design
+`view` key computed in public.views._match_view.
 
 Context:
-  match             — Match instance
-  registration      — the viewing party's Registration
-  side              — Match.Side value ("AMBASSADOR" or "REFEREE")
-  display_state     — one of "actionable", "waiting", "terminal"
-  state_actionable / state_waiting / state_terminal — the sentinel strings
-  accept_url        — URL for the HTMX accept POST
-  decline_url       — URL for the HTMX decline POST
-  withdraw_url      — URL for the HTMX withdraw-acceptance POST (token route only)
-  report_no_show_url — URL for the HTMX report-no-show POST
-  counterpart       — Registration of the other party (present only when ACCEPTED)
+  match              — Match instance
+  side               — Match.Side value ("AMBASSADOR" or "REFEREE")
+  view               — design view key (proposed / you_accepted / partner_accepted
+                       / confirmed / declined_you / declined_partner / expired /
+                       abandoned_you / abandoned_partner)
+  partner_name       — the other party's first name ("" if their account was
+                       deleted on decline; the template falls back to a generic)
+  show_deadline      — whether to render the contact-window strip
+  accept_url / decline_url / report_no_show_url — HTMX action endpoints
+  withdraw_url       — HTMX withdraw-acceptance endpoint (token route only)
+  counterpart        — the other party's Registration (present only when ACCEPTED;
+                       email/phone are revealed only after mutual accept, Invariant 1)
 {% endcomment %}
-{% if display_state == state_actionable %}
-    <p class="mb-4 text-body">
-        {% blocktranslate trimmed with deadline=match.expires_at %}
-            You have until {{ deadline }} to respond to this match.
-        {% endblocktranslate %}
-    </p>
-    <div class="flex flex-col gap-3 sm:flex-row">
-        <form
-            method="post"
-            action="{{ accept_url }}"
-            hx-post="{{ accept_url }}"
-            hx-target="#match-actions"
-            hx-swap="innerHTML"
-        >
-            {% csrf_token %}
-            <button type="submit" class="btn btn--role btn--block">
-                {% translate "Accept" %}
-            </button>
-        </form>
-        <form
-            method="post"
-            action="{{ decline_url }}"
-            hx-post="{{ decline_url }}"
-            hx-target="#match-actions"
-            hx-swap="innerHTML"
-            hx-confirm='{% translate "Declining will remove your registration. You can re-register at any time. Are you sure?" %}'
-        >
-            {% csrf_token %}
-            <button type="submit" class="btn btn--outline btn--block">
-                {% translate "Decline" %}
-            </button>
-        </form>
-    </div>
-    <p class="mt-3 text-sm text-meta">
-        {% blocktranslate trimmed %}
-            Declining this match will remove your registration from the pool. You can re-register at any time.
-        {% endblocktranslate %}
-    </p>
-{% elif display_state == state_waiting %}
-    <div class="announce announce--role">
-        <span class="announce__dot"></span>
-        {% translate "Waiting for your partner to respond" %}
-    </div>
-    <p class="mt-3 text-sm text-meta">
-        {% blocktranslate trimmed %}
-            You have accepted this match. We are waiting for your partner to respond. You will be notified by email when
-            they do.
-        {% endblocktranslate %}
-    </p>
-    {% comment %}
-        Withdraw acceptance (VERB-43 / ADR 0009): a clean, no-penalty un-accept,
-        available only on the token route (withdraw_url present) while the
-        partner has not yet accepted. Returns the viewer to the proposed view.
-    {% endcomment %}
-    {% if withdraw_url %}
-        <form
-            method="post"
-            action="{{ withdraw_url }}"
-            hx-post="{{ withdraw_url }}"
-            hx-target="#match-actions"
-            hx-swap="innerHTML"
-            class="mt-4"
-        >
-            {% csrf_token %}
-            <button type="submit" class="btn btn--ghost">
-                {% translate "Withdraw my acceptance" %}
-            </button>
-        </form>
-    {% endif %}
-{% else %}
-    {% comment %}Terminal states — ACCEPTED, DECLINED, EXPIRED, ABANDONED, or window lapsed.{% endcomment %}
-    {% if match.status == 'ACCEPTED' %}
-        <p class="font-semibold text-ink">{% translate "Match accepted" %}</p>
-        <p class="mt-1 text-sm text-body">
-            {% blocktranslate trimmed %}
-                Both parties have accepted. Here are your partner's contact details.
+{% translate "your partner" as fallback_partner %}
+{% firstof partner_name fallback_partner as partner %}
+
+{% if view == "proposed" or view == "partner_accepted" %}
+    {% comment %}CAN ACT — proposed, or the partner has already accepted.{% endcomment %}
+    <div class="card">
+        {% if view == "partner_accepted" %}
+            <div class="callout callout--warm mb-4">
+                <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <path d="m5 12 5 5L20 7" />
+                </svg>
+                <span>
+                    {% blocktranslate trimmed with partner=partner|capfirst %}
+                        {{ partner }} has already accepted — you're the last yes needed.
+                    {% endblocktranslate %}
+                </span>
+            </div>
+        {% endif %}
+        <p class="label mb-2">{% translate "Your response" %}</p>
+        <h2 class="mb-1.5 font-display text-[1.18rem] font-bold tracking-[-0.01em] text-ink">
+            {% translate "Accept this match?" %}
+        </h2>
+        <p class="mb-3.5 text-small text-body">
+            {% blocktranslate trimmed with partner=partner %}
+                Accepting shares your contact details with {{ partner }} so you can apply together. Declining removes
+                you from this match and puts you back in the queue.
             {% endblocktranslate %}
         </p>
-        {% if counterpart %}
-            <dl class="mt-3 space-y-2 text-sm">
-                <div class="flex gap-2">
-                    <dt class="w-20 shrink-0 font-medium text-ink">{% translate "Name" %}</dt>
-                    <dd class="text-body">{{ counterpart.user.first_name }} {{ counterpart.user.last_name }}</dd>
-                </div>
-                <div class="flex gap-2">
-                    <dt class="w-20 shrink-0 font-medium text-ink">{% translate "Email" %}</dt>
-                    <dd class="text-body">
-                        <a href="mailto:{{ counterpart.user.email }}" class="text-accent underline">
-                            {{ counterpart.user.email }}
-                        </a>
-                    </dd>
-                </div>
-                <div class="flex gap-2">
-                    <dt class="w-20 shrink-0 font-medium text-ink">{% translate "Phone" %}</dt>
-                    <dd class="text-body">
-                        <a href="tel:{{ counterpart.phone }}" class="text-accent underline">
-                            {{ counterpart.phone }}
-                        </a>
-                    </dd>
-                </div>
-            </dl>
+        {% if show_deadline %}
+            <div class="deadline deadline--warm mb-4">
+                <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 7v5l3 2" />
+                </svg>
+                <span>
+                    {% blocktranslate trimmed with deadline=match.expires_at|date:"D j M, H:i" countdown=match.expires_at|timeuntil %}
+                        {{ deadline }} · {{ countdown }} left
+                    {% endblocktranslate %}
+                </span>
+            </div>
         {% endif %}
+        <div class="flex gap-2.5">
+            <form
+                method="post"
+                action="{{ accept_url }}"
+                hx-post="{{ accept_url }}"
+                hx-target="#match-actions"
+                hx-swap="innerHTML"
+                class="flex-1"
+            >
+                {% csrf_token %}
+                <button type="submit" class="btn btn--primary btn--block">
+                    <svg
+                        width="17"
+                        height="17"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <path d="m5 12 5 5L20 7" />
+                    </svg>
+                    {% translate "Accept match" %}
+                </button>
+            </form>
+            <form
+                method="post"
+                action="{{ decline_url }}"
+                hx-post="{{ decline_url }}"
+                hx-target="#match-actions"
+                hx-swap="innerHTML"
+                hx-confirm='{% translate "Declining will remove your registration. You can re-register at any time. Are you sure?" %}'
+            >
+                {% csrf_token %}
+                <button type="submit" class="btn btn--ghost match-decline">
+                    {% translate "Decline" %}
+                </button>
+            </form>
+        </div>
+    </div>
+{% elif view == "you_accepted" %}
+    {% comment %}WAITING — this side accepted; waiting on the partner.{% endcomment %}
+    <div class="card">
+        <div class="mb-3 flex items-start gap-3">
+            <span
+                class="mt-0.5 flex size-[30px] flex-none items-center justify-center rounded-pill bg-success-tint text-success-ink"
+            >
+                <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <path d="m5 12 5 5L20 7" />
+                </svg>
+            </span>
+            <div>
+                <div class="font-display text-[1.18rem] font-bold tracking-[-0.01em] text-ink">
+                    {% translate "You've accepted" %}
+                </div>
+                <div class="mt-0.5 font-mono text-[0.84rem] tracking-[0.04em] text-meta">
+                    {% translate "1 of 2 accepted" %}
+                </div>
+            </div>
+        </div>
+        <p class="mb-3.5 text-small text-body">
+            {% blocktranslate trimmed with partner=partner %}
+                Waiting for {{ partner }} to accept. The match confirms the moment they do — we'll email you straight
+                away, and their contact details appear here.
+            {% endblocktranslate %}
+        </p>
+        {% if show_deadline %}
+            <div class="deadline deadline--neutral">
+                <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 7v5l3 2" />
+                </svg>
+                <span>
+                    {% blocktranslate trimmed with partner=partner deadline=match.expires_at|date:"D j M, H:i" %}
+                        {{ partner }} has until {{ deadline }}
+                    {% endblocktranslate %}
+                </span>
+            </div>
+        {% endif %}
+        {% comment %}
+            Withdraw acceptance (VERB-43 / ADR 0010): a clean, no-penalty
+            un-accept, available only on the token route (withdraw_url present)
+            while the partner has not yet accepted. Returns the viewer to the
+            proposed view.
+        {% endcomment %}
+        {% if withdraw_url %}
+            <form
+                method="post"
+                action="{{ withdraw_url }}"
+                hx-post="{{ withdraw_url }}"
+                hx-target="#match-actions"
+                hx-swap="innerHTML"
+                class="mt-4"
+            >
+                {% csrf_token %}
+                <button type="submit" class="btn btn--ghost">
+                    {% translate "Withdraw my acceptance" %}
+                </button>
+            </form>
+        {% endif %}
+    </div>
+{% elif view == "confirmed" %}
+    {% comment %}
+        CONFIRMED — both accepted. Contact card (PII revealed, Invariant 1) plus
+        the real off-app application steps (VERB-42), restyled with .steps.
+    {% endcomment %}
+    <div class="flex flex-col gap-3.5">
+        <div class="contact-card">
+            <div class="contact-card__banner">
+                <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <path d="m5 12 5 5L20 7" />
+                </svg>
+                {% translate "Match confirmed — you can now reach each other" %}
+            </div>
+            {% if counterpart %}
+                <div class="contact-card__body">
+                    <div class="contact-card__identity">
+                        <span
+                            class="avatar {% if side == 'REFEREE' %}avatar--amb{% else %}avatar--ref{% endif %} avatar--lg"
+                        >
+                            {{ counterpart.user.first_name|slice:":1"|upper }}{{ counterpart.user.last_name|slice:":1"|upper }}
+                        </span>
+                        <div class="min-w-0">
+                            <div class="contact-card__name">
+                                {{ counterpart.user.first_name }} {{ counterpart.user.last_name }}
+                            </div>
+                            <div class="contact-card__meta">
+                                {% if side == 'REFEREE' %}
+                                    {% translate "Ambassador · returning holder" %}
+                                {% else %}
+                                    {% translate "Referee · new holder" %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="contact-rows">
+                        <div class="contact-row">
+                            <svg
+                                width="17"
+                                height="17"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.9"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <rect x="3" y="5" width="18" height="14" rx="2.5" />
+                                <path d="m3.5 7 8.5 6 8.5-6" />
+                            </svg>
+                            <span class="contact-row__value">{{ counterpart.user.email }}</span>
+                        </div>
+                        <div class="contact-row">
+                            <svg
+                                width="17"
+                                height="17"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.9"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" />
+                            </svg>
+                            <span class="contact-row__value">{{ counterpart.phone }}</span>
+                        </div>
+                    </div>
+                    <div class="contact-card__actions">
+                        <a
+                            href="mailto:{{ counterpart.user.email }}"
+                            class="btn btn--primary btn--block flex-1"
+                        >
+                            <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2.1"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <rect x="3" y="5" width="18" height="14" rx="2.5" />
+                                <path d="m3.5 7 8.5 6 8.5-6" />
+                            </svg>
+                            {% blocktranslate trimmed with partner=partner %}
+                                Email {{ partner }}
+                            {% endblocktranslate %}
+                        </a>
+                        <a href="tel:{{ counterpart.phone }}" class="btn btn--ghost">
+                            <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" />
+                            </svg>
+                            {% translate "Call" %}
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        {% comment %}
+            Off-app application process (VERB-42). Real, specific steps — kept
+            from the prior accepted-match screen and restyled with .steps.
+        {% endcomment %}
+        <div class="card" id="next-steps">
+            <p class="label mb-3.5">{% translate "What to do next" %}</p>
+            <div class="steps">
+                <div class="steps__item">
+                    <span class="steps__num">1</span>
+                    <div>
+                        <div class="steps__title">{% translate "Reach out" %}</div>
+                        <div class="steps__text">
+                            {% blocktranslate trimmed with partner=partner %}
+                                Send {{ partner }} a quick email or text so you've both got each other's details saved.
+                            {% endblocktranslate %}
+                        </div>
+                    </div>
+                </div>
+                <div class="steps__item">
+                    <span class="steps__num">2</span>
+                    <div>
+                        <div class="steps__title">
+                            {% translate "Fill in the application form together" %}
+                        </div>
+                        <div class="steps__text">
+                            {% blocktranslate trimmed %}
+                                Download and complete the official Ambassador Program application form. Both partners
+                                must sign it.
+                            {% endblocktranslate %}
+                            <span class="mt-2 block">
+                                <a
+                                    href="{% url 'public:application_form' %}"
+                                    class="btn btn--ghost"
+                                    target="_blank"
+                                    rel="noopener"
+                                >
+                                    {% translate "Download application form" %}
+                                </a>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="steps__item">
+                    <span class="steps__num">3</span>
+                    <div>
+                        <div class="steps__title">{% translate "Email it to Téléverbier" %}</div>
+                        <div class="steps__text">
+                            {% blocktranslate trimmed %}
+                                Send the signed form, photo ID (passport or national identity card), and a digital
+                                passport photo for both applicants to customer@televerbier.ch. The back-office team
+                                checks your eligibility.
+                            {% endblocktranslate %}
+                        </div>
+                    </div>
+                </div>
+                <div class="steps__item">
+                    <span class="steps__num">4</span>
+                    <div>
+                        <div class="steps__title">{% translate "Pay and collect your passes" %}</div>
+                        <div class="steps__text">
+                            {% blocktranslate trimmed %}
+                                If approved, Téléverbier issues a payment link or invoice. Once paid, collect your
+                                pass cards at the ticket desk — or have them loaded onto your existing keycards.
+                            {% endblocktranslate %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="mt-4 text-small text-meta">
+                {% blocktranslate trimmed %}
+                    Eligibility is verified by Téléverbier during the application process. Registering on this site
+                    does not guarantee a discount; the off-app application is the definitive step.
+                {% endblocktranslate %}
+            </p>
+        </div>
+
         {% if not match.no_show_reported_by %}
-            <div class="mt-6 border-t border-line pt-4">
-                <p class="text-sm text-meta">
-                    {% blocktranslate trimmed %}
-                        If your partner did not show up to complete the application, you can report a no-show. This will
-                        remove them from the pool and return you to the front of the queue.
+            <div class="card">
+                <p class="text-small text-meta">
+                    {% blocktranslate trimmed with partner=partner %}
+                        If {{ partner }} did not show up to complete the application, you can report a no-show. This
+                        removes them from the pool and returns you to the front of the queue.
                     {% endblocktranslate %}
                 </p>
                 <form
@@ -140,62 +412,161 @@ Context:
                     class="mt-3"
                 >
                     {% csrf_token %}
-                    <button type="submit" class="btn btn--outline btn--block">
+                    <button type="submit" class="btn btn--ghost btn--block">
                         {% translate "Report no-show" %}
                     </button>
                 </form>
             </div>
         {% endif %}
-    {% elif match.status == 'DECLINED' %}
-        <p class="font-semibold text-ink">{% translate "Match declined" %}</p>
-        {% if match.declined_by == side %}
-            <p class="mt-1 text-sm text-body">
-                {% blocktranslate trimmed %}
-                    You declined this match. Your registration has been removed. You can re-register at any time.
-                {% endblocktranslate %}
-            </p>
-            <p class="mt-4">
-                <a href="{% url 'public:register' %}" class="btn btn--role">
-                    {% translate "Re-register" %}
-                </a>
-            </p>
-        {% else %}
-            <p class="mt-1 text-sm text-body">
-                {% blocktranslate trimmed %}
-                    This match was declined. You have been re-queued and will be matched again shortly.
-                {% endblocktranslate %}
-            </p>
-        {% endif %}
-    {% elif match.status == 'EXPIRED' %}
-        <p class="font-semibold text-ink">{% translate "Match expired" %}</p>
-        <p class="mt-1 text-sm text-body">
-            {% blocktranslate trimmed %}
-                The contact window for this match has closed without a mutual response. You have been re-queued.
+    </div>
+{% elif view == "declined_partner" %}
+    {% comment %}Partner declined — viewer re-queued.{% endcomment %}
+    <div class="card">
+        <div class="mb-2.5 flex items-start gap-3">
+            <span
+                class="flex size-[30px] flex-none items-center justify-center rounded-pill bg-accent-tint text-accent"
+            >
+                <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+                    <path d="M21 3v5h-5" />
+                    <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+                    <path d="M3 21v-5h5" />
+                </svg>
+            </span>
+            <div class="font-display text-[1.18rem] font-bold tracking-[-0.01em] text-ink">
+                {% translate "You're back in the queue" %}
+            </div>
+        </div>
+        <p class="mb-4 text-small text-body">
+            {% blocktranslate trimmed with partner=partner %}
+                {{ partner }} declined this match — it happens, and it's nothing to do with you. We've put you
+                straight back in the queue and we're already looking for your next partner. We'll email you the moment
+                we find one.
             {% endblocktranslate %}
         </p>
-    {% elif match.status == 'ABANDONED' %}
-        <p class="font-semibold text-ink">{% translate "Match abandoned" %}</p>
-        {% if match.no_show_reported_by == side %}
-            <p class="mt-1 text-sm text-body">
-                {% blocktranslate trimmed %}
-                    You reported a no-show. You are back near the front of the queue and will be matched again shortly.
-                {% endblocktranslate %}
-            </p>
-        {% else %}
-            <p class="mt-1 text-sm text-body">
-                {% blocktranslate trimmed %}
-                    This match was reported as a no-show after acceptance. Please contact support if you believe this is
-                    an error.
-                {% endblocktranslate %}
-            </p>
-        {% endif %}
-    {% else %}
-        {% comment %}Window lapsed while match is technically still PROPOSED.{% endcomment %}
-        <p class="font-semibold text-ink">{% translate "Contact window closed" %}</p>
-        <p class="mt-1 text-sm text-body">
+        <a href="{% url 'accounts:detail' %}" class="btn btn--primary">
+            {% translate "Back to my status" %}
+            <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            >
+                <path d="M5 12h14" />
+                <path d="m13 5 7 7-7 7" />
+            </svg>
+        </a>
+    </div>
+{% elif view == "declined_you" %}
+    {% comment %}Viewer declined — registration removed.{% endcomment %}
+    <div class="card">
+        <h2 class="mb-2 font-display text-[1.18rem] font-bold tracking-[-0.01em] text-ink">
+            {% translate "Registration removed" %}
+        </h2>
+        <p class="mb-4 text-small text-body">
             {% blocktranslate trimmed %}
-                The contact window for this match has closed. You have been re-queued.
+                You declined this match, so we've taken you out of the queue. No hard feelings — re-register whenever
+                you'd like to be matched with someone new.
             {% endblocktranslate %}
         </p>
-    {% endif %}
+        <a href="{% url 'public:register' %}" class="btn btn--primary">
+            {% translate "Re-register" %}
+            <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            >
+                <path d="M5 12h14" />
+                <path d="m13 5 7 7-7 7" />
+            </svg>
+        </a>
+    </div>
+{% elif view == "abandoned_you" %}
+    {% comment %}Viewer reported a post-accept no-show — re-queued to the front.{% endcomment %}
+    <div class="card">
+        <h2 class="mb-2 font-display text-[1.18rem] font-bold tracking-[-0.01em] text-ink">
+            {% translate "No-show reported" %}
+        </h2>
+        <p class="mb-4 text-small text-body">
+            {% blocktranslate trimmed %}
+                Thanks for letting us know. You're back near the front of the queue and we'll match you again shortly.
+            {% endblocktranslate %}
+        </p>
+        <a href="{% url 'accounts:detail' %}" class="btn btn--primary">
+            {% translate "Back to my status" %}
+            <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            >
+                <path d="M5 12h14" />
+                <path d="m13 5 7 7-7 7" />
+            </svg>
+        </a>
+    </div>
+{% elif view == "abandoned_partner" %}
+    {% comment %}Viewer was reported as a no-show after acceptance.{% endcomment %}
+    <div class="card">
+        <h2 class="mb-2 font-display text-[1.18rem] font-bold tracking-[-0.01em] text-ink">
+            {% translate "This match was closed" %}
+        </h2>
+        <p class="text-small text-body">
+            {% blocktranslate trimmed %}
+                This match was reported as a no-show after acceptance. If you believe this is a mistake, please contact
+                support.
+            {% endblocktranslate %}
+        </p>
+    </div>
+{% else %}
+    {% comment %}EXPIRED — window closed (or a PROPOSED match whose window lapsed).{% endcomment %}
+    <div class="card">
+        <h2 class="mb-2 font-display text-[1.18rem] font-bold tracking-[-0.01em] text-ink">
+            {% translate "This match expired" %}
+        </h2>
+        <p class="mb-4 text-small text-body">
+            {% blocktranslate trimmed %}
+                The window closed before you both accepted, so this match has expired. You've gone back in the queue and
+                we'll pair you with someone new shortly.
+            {% endblocktranslate %}
+        </p>
+        <a href="{% url 'accounts:detail' %}" class="btn btn--primary">
+            {% translate "Back to my status" %}
+            <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            >
+                <path d="M5 12h14" />
+                <path d="m13 5 7 7-7 7" />
+            </svg>
+        </a>
+    </div>
 {% endif %}

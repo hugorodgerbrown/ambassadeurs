@@ -11,7 +11,7 @@
 # the post-match confirmation workflow (ADR 0007 / VERB-18). Both are atomic
 # and call core.services.record_transition inline for the audit log.
 #
-# withdraw_acceptance (VERB-43 / ADR 0009) is the inverse of the first accept:
+# withdraw_acceptance (VERB-43 / ADR 0010) is the inverse of the first accept:
 # while a match is still PROPOSED and the other side has not accepted, the
 # viewing party clears their own *_accepted_at timestamp — a clean, no-penalty
 # un-accept (PROPOSED → PROPOSED) that re-queues nothing and writes no log row.
@@ -749,7 +749,7 @@ def withdraw_acceptance(match: Match, registration: Registration) -> Match:
     A clean, no-penalty un-accept: while the match is ``PROPOSED`` and the
     *other* side has not yet accepted, the viewing party may retract their own
     acceptance. This returns them from the "waiting on partner" view to the
-    actionable ``proposed`` view (VERB-43 / ADR 0009).
+    actionable ``proposed`` view (VERB-43 / ADR 0010).
 
     Only the accepting side's ``*_accepted_at`` timestamp is cleared. Nothing is
     re-queued and no flake penalty is applied — withdrawing differs from a

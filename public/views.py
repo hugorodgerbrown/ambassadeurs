@@ -15,7 +15,7 @@
 # guarded with require_htmx (Invariant 7). Contact PII is revealed ONLY when
 # match.status == ACCEPTED (Invariant 1).
 #
-# Withdraw acceptance (VERB-43 / ADR 0009): while a match is still PROPOSED and
+# Withdraw acceptance (VERB-43 / ADR 0010): while a match is still PROPOSED and
 # the partner has not accepted, the side that already accepted may retract via
 # match_withdraw (@require_htmx) — a clean, no-penalty un-accept that returns
 # them to the actionable proposed view.
@@ -478,38 +478,157 @@ def _compute_match_display_state(match: Match, side: Match.Side) -> str:
     return _STATE_ACTIONABLE
 
 
-def _render_match_page(
-    request: HttpRequest,
+def _side_accepted(match: Match, side: Match.Side) -> bool:
+    """Return whether the given side has recorded an acceptance on the match."""
+    if side == Match.Side.AMBASSADOR:
+        return match.ambassador_accepted_at is not None
+    return match.referee_accepted_at is not None
+
+
+def _other_side(side: Match.Side) -> Match.Side:
+    """Return the opposite side of a match."""
+    if side == Match.Side.AMBASSADOR:
+        return Match.Side.REFEREE
+    return Match.Side.AMBASSADOR
+
+
+def _match_view(match: Match, side: Match.Side) -> str:
+    """Return the design view key for the match page, from the viewer's side.
+
+    One of ``proposed``, ``you_accepted``, ``partner_accepted``, ``confirmed``,
+    ``declined_you``, ``declined_partner``, ``expired``, ``abandoned_you``,
+    ``abandoned_partner``. A PROPOSED match whose contact window has lapsed is
+    presented as ``expired`` — both parties re-queue, the same outcome as a
+    swept expiry — so the page need not distinguish the two.
+
+    This drives only presentation (header copy + outcome block); the action
+    guards use ``_compute_match_display_state``.
+    """
+    status = match.status
+    if status == Match.Status.ACCEPTED:
+        return "confirmed"
+    if status == Match.Status.DECLINED:
+        return "declined_you" if match.declined_by == side else "declined_partner"
+    if status == Match.Status.EXPIRED:
+        return "expired"
+    if status == Match.Status.ABANDONED:
+        return (
+            "abandoned_you"
+            if match.no_show_reported_by == side
+            else "abandoned_partner"
+        )
+    # PROPOSED — distinguish by window and per-side acceptance.
+    if timezone.now() > match.expires_at:
+        return "expired"
+    if _side_accepted(match, side):
+        return "you_accepted"
+    if _side_accepted(match, _other_side(side)):
+        return "partner_accepted"
+    return "proposed"
+
+
+def _side_status_key(match: Match, side: Match.Side) -> str:
+    """Return the roster pill key for one side.
+
+    One of ``accepted`` / ``declined`` / ``no_response`` / ``pending``. Derived
+    from the match alone (viewer-independent) so both roster rows read true.
+    """
+    if match.status == Match.Status.ACCEPTED or _side_accepted(match, side):
+        return "accepted"
+    if match.declined_by == side:
+        return "declined"
+    if match.status == Match.Status.EXPIRED or (
+        match.status == Match.Status.PROPOSED and timezone.now() > match.expires_at
+    ):
+        return "no_response"
+    return "pending"
+
+
+def _roster_row(
+    registration: Registration | None,
+    role_side: Match.Side,
+    viewer_side: Match.Side,
+    match: Match,
+) -> dict[str, object]:
+    """Build one roster row's display data.
+
+    Reveals the party's first name and initials (the match redesign shows these
+    from the proposed state; contact PII — email and phone — stays hidden until
+    mutual accept, see Invariant 1). ``registration`` is ``None`` when the party
+    declined and their account was deleted, in which case the template falls back
+    to a generic label.
+    """
+    name = ""
+    initials = ""
+    if registration is not None:
+        first = registration.user.first_name or ""
+        last = registration.user.last_name or ""
+        name = first
+        initials = (first[:1] + last[:1]).upper()
+    return {
+        "side": role_side,
+        "name": name,
+        "initials": initials,
+        "exists": registration is not None,
+        "is_you": role_side == viewer_side,
+        "status": _side_status_key(match, role_side),
+    }
+
+
+def _related_registration(match: Match, attr: str) -> Registration | None:
+    """Return ``match.<attr>`` (a Registration FK), or None if the row is gone.
+
+    A decline deletes the decliner's Registration and SET_NULLs the FK. A
+    freshly-loaded match returns None for the FK, but an in-memory match handed
+    back by the decline service still holds the stale FK id, so the lazy load
+    raises ``Registration.DoesNotExist``; treat that as None.
+    """
+    try:
+        related: Registration | None = getattr(match, attr)
+    except Registration.DoesNotExist:
+        return None
+    return related
+
+
+def _match_context(
     match: Match,
     registration: Registration,
     side: Match.Side,
     *,
     token: str | None = None,
-) -> HttpResponse:
-    """Build the match-page context and return the rendered ``public/match.html``.
+) -> dict[str, object]:
+    """Build the shared context for the match page and its action partial.
 
-    Shared by ``match_detail`` (token route) and ``accounts.views.account_match``
-    (tokenless, login-required route). When ``token`` is provided the HTMX
-    action URLs include it; when it is ``None`` the URL keys are omitted
-    (the tokenless route does not expose action partials).
+    Used by ``_render_match_page`` (full page) and the HTMX action endpoints
+    (which render only ``public/partials/match_actions.html``). When ``token`` is
+    provided the HTMX action URLs are included; otherwise they are omitted (the
+    tokenless account route does not expose the action forms).
 
-    Contact PII is included in the context ONLY when ``match.status == ACCEPTED``
-    (Invariant 1).
+    The counterpart's contact details (email, phone) are included ONLY when
+    ``match.status == ACCEPTED`` (Invariant 1); the first name is revealed
+    earlier via ``partner_name`` and the roster.
     """
-    display_state = _compute_match_display_state(match, side)
-    counterpart = (
-        match.referee_registration
-        if side == Match.Side.AMBASSADOR
-        else match.ambassador_registration
-    )
+    # Resolve both sides defensively: after a decline the decliner's User and
+    # Registration are deleted and the match FK is SET_NULL, but an in-memory
+    # match returned by the service still carries the stale FK id, so a lazy load
+    # raises DoesNotExist. A freshly-loaded match returns None cleanly.
+    ambassador_reg = _related_registration(match, "ambassador_registration")
+    referee_reg = _related_registration(match, "referee_registration")
+    counterpart = referee_reg if side == Match.Side.AMBASSADOR else ambassador_reg
+    view = _match_view(match, side)
     context: dict[str, object] = {
         "match": match,
         "registration": registration,
         "side": side,
-        "display_state": display_state,
-        "state_actionable": _STATE_ACTIONABLE,
-        "state_waiting": _STATE_WAITING,
-        "state_terminal": _STATE_TERMINAL,
+        "view": view,
+        "roster": [
+            _roster_row(ambassador_reg, Match.Side.AMBASSADOR, side, match),
+            _roster_row(referee_reg, Match.Side.REFEREE, side, match),
+        ],
+        "partner_name": (
+            counterpart.user.first_name if counterpart is not None else ""
+        ),
+        "show_deadline": view in ("proposed", "you_accepted", "partner_accepted"),
     }
     if token is not None:
         context["accept_url"] = reverse("public:match_accept", args=[token])
@@ -521,7 +640,25 @@ def _render_match_page(
     # Reveal counterpart PII ONLY when both parties have accepted (Invariant 1).
     if match.status == Match.Status.ACCEPTED:
         context["counterpart"] = counterpart
+    return context
 
+
+def _render_match_page(
+    request: HttpRequest,
+    match: Match,
+    registration: Registration,
+    side: Match.Side,
+    *,
+    token: str | None = None,
+) -> HttpResponse:
+    """Build the match-page context and return the rendered ``public/match.html``.
+
+    Shared by ``match_detail`` (token route) and ``accounts.views.account_match``
+    (tokenless, login-required route). When ``token`` is provided the HTMX action
+    URLs are included; when it is ``None`` they are omitted (the tokenless route
+    does not expose action partials).
+    """
+    context = _match_context(match, registration, side, token=token)
     return render(request, "public/match.html", context)
 
 
@@ -630,30 +767,8 @@ def match_accept(request: HttpRequest, token: str) -> HttpResponse:
         except ValueError:
             # Status changed between resolution and action; re-render current state.
             pass
-        display_state = _compute_match_display_state(match, side)
 
-    counterpart = (
-        match.referee_registration
-        if side == Match.Side.AMBASSADOR
-        else match.ambassador_registration
-    )
-
-    context = {
-        "match": match,
-        "registration": registration,
-        "side": side,
-        "display_state": display_state,
-        "state_actionable": _STATE_ACTIONABLE,
-        "state_waiting": _STATE_WAITING,
-        "state_terminal": _STATE_TERMINAL,
-        "accept_url": reverse("public:match_accept", args=[token]),
-        "decline_url": reverse("public:match_decline", args=[token]),
-        "withdraw_url": reverse("public:match_withdraw", args=[token]),
-        "report_no_show_url": reverse("public:match_report_no_show", args=[token]),
-    }
-    if match.status == Match.Status.ACCEPTED:
-        context["counterpart"] = counterpart
-
+    context = _match_context(match, registration, side, token=token)
     return render(request, "public/partials/match_actions.html", context)
 
 
@@ -664,14 +779,14 @@ def match_withdraw(request: HttpRequest, token: str) -> HttpResponse:
 
     Guarded by ``@require_htmx`` (Invariant 7) and ``@require_POST`` — a GET,
     even with the HX header, must not retract an acceptance. Re-validates the
-    token, confirms the match is still PROPOSED and this side is in the WAITING
-    (already-accepted) display state, then calls ``withdraw_acceptance``. The
-    side returns to the actionable ``proposed`` view. Renders
-    ``public/partials/match_actions.html`` reflecting the resulting state.
+    token, confirms this side is in the WAITING (already-accepted) display state,
+    then calls ``withdraw_acceptance``. The side returns to the actionable
+    ``proposed`` view. Renders ``public/partials/match_actions.html`` reflecting
+    the resulting state.
 
-    A second POST once the state is no longer WAITING (e.g. the partner accepted
-    and the match is now ACCEPTED) is a safe no-op: the guard skips the service
-    call and the partial re-renders with the current state.
+    A POST once the state is no longer WAITING (e.g. the partner accepted and the
+    match is now ACCEPTED) is a safe no-op: the guard skips the service call and
+    the partial re-renders with the current state.
     """
     resolved = _resolve_match_token(token)
     if resolved is None:
@@ -686,30 +801,8 @@ def match_withdraw(request: HttpRequest, token: str) -> HttpResponse:
         except ValueError:
             # Status changed between resolution and action; re-render current state.
             pass
-        display_state = _compute_match_display_state(match, side)
 
-    counterpart = (
-        match.referee_registration
-        if side == Match.Side.AMBASSADOR
-        else match.ambassador_registration
-    )
-
-    context = {
-        "match": match,
-        "registration": registration,
-        "side": side,
-        "display_state": display_state,
-        "state_actionable": _STATE_ACTIONABLE,
-        "state_waiting": _STATE_WAITING,
-        "state_terminal": _STATE_TERMINAL,
-        "accept_url": reverse("public:match_accept", args=[token]),
-        "decline_url": reverse("public:match_decline", args=[token]),
-        "withdraw_url": reverse("public:match_withdraw", args=[token]),
-        "report_no_show_url": reverse("public:match_report_no_show", args=[token]),
-    }
-    if match.status == Match.Status.ACCEPTED:
-        context["counterpart"] = counterpart
-
+    context = _match_context(match, registration, side, token=token)
     return render(request, "public/partials/match_actions.html", context)
 
 
@@ -737,30 +830,8 @@ def match_decline(request: HttpRequest, token: str) -> HttpResponse:
         except ValueError:
             # Status changed between resolution and action; re-render current state.
             pass
-        display_state = _compute_match_display_state(match, side)
 
-    counterpart = (
-        match.referee_registration
-        if side == Match.Side.AMBASSADOR
-        else match.ambassador_registration
-    )
-
-    context = {
-        "match": match,
-        "registration": registration,
-        "side": side,
-        "display_state": display_state,
-        "state_actionable": _STATE_ACTIONABLE,
-        "state_waiting": _STATE_WAITING,
-        "state_terminal": _STATE_TERMINAL,
-        "accept_url": reverse("public:match_accept", args=[token]),
-        "decline_url": reverse("public:match_decline", args=[token]),
-        "withdraw_url": reverse("public:match_withdraw", args=[token]),
-        "report_no_show_url": reverse("public:match_report_no_show", args=[token]),
-    }
-    if match.status == Match.Status.ACCEPTED:
-        context["counterpart"] = counterpart
-
+    context = _match_context(match, registration, side, token=token)
     return render(request, "public/partials/match_actions.html", context)
 
 
@@ -797,27 +868,5 @@ def match_report_no_show(request: HttpRequest, token: str) -> HttpResponse:
             # re-render current state.
             match.refresh_from_db()
 
-    counterpart = (
-        match.referee_registration
-        if side == Match.Side.AMBASSADOR
-        else match.ambassador_registration
-    )
-    display_state = _compute_match_display_state(match, side)
-
-    context = {
-        "match": match,
-        "registration": registration,
-        "side": side,
-        "display_state": display_state,
-        "state_actionable": _STATE_ACTIONABLE,
-        "state_waiting": _STATE_WAITING,
-        "state_terminal": _STATE_TERMINAL,
-        "accept_url": reverse("public:match_accept", args=[token]),
-        "decline_url": reverse("public:match_decline", args=[token]),
-        "withdraw_url": reverse("public:match_withdraw", args=[token]),
-        "report_no_show_url": reverse("public:match_report_no_show", args=[token]),
-    }
-    if match.status == Match.Status.ACCEPTED:
-        context["counterpart"] = counterpart
-
+    context = _match_context(match, registration, side, token=token)
     return render(request, "public/partials/match_actions.html", context)

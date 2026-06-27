@@ -19,13 +19,15 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import timedelta
 from typing import cast
 
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
@@ -37,6 +39,7 @@ from matching.services import (
     decline_match,
     register_participant,
 )
+from public.views import _match_context
 
 logger = logging.getLogger(__name__)
 
@@ -279,3 +282,134 @@ def counterpart_login(request: HttpRequest) -> HttpResponse:
     if counterpart_match is not None:
         return redirect("accounts:match")
     return redirect("accounts:detail")
+
+
+# ---------------------------------------------------------------------------
+# Match-page state preview (visual QA of every match.html combination)
+# ---------------------------------------------------------------------------
+
+# The match page's design views, in display order, with a human label for the
+# state-switcher pills. The viewer is modelled as the Referee, so the partner is
+# the Ambassador ("Léa") — mirroring the design handoff's single perspective.
+_PREVIEW_VIEWS: list[tuple[str, str]] = [
+    ("proposed", "Proposed"),
+    ("you_accepted", "You accepted"),
+    ("partner_accepted", "Partner accepted"),
+    ("confirmed", "Confirmed"),
+    ("declined_you", "You declined"),
+    ("declined_partner", "Partner declined"),
+    ("expired", "Expired"),
+    ("abandoned_you", "No-show reported"),
+    ("abandoned_partner", "Reported (you)"),
+]
+
+
+def _build_preview_match(view_key: str) -> tuple[Match, Registration, Match.Side]:
+    """Build unsaved in-memory objects so ``_match_view`` derives ``view_key``.
+
+    Returns ``(match, registration, side)`` for the Referee's perspective. The
+    objects are never saved; they only need the fields the match page reads
+    (names, role, phone/email for the confirmed contact card, the response
+    timestamps and status that drive the derived view, and ``expires_at`` for
+    the deadline strip). Synthetic primary keys are set so the foreign-key
+    descriptors return the cached instances without a database query.
+    """
+    now = timezone.now()
+
+    ambassador_user = User(
+        first_name="Léa",
+        last_name="Maret",
+        email="lea.maret@example.com",
+    )
+    ambassador_user.pk = 9001
+    referee_user = User(
+        first_name="Sam",
+        last_name="Visitor",
+        email="sam.visitor@example.com",
+    )
+    referee_user.pk = 9002
+
+    ambassador_reg = Registration(
+        user=ambassador_user,
+        role=Registration.Role.AMBASSADOR,
+        phone="+41 79 482 16 03",
+        prior_pass=Registration.PriorPass.SEASONAL,
+    )
+    ambassador_reg.pk = 8001
+    referee_reg = Registration(
+        user=referee_user,
+        role=Registration.Role.REFEREE,
+        phone="+41 79 111 22 33",
+        prior_pass=Registration.PriorPass.NONE,
+    )
+    referee_reg.pk = 8002
+
+    match = Match(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+        status=Match.Status.PROPOSED,
+        expires_at=now + timedelta(days=2),
+    )
+    match.pk = 7001
+
+    if view_key == "you_accepted":
+        match.referee_accepted_at = now
+    elif view_key == "partner_accepted":
+        match.ambassador_accepted_at = now
+    elif view_key == "confirmed":
+        match.status = Match.Status.ACCEPTED
+        match.ambassador_accepted_at = now
+        match.referee_accepted_at = now
+    elif view_key == "declined_you":
+        match.status = Match.Status.DECLINED
+        match.declined_by = Match.Side.REFEREE
+        match.declined_at = now
+    elif view_key == "declined_partner":
+        # The partner declined; their account is deleted in production, so the
+        # FK is NULL and the page falls back to a generic "your partner" label.
+        match.status = Match.Status.DECLINED
+        match.declined_by = Match.Side.AMBASSADOR
+        match.declined_at = now
+        match.ambassador_registration = None
+    elif view_key == "expired":
+        match.status = Match.Status.EXPIRED
+        match.expires_at = now - timedelta(days=1)
+    elif view_key == "abandoned_you":
+        match.status = Match.Status.ABANDONED
+        match.ambassador_accepted_at = now
+        match.referee_accepted_at = now
+        match.no_show_reported_by = Match.Side.REFEREE
+        match.no_show_reported_at = now
+    elif view_key == "abandoned_partner":
+        match.status = Match.Status.ABANDONED
+        match.ambassador_accepted_at = now
+        match.referee_accepted_at = now
+        match.no_show_reported_by = Match.Side.AMBASSADOR
+        match.no_show_reported_at = now
+
+    return match, referee_reg, Match.Side.REFEREE
+
+
+@require_debug
+def match_preview(request: HttpRequest) -> HttpResponse:
+    """Render ``public/match.html`` in a forced state for visual QA.
+
+    DEBUG-only. The ``view`` query parameter selects one of the match page's
+    design states (defaulting to ``proposed`` when absent or unknown); the page
+    is rendered through the production ``_match_context`` with synthetic,
+    unsaved objects, so the preview is the real page — not a mock. A state
+    switcher (the ``preview_states`` context) is shown above the card so every
+    combination can be flipped through. The accept/decline forms are inert here
+    (no token is minted), since the purpose is visual review only.
+    """
+    view_key = request.GET.get("view", "proposed")
+    if view_key not in {key for key, _ in _PREVIEW_VIEWS}:
+        view_key = "proposed"
+
+    match, registration, side = _build_preview_match(view_key)
+    context = _match_context(match, registration, side, token=None)
+    context["preview_states"] = [
+        {"key": key, "label": label, "current": key == view_key}
+        for key, label in _PREVIEW_VIEWS
+    ]
+    return render(request, "public/match.html", context)

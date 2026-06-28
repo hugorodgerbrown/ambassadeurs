@@ -11,13 +11,16 @@
 # Do NOT call matching.services mutation functions here — they have side effects
 # (sending email, deleting users on decline, re-queueing). Build rows via the
 # Django ORM directly and set timestamps explicitly.
+#
+# allauth has been removed (VERB-46). Email-verified state is now derived from
+# Registration.status (UNVERIFIED vs any other status). EmailAddress rows are
+# no longer created here.
 
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
 
-from allauth.account.models import EmailAddress
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand, CommandError, CommandParser
@@ -84,24 +87,6 @@ def _make_user(
     user.set_unusable_password()
     user.save(update_fields=["password"])
     return user
-
-
-def _make_email_address(user: User, *, verified: bool) -> EmailAddress:
-    """Create an allauth EmailAddress for ``user``.
-
-    Args:
-        user: The User to attach the email address to.
-        verified: Whether the email address is verified.
-
-    Returns:
-        The newly created EmailAddress instance.
-    """
-    return EmailAddress.objects.create(
-        user=user,
-        email=user.email,
-        primary=True,
-        verified=verified,
-    )
 
 
 def _make_registration(
@@ -211,7 +196,7 @@ class Command(BaseCommand):
            must do this before deleting Users, otherwise the FK becomes NULL and
            the Match row is orphaned with no way to identify it as seeded).
         2. User rows whose email ends with ``@seed.test`` (cascades to
-           Registration via OneToOneField, and to allauth EmailAddress).
+           Registration via OneToOneField).
         """
         seed_registrations = Registration.objects.filter(
             user__email__endswith=f"@{SEED_EMAIL_DOMAIN}"
@@ -242,7 +227,6 @@ class Command(BaseCommand):
             is_superuser=True,
             is_staff=True,
         )
-        _make_email_address(admin_user, verified=True)
         rows.append(
             {
                 "email": admin_user.email,
@@ -258,7 +242,6 @@ class Command(BaseCommand):
             first_name="Ursula",
             last_name="Noel",
         )
-        _make_email_address(unverified_user, verified=False)
         _make_registration(
             unverified_user,
             role=Registration.Role.AMBASSADOR,
@@ -283,7 +266,6 @@ class Command(BaseCommand):
             first_name="Antoine",
             last_name="Bovard",
         )
-        _make_email_address(amb_queue_user, verified=True)
         _make_registration(
             amb_queue_user,
             role=Registration.Role.AMBASSADOR,
@@ -308,7 +290,6 @@ class Command(BaseCommand):
             first_name="Rita",
             last_name="Maret",
         )
-        _make_email_address(ref_queue_user, verified=True)
         _make_registration(
             ref_queue_user,
             role=Registration.Role.REFEREE,
@@ -333,7 +314,6 @@ class Command(BaseCommand):
             first_name="Pierre",
             last_name="Favre",
         )
-        _make_email_address(proposed_amb_user, verified=True)
         proposed_amb_reg = _make_registration(
             proposed_amb_user,
             role=Registration.Role.AMBASSADOR,
@@ -349,7 +329,6 @@ class Command(BaseCommand):
             first_name="Pascale",
             last_name="Fellay",
         )
-        _make_email_address(proposed_ref_user, verified=True)
         proposed_ref_reg = _make_registration(
             proposed_ref_user,
             role=Registration.Role.REFEREE,
@@ -389,7 +368,6 @@ class Command(BaseCommand):
             first_name="Marc",
             last_name="Luisier",
         )
-        _make_email_address(pending_amb_user, verified=True)
         pending_amb_reg = _make_registration(
             pending_amb_user,
             role=Registration.Role.AMBASSADOR,
@@ -405,7 +383,6 @@ class Command(BaseCommand):
             first_name="Marie",
             last_name="Nanchen",
         )
-        _make_email_address(pending_ref_user, verified=True)
         pending_ref_reg = _make_registration(
             pending_ref_user,
             role=Registration.Role.REFEREE,
@@ -446,7 +423,6 @@ class Command(BaseCommand):
             first_name="Bernard",
             last_name="Germanier",
         )
-        _make_email_address(accepted_amb_user, verified=True)
         accepted_amb_reg = _make_registration(
             accepted_amb_user,
             role=Registration.Role.AMBASSADOR,
@@ -462,7 +438,6 @@ class Command(BaseCommand):
             first_name="Brigitte",
             last_name="Gaillard",
         )
-        _make_email_address(accepted_ref_user, verified=True)
         accepted_ref_reg = _make_registration(
             accepted_ref_user,
             role=Registration.Role.REFEREE,
@@ -504,7 +479,6 @@ class Command(BaseCommand):
             first_name="Samuel",
             last_name="Carron",
         )
-        _make_email_address(suspended_user, verified=True)
         _make_registration(
             suspended_user,
             role=Registration.Role.AMBASSADOR,
@@ -529,7 +503,6 @@ class Command(BaseCommand):
             first_name="Wendy",
             last_name="Theytaz",
         )
-        _make_email_address(withdrawn_user, verified=True)
         _make_registration(
             withdrawn_user,
             role=Registration.Role.REFEREE,
@@ -554,7 +527,6 @@ class Command(BaseCommand):
             first_name="Denis",
             last_name="Crettaz",
         )
-        _make_email_address(declined_amb_user, verified=True)
         declined_amb_reg = _make_registration(
             declined_amb_user,
             role=Registration.Role.AMBASSADOR,
@@ -570,7 +542,6 @@ class Command(BaseCommand):
             first_name="Diane",
             last_name="Copt",
         )
-        _make_email_address(declined_ref_user, verified=True)
         declined_ref_reg = _make_registration(
             declined_ref_user,
             role=Registration.Role.REFEREE,
@@ -612,7 +583,6 @@ class Command(BaseCommand):
             first_name="Etienne",
             last_name="Dayer",
         )
-        _make_email_address(expired_amb_user, verified=True)
         expired_amb_reg = _make_registration(
             expired_amb_user,
             role=Registration.Role.AMBASSADOR,
@@ -628,7 +598,6 @@ class Command(BaseCommand):
             first_name="Eva",
             last_name="Dorsaz",
         )
-        _make_email_address(expired_ref_user, verified=True)
         expired_ref_reg = _make_registration(
             expired_ref_user,
             role=Registration.Role.REFEREE,
@@ -668,7 +637,6 @@ class Command(BaseCommand):
             first_name="Christophe",
             last_name="Luyet",
         )
-        _make_email_address(cancelled_amb_user, verified=True)
         cancelled_amb_reg = _make_registration(
             cancelled_amb_user,
             role=Registration.Role.AMBASSADOR,
@@ -684,7 +652,6 @@ class Command(BaseCommand):
             first_name="Claire",
             last_name="Michelet",
         )
-        _make_email_address(cancelled_ref_user, verified=True)
         cancelled_ref_reg = _make_registration(
             cancelled_ref_user,
             role=Registration.Role.REFEREE,
@@ -767,5 +734,5 @@ class Command(BaseCommand):
         self.stdout.write(divider)
         self.stdout.write(f"Total: {len(rows)} entries created.")
         self.stdout.write("")
-        self.stdout.write("Login via /accounts/login/ using any email above.")
+        self.stdout.write("Login via /account/login/ using any email above.")
         self.stdout.write("")

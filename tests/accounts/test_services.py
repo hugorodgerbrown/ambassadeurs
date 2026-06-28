@@ -2,9 +2,9 @@
 
 import pytest
 from django.core import mail
-from django.test import RequestFactory
+from django.test import RequestFactory, override_settings
 
-from accounts.services import send_confirmation_email, update_account
+from accounts.services import send_confirmation_email, send_login_email, update_account
 from matching.models import Registration
 from tests.accounts.factories import UserFactory
 from tests.matching.factories import RegistrationFactory
@@ -69,6 +69,73 @@ def test_send_confirmation_email_sends_mail_and_returns_confirm_url() -> None:
     assert "register/confirm/" in mail.outbox[0].body
     assert confirm_url.startswith("http://testserver/")
     assert "register/confirm/" in confirm_url
+
+
+# ---------------------------------------------------------------------------
+# send_login_email (VERB-46 magic-link login)
+# ---------------------------------------------------------------------------
+
+
+def test_send_login_email_sends_mail_to_user() -> None:
+    """send_login_email sends one email to the user's address."""
+    user = UserFactory.create(email="ada@example.com")
+    request = RequestFactory().get("/")
+    request.META["SERVER_NAME"] = "testserver"
+    request.META["SERVER_PORT"] = "80"
+    mail.outbox.clear()
+
+    send_login_email(request, user)
+
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == ["ada@example.com"]
+
+
+def test_send_login_email_body_contains_verify_url() -> None:
+    """send_login_email includes the magic-link verify URL in the body."""
+    user = UserFactory.create()
+    request = RequestFactory().get("/")
+    request.META["SERVER_NAME"] = "testserver"
+    request.META["SERVER_PORT"] = "80"
+    mail.outbox.clear()
+
+    verify_url = send_login_email(request, user)
+
+    assert len(mail.outbox) == 1
+    assert "account/login/" in mail.outbox[0].body
+    assert verify_url in mail.outbox[0].body
+
+
+def test_send_login_email_returns_verify_url() -> None:
+    """send_login_email returns the absolute verify URL."""
+    user = UserFactory.create()
+    request = RequestFactory().get("/")
+    request.META["SERVER_NAME"] = "testserver"
+    request.META["SERVER_PORT"] = "80"
+    mail.outbox.clear()
+
+    verify_url = send_login_email(request, user)
+
+    assert verify_url.startswith("http://testserver/")
+    assert "account/login/" in verify_url
+
+
+@override_settings(DEBUG=True)
+def test_send_login_email_logs_url_under_debug(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Under DEBUG, send_login_email logs the verify URL."""
+    import logging
+
+    user = UserFactory.create()
+    request = RequestFactory().get("/")
+    request.META["SERVER_NAME"] = "testserver"
+    request.META["SERVER_PORT"] = "80"
+    mail.outbox.clear()
+
+    with caplog.at_level(logging.INFO, logger="accounts.services"):
+        verify_url = send_login_email(request, user)
+
+    assert verify_url in caplog.text
 
 
 def test_send_confirmation_email_subject_contains_confirm_phrase() -> None:

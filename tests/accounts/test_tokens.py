@@ -1,8 +1,10 @@
-# Tests for the registration-confirmation and match-access signed-link tokens.
+# Tests for the registration-confirmation, login, and match-access signed-link tokens.
 
 from accounts.tokens import (
+    make_login_token,
     make_match_access_token,
     make_registration_confirmation_token,
+    read_login_token,
     read_match_access_token,
     read_registration_confirmation_token,
 )
@@ -70,3 +72,44 @@ def test_registration_confirmation_token_rejects_match_access_token() -> None:
     """
     match_token = make_match_access_token(1, 1)
     assert read_registration_confirmation_token(match_token) is None
+
+
+# ---------------------------------------------------------------------------
+# Login tokens (VERB-46 magic-link login)
+# ---------------------------------------------------------------------------
+
+
+def test_login_token_round_trip() -> None:
+    """A freshly minted login token reads back the same user pk."""
+    token = make_login_token(99)
+    assert read_login_token(token) == 99
+
+
+def test_login_token_expired_is_rejected() -> None:
+    """A login token past its max_age returns None."""
+    token = make_login_token(99)
+    assert read_login_token(token, max_age=-1) is None
+
+
+def test_login_token_tampered_is_rejected() -> None:
+    """A tampered login token returns None."""
+    token = make_login_token(99)
+    assert read_login_token(token + "x") is None
+
+
+def test_login_token_rejects_registration_confirmation_token() -> None:
+    """A registration-confirmation token is rejected by read_login_token.
+
+    The salt mismatch prevents cross-purpose token replay (Invariant 6).
+    """
+    confirm_token = make_registration_confirmation_token(42)
+    assert read_login_token(confirm_token) is None
+
+
+def test_registration_confirmation_token_rejects_login_token() -> None:
+    """A login token is rejected by read_registration_confirmation_token.
+
+    The salt mismatch prevents cross-purpose token replay (Invariant 6).
+    """
+    login_token = make_login_token(99)
+    assert read_registration_confirmation_token(login_token) is None

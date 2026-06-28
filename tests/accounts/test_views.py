@@ -1,14 +1,21 @@
-# Tests for the account self-service views.
+# Tests for the account self-service views and the magic-link login flow.
+#
+# Login flow (VERB-46):
+#   login_request GET/POST, login_sent GET, login_verify GET/POST, logout POST/GET.
+# Account self-service:
+#   account_detail, account_edit, account_delete, account_resend_confirmation,
+#   account_match — see original test coverage (unchanged behaviour).
 
 from datetime import UTC, datetime
 
 import pytest
-from allauth.account.models import EmailAddress
 from django.contrib.auth import SESSION_KEY
 from django.contrib.auth.models import User
+from django.core import mail
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
+from accounts.tokens import make_login_token
 from matching.models import Match, Registration
 from matching.services import accept_match
 from tests.accounts.factories import UserFactory
@@ -17,11 +24,265 @@ from tests.matching.factories import MatchFactory, RegistrationFactory
 pytestmark = pytest.mark.django_db
 
 
+# ---------------------------------------------------------------------------
+# login_request view (VERB-46)
+# ---------------------------------------------------------------------------
+
+
+def test_login_request_get_renders_form() -> None:
+    """GET to accounts:login renders the login form."""
+    response = Client().get(reverse("accounts:login"))
+    assert response.status_code == 200
+    assert "accounts/login.html" in [t.name for t in response.templates]
+
+
+def test_login_request_post_known_email_redirects_to_sent() -> None:
+    """POST with a known email redirects to login_sent and sends one email."""
+    user = UserFactory.create(email="ada@example.com")
+    mail.outbox.clear()
+    response = Client().post(reverse("accounts:login"), {"email": "ada@example.com"})
+    assert response.status_code == 302
+    assert response.url == reverse("accounts:login_sent")
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == [user.email]
+
+
+def test_login_request_post_unknown_email_redirects_to_sent_no_email() -> None:
+    """POST with an unknown email still redirects to login_sent (no enumeration)."""
+    mail.outbox.clear()
+    response = Client().post(reverse("accounts:login"), {"email": "nobody@example.com"})
+    assert response.status_code == 302
+    assert response.url == reverse("accounts:login_sent")
+    assert len(mail.outbox) == 0
+
+
+def test_login_request_post_normalises_email_case() -> None:
+    """POST with uppercase email is normalised before lookup (Invariant 5)."""
+    UserFactory.create(email="ada@example.com")
+    mail.outbox.clear()
+    response = Client().post(reverse("accounts:login"), {"email": "ADA@EXAMPLE.COM"})
+    assert response.status_code == 302
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == ["ada@example.com"]
+
+
+@override_settings(DEBUG=True)
+def test_login_request_post_stashes_url_in_session_under_debug() -> None:
+    """Under DEBUG, a successful login request stashes the verify URL in session."""
+    user = UserFactory.create(email="ada@example.com")
+    client = Client()
+    mail.outbox.clear()
+    client.post(reverse("accounts:login"), {"email": user.email})
+    assert "debug_login_url" in client.session
+
+
+@override_settings(DEBUG=False)
+def test_login_request_post_does_not_stash_url_outside_debug() -> None:
+    """Outside DEBUG, the verify URL is not stashed in the session."""
+    user = UserFactory.create(email="ada@example.com")
+    client = Client()
+    mail.outbox.clear()
+    client.post(reverse("accounts:login"), {"email": user.email})
+    assert "debug_login_url" not in client.session
+
+
+# ---------------------------------------------------------------------------
+# login_sent view (VERB-46)
+# ---------------------------------------------------------------------------
+
+
+def test_login_sent_get_renders_page() -> None:
+    """GET to accounts:login_sent renders the sent confirmation page."""
+    response = Client().get(reverse("accounts:login_sent"))
+    assert response.status_code == 200
+    assert "accounts/login_sent.html" in [t.name for t in response.templates]
+
+
+@override_settings(DEBUG=True)
+def test_login_sent_shows_debug_link_when_in_session() -> None:
+    """Under DEBUG, login_sent shows the shortcut link when it is in the session."""
+    client = Client()
+    session = client.session
+    session["debug_login_url"] = "http://testserver/account/login/TOKEN/"
+    session.save()
+    response = client.get(reverse("accounts:login_sent"))
+    assert response.status_code == 200
+    assert b"http://testserver/account/login/TOKEN/" in response.content
+
+
+# ---------------------------------------------------------------------------
+# login_verify view (VERB-46)
+# ---------------------------------------------------------------------------
+
+
+def test_login_verify_get_valid_token_renders_confirm_page() -> None:
+    """GET with a valid token renders the confirm page without logging in."""
+    user = UserFactory.create(email="ada@example.com")
+    token = make_login_token(user.pk)
+    client = Client()
+    response = client.get(reverse("accounts:login_verify", args=[token]))
+    assert response.status_code == 200
+    assert "accounts/login_verify.html" in [t.name for t in response.templates]
+    # Must NOT be logged in after a GET (prefetch safety).
+    assert SESSION_KEY not in client.session
+
+
+def test_login_verify_get_shows_target_email() -> None:
+    """The verify page shows the target user's email address."""
+    user = UserFactory.create(email="ada@example.com")
+    token = make_login_token(user.pk)
+    response = Client().get(reverse("accounts:login_verify", args=[token]))
+    assert b"ada@example.com" in response.content
+
+
+def test_login_verify_get_corrupted_token_returns_400() -> None:
+    """GET with a corrupted (tampered) token returns 400 and renders login_invalid."""
+    user = UserFactory.create()
+    token = make_login_token(user.pk)
+    response = Client().get(
+        reverse("accounts:login_verify", args=[token + "corrupted"])
+    )
+    assert response.status_code == 400
+    assert "accounts/login_invalid.html" in [t.name for t in response.templates]
+
+
+def test_login_verify_get_expired_token_returns_400(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """GET with a properly-signed but expired token returns 400 without logging in.
+
+    Uses monkeypatch to make ``read_login_token`` evaluate the token with
+    ``max_age=-1``, simulating expiry without waiting or mocking the clock.
+    """
+    import accounts.views as views_module
+    from accounts.tokens import read_login_token as real_read
+
+    user = UserFactory.create()
+    token = make_login_token(user.pk)
+
+    def _always_expired(t: str, max_age: int = -1) -> int | None:
+        return real_read(t, max_age=-1)
+
+    monkeypatch.setattr(views_module, "read_login_token", _always_expired)
+
+    client = Client()
+    response = client.get(reverse("accounts:login_verify", args=[token]))
+    assert response.status_code == 400
+    assert "accounts/login_invalid.html" in [t.name for t in response.templates]
+    assert SESSION_KEY not in client.session
+
+
+def test_login_verify_get_garbage_token_returns_400() -> None:
+    """GET with a garbage token string returns 400."""
+    response = Client().get(
+        reverse("accounts:login_verify", args=["not-a-valid-token"])
+    )
+    assert response.status_code == 400
+    assert "accounts/login_invalid.html" in [t.name for t in response.templates]
+
+
+def test_login_verify_post_valid_token_logs_in_and_redirects() -> None:
+    """POST with a valid token logs the user in and redirects to accounts:detail."""
+    user = UserFactory.create()
+    token = make_login_token(user.pk)
+    client = Client()
+    response = client.post(reverse("accounts:login_verify", args=[token]))
+    assert response.status_code == 302
+    assert response.url == reverse("accounts:detail")
+    # User must be logged in.
+    assert SESSION_KEY in client.session
+    assert int(client.session[SESSION_KEY]) == user.pk
+
+
+def test_login_verify_post_inactive_user_returns_400() -> None:
+    """POST with a valid token for an inactive user returns 400 without logging in.
+
+    Covers the is_active=True guard added to close the deactivated-user blocker.
+    """
+    user = UserFactory.create(is_active=False)
+    token = make_login_token(user.pk)
+    client = Client()
+    response = client.post(reverse("accounts:login_verify", args=[token]))
+    assert response.status_code == 400
+    assert "accounts/login_invalid.html" in [t.name for t in response.templates]
+    assert SESSION_KEY not in client.session
+
+
+def test_login_verify_get_deleted_user_returns_400() -> None:
+    """GET with a valid token whose user has since been deleted returns 400."""
+    user = UserFactory.create()
+    user_pk = user.pk
+    token = make_login_token(user_pk)
+    user.delete()
+    response = Client().get(reverse("accounts:login_verify", args=[token]))
+    assert response.status_code == 400
+    assert "accounts/login_invalid.html" in [t.name for t in response.templates]
+
+
+def test_login_verify_post_invalid_token_returns_400() -> None:
+    """POST with an invalid token returns 400 and does not log in."""
+    client = Client()
+    response = client.post(reverse("accounts:login_verify", args=["bad-token-xyz"]))
+    assert response.status_code == 400
+    assert SESSION_KEY not in client.session
+
+
+# ---------------------------------------------------------------------------
+# logout view (VERB-46)
+# ---------------------------------------------------------------------------
+
+
+def test_logout_post_logs_out_and_redirects_home() -> None:
+    """POST to accounts:logout logs out and redirects to public:home."""
+    user = UserFactory.create()
+    client = Client()
+    client.force_login(user)
+    response = client.post(reverse("accounts:logout"))
+    assert response.status_code == 302
+    assert response.url == reverse("public:home")
+    assert SESSION_KEY not in client.session
+
+
+def test_logout_get_renders_confirmation_page() -> None:
+    """GET to accounts:logout renders the styled logout confirmation page."""
+    user = UserFactory.create()
+    client = Client()
+    client.force_login(user)
+    response = client.get(reverse("accounts:logout"))
+    assert response.status_code == 200
+    assert "accounts/logout.html" in [t.name for t in response.templates]
+    assert b"btn--primary" in response.content
+
+
+# ---------------------------------------------------------------------------
+# @login_required redirects to accounts:login (VERB-46)
+# ---------------------------------------------------------------------------
+
+
 def test_detail_requires_login() -> None:
-    """Anonymous users are redirected away from the account page."""
+    """Anonymous users are redirected to accounts:login from the account page."""
     response = Client().get(reverse("accounts:detail"))
     assert response.status_code == 302
-    assert reverse("account_login") in response.url
+    assert reverse("accounts:login") in response.url
+
+
+def test_account_match_anonymous_redirects_to_login() -> None:
+    """An anonymous request to accounts:match is redirected to accounts:login."""
+    response = Client().get(reverse("accounts:match"))
+    assert response.status_code == 302
+    assert reverse("accounts:login") in response.url
+
+
+def test_resend_anonymous_redirects_to_login() -> None:
+    """An anonymous POST to resend-confirmation is redirected to accounts:login."""
+    response = Client().post(reverse("accounts:resend_confirmation"))
+    assert response.status_code == 302
+    assert reverse("accounts:login") in response.url
+
+
+# ---------------------------------------------------------------------------
+# account_detail — general rendering
+# ---------------------------------------------------------------------------
 
 
 def test_detail_renders_with_registration_role_readonly() -> None:
@@ -49,121 +310,33 @@ def test_detail_without_registration_shows_register_link() -> None:
     assert b"Register now" in response.content
 
 
-def test_edit_get_renders_form() -> None:
-    """The edit page renders the prefilled form."""
-    user = UserFactory.create(first_name="Ada")
-    client = Client()
-    client.force_login(user)
-    response = client.get(reverse("accounts:edit"))
-    assert response.status_code == 200
-    assert "accounts/edit.html" in [t.name for t in response.templates]
+# ---------------------------------------------------------------------------
+# account_detail — email_verified derived from Registration.status (VERB-46)
+# ---------------------------------------------------------------------------
 
 
-def test_edit_post_updates_name_and_registration_fields() -> None:
-    """A valid edit updates the name, phone and language and redirects."""
-    registration = RegistrationFactory.create(
-        user=UserFactory.create(first_name="Ada", last_name="Lovelace"),
-    )
-    user = registration.user
-    client = Client()
-    client.force_login(user)
-    response = client.post(
-        reverse("accounts:edit"),
-        {
-            "first_name": "Augusta",
-            "last_name": "King",
-            "phone": "+41790000000",
-            "preferred_language": "fr",
-        },
-    )
-    assert response.status_code == 302
-    assert response.url == reverse("accounts:detail")
-    user.refresh_from_db()
-    assert user.first_name == "Augusta"
-    registration.refresh_from_db()
-    assert registration.phone == "+41790000000"
-    assert registration.preferred_language == "fr"
-
-
-def test_edit_post_invalid_redisplays_form() -> None:
-    """An invalid edit (missing required name) re-renders the form."""
-    user = UserFactory.create(first_name="Ada", last_name="Lovelace")
-    client = Client()
-    client.force_login(user)
-    response = client.post(
-        reverse("accounts:edit"),
-        {"first_name": "", "last_name": "King", "phone": "", "preferred_language": ""},
-    )
-    assert response.status_code == 200
-    user.refresh_from_db()
-    assert user.first_name == "Ada"
-
-
-def test_delete_get_renders_confirmation() -> None:
-    """The delete page renders a confirmation."""
-    user = UserFactory.create()
-    client = Client()
-    client.force_login(user)
-    response = client.get(reverse("accounts:delete"))
-    assert response.status_code == 200
-    assert "accounts/delete.html" in [t.name for t in response.templates]
-
-
-def test_delete_post_removes_user_and_registration() -> None:
-    """Deleting the account removes the user and cascades the registration."""
-    registration = RegistrationFactory.create()
-    user_pk = registration.user.pk
+def test_detail_passes_email_verified_true_when_registration_is_verified() -> None:
+    """account_detail passes email_verified=True for a non-UNVERIFIED registration."""
+    registration = RegistrationFactory.create(status=Registration.Status.VERIFIED)
     client = Client()
     client.force_login(registration.user)
-    response = client.post(reverse("accounts:delete"))
-    assert response.status_code == 302
-    assert response.url == reverse("public:home")
-    assert not User.objects.filter(pk=user_pk).exists()
-    assert not Registration.objects.exists()
-
-
-def test_logout_via_post_logs_out_and_redirects() -> None:
-    """A POST to the logout URL logs the user out and redirects to the home page."""
-    user = UserFactory.create()
-    client = Client()
-    client.force_login(user)
-    response = client.post(reverse("account_logout"))
-    assert response.status_code == 302
-    assert response.url == "/"
-    assert SESSION_KEY not in client.session
-
-
-def test_logout_get_renders_styled_page() -> None:
-    """A GET to the logout URL renders our styled override, not the allauth default."""
-    user = UserFactory.create()
-    client = Client()
-    client.force_login(user)
-    response = client.get(reverse("account_logout"))
-    assert response.status_code == 200
-    assert "account/logout.html" in [t.name for t in response.templates]
-    assert b"btn--primary" in response.content
-
-
-# ---------------------------------------------------------------------------
-# account_detail — email_verified context variable (VERB-25)
-# ---------------------------------------------------------------------------
-
-
-def test_detail_passes_email_verified_true_when_address_is_verified() -> None:
-    """account_detail passes email_verified=True when an EmailAddress is verified."""
-    user = UserFactory.create()
-    EmailAddress.objects.create(
-        user=user, email=user.email, verified=True, primary=True
-    )
-    client = Client()
-    client.force_login(user)
     response = client.get(reverse("accounts:detail"))
     assert response.status_code == 200
     assert response.context["email_verified"] is True
 
 
-def test_detail_passes_email_verified_false_when_no_verified_address() -> None:
-    """account_detail passes email_verified=False when no verified address exists."""
+def test_detail_passes_email_verified_false_when_registration_is_unverified() -> None:
+    """account_detail passes email_verified=False for an UNVERIFIED registration."""
+    registration = RegistrationFactory.create(status=Registration.Status.UNVERIFIED)
+    client = Client()
+    client.force_login(registration.user)
+    response = client.get(reverse("accounts:detail"))
+    assert response.status_code == 200
+    assert response.context["email_verified"] is False
+
+
+def test_detail_passes_email_verified_false_when_no_registration() -> None:
+    """account_detail passes email_verified=False for users without a registration."""
     user = UserFactory.create()
     client = Client()
     client.force_login(user)
@@ -173,22 +346,19 @@ def test_detail_passes_email_verified_false_when_no_verified_address() -> None:
 
 
 def test_detail_shows_tick_when_email_verified() -> None:
-    """The detail page renders a tick SVG when the user's email is verified."""
-    user = UserFactory.create()
-    EmailAddress.objects.create(
-        user=user, email=user.email, verified=True, primary=True
-    )
+    """The detail page renders a tick SVG when the registration is verified."""
+    registration = RegistrationFactory.create(status=Registration.Status.VERIFIED)
     client = Client()
-    client.force_login(user)
+    client.force_login(registration.user)
     response = client.get(reverse("accounts:detail"))
     assert b"Email verified" in response.content
 
 
 def test_detail_shows_unverified_label_when_email_not_verified() -> None:
-    """The detail page shows 'Unverified' when no verified EmailAddress exists."""
-    user = UserFactory.create()
+    """The detail page shows 'Unverified' for an UNVERIFIED registration."""
+    registration = RegistrationFactory.create(status=Registration.Status.UNVERIFIED)
     client = Client()
-    client.force_login(user)
+    client.force_login(registration.user)
     response = client.get(reverse("accounts:detail"))
     assert b"Unverified" in response.content
 
@@ -205,16 +375,31 @@ def test_detail_shows_resend_button_for_unverified_registration() -> None:
 
 
 def test_detail_hides_resend_button_when_email_verified() -> None:
-    """The resend button is not shown once the email is verified."""
+    """The resend button is not shown once the registration is verified."""
     registration = RegistrationFactory.create(status=Registration.Status.VERIFIED)
-    user = registration.user
-    EmailAddress.objects.create(
-        user=user, email=user.email, verified=True, primary=True
-    )
+    client = Client()
+    client.force_login(registration.user)
+    response = client.get(reverse("accounts:detail"))
+    assert b"Resend confirmation email" not in response.content
+
+
+# ---------------------------------------------------------------------------
+# account_detail — no messages banner (VERB-46)
+# ---------------------------------------------------------------------------
+
+
+def test_detail_has_no_messages_banner() -> None:
+    """The detail page no longer renders a Django messages banner block."""
+    user = UserFactory.create()
     client = Client()
     client.force_login(user)
     response = client.get(reverse("accounts:detail"))
-    assert b"Resend confirmation email" not in response.content
+    # The messages block was removed; any stale message in the session must not
+    # appear on the page.
+    assert (
+        b"mb-4 rounded-control border border-line bg-surface p-3 text-sm text-body"
+        not in response.content
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -401,21 +586,12 @@ def test_detail_accepted_match_names_partner_and_points_to_match() -> None:
 
 
 # ---------------------------------------------------------------------------
-# account_resend_confirmation (VERB-25, updated for VERB-44)
+# account_resend_confirmation (VERB-25, updated for VERB-46: redirect-only)
 # ---------------------------------------------------------------------------
-
-
-def test_resend_anonymous_redirects_to_login() -> None:
-    """An anonymous POST to resend-confirmation is redirected to login."""
-    response = Client().post(reverse("accounts:resend_confirmation"))
-    assert response.status_code == 302
-    assert reverse("account_login") in response.url
 
 
 def test_resend_get_redirects_to_detail_without_sending() -> None:
     """A GET to resend-confirmation redirects to account detail and sends no email."""
-    from django.core import mail
-
     registration = RegistrationFactory.create(status=Registration.Status.UNVERIFIED)
     client = Client()
     client.force_login(registration.user)
@@ -428,8 +604,6 @@ def test_resend_get_redirects_to_detail_without_sending() -> None:
 
 def test_resend_post_sends_email_for_unverified_registration() -> None:
     """A POST for an UNVERIFIED registration sends a confirmation email."""
-    from django.core import mail
-
     registration = RegistrationFactory.create(status=Registration.Status.UNVERIFIED)
     client = Client()
     client.force_login(registration.user)
@@ -441,28 +615,15 @@ def test_resend_post_sends_email_for_unverified_registration() -> None:
     assert "register/confirm/" in mail.outbox[0].body
 
 
-def test_resend_post_shows_success_message() -> None:
-    """A successful resend sets a success message."""
-    registration = RegistrationFactory.create(status=Registration.Status.UNVERIFIED)
-    client = Client()
-    client.force_login(registration.user)
-    response = client.post(reverse("accounts:resend_confirmation"), follow=True)
-    messages_list = list(response.context["messages"])
-    assert any("resent" in str(m).lower() for m in messages_list)
-
-
-def test_resend_post_error_when_no_unverified_registration() -> None:
-    """A POST with no UNVERIFIED registration sends no email and shows an error."""
-    from django.core import mail
-
+def test_resend_post_redirects_when_no_unverified_registration() -> None:
+    """A POST with no UNVERIFIED registration sends no email and redirects."""
     registration = RegistrationFactory.create(status=Registration.Status.VERIFIED)
     client = Client()
     client.force_login(registration.user)
     mail.outbox.clear()
-    response = client.post(reverse("accounts:resend_confirmation"), follow=True)
-    assert response.status_code == 200
-    messages_list = list(response.context["messages"])
-    assert any("already" in str(m).lower() for m in messages_list)
+    response = client.post(reverse("accounts:resend_confirmation"))
+    assert response.status_code == 302
+    assert response.url == reverse("accounts:detail")
     assert len(mail.outbox) == 0
 
 
@@ -484,6 +645,89 @@ def test_resend_post_does_not_stash_url_outside_debug() -> None:
     client.force_login(registration.user)
     client.post(reverse("accounts:resend_confirmation"))
     assert "debug_verify_url" not in client.session
+
+
+# ---------------------------------------------------------------------------
+# account_edit
+# ---------------------------------------------------------------------------
+
+
+def test_edit_get_renders_form() -> None:
+    """The edit page renders the prefilled form."""
+    user = UserFactory.create(first_name="Ada")
+    client = Client()
+    client.force_login(user)
+    response = client.get(reverse("accounts:edit"))
+    assert response.status_code == 200
+    assert "accounts/edit.html" in [t.name for t in response.templates]
+
+
+def test_edit_post_updates_name_and_registration_fields() -> None:
+    """A valid edit updates the name, phone and language and redirects."""
+    registration = RegistrationFactory.create(
+        user=UserFactory.create(first_name="Ada", last_name="Lovelace"),
+    )
+    user = registration.user
+    client = Client()
+    client.force_login(user)
+    response = client.post(
+        reverse("accounts:edit"),
+        {
+            "first_name": "Augusta",
+            "last_name": "King",
+            "phone": "+41790000000",
+            "preferred_language": "fr",
+        },
+    )
+    assert response.status_code == 302
+    assert response.url == reverse("accounts:detail")
+    user.refresh_from_db()
+    assert user.first_name == "Augusta"
+    registration.refresh_from_db()
+    assert registration.phone == "+41790000000"
+    assert registration.preferred_language == "fr"
+
+
+def test_edit_post_invalid_redisplays_form() -> None:
+    """An invalid edit (missing required name) re-renders the form."""
+    user = UserFactory.create(first_name="Ada", last_name="Lovelace")
+    client = Client()
+    client.force_login(user)
+    response = client.post(
+        reverse("accounts:edit"),
+        {"first_name": "", "last_name": "King", "phone": "", "preferred_language": ""},
+    )
+    assert response.status_code == 200
+    user.refresh_from_db()
+    assert user.first_name == "Ada"
+
+
+# ---------------------------------------------------------------------------
+# account_delete
+# ---------------------------------------------------------------------------
+
+
+def test_delete_get_renders_confirmation() -> None:
+    """The delete page renders a confirmation."""
+    user = UserFactory.create()
+    client = Client()
+    client.force_login(user)
+    response = client.get(reverse("accounts:delete"))
+    assert response.status_code == 200
+    assert "accounts/delete.html" in [t.name for t in response.templates]
+
+
+def test_delete_post_removes_user_and_registration() -> None:
+    """Deleting the account removes the user and cascades the registration."""
+    registration = RegistrationFactory.create()
+    user_pk = registration.user.pk
+    client = Client()
+    client.force_login(registration.user)
+    response = client.post(reverse("accounts:delete"))
+    assert response.status_code == 302
+    assert response.url == reverse("public:home")
+    assert not User.objects.filter(pk=user_pk).exists()
+    assert not Registration.objects.exists()
 
 
 # ---------------------------------------------------------------------------
@@ -549,13 +793,6 @@ def test_debug_panel_shown_with_verify_url_shows_shortcut() -> None:
 # ---------------------------------------------------------------------------
 # account_match view (VERB-32)
 # ---------------------------------------------------------------------------
-
-
-def test_account_match_anonymous_redirects_to_login() -> None:
-    """An anonymous request to accounts:match is redirected to login."""
-    response = Client().get(reverse("accounts:match"))
-    assert response.status_code == 302
-    assert reverse("account_login") in response.url
 
 
 def test_account_match_no_active_match_redirects_to_detail() -> None:

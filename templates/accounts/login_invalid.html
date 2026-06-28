@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Sign-in link invalid" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-md text-center">
+        <p class="eyebrow mb-2">{% translate "Sign in" %}</p>
+        <h1 class="mb-4 text-ink">{% translate "This link has expired or is invalid" %}</h1>
+        <p class="mb-6 text-body">
+            {% blocktranslate trimmed %}
+                Sign-in links are valid for one hour. Please request a new link to sign in.
+            {% endblocktranslate %}
+        </p>
+        <a href="{% url 'accounts:login' %}" class="btn btn--primary">
+            {% translate "Request a new sign-in link" %}
+        </a>
+    </section>
+{% endblock %}

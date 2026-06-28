@@ -1,4 +1,4 @@
-# Signed-link tokens for registration confirmation and match access.
+# Signed-link tokens for registration confirmation, magic-link login, and match access.
 #
 # Tokens are single-purpose (scoped by a dedicated salt) and expiring
 # (``max_age``), per CLAUDE.md invariant 6. They carry only the minimum payload
@@ -19,6 +19,13 @@ MAX_AGE_SECONDS = 60 * 60 * 24
 # Salt for match-access tokens; separate from the confirmation salt so the two
 # cannot be replayed against each other (Invariant 6).
 _MATCH_SALT = "accounts.match-access"
+
+# Salt for magic-link login tokens. Scoped separately from registration-confirm
+# and match-access salts so tokens cannot be replayed across purposes (Invariant 6).
+_LOGIN_SALT = "accounts.login"
+
+# Login tokens expire after 1 hour.
+LOGIN_TOKEN_MAX_AGE = 60 * 60
 
 
 def make_registration_confirmation_token(registration_pk: int) -> str:
@@ -65,6 +72,39 @@ def make_match_access_token(match_pk: int, registration_pk: int) -> str:
         {"match_pk": match_pk, "registration_pk": registration_pk},
         salt=_MATCH_SALT,
     )
+
+
+def make_login_token(user_pk: int) -> str:
+    """Return a signed, single-purpose magic-link login token carrying ``user_pk``.
+
+    Used in the magic-link login flow: the token is emailed to the user and
+    consumed by ``login_verify`` to authenticate without a password. Salt is
+    distinct from the registration-confirmation and match-access salts (Invariant 6).
+    Token expires after ``LOGIN_TOKEN_MAX_AGE`` seconds (1 hour).
+
+    Args:
+        user_pk: Primary key of the User to authenticate.
+    """
+    return signing.dumps({"user_pk": user_pk}, salt=_LOGIN_SALT)
+
+
+def read_login_token(token: str, max_age: int = LOGIN_TOKEN_MAX_AGE) -> int | None:
+    """Return the user pk for a valid login token, else ``None``.
+
+    Returns ``None`` for a tampered, malformed, expired token, or one whose
+    payload is not a valid integer. The default ``max_age`` is 1 hour; pass
+    ``max_age=-1`` in tests to force expiry without mocking time.
+
+    Args:
+        token: A token previously returned by ``make_login_token``.
+        max_age: Override the maximum token age in seconds.
+    """
+    try:
+        data = signing.loads(token, salt=_LOGIN_SALT, max_age=max_age)
+    except signing.BadSignature:
+        return None
+    pk = data.get("user_pk")
+    return pk if isinstance(pk, int) else None
 
 
 def read_match_access_token(

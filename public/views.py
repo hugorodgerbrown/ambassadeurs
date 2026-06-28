@@ -5,9 +5,8 @@
 # directly — no login required. The form includes an email field. On submit,
 # a Registration is created with status UNVERIFIED and a signed confirmation
 # link is emailed. Clicking the link transitions UNVERIFIED → VERIFIED, triggers
-# matching, logs the user in, and redirects to register_done. Facebook-login
-# references have been removed from the UI (VERB-24 P2); the allauth backend
-# and URL mount remain untouched in config/.
+# matching, logs the user in, and redirects to register_done. allauth has been
+# removed (VERB-46); login uses Django's ModelBackend directly.
 #
 # Match flow (VERB-19): a signed email link carries the participant to
 # /match/<token>/ where they can accept or decline. No @login_required — the
@@ -47,7 +46,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from accounts.services import mark_email_verified, send_confirmation_email
+from accounts.services import send_confirmation_email
 from accounts.tokens import (
     read_match_access_token,
     read_registration_confirmation_token,
@@ -317,9 +316,9 @@ def register_email_sent(request: HttpRequest) -> HttpResponse:
 def register_confirm(request: HttpRequest, token: str) -> HttpResponse:
     """Consume the registration confirmation token.
 
-    Reads the token, loads the Registration, transitions UNVERIFIED → VERIFIED,
-    marks the email verified in allauth, logs the user in, and redirects to
-    ``register_done`` for the appropriate role.
+    Reads the token, loads the Registration, transitions UNVERIFIED → VERIFIED
+    via ``confirm_registration``, logs the user in with Django's ModelBackend,
+    and redirects to ``register_done`` for the appropriate role.
 
     Returns 400 on a bad/expired token or a non-UNVERIFIED registration (used
     or invalid link).
@@ -338,7 +337,6 @@ def register_confirm(request: HttpRequest, token: str) -> HttpResponse:
         return render(request, "public/register_invalid.html", status=400)
 
     registration = confirm_registration(registration)
-    mark_email_verified(registration.user)
     login(
         request,
         registration.user,

@@ -1,13 +1,13 @@
 # Tests for the accounts management commands.
 #
 # Covers seed_test_data: idempotency, safety guard (DEBUG=False raises CommandError),
-# --force bypass, correct User/Registration/Match counts, EmailAddress verification
-# state, and match expires_at direction.
+# --force bypass, correct User/Registration/Match counts, registration verified
+# state (no longer derived from allauth EmailAddress — VERB-46), and match
+# expires_at direction.
 
 from io import StringIO
 
 import pytest
-from allauth.account.models import EmailAddress
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -92,27 +92,20 @@ def test_expected_match_count() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Email address verification
+# Verified state (VERB-46: derived from Registration.status, not EmailAddress)
 # ---------------------------------------------------------------------------
 
 
-def test_verified_participants_have_verified_email_address() -> None:
-    """All seed participants except the UNVERIFIED one have a verified EmailAddress."""
+def test_verified_participants_have_verified_registration_status() -> None:
+    """All seed participants except the UNVERIFIED one have a non-UNVERIFIED status."""
     _run()
-    seed_users = User.objects.filter(email__endswith=f"@{SEED_EMAIL_DOMAIN}").exclude(
-        email="unverified@seed.test"
-    )
-    for user in seed_users:
-        ea = EmailAddress.objects.get(user=user, primary=True)
-        assert ea.verified, f"Expected verified EmailAddress for {user.email}"
-
-
-def test_unverified_participant_has_unverified_email_address() -> None:
-    """The UNVERIFIED registration's EmailAddress has verified=False."""
-    _run()
-    user = User.objects.get(email="unverified@seed.test")
-    ea = EmailAddress.objects.get(user=user, primary=True)
-    assert not ea.verified
+    seed_registrations = Registration.objects.filter(
+        user__email__endswith=f"@{SEED_EMAIL_DOMAIN}"
+    ).exclude(user__email="unverified@seed.test")
+    for reg in seed_registrations:
+        assert reg.status != Registration.Status.UNVERIFIED, (
+            f"Expected non-UNVERIFIED status for {reg.user.email}, got {reg.status}"
+        )
 
 
 def test_unverified_registration_status() -> None:

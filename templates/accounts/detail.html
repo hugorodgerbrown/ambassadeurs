@@ -14,14 +14,6 @@
         <p class="eyebrow mb-2" style="color: var(--role)">{% translate "Account details" %}</p>
         <h1 class="mb-6 text-ink">{% translate "Your account" %}</h1>
 
-        {% if messages %}
-            {% for message in messages %}
-                <div class="mb-4 rounded-control border border-line bg-surface p-3 text-sm text-body">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
-
         {% comment %}
             Role panel — read-only, shown only when a registration exists.
             Sits above "Your details" so role context is immediately visible.

@@ -13,9 +13,11 @@
 # The ``_register_and_confirm`` helper drives the combined-form flow used by
 # both the ambassador and referee journeys. Each registrant uses its own
 # ``Client`` instance so sessions do not bleed between the two parties.
+#
+# Email-verified state is derived from Registration.status (VERB-46 — allauth
+# EmailAddress model has been removed).
 
 import pytest
-from allauth.account.models import EmailAddress
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
@@ -128,6 +130,9 @@ def test_ambassador_registration_journey() -> None:
       - Submit and confirm the registration via the signed link.
       - GET the account detail page on the now-logged-in client → 200,
         "Email verified" aria-label present, "Unverified" absent.
+
+    Email-verified state is now derived from Registration.status (VERB-46 —
+    allauth EmailAddress removed).
     """
     email = "ada@example.com"
     client = Client()
@@ -136,8 +141,8 @@ def test_ambassador_registration_journey() -> None:
     response = client.get(reverse("public:register") + "?role=ambassador")
     assert response.status_code == 200
 
-    # Email must not be marked verified before registration.
-    assert not EmailAddress.objects.filter(email=email, verified=True).exists()
+    # Before registration, no Registration exists; email is not verified.
+    assert not Registration.objects.filter(user__email=email).exists()
 
     _register_and_confirm(client, _ambassador_payload(email))
 

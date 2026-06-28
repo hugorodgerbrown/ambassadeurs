@@ -17,6 +17,7 @@ from django import forms
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
+from django_countries import countries
 
 from core.emails import normalise_email
 
@@ -94,6 +95,12 @@ class RegistrationForm(forms.Form):
         label=_("Preferred language"),
         required=False,
         choices=[("", _("No preference"))] + list(settings.LANGUAGES),
+        widget=forms.Select(attrs={"class": _SELECT_CLASSES}),
+    )
+    nationality = forms.ChoiceField(
+        label=_("Nationality"),
+        required=False,
+        choices=[("", _("Prefer not to say"))] + list(countries),
         widget=forms.Select(attrs={"class": _SELECT_CLASSES}),
     )
     prior_pass = forms.ChoiceField(

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-28 14:18+0200\n"
+"POT-Creation-Date: 2026-06-28 17:04+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -29,6 +29,18 @@ msgid "Preferred language"
 msgstr ""
 
 msgid "No preference"
+msgstr ""
+
+msgid "Sign in to 4 Vallées Ambassadors"
+msgstr ""
+
+#, python-format
+msgid ""
+"Click the link below to sign in to the 4 Vallées Ambassadors Program:\n"
+"\n"
+"%(url)s\n"
+"\n"
+"This link expires in 1 hour. If you didn't request it, ignore this email."
 msgstr ""
 
 msgid "Confirm your email to join the queue"
@@ -63,12 +75,6 @@ msgid "Suspended"
 msgstr ""
 
 msgid "your partner"
-msgstr ""
-
-msgid "No pending registration found. Your email may already be confirmed."
-msgstr ""
-
-msgid "Confirmation email resent. Please check your inbox."
 msgstr ""
 
 msgid "Your details have been updated."
@@ -246,80 +252,6 @@ msgid ""
 "If you did not register for this programme, please ignore this email."
 msgstr ""
 
-msgid "Enter sign-in code"
-msgstr ""
-
-#, python-format
-msgid "We've sent a code to %(recipient)s. Enter it below to sign in."
-msgstr ""
-
-msgid "We've sent you a sign-in code. Enter it below."
-msgstr ""
-
-msgid "Confirm"
-msgstr ""
-
-msgid "Request new code"
-msgstr ""
-
-msgid "Cancel"
-msgstr ""
-
-msgid "Confirm email address"
-msgstr ""
-
-msgid "Email confirmation"
-msgstr ""
-
-#, python-format
-msgid "Please confirm that %(email)s is your email address."
-msgstr ""
-
-#, python-format
-msgid ""
-"Unable to confirm %(email)s because it is already confirmed by a different "
-"account."
-msgstr ""
-
-msgid "Back to sign in"
-msgstr ""
-
-msgid "This email confirmation link has expired or is invalid."
-msgstr ""
-
-msgid "Sign in"
-msgstr ""
-
-msgid ""
-"Enter your email address to sign in with a one-time code, or continue with "
-"Facebook."
-msgstr ""
-
-msgid "or"
-msgstr ""
-
-msgid "Send me a sign-in code"
-msgstr ""
-
-#, python-format
-msgid "Continue with %(name)s"
-msgstr ""
-
-msgid "Log out"
-msgstr ""
-
-msgid "Are you sure you want to log out?"
-msgstr ""
-
-msgid "Enter your email address and we'll send you a one-time sign-in code."
-msgstr ""
-
-msgid "Request code"
-msgstr ""
-
-msgid "Other sign-in options"
-msgstr ""
-
 msgid "Delete my account"
 msgstr ""
 
@@ -329,6 +261,9 @@ msgid ""
 msgstr ""
 
 msgid "Yes, delete my account"
+msgstr ""
+
+msgid "Cancel"
 msgstr ""
 
 msgid "Account details"
@@ -383,6 +318,72 @@ msgid "Your role and email can't be changed here."
 msgstr ""
 
 msgid "Save changes"
+msgstr ""
+
+msgid "Sign in"
+msgstr ""
+
+msgid "Sign in to your account"
+msgstr ""
+
+msgid "Enter your email address and we'll send you a sign-in link."
+msgstr ""
+
+msgid "Email address"
+msgstr ""
+
+msgid "Send a sign-in link"
+msgstr ""
+
+msgid "Sign-in link invalid"
+msgstr ""
+
+msgid "This link has expired or is invalid"
+msgstr ""
+
+msgid ""
+"Sign-in links are valid for one hour and can only be used once. Please "
+"request a new link to sign in."
+msgstr ""
+
+msgid "Request a new sign-in link"
+msgstr ""
+
+msgid "Check your email"
+msgstr ""
+
+msgid ""
+"If that address is registered, we've sent you a sign-in link. The link is "
+"valid for one hour."
+msgstr ""
+
+msgid "Didn't get an email? Check your spam folder, or try signing in again."
+msgstr ""
+
+msgid "Try again"
+msgstr ""
+
+msgid "This link is only shown in DEBUG mode."
+msgstr ""
+
+msgid "Confirm sign-in"
+msgstr ""
+
+msgid "Confirm your sign-in"
+msgstr ""
+
+#, python-format
+msgid "Sign in as <strong>%(email)s</strong>?"
+msgstr ""
+
+msgid ""
+"Not you? You can safely close this page — the link will expire in one hour."
+msgstr ""
+
+msgid "Log out"
+msgstr ""
+
+msgid "Are you sure you want to log out?"
 msgstr ""
 
 msgid "Match status"
@@ -1241,43 +1242,4 @@ msgid ""
 msgstr ""
 
 msgid "Start again"
-msgstr ""
-
-msgid "Sign-in failed"
-msgstr ""
-
-msgid "Authentication error"
-msgstr ""
-
-msgid ""
-"An error occurred while attempting to sign in via your third-party account. "
-"Please try again."
-msgstr ""
-
-#, python-format
-msgid "Connect %(name)s"
-msgstr ""
-
-#, python-format
-msgid "Sign in via %(name)s"
-msgstr ""
-
-#, python-format
-msgid "You are about to connect a new third-party account from %(name)s."
-msgstr ""
-
-#, python-format
-msgid "You are about to sign in using a third-party account from %(name)s."
-msgstr ""
-
-msgid "Continue"
-msgstr ""
-
-msgid "Sign up"
-msgstr ""
-
-#, python-format
-msgid ""
-"You are about to use your %(provider_name)s account to sign in to "
-"%(site_name)s. As a final step, please confirm your email address."
 msgstr ""

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-28 14:18+0200\n"
+"POT-Creation-Date: 2026-06-28 17:04+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -30,6 +30,36 @@ msgstr "Langue préférée"
 
 msgid "No preference"
 msgstr "Sans préférence"
+
+#, fuzzy
+#| msgid "4 Vallées Ambassadors"
+msgid "Sign in to 4 Vallées Ambassadors"
+msgstr "Ambassadeurs des 4 Vallées"
+
+#, fuzzy, python-format
+#| msgid ""
+#| "Click the link below to confirm your email and join the matching queue "
+#| "for the 4 Vallées Ambassadors Program:\n"
+#| "\n"
+#| "%(url)s\n"
+#| "\n"
+#| "This link expires in 24 hours. If you didn't request it, ignore this "
+#| "email."
+msgid ""
+"Click the link below to sign in to the 4 Vallées Ambassadors Program:\n"
+"\n"
+"%(url)s\n"
+"\n"
+"This link expires in 1 hour. If you didn't request it, ignore this email."
+msgstr ""
+"Cliquez sur le lien ci-dessous pour confirmer votre adresse e-mail et "
+"rejoindre la file de mise en relation du programme Ambassadeurs des 4 "
+"Vallées :\n"
+"\n"
+"%(url)s\n"
+"\n"
+"Ce lien expire dans 24 heures. Si vous n'avez pas fait cette demande, "
+"ignorez cet e-mail."
 
 msgid "Confirm your email to join the queue"
 msgstr "Confirmez votre e-mail pour rejoindre la file d'attente"
@@ -72,15 +102,6 @@ msgstr "Suspendu"
 
 msgid "your partner"
 msgstr "votre partenaire"
-
-msgid "No pending registration found. Your email may already be confirmed."
-msgstr ""
-"Aucune inscription en attente trouvée. Votre e-mail est peut-être déjà "
-"confirmé."
-
-msgid "Confirmation email resent. Please check your inbox."
-msgstr ""
-"E-mail de confirmation renvoyé. Veuillez vérifier votre boîte de réception."
 
 msgid "Your details have been updated."
 msgstr "Vos informations ont été mises à jour."
@@ -289,88 +310,6 @@ msgstr ""
 "\n"
 "Si vous ne vous êtes pas inscrit(e) à ce programme, ignorez cet e-mail."
 
-msgid "Enter sign-in code"
-msgstr "Saisir le code de connexion"
-
-#, python-format
-msgid "We've sent a code to %(recipient)s. Enter it below to sign in."
-msgstr ""
-"Nous avons envoyé un code à %(recipient)s. Saisissez-le ci-dessous pour vous "
-"connecter."
-
-msgid "We've sent you a sign-in code. Enter it below."
-msgstr "Nous vous avons envoyé un code de connexion. Saisissez-le ci-dessous."
-
-msgid "Confirm"
-msgstr "Confirmer"
-
-msgid "Request new code"
-msgstr "Demander un nouveau code"
-
-msgid "Cancel"
-msgstr "Annuler"
-
-msgid "Confirm email address"
-msgstr "Confirmer l'adresse e-mail"
-
-msgid "Email confirmation"
-msgstr "Confirmation d'e-mail"
-
-#, python-format
-msgid "Please confirm that %(email)s is your email address."
-msgstr "Veuillez confirmer que %(email)s est bien votre adresse e-mail."
-
-#, python-format
-msgid ""
-"Unable to confirm %(email)s because it is already confirmed by a different "
-"account."
-msgstr ""
-"Impossible de confirmer %(email)s car cette adresse est déjà confirmée par "
-"un autre compte."
-
-msgid "Back to sign in"
-msgstr "Retour à la connexion"
-
-msgid "This email confirmation link has expired or is invalid."
-msgstr "Ce lien de confirmation d'e-mail a expiré ou est invalide."
-
-msgid "Sign in"
-msgstr "Se connecter"
-
-msgid ""
-"Enter your email address to sign in with a one-time code, or continue with "
-"Facebook."
-msgstr ""
-"Saisissez votre adresse e-mail pour vous connecter avec un code à usage "
-"unique, ou continuez avec Facebook."
-
-msgid "or"
-msgstr "ou"
-
-msgid "Send me a sign-in code"
-msgstr "Envoyer un code de connexion"
-
-#, python-format
-msgid "Continue with %(name)s"
-msgstr "Continuer avec %(name)s"
-
-msgid "Log out"
-msgstr "Déconnexion"
-
-msgid "Are you sure you want to log out?"
-msgstr "Voulez-vous vraiment vous déconnecter ?"
-
-msgid "Enter your email address and we'll send you a one-time sign-in code."
-msgstr ""
-"Saisissez votre adresse e-mail et nous vous enverrons un code de connexion à "
-"usage unique."
-
-msgid "Request code"
-msgstr "Demander un code"
-
-msgid "Other sign-in options"
-msgstr "Autres options de connexion"
-
 msgid "Delete my account"
 msgstr "Supprimer mon compte"
 
@@ -384,6 +323,9 @@ msgstr ""
 
 msgid "Yes, delete my account"
 msgstr "Oui, supprimer mon compte"
+
+msgid "Cancel"
+msgstr "Annuler"
 
 msgid "Account details"
 msgstr "Détails du compte"
@@ -442,6 +384,94 @@ msgstr "Votre rôle et votre e-mail ne peuvent pas être modifiés ici."
 
 msgid "Save changes"
 msgstr "Enregistrer les modifications"
+
+msgid "Sign in"
+msgstr "Se connecter"
+
+#, fuzzy
+#| msgid "Go to my account"
+msgid "Sign in to your account"
+msgstr "Accéder à mon compte"
+
+#, fuzzy
+#| msgid "Enter your email address and we'll send you a one-time sign-in code."
+msgid "Enter your email address and we'll send you a sign-in link."
+msgstr ""
+"Saisissez votre adresse e-mail et nous vous enverrons un code de connexion à "
+"usage unique."
+
+#, fuzzy
+#| msgid "Confirm email address"
+msgid "Email address"
+msgstr "Confirmer l'adresse e-mail"
+
+#, fuzzy
+#| msgid "Send me a sign-in code"
+msgid "Send a sign-in link"
+msgstr "Envoyer un code de connexion"
+
+#, fuzzy
+#| msgid "Link invalid"
+msgid "Sign-in link invalid"
+msgstr "Lien invalide"
+
+#, fuzzy
+#| msgid "This email confirmation link has expired or is invalid."
+msgid "This link has expired or is invalid"
+msgstr "Ce lien de confirmation d'e-mail a expiré ou est invalide."
+
+msgid ""
+"Sign-in links are valid for one hour and can only be used once. Please "
+"request a new link to sign in."
+msgstr ""
+
+msgid "Request a new sign-in link"
+msgstr ""
+
+#, fuzzy
+#| msgid "Confirm your email"
+msgid "Check your email"
+msgstr "Confirmez votre e-mail"
+
+msgid ""
+"If that address is registered, we've sent you a sign-in link. The link is "
+"valid for one hour."
+msgstr ""
+
+msgid "Didn't get an email? Check your spam folder, or try signing in again."
+msgstr ""
+
+#, fuzzy
+#| msgid "Start again"
+msgid "Try again"
+msgstr "Recommencer"
+
+msgid "This link is only shown in DEBUG mode."
+msgstr ""
+
+#, fuzzy
+#| msgid "Confirmations"
+msgid "Confirm sign-in"
+msgstr "Confirmations"
+
+#, fuzzy
+#| msgid "Confirm your email"
+msgid "Confirm your sign-in"
+msgstr "Confirmez votre e-mail"
+
+#, python-format
+msgid "Sign in as <strong>%(email)s</strong>?"
+msgstr ""
+
+msgid ""
+"Not you? You can safely close this page — the link will expire in one hour."
+msgstr ""
+
+msgid "Log out"
+msgstr "Déconnexion"
+
+msgid "Are you sure you want to log out?"
+msgstr "Voulez-vous vraiment vous déconnecter ?"
 
 msgid "Match status"
 msgstr "Statut de la mise en relation"
@@ -1540,52 +1570,120 @@ msgstr ""
 msgid "Start again"
 msgstr "Recommencer"
 
-msgid "Sign-in failed"
-msgstr "Échec de la connexion"
+#~ msgid "No pending registration found. Your email may already be confirmed."
+#~ msgstr ""
+#~ "Aucune inscription en attente trouvée. Votre e-mail est peut-être déjà "
+#~ "confirmé."
 
-msgid "Authentication error"
-msgstr "Erreur d'authentification"
+#~ msgid "Confirmation email resent. Please check your inbox."
+#~ msgstr ""
+#~ "E-mail de confirmation renvoyé. Veuillez vérifier votre boîte de "
+#~ "réception."
 
-msgid ""
-"An error occurred while attempting to sign in via your third-party account. "
-"Please try again."
-msgstr ""
-"Une erreur est survenue lors de la tentative de connexion via votre compte "
-"tiers. Veuillez réessayer."
-
-#, python-format
-msgid "Connect %(name)s"
-msgstr "Connecter %(name)s"
+#~ msgid "Enter sign-in code"
+#~ msgstr "Saisir le code de connexion"
 
 #, python-format
-msgid "Sign in via %(name)s"
-msgstr "Se connecter via %(name)s"
+#~ msgid "We've sent a code to %(recipient)s. Enter it below to sign in."
+#~ msgstr ""
+#~ "Nous avons envoyé un code à %(recipient)s. Saisissez-le ci-dessous pour "
+#~ "vous connecter."
+
+#~ msgid "We've sent you a sign-in code. Enter it below."
+#~ msgstr ""
+#~ "Nous vous avons envoyé un code de connexion. Saisissez-le ci-dessous."
+
+#~ msgid "Confirm"
+#~ msgstr "Confirmer"
+
+#~ msgid "Request new code"
+#~ msgstr "Demander un nouveau code"
+
+#~ msgid "Email confirmation"
+#~ msgstr "Confirmation d'e-mail"
 
 #, python-format
-msgid "You are about to connect a new third-party account from %(name)s."
-msgstr ""
-"Vous êtes sur le point de connecter un nouveau compte tiers depuis %(name)s."
+#~ msgid "Please confirm that %(email)s is your email address."
+#~ msgstr "Veuillez confirmer que %(email)s est bien votre adresse e-mail."
 
 #, python-format
-msgid "You are about to sign in using a third-party account from %(name)s."
-msgstr ""
-"Vous êtes sur le point de vous connecter à l'aide d'un compte tiers depuis "
-"%(name)s."
+#~ msgid ""
+#~ "Unable to confirm %(email)s because it is already confirmed by a "
+#~ "different account."
+#~ msgstr ""
+#~ "Impossible de confirmer %(email)s car cette adresse est déjà confirmée "
+#~ "par un autre compte."
 
-msgid "Continue"
-msgstr "Continuer"
+#~ msgid "Back to sign in"
+#~ msgstr "Retour à la connexion"
 
-msgid "Sign up"
-msgstr "S'inscrire"
+#~ msgid ""
+#~ "Enter your email address to sign in with a one-time code, or continue "
+#~ "with Facebook."
+#~ msgstr ""
+#~ "Saisissez votre adresse e-mail pour vous connecter avec un code à usage "
+#~ "unique, ou continuez avec Facebook."
+
+#~ msgid "or"
+#~ msgstr "ou"
 
 #, python-format
-msgid ""
-"You are about to use your %(provider_name)s account to sign in to "
-"%(site_name)s. As a final step, please confirm your email address."
-msgstr ""
-"Vous êtes sur le point d'utiliser votre compte %(provider_name)s pour vous "
-"connecter à %(site_name)s. Pour terminer, veuillez confirmer votre adresse e-"
-"mail."
+#~ msgid "Continue with %(name)s"
+#~ msgstr "Continuer avec %(name)s"
+
+#~ msgid "Request code"
+#~ msgstr "Demander un code"
+
+#~ msgid "Other sign-in options"
+#~ msgstr "Autres options de connexion"
+
+#~ msgid "Sign-in failed"
+#~ msgstr "Échec de la connexion"
+
+#~ msgid "Authentication error"
+#~ msgstr "Erreur d'authentification"
+
+#~ msgid ""
+#~ "An error occurred while attempting to sign in via your third-party "
+#~ "account. Please try again."
+#~ msgstr ""
+#~ "Une erreur est survenue lors de la tentative de connexion via votre "
+#~ "compte tiers. Veuillez réessayer."
+
+#, python-format
+#~ msgid "Connect %(name)s"
+#~ msgstr "Connecter %(name)s"
+
+#, python-format
+#~ msgid "Sign in via %(name)s"
+#~ msgstr "Se connecter via %(name)s"
+
+#, python-format
+#~ msgid "You are about to connect a new third-party account from %(name)s."
+#~ msgstr ""
+#~ "Vous êtes sur le point de connecter un nouveau compte tiers depuis "
+#~ "%(name)s."
+
+#, python-format
+#~ msgid "You are about to sign in using a third-party account from %(name)s."
+#~ msgstr ""
+#~ "Vous êtes sur le point de vous connecter à l'aide d'un compte tiers "
+#~ "depuis %(name)s."
+
+#~ msgid "Continue"
+#~ msgstr "Continuer"
+
+#~ msgid "Sign up"
+#~ msgstr "S'inscrire"
+
+#, python-format
+#~ msgid ""
+#~ "You are about to use your %(provider_name)s account to sign in to "
+#~ "%(site_name)s. As a final step, please confirm your email address."
+#~ msgstr ""
+#~ "Vous êtes sur le point d'utiliser votre compte %(provider_name)s pour "
+#~ "vous connecter à %(site_name)s. Pour terminer, veuillez confirmer votre "
+#~ "adresse e-mail."
 
 #~ msgid "No match"
 #~ msgstr "Aucune mise en relation"

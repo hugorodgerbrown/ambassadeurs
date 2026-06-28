@@ -572,6 +572,8 @@ def register_participant(
     phone: str = "",
     accepted_terms: list[str] | None = None,
     status: str = Registration.Status.VERIFIED,
+    registration_country: str = "",
+    registration_region: str = "",
 ) -> Registration:
     """Enrol a participant in the pool and return the Registration.
 
@@ -588,6 +590,12 @@ def register_participant(
     ``status=Registration.Status.UNVERIFIED`` for the combined-form path where
     the registration must be email-confirmed before it enters the pool — an
     UNVERIFIED registration is *never* matched (Invariant 2).
+
+    ``registration_country`` and ``registration_region`` are geolocation fields
+    derived from the client IP at registration time (admin-only, never shown to
+    participants). Both default to empty strings when geolocation is unavailable
+    (e.g. private/local IP or missing GeoLite2 database). The raw IP must never
+    be passed here — resolve it in the view layer and discard it after lookup.
 
     After creating a VERIFIED registration, calls ``propose_match`` to attempt
     an immediate pairing. The whole function runs inside a single transaction;
@@ -632,6 +640,8 @@ def register_participant(
             terms_accepted_at=timezone.now() if accepted_terms else None,
             status=status,
             prior_decline_count=prior_decline_count,
+            registration_country=registration_country,
+            registration_region=registration_region,
         )
 
         # Only propose a match for VERIFIED registrations; UNVERIFIED rows must

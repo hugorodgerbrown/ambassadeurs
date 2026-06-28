@@ -35,3 +35,6 @@ staticfiles/
 
 # Logs
 logs/
+
+# MaxMind GeoLite2 database (downloaded by build.sh; never committed)
+geoip/

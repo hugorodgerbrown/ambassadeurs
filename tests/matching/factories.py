@@ -42,6 +42,8 @@ class RegistrationFactory(factory.django.DjangoModelFactory[Registration]):
     terms_accepted_at = factory.LazyFunction(
         lambda: datetime(2026, 9, 1, 10, 0, 0, tzinfo=UTC)
     )
+    registration_country = ""
+    registration_region = ""
 
     class Params:
         """Extra traits for common configurations."""

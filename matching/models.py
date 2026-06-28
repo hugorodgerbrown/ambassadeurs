@@ -222,6 +222,31 @@ class Registration(BaseModel):
         ),
     )
 
+    # --- Geolocation fields (admin-only, never shown to participants) ----------
+    # Derived from the request's client IP at registration time (in memory only;
+    # the IP itself is never stored). Stored as free-text resolved from the
+    # MaxMind GeoLite2-City database. Empty when the database is absent or the
+    # IP is private/unroutable (e.g. local development).
+    registration_country = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text=(
+            "Country name derived from the client IP at registration time "
+            "(admin-only, never shown to participants). The raw IP is never stored."
+        ),
+    )
+    registration_region = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        help_text=(
+            "Region / subdivision name derived from the client IP at registration "
+            "time (admin-only, never shown to participants). "
+            "The raw IP is never stored."
+        ),
+    )
+
     objects = RegistrationQuerySet.as_manager()
 
     class Meta:

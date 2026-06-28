@@ -98,6 +98,8 @@ class RegistrationAdmin(admin.ModelAdmin):
         "priority",
         "preferred_location",
         "nationality",
+        "registration_country",
+        "registration_region",
         "created_at",
     ]
     list_filter = [
@@ -114,6 +116,8 @@ class RegistrationAdmin(admin.ModelAdmin):
         "prior_decline_count",
         "accepted_terms",
         "terms_accepted_at",
+        "registration_country",
+        "registration_region",
         "created_at",
         "updated_at",
     ]

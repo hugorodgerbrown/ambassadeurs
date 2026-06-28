@@ -83,7 +83,7 @@
                             {% translate "Unverified" %}
                         </span>
                     {% endif %}
-                    {% if not email_verified and registration and registration.status == 'PENDING' %}
+                    {% if not email_verified and registration and registration.status == 'UNVERIFIED' %}
                         <form
                             method="post"
                             action="{% url 'accounts:resend_confirmation' %}"

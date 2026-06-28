@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-28 17:04+0200\n"
+"POT-Creation-Date: 2026-06-28 17:16+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -31,20 +31,10 @@ msgstr "Langue préférée"
 msgid "No preference"
 msgstr "Sans préférence"
 
-#, fuzzy
-#| msgid "4 Vallées Ambassadors"
 msgid "Sign in to 4 Vallées Ambassadors"
-msgstr "Ambassadeurs des 4 Vallées"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid ""
-#| "Click the link below to confirm your email and join the matching queue "
-#| "for the 4 Vallées Ambassadors Program:\n"
-#| "\n"
-#| "%(url)s\n"
-#| "\n"
-#| "This link expires in 24 hours. If you didn't request it, ignore this "
-#| "email."
+#, python-format
 msgid ""
 "Click the link below to sign in to the 4 Vallées Ambassadors Program:\n"
 "\n"
@@ -52,14 +42,6 @@ msgid ""
 "\n"
 "This link expires in 1 hour. If you didn't request it, ignore this email."
 msgstr ""
-"Cliquez sur le lien ci-dessous pour confirmer votre adresse e-mail et "
-"rejoindre la file de mise en relation du programme Ambassadeurs des 4 "
-"Vallées :\n"
-"\n"
-"%(url)s\n"
-"\n"
-"Ce lien expire dans 24 heures. Si vous n'avez pas fait cette demande, "
-"ignorez cet e-mail."
 
 msgid "Confirm your email to join the queue"
 msgstr "Confirmez votre e-mail pour rejoindre la file d'attente"
@@ -388,50 +370,33 @@ msgstr "Enregistrer les modifications"
 msgid "Sign in"
 msgstr "Se connecter"
 
-#, fuzzy
-#| msgid "Go to my account"
 msgid "Sign in to your account"
-msgstr "Accéder à mon compte"
+msgstr ""
 
-#, fuzzy
-#| msgid "Enter your email address and we'll send you a one-time sign-in code."
 msgid "Enter your email address and we'll send you a sign-in link."
 msgstr ""
-"Saisissez votre adresse e-mail et nous vous enverrons un code de connexion à "
-"usage unique."
 
-#, fuzzy
-#| msgid "Confirm email address"
 msgid "Email address"
-msgstr "Confirmer l'adresse e-mail"
+msgstr ""
 
-#, fuzzy
-#| msgid "Send me a sign-in code"
 msgid "Send a sign-in link"
-msgstr "Envoyer un code de connexion"
+msgstr ""
 
-#, fuzzy
-#| msgid "Link invalid"
 msgid "Sign-in link invalid"
-msgstr "Lien invalide"
+msgstr ""
 
-#, fuzzy
-#| msgid "This email confirmation link has expired or is invalid."
 msgid "This link has expired or is invalid"
-msgstr "Ce lien de confirmation d'e-mail a expiré ou est invalide."
+msgstr ""
 
 msgid ""
-"Sign-in links are valid for one hour and can only be used once. Please "
-"request a new link to sign in."
+"Sign-in links are valid for one hour. Please request a new link to sign in."
 msgstr ""
 
 msgid "Request a new sign-in link"
 msgstr ""
 
-#, fuzzy
-#| msgid "Confirm your email"
 msgid "Check your email"
-msgstr "Confirmez votre e-mail"
+msgstr ""
 
 msgid ""
 "If that address is registered, we've sent you a sign-in link. The link is "
@@ -441,23 +406,17 @@ msgstr ""
 msgid "Didn't get an email? Check your spam folder, or try signing in again."
 msgstr ""
 
-#, fuzzy
-#| msgid "Start again"
 msgid "Try again"
 msgstr "Recommencer"
 
 msgid "This link is only shown in DEBUG mode."
 msgstr ""
 
-#, fuzzy
-#| msgid "Confirmations"
 msgid "Confirm sign-in"
-msgstr "Confirmations"
+msgstr ""
 
-#, fuzzy
-#| msgid "Confirm your email"
 msgid "Confirm your sign-in"
-msgstr "Confirmez votre e-mail"
+msgstr ""
 
 #, python-format
 msgid "Sign in as <strong>%(email)s</strong>?"

@@ -52,7 +52,7 @@ def test_debug_panel_returns_none_values_for_user_without_registration() -> None
 def test_debug_panel_populates_registration_without_match() -> None:
     """With a registration but no proposed match, debug_match/counterpart are None."""
     user = UserFactory.create()
-    reg = RegistrationFactory.create(user=user, status=Registration.Status.WAITING)
+    reg = RegistrationFactory.create(user=user, status=Registration.Status.VERIFIED)
 
     request = RequestFactory().get("/")
     request.user = user
@@ -70,11 +70,11 @@ def test_debug_panel_populates_match_and_counterpart() -> None:
     my_reg = RegistrationFactory.create(
         user=user,
         role=Registration.Role.AMBASSADOR,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     counterpart_reg = RegistrationFactory.create(
         role=Registration.Role.REFEREE,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     match = MatchFactory.create(
         ambassador_registration=my_reg,
@@ -98,14 +98,14 @@ def test_debug_panel_populates_counterpart_for_referee_side() -> None:
     ambassador_reg = RegistrationFactory.create(
         user=ambassador_user,
         role=Registration.Role.AMBASSADOR,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
 
     referee_user = UserFactory.create()
     referee_reg = RegistrationFactory.create(
         user=referee_user,
         role=Registration.Role.REFEREE,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     MatchFactory.create(
         ambassador_registration=ambassador_reg,

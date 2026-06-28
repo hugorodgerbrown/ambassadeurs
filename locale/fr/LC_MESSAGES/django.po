@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-28 11:44+0200\n"
+"POT-Creation-Date: 2026-06-28 14:18+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -52,20 +52,17 @@ msgstr ""
 "Ce lien expire dans 24 heures. Si vous n'avez pas fait cette demande, "
 "ignorez cet e-mail."
 
-msgid "No match"
-msgstr "Aucune mise en relation"
+msgid "Queued"
+msgstr "En file d'attente"
 
-msgid "Email unconfirmed"
-msgstr "E-mail non confirmé"
+msgid "Pending"
+msgstr "En attente"
 
-msgid "In the queue"
-msgstr "Dans la file d'attente"
+msgid "Accepted"
+msgstr "Accepté"
 
-msgid "Match pending"
-msgstr "Mise en relation en attente"
-
-msgid "Match confirmed"
-msgstr "Mise en relation confirmée"
+msgid "Unverified"
+msgstr "Non vérifié"
 
 msgid "Withdrawn"
 msgstr "Retiré"
@@ -112,11 +109,11 @@ msgstr "Créer un partenaire"
 msgid "State"
 msgstr "Statut"
 
-msgid "Waiting (match immediately)"
-msgstr "En file d'attente (mise en relation immédiate)"
+msgid "Verified (match immediately)"
+msgstr "Vérifié (mise en relation immédiate)"
 
-msgid "Pending (email confirm required)"
-msgstr "En attente (confirmation de l'e-mail requise)"
+msgid "Email confirm required (UNVERIFIED)"
+msgstr "Confirmation de l'e-mail requise (NON VÉRIFIÉ)"
 
 msgid "Create"
 msgstr "Créer"
@@ -139,8 +136,8 @@ msgstr "Oui"
 msgid "No"
 msgstr "Non"
 
-msgid "Export selected abandoned matches as CSV"
-msgstr "Exporter les mises en relation abandonnées sélectionnées en CSV"
+msgid "Export selected cancelled matches as CSV"
+msgstr "Exporter les mises en relation annulées sélectionnées en CSV"
 
 msgid "Email"
 msgstr "E-mail"
@@ -189,17 +186,8 @@ msgstr "La Tzoumaz"
 msgid "Bruson"
 msgstr "Bruson"
 
-msgid "Pending"
-msgstr "En attente de confirmation"
-
-msgid "Waiting"
-msgstr "En file d'attente"
-
-msgid "Matched"
-msgstr "Mis en relation"
-
-msgid "Confirmed"
-msgstr "Confirmé"
+msgid "Verified"
+msgstr "Vérifié"
 
 msgid "None — I did not hold a prior pass"
 msgstr "Aucun — je n'avais pas d'abonnement précédent"
@@ -216,17 +204,14 @@ msgstr "Carte Mont 4 / réduction spéciale"
 msgid "Proposed"
 msgstr "Proposé"
 
-msgid "Accepted"
-msgstr "Accepté"
-
 msgid "Declined"
 msgstr "Refusé"
 
 msgid "Expired"
 msgstr "Expiré"
 
-msgid "Abandoned"
-msgstr "Abandonné"
+msgid "Cancelled"
+msgstr "Annulée"
 
 msgid "You have been matched — 4 Vallées Ambassadors Program"
 msgstr "Vous avez été mis en relation — Programme Ambassadeurs des 4 Vallées"
@@ -431,75 +416,11 @@ msgstr "Nom"
 msgid "Email verified"
 msgstr "E-mail vérifié"
 
-msgid "Unverified"
-msgstr "Non vérifié"
-
 msgid "Resend confirmation email"
 msgstr "Renvoyer l'e-mail de confirmation"
 
 msgid "Language"
 msgstr "Langue"
-
-msgid "Match status"
-msgstr "Statut de la mise en relation"
-
-msgid "Please confirm your email address to enter the pool."
-msgstr "Veuillez confirmer votre adresse e-mail pour rejoindre la file."
-
-msgid "You are in the queue. We'll email you when a match is found."
-msgstr ""
-"Vous êtes dans la file d'attente. Nous vous enverrons un e-mail dès qu'une "
-"mise en relation sera trouvée."
-
-#, python-format
-msgid "You are number %(position)s in the queue."
-msgstr "Vous êtes en position %(position)s dans la file d'attente."
-
-#, python-format
-msgid "%(counter)s pair matched so far this season."
-msgid_plural "%(counter)s pairs matched so far this season."
-msgstr[0] "%(counter)s paire mise en relation jusqu'ici cette saison."
-msgstr[1] "%(counter)s paires mises en relation jusqu'ici cette saison."
-
-#, python-format
-msgid ""
-"You have been matched with %(name)s. They are waiting for you to respond."
-msgstr ""
-"Vous avez été mis(e) en relation avec %(name)s. Cette personne attend votre "
-"réponse."
-
-#, python-format
-msgid "You have been matched with %(name)s. They have not yet responded."
-msgstr ""
-"Vous avez été mis(e) en relation avec %(name)s. Cette personne n'a pas "
-"encore répondu."
-
-#, python-format
-msgid ""
-"You have been matched with %(name)s — view the match to see their contact "
-"details."
-msgstr ""
-"Vous avez été mis(e) en relation avec %(name)s — consultez votre match pour "
-"voir ses coordonnées."
-
-msgid "Your registration has been withdrawn."
-msgstr "Votre inscription a été retirée."
-
-msgid ""
-"Your registration has been suspended. Contact support if you think this is "
-"an error."
-msgstr ""
-"Votre inscription a été suspendue. Contactez le support si vous pensez qu'il "
-"s'agit d'une erreur."
-
-msgid "View your match"
-msgstr "Voir votre mise en relation"
-
-msgid "You have no registration yet."
-msgstr "Vous n'avez pas encore d'inscription."
-
-msgid "Register now"
-msgstr "S'inscrire maintenant"
 
 msgid "Security"
 msgstr "Sécurité"
@@ -521,6 +442,75 @@ msgstr "Votre rôle et votre e-mail ne peuvent pas être modifiés ici."
 
 msgid "Save changes"
 msgstr "Enregistrer les modifications"
+
+msgid "Match status"
+msgstr "Statut de la mise en relation"
+
+#, python-format
+msgid ""
+"You have been matched with %(name)s. They are waiting for you to respond."
+msgstr ""
+"Vous avez été mis(e) en relation avec %(name)s. Cette personne attend votre "
+"réponse."
+
+#, python-format
+msgid ""
+"You have been matched with <strong>%(name)s</strong>. They have not yet "
+"responded."
+msgstr ""
+"Vous avez été mis(e) en relation avec <strong>%(name)s</strong>. Cette "
+"personne n'a pas encore répondu."
+
+#, python-format
+msgid ""
+"You have been matched with <strong>%(name)s</strong>. They are waiting for "
+"you to respond."
+msgstr ""
+"Vous avez été mis(e) en relation avec <strong>%(name)s</strong>. Cette "
+"personne attend votre réponse."
+
+#, python-format
+msgid ""
+"You have been matched with <strong>%(name)s</strong> — view the match to see "
+"their contact details."
+msgstr ""
+"Vous avez été mis(e) en relation avec <strong>%(name)s</strong> — consultez "
+"votre match pour voir ses coordonnées."
+
+msgid "Please confirm your email address to enter the pool."
+msgstr "Veuillez confirmer votre adresse e-mail pour rejoindre la file."
+
+#, python-format
+msgid ""
+"You are number %(position)s in the queue. We'll email you as soon as someone "
+"is available."
+msgstr ""
+"Vous êtes le numéro %(position)s dans la file d'attente. Nous vous écrirons "
+"dès qu'une personne sera disponible."
+
+msgid "You are in the queue. We'll email you when a match is found."
+msgstr ""
+"Vous êtes dans la file d'attente. Nous vous enverrons un e-mail dès qu'une "
+"mise en relation sera trouvée."
+
+msgid "Your registration has been withdrawn."
+msgstr "Votre inscription a été retirée."
+
+msgid ""
+"Your registration has been suspended. Contact support if you think this is "
+"an error."
+msgstr ""
+"Votre inscription a été suspendue. Contactez le support si vous pensez qu'il "
+"s'agit d'une erreur."
+
+msgid "View your match"
+msgstr "Voir votre mise en relation"
+
+msgid "You have no registration yet."
+msgstr "Vous n'avez pas encore d'inscription."
+
+msgid "Register now"
+msgstr "S'inscrire maintenant"
 
 msgid "4 Vallées Ambassadors"
 msgstr "Ambassadeurs des 4 Vallées"
@@ -1487,6 +1477,16 @@ msgstr "Recherche de votre Filleul"
 msgid "Looking for your Ambassador"
 msgstr "Recherche de votre Ambassadeur"
 
+#, python-format
+msgid "You are number %(position)s in the queue."
+msgstr "Vous êtes en position %(position)s dans la file d'attente."
+
+#, python-format
+msgid "%(counter)s pair matched so far this season."
+msgid_plural "%(counter)s pairs matched so far this season."
+msgstr[0] "%(counter)s paire mise en relation jusqu'ici cette saison."
+msgstr[1] "%(counter)s paires mises en relation jusqu'ici cette saison."
+
 msgid "Watch your inbox — we contact you by email."
 msgstr "Surveillez votre boîte de réception — nous vous contactons par e-mail."
 
@@ -1586,6 +1586,33 @@ msgstr ""
 "Vous êtes sur le point d'utiliser votre compte %(provider_name)s pour vous "
 "connecter à %(site_name)s. Pour terminer, veuillez confirmer votre adresse e-"
 "mail."
+
+#~ msgid "No match"
+#~ msgstr "Aucune mise en relation"
+
+#~ msgid "Match pending"
+#~ msgstr "Mise en relation en attente"
+
+#~ msgid "Match confirmed"
+#~ msgstr "Mise en relation confirmée"
+
+#~ msgid "Email unconfirmed"
+#~ msgstr "E-mail non confirmé"
+
+#~ msgid "In the queue"
+#~ msgstr "Dans la file d'attente"
+
+#~ msgid "Waiting"
+#~ msgstr "En file d'attente"
+
+#~ msgid "Matched"
+#~ msgstr "Mis en relation"
+
+#~ msgid "Confirmed"
+#~ msgstr "Confirmé"
+
+#~ msgid "Abandoned"
+#~ msgstr "Abandonné"
 
 #~ msgid ""
 #~ "Your match is confirmed. Contact your partner to buy your passes together."

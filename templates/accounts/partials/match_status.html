@@ -9,10 +9,14 @@
     Context:
       registration          — the viewer's Registration, or None
       status_pill           — {label, tone} for the heading pill (.tag-status--<tone>)
-      partner_first_name    — partner's first name (MATCHED / CONFIRMED copy)
-      partner_accepted      — whether the partner has responded (MATCHED copy)
-      queue_position        — 1-based queue ordinal, or None (WAITING copy)
-      total_accepted_matches — season pair count (WAITING copy)
+      match_state           — one of: none | proposed | pending | accepted
+      partner_first_name    — partner's first name (proposed/pending/accepted copy)
+      partner_accepted      — whether the partner has responded (proposed copy)
+      queue_position        — 1-based queue ordinal, or None (VERIFIED copy)
+
+    Match progress (proposed/pending/accepted) is derived from match_state, NOT
+    from registration.status (VERB-44 / ADR 0011). registration.status reflects
+    pool standing only (UNVERIFIED, VERIFIED, WITHDRAWN, SUSPENDED).
 
     Rendered by accounts/detail.html and by the DEBUG component gallery
     (debug.views.components), so every combination can be reviewed in one place.
@@ -24,39 +28,44 @@
             <span class="tag-status tag-status--{{ status_pill.tone }}">{{ status_pill.label }}</span>
         </div>
         <p class="text-sm text-body">
-            {% if registration.status == 'PENDING' %}
-                {% blocktranslate trimmed %}
-                    Please confirm your email address to enter the pool.
-                {% endblocktranslate %}
-            {% elif registration.status == 'WAITING' %}
-                {% blocktranslate trimmed %}
-                    You are in the queue. We'll email you when a match is found.
-                {% endblocktranslate %}
-                {% if queue_position is not None %}
-                    <br>
-                    {% blocktranslate trimmed with position=queue_position %}
-                        You are number {{ position }} in the queue.
-                    {% endblocktranslate %}
-                    {% blocktranslate trimmed count counter=total_accepted_matches %}
-                        {{ counter }} pair matched so far this season.
-                    {% plural %}
-                        {{ counter }} pairs matched so far this season.
-                    {% endblocktranslate %}
-                {% endif %}
-            {% elif registration.status == 'MATCHED' %}
+            {% if match_state == 'proposed' %}
                 {% if partner_accepted %}
                     {% blocktranslate trimmed with name=partner_first_name %}
                         You have been matched with {{ name }}. They are waiting for you to respond.
                     {% endblocktranslate %}
                 {% else %}
                     {% blocktranslate trimmed with name=partner_first_name %}
-                        You have been matched with {{ name }}. They have not yet responded.
+                        You have been matched with <strong>{{ name }}</strong>. They have not yet responded.
                     {% endblocktranslate %}
                 {% endif %}
-            {% elif registration.status == 'CONFIRMED' %}
+            {% elif match_state == 'pending' %}
+                {% if partner_accepted %}
+                    {% blocktranslate trimmed with name=partner_first_name %}
+                        You have been matched with <strong>{{ name }}</strong>. They are waiting for you to respond.
+                    {% endblocktranslate %}
+                {% else %}
+                    {% blocktranslate trimmed with name=partner_first_name %}
+                        You have been matched with <strong>{{ name }}</strong>. They have not yet responded.
+                    {% endblocktranslate %}
+                {% endif %}
+            {% elif match_state == 'accepted' %}
                 {% blocktranslate trimmed with name=partner_first_name %}
-                    You have been matched with {{ name }} — view the match to see their contact details.
+                    You have been matched with <strong>{{ name }}</strong> — view the match to see their contact details.
                 {% endblocktranslate %}
+            {% elif registration.status == 'UNVERIFIED' %}
+                {% blocktranslate trimmed %}
+                    Please confirm your email address to enter the pool.
+                {% endblocktranslate %}
+            {% elif registration.status == 'VERIFIED' %}
+                {% if queue_position is not None %}
+                    {% blocktranslate trimmed with position=queue_position %}
+                        You are number {{ position }} in the queue. We'll email you as soon as someone is available.
+                    {% endblocktranslate %}
+                {% else %}
+                    {% blocktranslate trimmed %}
+                        You are in the queue. We'll email you when a match is found.
+                    {% endblocktranslate %}
+                {% endif %}
             {% elif registration.status == 'WITHDRAWN' %}
                 {% blocktranslate trimmed %}
                     Your registration has been withdrawn.
@@ -70,14 +79,13 @@
             {% endif %}
         </p>
         {% comment %}
-            Show a "View your match" prompt only for MATCHED and CONFIRMED
-            registrations. MATCHED means the engine has paired the user but
-            mutual accept has not yet happened; CONFIRMED means both have
-            accepted and contact details are revealed. Both states have an
-            active match reachable via accounts:match.
+            Show a "View your match" prompt only for active match states
+            (proposed, pending, accepted). These all have a non-terminal match
+            reachable via accounts:match. Registration.status is not used here —
+            match progress is tracked on Match.Status (VERB-44).
         {% endcomment %}
-        {% if registration.status == 'MATCHED' or registration.status == 'CONFIRMED' %}
-            <div class="mt-4 border-t border-line pt-4">
+        {% if match_state == 'proposed' or match_state == 'pending' or match_state == 'accepted' %}
+            <div class="mt-4 pt-4">
                 <a href="{% url 'accounts:match' %}" class="btn btn--role">
                     {% translate "View your match" %}
                 </a>

@@ -51,11 +51,11 @@ def test_registration_queryset_referees_filter() -> None:
     assert list(Registration.objects.referees()) == [referee]
 
 
-def test_registration_queryset_waiting_filter() -> None:
-    """RegistrationQuerySet.waiting returns only WAITING registrations."""
-    waiting = RegistrationFactory.create(status=Registration.Status.WAITING)
-    RegistrationFactory.create(status=Registration.Status.MATCHED)
-    assert list(Registration.objects.waiting()) == [waiting]
+def test_registration_queryset_verified_filter() -> None:
+    """RegistrationQuerySet.verified returns only VERIFIED registrations."""
+    verified = RegistrationFactory.create(status=Registration.Status.VERIFIED)
+    RegistrationFactory.create(status=Registration.Status.UNVERIFIED)
+    assert list(Registration.objects.verified()) == [verified]
 
 
 def test_eligible_ambassadors_excludes_none_prior_pass() -> None:
@@ -99,12 +99,12 @@ def test_eligible_referees_excludes_non_none_prior_pass() -> None:
     assert list(Registration.objects.eligible_referees()) == [eligible]
 
 
-def test_eligible_ambassadors_excludes_non_waiting() -> None:
-    """eligible_ambassadors excludes matched/confirmed ambassadors."""
+def test_eligible_ambassadors_excludes_non_verified() -> None:
+    """eligible_ambassadors excludes ambassadors not in VERIFIED pool standing."""
     RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.UNVERIFIED,
     )
     assert not Registration.objects.eligible_ambassadors().exists()
 
@@ -158,13 +158,14 @@ def test_match_proposed_queryset() -> None:
 
 
 def test_match_active_excludes_declined_and_expired() -> None:
-    """MatchQuerySet.active excludes DECLINED, EXPIRED, and ABANDONED."""
+    """MatchQuerySet.active excludes DECLINED, EXPIRED, and CANCELLED."""
     proposed = MatchFactory.create(status=Match.Status.PROPOSED)
+    pending = MatchFactory.create(status=Match.Status.PENDING)
     accepted = MatchFactory.create(status=Match.Status.ACCEPTED)
     MatchFactory.create(status=Match.Status.DECLINED)
     MatchFactory.create(status=Match.Status.EXPIRED)
-    MatchFactory.create(status=Match.Status.ABANDONED)
-    assert set(Match.objects.active()) == {proposed, accepted}
+    MatchFactory.create(status=Match.Status.CANCELLED)
+    assert set(Match.objects.active()) == {proposed, pending, accepted}
 
 
 def test_multiple_matches_per_registration_allowed() -> None:

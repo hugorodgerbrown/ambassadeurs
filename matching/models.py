@@ -6,11 +6,19 @@
 # docs/decisions/0005-single-season-matching-engine.md for the rationale.
 #
 # Fixed choice values are TextChoices with UPPER_CASE values (CLAUDE.md).
+#
+# Two independent state machines (VERB-44 / ADR 0011):
+#   Registration.Status tracks pool standing:
+#     UNVERIFIED → VERIFIED (on email confirm) → WITHDRAWN | SUSPENDED
+#   Match.Status tracks the match lifecycle:
+#     PROPOSED → PENDING (one side accepted) → ACCEPTED | DECLINED | EXPIRED
+#     ACCEPTED → CANCELLED (post-accept no-show report)
 
 from __future__ import annotations
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -43,15 +51,33 @@ class RegistrationQuerySet(BaseQuerySet):
         """Return referee (referred) registrations."""
         return self.filter(role=Registration.Role.REFEREE)
 
-    def waiting(self) -> RegistrationQuerySet:
-        """Return registrations still waiting in the pool."""
-        return self.filter(status=Registration.Status.WAITING)
+    def verified(self) -> RegistrationQuerySet:
+        """Return VERIFIED registrations (confirmed and eligible to be pooled)."""
+        return self.filter(status=Registration.Status.VERIFIED)
+
+    def _without_active_match(self) -> RegistrationQuerySet:
+        """Exclude registrations already holding a non-terminal match.
+
+        A registration with a PROPOSED, PENDING, or ACCEPTED match is already
+        committed to that match and must not enter the pool as a counterpart.
+        Uses .distinct() to avoid row multiplication from the reverse-FK join.
+        """
+        _active = [
+            Match.Status.PROPOSED,
+            Match.Status.PENDING,
+            Match.Status.ACCEPTED,
+        ]
+        return self.exclude(
+            Q(matches_as_ambassador__status__in=_active)
+            | Q(matches_as_referee__status__in=_active)
+        ).distinct()
 
     def eligible_ambassadors(self) -> RegistrationQuerySet:
-        """Return waiting ambassadors who hold a valid prior pass."""
+        """Return VERIFIED ambassadors in the pool with a valid prior pass."""
         return (
             self.ambassadors()
-            .waiting()
+            .verified()
+            ._without_active_match()
             .filter(
                 prior_pass__in=[
                     Registration.PriorPass.SEASONAL,
@@ -62,8 +88,13 @@ class RegistrationQuerySet(BaseQuerySet):
         )
 
     def eligible_referees(self) -> RegistrationQuerySet:
-        """Return waiting referees who are genuinely new (no prior pass)."""
-        return self.referees().waiting().filter(prior_pass=Registration.PriorPass.NONE)
+        """Return VERIFIED referees in the pool who are genuinely new."""
+        return (
+            self.referees()
+            .verified()
+            ._without_active_match()
+            .filter(prior_pass=Registration.PriorPass.NONE)
+        )
 
 
 class Registration(BaseModel):
@@ -72,6 +103,9 @@ class Registration(BaseModel):
     One registration per user (OneToOneField). Holds the role, prior-pass
     attestation that gates match eligibility, soft location preference, the pool
     status, and the queue priority.
+
+    Pool standing is tracked by Registration.Status (independent of any active
+    Match). Match progress is tracked by Match.Status. See ADR 0011.
     """
 
     class Role(models.TextChoices):
@@ -81,16 +115,21 @@ class Registration(BaseModel):
         REFEREE = "REFEREE", _("Referee")
 
     class Status(models.TextChoices):
-        """Lifecycle of a registration in the pool.
+        """Pool-standing lifecycle of a registration.
 
-        PENDING: created from the combined form but not yet email-confirmed;
-        never matched. WAITING: confirmed and waiting in the pool.
+        UNVERIFIED: created from the combined form but not yet email-confirmed;
+            never enters the matching engine.
+        VERIFIED: email confirmed and active in the pool (or previously active
+            and now waiting after a declined/expired match).
+        WITHDRAWN: the participant withdrew themselves.
+        SUSPENDED: the participant was suspended by the system (e.g. 2 flakes
+            or a post-accept no-show accusation).
+
+        Match progress is tracked on Match.Status, not here (ADR 0011).
         """
 
-        PENDING = "PENDING", _("Pending")
-        WAITING = "WAITING", _("Waiting")
-        MATCHED = "MATCHED", _("Matched")
-        CONFIRMED = "CONFIRMED", _("Confirmed")
+        UNVERIFIED = "UNVERIFIED", _("Unverified")
+        VERIFIED = "VERIFIED", _("Verified")
         WITHDRAWN = "WITHDRAWN", _("Withdrawn")
         SUSPENDED = "SUSPENDED", _("Suspended")
 
@@ -140,7 +179,7 @@ class Registration(BaseModel):
     status = models.CharField(
         max_length=16,
         choices=Status.choices,
-        default=Status.WAITING,
+        default=Status.VERIFIED,
     )
     priority = models.IntegerField(
         default=0,
@@ -208,24 +247,28 @@ class MatchQuerySet(BaseQuerySet):
         return self.filter(status=Match.Status.PROPOSED)
 
     def lapsed(self) -> MatchQuerySet:
-        """Return PROPOSED matches whose contact window has expired.
+        """Return PROPOSED or PENDING matches whose contact window has expired.
 
-        Shorthand for the expiry-sweep candidate set: proposed() filtered
-        to those whose expires_at is at or before the current instant.
+        Shorthand for the expiry-sweep candidate set: non-terminal active matches
+        filtered to those whose expires_at is at or before the current instant.
+        Both PROPOSED and PENDING are eligible for expiry.
         """
-        return self.proposed().filter(expires_at__lte=timezone.now())
+        return self.filter(
+            status__in=[Match.Status.PROPOSED, Match.Status.PENDING],
+            expires_at__lte=timezone.now(),
+        )
 
     def active(self) -> MatchQuerySet:
-        """Return non-terminal matches (PROPOSED and ACCEPTED).
+        """Return non-terminal matches (PROPOSED, PENDING, and ACCEPTED).
 
-        Excludes DECLINED, EXPIRED, and ABANDONED — all three are terminal
+        Excludes DECLINED, EXPIRED, and CANCELLED — all three are terminal
         states in the match state machine.
         """
         return self.exclude(
             status__in=[
                 Match.Status.DECLINED,
                 Match.Status.EXPIRED,
-                Match.Status.ABANDONED,
+                Match.Status.CANCELLED,
             ]
         )
 
@@ -249,11 +292,16 @@ class Match(BaseModel):
     rows (no unique constraint on the registration FKs) so that declined and
     expired matches are preserved as history.
 
-    State machine:
-        PROPOSED → ACCEPTED | DECLINED | EXPIRED
-        ACCEPTED → ABANDONED  (post-accept no-show report; see ADR 0007)
+    State machine (VERB-44 / ADR 0011):
+        PROPOSED  — engine paired them; neither side has responded yet.
+        PENDING   — one side has accepted; awaiting the other.
+        ACCEPTED  — both sides accepted (terminal success).
+        DECLINED  — one side declined (terminal).
+        EXPIRED   — contact window lapsed without mutual accept (terminal).
+        CANCELLED — previously ACCEPTED; one party filed a post-accept no-show
+                    report (ADR 0007).
 
-    Contact PII is never revealed until both parties accept (Invariant 1).
+    Contact PII is never revealed until the match is ACCEPTED (Invariant 1).
 
     Per-party responses are tracked as typed nullable columns rather than
     generic JSON or separate FK rows — the parties are always exactly the two
@@ -263,15 +311,18 @@ class Match(BaseModel):
     class Status(models.TextChoices):
         """Match lifecycle states. UPPER_CASE values (CLAUDE.md).
 
-        ABANDONED is added in VERB-18: a mutually-accepted match where one
-        party was reported as a post-accept no-show (ADR 0007).
+        PENDING is new in VERB-44: the intermediate state after one side
+        accepts but before both have accepted. CANCELLED replaces the former
+        ABANDONED (post-accept no-show path). ACCEPTED is kept as the terminal
+        success state (not renamed).
         """
 
         PROPOSED = "PROPOSED", _("Proposed")
+        PENDING = "PENDING", _("Pending")
         ACCEPTED = "ACCEPTED", _("Accepted")
         DECLINED = "DECLINED", _("Declined")
         EXPIRED = "EXPIRED", _("Expired")
-        ABANDONED = "ABANDONED", _("Abandoned")
+        CANCELLED = "CANCELLED", _("Cancelled")
 
     class Side(models.TextChoices):
         """Which side of the match a party is on. UPPER_CASE values (CLAUDE.md).

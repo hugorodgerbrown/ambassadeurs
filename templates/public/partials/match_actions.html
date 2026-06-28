@@ -12,7 +12,7 @@ Context:
   side               — Match.Side value ("AMBASSADOR" or "REFEREE")
   view               — design view key (proposed / you_accepted / partner_accepted
                        / confirmed / declined_you / declined_partner / expired /
-                       abandoned_you / abandoned_partner)
+                       cancelled_you / cancelled_partner)
   partner_name       — the other party's first name ("" if their account was
                        deleted on decline; the template falls back to a generic)
   show_deadline      — whether to render the contact-window strip
@@ -54,9 +54,9 @@ Context:
         </h2>
         <p class="mb-3.5 text-small text-body">
             {% blocktranslate trimmed with partner=partner %}
-                Once you accept your contact details will be shared with your partner.
-                If you choose not to accept (by declining, or not responding in time),
-                your registration will be cancelled and you will need to re-register.
+                Once you accept your contact details will be shared with your partner. If you choose not to accept (by
+                declining, or not responding in time), your registration will be cancelled and you will need to
+                re-register.
             {% endblocktranslate %}
         </p>
         {% if show_deadline %}
@@ -500,7 +500,7 @@ Context:
             </svg>
         </a>
     </div>
-{% elif view == "abandoned_you" %}
+{% elif view == "cancelled_you" %}
     {% comment %}Viewer reported a post-accept no-show — re-queued to the front.{% endcomment %}
     <div class="card">
         <h2 class="mb-2 font-display text-[1.18rem] font-bold tracking-[-0.01em] text-ink">
@@ -528,7 +528,7 @@ Context:
             </svg>
         </a>
     </div>
-{% elif view == "abandoned_partner" %}
+{% elif view == "cancelled_partner" %}
     {% comment %}Viewer was reported as a no-show after acceptance.{% endcomment %}
     <div class="card">
         <h2 class="mb-2 font-display text-[1.18rem] font-bold tracking-[-0.01em] text-ink">

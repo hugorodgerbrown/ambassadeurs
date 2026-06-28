@@ -154,7 +154,7 @@ def test_referee_registration_creates_match() -> None:
     """Registering a referee when an ambassador waits creates a match.
 
     Journey:
-      - Register and confirm an ambassador on its own client (so a WAITING
+      - Register and confirm an ambassador on its own client (so a VERIFIED
         counterpart exists in the pool).
       - Register and confirm a referee on a second client; the matching engine
         fires inside the on_commit callback wrapper.
@@ -165,7 +165,7 @@ def test_referee_registration_creates_match() -> None:
     ambassador_email = "ada@example.com"
     referee_email = "grace@example.com"
 
-    # Register the ambassador first so they are WAITING when the referee arrives.
+    # Register the ambassador first so they are VERIFIED when the referee arrives.
     ambassador_client = Client()
     _register_and_confirm(ambassador_client, _ambassador_payload(ambassador_email))
 

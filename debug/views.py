@@ -32,7 +32,9 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from accounts.services import send_confirmation_email
-from accounts.views import _match_status_pill
+from accounts.views import (
+    _match_status_pill,  # noqa: PLC2701 — deliberate import of private helper for gallery
+)
 from core.decorators import require_debug
 from matching.models import Match, Registration
 from matching.services import (
@@ -65,14 +67,20 @@ def _safe_referer_redirect(
 
 
 def _get_active_match(registration: Registration) -> Match | None:
-    """Return the active PROPOSED match for ``registration``, or ``None``.
+    """Return the active non-terminal match for ``registration``, or ``None``.
+
+    Considers PROPOSED and PENDING matches (both are active, non-terminal).
 
     Args:
-        registration: The registration whose proposed match to look up.
+        registration: The registration whose active match to look up.
     """
     if registration.role == Registration.Role.AMBASSADOR:
-        return registration.matches_as_ambassador.proposed().first()
-    return registration.matches_as_referee.proposed().first()
+        return registration.matches_as_ambassador.filter(
+            status__in=[Match.Status.PROPOSED, Match.Status.PENDING]
+        ).first()
+    return registration.matches_as_referee.filter(
+        status__in=[Match.Status.PROPOSED, Match.Status.PENDING]
+    ).first()
 
 
 def _get_counterpart(match: Match, registration: Registration) -> Registration:
@@ -100,13 +108,14 @@ def create_counterpart(request: HttpRequest) -> HttpResponse:
 
     The counterpart's role is the opposite of the logged-in user's. The
     ``state`` POST parameter controls whether the new registration enters the
-    pool immediately (``WAITING``) or waits for email confirmation (``PENDING``).
+    pool immediately (``VERIFIED``) or waits for email confirmation
+    (``UNVERIFIED``).
 
-    When ``WAITING`` is chosen the matching engine runs synchronously and may
+    When ``VERIFIED`` is chosen the matching engine runs synchronously and may
     propose a match between the counterpart and the logged-in user's
     registration (if it is the best-ranked eligible candidate in the pool).
 
-    When ``PENDING`` is chosen the confirmation URL is stashed in the session
+    When ``UNVERIFIED`` is chosen the confirmation URL is stashed in the session
     under ``debug_verify_url`` so the panel shortcut link can surface it.
     """
     user = cast(User, request.user)
@@ -127,9 +136,9 @@ def create_counterpart(request: HttpRequest) -> HttpResponse:
         counterpart_role = Registration.Role.AMBASSADOR
         counterpart_prior_pass = Registration.PriorPass.SEASONAL
 
-    state = request.POST.get("state", Registration.Status.WAITING)
-    if state not in (Registration.Status.WAITING, Registration.Status.PENDING):
-        state = Registration.Status.WAITING
+    state = request.POST.get("state", Registration.Status.VERIFIED)
+    if state not in (Registration.Status.VERIFIED, Registration.Status.UNVERIFIED):
+        state = Registration.Status.VERIFIED
 
     # Generate a unique synthetic identity for the counterpart.
     uid = uuid.uuid4().hex[:8]
@@ -155,7 +164,7 @@ def create_counterpart(request: HttpRequest) -> HttpResponse:
         user.pk,
     )
 
-    if state == Registration.Status.PENDING:
+    if state == Registration.Status.UNVERIFIED:
         confirm_url = send_confirmation_email(request, counterpart)
         request.session["debug_verify_url"] = confirm_url
         logger.info(
@@ -300,8 +309,8 @@ _PREVIEW_VIEWS: list[tuple[str, str]] = [
     ("declined_you", "You declined"),
     ("declined_partner", "Partner declined"),
     ("expired", "Expired"),
-    ("abandoned_you", "No-show reported"),
-    ("abandoned_partner", "Reported (you)"),
+    ("cancelled_you", "No-show reported"),
+    ("cancelled_partner", "Reported (you)"),
 ]
 
 
@@ -375,14 +384,14 @@ def _build_preview_match(view_key: str) -> tuple[Match, Registration, Match.Side
     elif view_key == "expired":
         match.status = Match.Status.EXPIRED
         match.expires_at = now - timedelta(days=1)
-    elif view_key == "abandoned_you":
-        match.status = Match.Status.ABANDONED
+    elif view_key == "cancelled_you":
+        match.status = Match.Status.CANCELLED
         match.ambassador_accepted_at = now
         match.referee_accepted_at = now
         match.no_show_reported_by = Match.Side.REFEREE
         match.no_show_reported_at = now
-    elif view_key == "abandoned_partner":
-        match.status = Match.Status.ABANDONED
+    elif view_key == "cancelled_partner":
+        match.status = Match.Status.CANCELLED
         match.ambassador_accepted_at = now
         match.referee_accepted_at = now
         match.no_show_reported_by = Match.Side.AMBASSADOR
@@ -425,6 +434,7 @@ def _match_status_scenario(
     label: str,
     *,
     status: str | None,
+    match_state: str = "none",
     partner_first_name: str = "",
     partner_accepted: bool = False,
     queue_position: int | None = None,
@@ -433,9 +443,11 @@ def _match_status_scenario(
     """Build one labelled render-context for the Match status partial.
 
     ``status`` is a ``Registration.Status`` value, or ``None`` for the
-    no-registration case. The Registration is unsaved — the partial only reads
-    its ``status``/``get_status_display`` — and ``status_pill`` is derived the
-    same way the real view derives it (``_match_status_pill``).
+    no-registration case. ``match_state`` is one of ``none``, ``proposed``,
+    ``pending``, ``accepted`` — derived from the active match in the real view
+    (VERB-44). The Registration is unsaved — the partial only reads its
+    ``status``/``get_status_display`` — and ``status_pill`` is derived the same
+    way the real view derives it (``_match_status_pill``).
     """
     registration = (
         None
@@ -445,7 +457,8 @@ def _match_status_scenario(
     return {
         "label": label,
         "registration": registration,
-        "status_pill": _match_status_pill(registration),
+        "status_pill": _match_status_pill(registration, match_state),
+        "match_state": match_state,
         "partner_first_name": partner_first_name,
         "partner_accepted": partner_accepted,
         "queue_position": queue_position,
@@ -460,37 +473,53 @@ def components(request: HttpRequest) -> HttpResponse:
     A component gallery: each scenario is the real partial
     (``accounts/partials/match_status.html``) rendered with synthetic context,
     so the page is the live component — not a mock. Covers every
-    Registration.Status, both MATCHED partner-response variants, the two WAITING
+    Registration.Status, all match_state variants, the two VERIFIED
     queue-position variants, and the no-registration case.
     """
     scenarios = [
         _match_status_scenario("No registration", status=None),
         _match_status_scenario(
-            "Email unconfirmed (PENDING)", status=Registration.Status.PENDING
+            "Email unconfirmed (UNVERIFIED)", status=Registration.Status.UNVERIFIED
         ),
         _match_status_scenario(
-            "In the queue — no position", status=Registration.Status.WAITING
+            "In the queue — no position", status=Registration.Status.VERIFIED
         ),
         _match_status_scenario(
             "In the queue — with position",
-            status=Registration.Status.WAITING,
+            status=Registration.Status.VERIFIED,
             queue_position=3,
             total_accepted_matches=5,
         ),
         _match_status_scenario(
-            "Matched — partner not responded",
-            status=Registration.Status.MATCHED,
+            "Proposed — partner not responded",
+            status=Registration.Status.VERIFIED,
+            match_state="proposed",
             partner_first_name="Bernard",
         ),
         _match_status_scenario(
-            "Matched — partner waiting on you",
-            status=Registration.Status.MATCHED,
+            "Proposed — partner waiting on you",
+            status=Registration.Status.VERIFIED,
+            match_state="proposed",
             partner_first_name="Bernard",
             partner_accepted=True,
         ),
         _match_status_scenario(
-            "Confirmed",
-            status=Registration.Status.CONFIRMED,
+            "Pending — partner not responded",
+            status=Registration.Status.VERIFIED,
+            match_state="pending",
+            partner_first_name="Bernard",
+        ),
+        _match_status_scenario(
+            "Pending — partner waiting on you",
+            status=Registration.Status.VERIFIED,
+            match_state="pending",
+            partner_first_name="Bernard",
+            partner_accepted=True,
+        ),
+        _match_status_scenario(
+            "Accepted (both parties)",
+            status=Registration.Status.VERIFIED,
+            match_state="accepted",
             partner_first_name="Bernard",
         ),
         _match_status_scenario("Withdrawn", status=Registration.Status.WITHDRAWN),

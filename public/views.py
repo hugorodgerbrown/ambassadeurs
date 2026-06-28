@@ -3,8 +3,8 @@
 #
 # Registration flow (VERB-24): the homepage role buttons open a combined form
 # directly — no login required. The form includes an email field. On submit,
-# a Registration is created with status PENDING and a signed confirmation link
-# is emailed. Clicking the link transitions PENDING → WAITING, triggers
+# a Registration is created with status UNVERIFIED and a signed confirmation
+# link is emailed. Clicking the link transitions UNVERIFIED → VERIFIED, triggers
 # matching, logs the user in, and redirects to register_done. Facebook-login
 # references have been removed from the UI (VERB-24 P2); the allauth backend
 # and URL mount remain untouched in config/.
@@ -15,15 +15,15 @@
 # guarded with require_htmx (Invariant 7). Contact PII is revealed ONLY when
 # match.status == ACCEPTED (Invariant 1).
 #
-# Withdraw acceptance (VERB-43 / ADR 0010): while a match is still PROPOSED and
-# the partner has not accepted, the side that already accepted may retract via
-# match_withdraw (@require_htmx) — a clean, no-penalty un-accept that returns
-# them to the actionable proposed view.
+# Withdraw acceptance (VERB-43 / ADR 0010): while a match is PENDING (one side
+# accepted), the side that already accepted may retract via match_withdraw
+# (@require_htmx) — a clean no-penalty un-accept (PENDING → PROPOSED) that
+# returns them to the actionable proposed view.
 #
 # No-show reporting (VERB-21): once a match is ACCEPTED, either party may
 # report the other as a post-accept no-show via
 # match_report_no_show (@require_htmx) or the no-JS POST fallback in
-# match_detail. The report transitions the match to ABANDONED, suspends the
+# match_detail. The report transitions the match to CANCELLED, suspends the
 # accused, and re-queues the reporter to the front of the pool.
 #
 # Wrong-user journey (VERB-32): match_detail GET branches on the auth state of
@@ -146,11 +146,11 @@ def register(request: HttpRequest) -> HttpResponse:
     """Combined registration form — no login required.
 
     GET: render the form themed for ``?role=`` (default ambassador).
-    POST (anonymous): validate, create a PENDING registration (or resend if one
-        already exists for the email), send a confirmation email, redirect to
-        ``register_email_sent``.
+    POST (anonymous): validate, create an UNVERIFIED registration (or resend if
+        one already exists for the email), send a confirmation email, redirect
+        to ``register_email_sent``.
     POST (authenticated, defensive): complete the registration immediately at
-        WAITING status and redirect to ``register_done``.
+        VERIFIED status and redirect to ``register_done``.
     """
     if not is_registration_open():
         return render(request, "public/register_closed.html")
@@ -195,7 +195,7 @@ def register(request: HttpRequest) -> HttpResponse:
 
     if request.user.is_authenticated:
         # Defensive authenticated path (not reachable from the standard UI but
-        # handled for completeness). Create a WAITING registration immediately.
+        # handled for completeness). Create a VERIFIED registration immediately.
         # Django stubs narrow request.user to User after is_authenticated.
         auth_user: User = request.user
         form = RegistrationForm(role=role_value, data=request.POST, user=auth_user)
@@ -219,7 +219,7 @@ def register(request: HttpRequest) -> HttpResponse:
             {"form": form, "role": role_slug, "role_value": role_value},
         )
 
-    # Anonymous path: validate, create PENDING or resend.
+    # Anonymous path: validate, create UNVERIFIED or resend.
     form = RegistrationForm(role=role_value, data=request.POST)
     if not form.is_valid():
         return render(
@@ -231,8 +231,8 @@ def register(request: HttpRequest) -> HttpResponse:
     data = form.cleaned_data
     email: str = data["email"]
 
-    # Check for an existing PENDING registration for this email. If one exists,
-    # resend the confirmation link without creating a second row.
+    # Check for an existing UNVERIFIED registration for this email. If one
+    # exists, resend the confirmation link without creating a second row.
     #
     # The lookup and create run inside a single atomic block to guard against a
     # TOCTOU race: if a concurrent request confirms the registration between the
@@ -243,7 +243,7 @@ def register(request: HttpRequest) -> HttpResponse:
         with transaction.atomic():
             try:
                 pending_reg = Registration.objects.select_for_update().get(
-                    user__email=email, status=Registration.Status.PENDING
+                    user__email=email, status=Registration.Status.UNVERIFIED
                 )
                 confirm_url = send_confirmation_email(request, pending_reg)
             except Registration.DoesNotExist:
@@ -257,21 +257,21 @@ def register(request: HttpRequest) -> HttpResponse:
                     preferred_location=data.get("preferred_location", ""),
                     preferred_language=data.get("preferred_language", ""),
                     accepted_terms=form.accepted_statements(),
-                    status=Registration.Status.PENDING,
+                    status=Registration.Status.UNVERIFIED,
                 )
                 confirm_url = send_confirmation_email(request, registration)
     except IntegrityError:
         # A concurrent request created/confirmed a registration for this email
         # between our DoesNotExist branch and our create attempt. Resend for
-        # whichever row now exists with a PENDING status; if none exists (it was
-        # already confirmed), fall through to a generic resend.
+        # whichever row now exists with an UNVERIFIED status; if none exists (it
+        # was already confirmed), fall through to a generic resend.
         logger.warning(
             "IntegrityError on registration create for %s — resending for existing row",
             email,
         )
         try:
             existing = Registration.objects.get(
-                user__email=email, status=Registration.Status.PENDING
+                user__email=email, status=Registration.Status.UNVERIFIED
             )
             confirm_url = send_confirmation_email(request, existing)
         except Registration.DoesNotExist:
@@ -304,12 +304,12 @@ def register_email_sent(request: HttpRequest) -> HttpResponse:
 def register_confirm(request: HttpRequest, token: str) -> HttpResponse:
     """Consume the registration confirmation token.
 
-    Reads the token, loads the Registration, transitions PENDING → WAITING,
+    Reads the token, loads the Registration, transitions UNVERIFIED → VERIFIED,
     marks the email verified in allauth, logs the user in, and redirects to
     ``register_done`` for the appropriate role.
 
-    Returns 400 on a bad/expired token or a non-PENDING registration (used or
-    invalid link).
+    Returns 400 on a bad/expired token or a non-UNVERIFIED registration (used
+    or invalid link).
     """
     pk = read_registration_confirmation_token(token)
     if pk is None:
@@ -320,7 +320,7 @@ def register_confirm(request: HttpRequest, token: str) -> HttpResponse:
     except Registration.DoesNotExist:
         return render(request, "public/register_invalid.html", status=400)
 
-    if registration.status != Registration.Status.PENDING:
+    if registration.status != Registration.Status.UNVERIFIED:
         # Already confirmed or in an unexpected state — treat as invalid link.
         return render(request, "public/register_invalid.html", status=400)
 
@@ -342,7 +342,7 @@ def register_done(request: HttpRequest, role: str) -> HttpResponse:
     """Render the post-registration "what happens next" confirmation page.
 
     Resolves the authenticated user's registration (if any) and, when the
-    registration is in WAITING status, adds ``queue_position`` and
+    registration is in VERIFIED status, adds ``queue_position`` and
     ``total_accepted_matches`` to the context so the template can display the
     participant's position in the pool.
     """
@@ -353,7 +353,7 @@ def register_done(request: HttpRequest, role: str) -> HttpResponse:
     registration = _authenticated_registration(request)
     position: int | None = None
     accepted_count: int = 0
-    if registration is not None and registration.status == Registration.Status.WAITING:
+    if registration is not None and registration.status == Registration.Status.VERIFIED:
         position = queue_position(registration)
         accepted_count = total_accepted_matches()
 
@@ -417,9 +417,9 @@ def register_details_form(request: HttpRequest) -> HttpResponse:
 
 # Display states for the match page — computed from match status + window.
 _STATE_ACTIONABLE = "actionable"  # PROPOSED, within window, this side not yet responded
-_STATE_WAITING = "waiting"  # PROPOSED but this side already accepted
+_STATE_WAITING = "waiting"  # PENDING and this side already accepted
 _STATE_TERMINAL = (
-    "terminal"  # ACCEPTED / DECLINED / EXPIRED / ABANDONED, or window lapsed
+    "terminal"  # ACCEPTED / DECLINED / EXPIRED / CANCELLED, or window lapsed
 )
 
 
@@ -467,10 +467,18 @@ def _compute_match_display_state(match: Match, side: Match.Side) -> str:
     """Return the display state for a match page, from the viewer's perspective.
 
     Returns one of the module-level ``_STATE_*`` constants.
+
+    PROPOSED and PENDING are both "active" states — neither is terminal. A
+    PENDING match has one acceptance already recorded; if this side accepted, the
+    viewer is in the _STATE_WAITING sub-state (waiting on the partner). If the
+    *other* side accepted (and match is PENDING), this side hasn't responded yet
+    so the viewer is still _STATE_ACTIONABLE.
     """
-    if match.status != Match.Status.PROPOSED or timezone.now() > match.expires_at:
+    if match.status not in (Match.Status.PROPOSED, Match.Status.PENDING):
         return _STATE_TERMINAL
-    # Match is PROPOSED and within the window. Check if this side has accepted.
+    if timezone.now() > match.expires_at:
+        return _STATE_TERMINAL
+    # Active match within the window. Check if this side has accepted.
     if side == Match.Side.AMBASSADOR and match.ambassador_accepted_at is not None:
         return _STATE_WAITING
     if side == Match.Side.REFEREE and match.referee_accepted_at is not None:
@@ -496,10 +504,10 @@ def _match_view(match: Match, side: Match.Side) -> str:
     """Return the design view key for the match page, from the viewer's side.
 
     One of ``proposed``, ``you_accepted``, ``partner_accepted``, ``confirmed``,
-    ``declined_you``, ``declined_partner``, ``expired``, ``abandoned_you``,
-    ``abandoned_partner``. A PROPOSED match whose contact window has lapsed is
-    presented as ``expired`` — both parties re-queue, the same outcome as a
-    swept expiry — so the page need not distinguish the two.
+    ``declined_you``, ``declined_partner``, ``expired``, ``cancelled_you``,
+    ``cancelled_partner``. A PROPOSED or PENDING match whose contact window has
+    lapsed is presented as ``expired`` — both parties re-queue, the same outcome
+    as a swept expiry — so the page need not distinguish the two.
 
     This drives only presentation (header copy + outcome block); the action
     guards use ``_compute_match_display_state``.
@@ -511,13 +519,13 @@ def _match_view(match: Match, side: Match.Side) -> str:
         return "declined_you" if match.declined_by == side else "declined_partner"
     if status == Match.Status.EXPIRED:
         return "expired"
-    if status == Match.Status.ABANDONED:
+    if status == Match.Status.CANCELLED:
         return (
-            "abandoned_you"
+            "cancelled_you"
             if match.no_show_reported_by == side
-            else "abandoned_partner"
+            else "cancelled_partner"
         )
-    # PROPOSED — distinguish by window and per-side acceptance.
+    # PROPOSED or PENDING — distinguish by window and per-side acceptance.
     if timezone.now() > match.expires_at:
         return "expired"
     if _side_accepted(match, side):
@@ -538,7 +546,8 @@ def _side_status_key(match: Match, side: Match.Side) -> str:
     if match.declined_by == side:
         return "declined"
     if match.status == Match.Status.EXPIRED or (
-        match.status == Match.Status.PROPOSED and timezone.now() > match.expires_at
+        match.status in (Match.Status.PROPOSED, Match.Status.PENDING)
+        and timezone.now() > match.expires_at
     ):
         return "no_response"
     return "pending"
@@ -846,10 +855,10 @@ def match_report_no_show(request: HttpRequest, token: str) -> HttpResponse:
 
     Re-validates the token, confirms the match is still ACCEPTED with no
     existing report, then calls ``report_no_show``. Renders
-    ``public/partials/match_actions.html`` reflecting the resulting ABANDONED
+    ``public/partials/match_actions.html`` reflecting the resulting CANCELLED
     state.
 
-    A second POST on a match that is already ABANDONED (or otherwise
+    A second POST on a match that is already CANCELLED (or otherwise
     non-ACCEPTED) is a safe no-op: the service raises ``ValueError``, which is
     caught and silently swallowed, and the partial is re-rendered with the
     current state.

@@ -11,17 +11,24 @@
 # the post-match confirmation workflow (ADR 0007 / VERB-18). Both are atomic
 # and call core.services.record_transition inline for the audit log.
 #
+# The PENDING Match state (VERB-44 / ADR 0011): the first acceptance moves
+# the match from PROPOSED → PENDING (a real transition, logged). The second
+# acceptance moves PENDING → ACCEPTED. Both guards in record_acceptance accept
+# "PROPOSED or PENDING" rather than "PROPOSED only".
+#
 # withdraw_acceptance (VERB-43 / ADR 0010) is the inverse of the first accept:
-# while a match is still PROPOSED and the other side has not accepted, the
-# viewing party clears their own *_accepted_at timestamp — a clean, no-penalty
-# un-accept (PROPOSED → PROPOSED) that re-queues nothing and writes no log row.
+# while a match is PENDING and the other side has not accepted, the viewing
+# party clears their own *_accepted_at timestamp — a clean, no-penalty un-accept
+# (PENDING → PROPOSED) — and a transition log row is written.
 #
 # expire_lapsed_matches is the periodic sweep entry point: it transitions all
-# PROPOSED matches past their contact window to EXPIRED and re-queues each side.
+# PROPOSED or PENDING matches past their contact window to EXPIRED and re-queues
+# each side.
 #
 # report_no_show (VERB-21) implements the post-accept no-show path (ADR 0007):
 # the reporter's registration is re-queued to the front; the accused is
 # suspended and emailed (no reporter PII in the email — Invariant 1).
+# The match is transitioned ACCEPTED → CANCELLED (renamed from ABANDONED).
 #
 # queue_position and total_accepted_matches (VERB-40) are read-only query helpers
 # that return a participant's ordinal position in the eligible same-role pool and
@@ -77,19 +84,24 @@ def is_registration_open() -> bool:
 def is_eligible_pair(ambassador: Registration, referee: Registration) -> bool:
     """Return True if ``ambassador`` and ``referee`` form an eligible match.
 
-    Eligibility rules:
-    - Opposite roles.
-    - Both WAITING.
+    Eligibility rules (checked here):
+    - Opposite roles (ambassador vs. referee).
+    - Both have VERIFIED pool standing.
     - Ambassador holds SEASONAL, ANNUAL, or MONT4 prior pass.
     - Referee holds NONE prior pass (genuinely new).
+
+    The active-match exclusion (neither holds a PROPOSED, PENDING, or ACCEPTED
+    match) is enforced upstream by ``eligible_ambassadors()`` /
+    ``eligible_referees()`` querysets and ``propose_match``; it is not
+    re-checked here to avoid an extra DB query per candidate pair.
     """
     if ambassador.role != Registration.Role.AMBASSADOR:
         return False
     if referee.role != Registration.Role.REFEREE:
         return False
-    if ambassador.status != Registration.Status.WAITING:
+    if ambassador.status != Registration.Status.VERIFIED:
         return False
-    if referee.status != Registration.Status.WAITING:
+    if referee.status != Registration.Status.VERIFIED:
         return False
     if ambassador.prior_pass not in (
         Registration.PriorPass.SEASONAL,
@@ -103,12 +115,13 @@ def is_eligible_pair(ambassador: Registration, referee: Registration) -> bool:
 
 
 def queue_position(registration: Registration) -> int | None:
-    """Return the 1-based position of ``registration`` in the eligible waiting pool.
+    """Return the 1-based position of ``registration`` in the eligible pool.
 
-    Returns ``None`` if the registration is not in ``WAITING`` status, or if it
-    is not a member of the eligible pool (e.g. an ambassador with an ineligible
-    ``prior_pass`` value). The position is only meaningful for participants
-    actively queuing in an eligible state.
+    Returns ``None`` if the registration is not in ``VERIFIED`` status, or if
+    it is not a member of the eligible pool (e.g. an ambassador with an
+    ineligible ``prior_pass`` value, or already holding an active match). The
+    position is only meaningful for participants actively queuing in an eligible
+    state.
 
     Picks the same-role eligible pool (``eligible_ambassadors`` or
     ``eligible_referees``) and counts the rows ranked strictly ahead using the
@@ -119,10 +132,10 @@ def queue_position(registration: Registration) -> int | None:
         registration: The registration whose position to determine.
 
     Returns:
-        1-based queue ordinal, or ``None`` if not WAITING or not in the eligible
-        pool.
+        1-based queue ordinal, or ``None`` if not VERIFIED or not in the
+        eligible pool.
     """
-    if registration.status != Registration.Status.WAITING:
+    if registration.status != Registration.Status.VERIFIED:
         return None
 
     if registration.role == Registration.Role.AMBASSADOR:
@@ -150,7 +163,7 @@ def total_accepted_matches() -> int:
 
 
 def propose_match(registration: Registration) -> Match | None:
-    """Attempt to pair ``registration`` with a waiting eligible counterpart.
+    """Attempt to pair ``registration`` with an eligible counterpart.
 
     Must be called inside an existing ``transaction.atomic()`` block — uses
     ``select_for_update()`` to prevent duplicate matches under concurrency.
@@ -161,6 +174,10 @@ def propose_match(registration: Registration) -> Match | None:
 
     Returns the created Match, or None if no eligible counterpart is waiting.
     No-ops (returns None) if ``registration`` is not itself eligible.
+
+    Registrations no longer flip to MATCHED when a match is proposed (VERB-44).
+    Pool availability is managed by RegistrationQuerySet._without_active_match,
+    which excludes registrations already holding a non-terminal match.
     """
     if registration.role == Registration.Role.AMBASSADOR:
         # Guard: the calling ambassador must hold a valid prior pass.
@@ -170,9 +187,9 @@ def propose_match(registration: Registration) -> Match | None:
             Registration.PriorPass.MONT4,
         ):
             return None
-        if registration.status != Registration.Status.WAITING:
+        if registration.status != Registration.Status.VERIFIED:
             return None
-        # Look for an eligible waiting referee.
+        # Look for an eligible VERIFIED referee without an active match.
         candidates = (
             Registration.objects.eligible_referees()
             .exclude(pk=registration.pk)
@@ -182,9 +199,9 @@ def propose_match(registration: Registration) -> Match | None:
         # Guard: the calling referee must have no prior pass.
         if registration.prior_pass != Registration.PriorPass.NONE:
             return None
-        if registration.status != Registration.Status.WAITING:
+        if registration.status != Registration.Status.VERIFIED:
             return None
-        # Look for an eligible waiting ambassador.
+        # Look for an eligible VERIFIED ambassador without an active match.
         candidates = (
             Registration.objects.eligible_ambassadors()
             .exclude(pk=registration.pk)
@@ -226,13 +243,8 @@ def propose_match(registration: Registration) -> Match | None:
         expires_at=expires_at,
     )
 
-    # Flip both registrations to MATCHED.
-    Registration.objects.filter(pk__in=[ambassador_reg.pk, referee_reg.pk]).update(
-        status=Registration.Status.MATCHED
-    )
-    ambassador_reg.status = Registration.Status.MATCHED
-    referee_reg.status = Registration.Status.MATCHED
-
+    # Registrations are NOT flipped to MATCHED (VERB-44). Pool availability is
+    # enforced by RegistrationQuerySet._without_active_match instead.
     logger.info(
         "Proposed match pk=%s: ambassador reg pk=%s, referee reg pk=%s",
         match.pk,
@@ -245,7 +257,7 @@ def propose_match(registration: Registration) -> Match | None:
 
 
 def requeue_to_front(registration: Registration) -> None:
-    """Re-queue a kept-faith / wronged party: status=WAITING, priority += 1.
+    """Re-queue a kept-faith / wronged party: status=VERIFIED, priority += 1.
 
     Used after a counterpart declines or a match expires where this party had
     already accepted (or the window lapsed without action from the other side).
@@ -256,7 +268,7 @@ def requeue_to_front(registration: Registration) -> None:
     """
     with transaction.atomic():
         locked = Registration.objects.select_for_update().get(pk=registration.pk)
-        locked.status = Registration.Status.WAITING
+        locked.status = Registration.Status.VERIFIED
         locked.priority += 1
         locked.save(update_fields=["status", "priority"])
         registration.status = locked.status
@@ -269,7 +281,7 @@ def requeue_to_front(registration: Registration) -> None:
 
 
 def requeue_to_back(registration: Registration) -> None:
-    """Re-queue a decliner: status=WAITING, priority -= 1.
+    """Re-queue a decliner: status=VERIFIED, priority -= 1.
 
     Used after this party explicitly declines a match. Not a flake — does not
     touch flake_count.
@@ -279,7 +291,7 @@ def requeue_to_back(registration: Registration) -> None:
     """
     with transaction.atomic():
         locked = Registration.objects.select_for_update().get(pk=registration.pk)
-        locked.status = Registration.Status.WAITING
+        locked.status = Registration.Status.VERIFIED
         locked.priority -= 1
         locked.save(update_fields=["status", "priority"])
         registration.status = locked.status
@@ -297,7 +309,7 @@ def record_flake_and_requeue(registration: Registration) -> None:
     Increments flake_count from the current DB value (lost-update guard via
     SELECT FOR UPDATE). When the new count reaches 2 the registration is
     SUSPENDED and priority is left untouched; below 2 it is re-queued to the
-    back (WAITING, priority -= 1).
+    back (VERIFIED, priority -= 1).
 
     Syncs the passed-in instance's in-memory fields (status, priority,
     flake_count) after the DB write.
@@ -309,7 +321,7 @@ def record_flake_and_requeue(registration: Registration) -> None:
             locked.status = Registration.Status.SUSPENDED
             locked.save(update_fields=["status", "flake_count"])
         else:
-            locked.status = Registration.Status.WAITING
+            locked.status = Registration.Status.VERIFIED
             locked.priority -= 1
             locked.save(update_fields=["status", "priority", "flake_count"])
         registration.status = locked.status
@@ -466,7 +478,8 @@ def accept_match(match: Match, registration: Registration) -> Match:
         The updated ``Match`` instance.
 
     Raises:
-        ValueError: propagated from ``record_acceptance`` if match is not PROPOSED.
+        ValueError: propagated from ``record_acceptance`` if match is not
+            PROPOSED or PENDING.
     """
     match = record_acceptance(match, registration)
     if match.status == Match.Status.ACCEPTED:
@@ -508,7 +521,8 @@ def decline_match(match: Match, registration: Registration) -> Match:
         The updated ``Match`` instance.
 
     Raises:
-        ValueError: propagated from ``record_decline`` if match is not PROPOSED.
+        ValueError: propagated from ``record_decline`` if match is not PROPOSED
+            or PENDING.
     """
     side = match.side_of(registration)
     # Capture the user reference before record_decline returns (we need it after).
@@ -518,13 +532,13 @@ def decline_match(match: Match, registration: Registration) -> Match:
         match = record_decline(match, registration)
 
         # Determine the other party from the match before deleting the decliner.
-        # Both FKs are non-null on PROPOSED matches; assertion satisfies mypy.
+        # Both FKs are non-null on PROPOSED/PENDING matches; assertion satisfies mypy.
         if side == Match.Side.AMBASSADOR:
             other = match.referee_registration
         else:
             other = match.ambassador_registration
         assert other is not None, (
-            f"Expected non-null other-party FK on PROPOSED match pk={match.pk}"
+            f"Expected non-null other-party FK on active match pk={match.pk}"
         )
 
         requeue_to_front(other)
@@ -556,7 +570,7 @@ def register_participant(
     preferred_language: str = "",
     phone: str = "",
     accepted_terms: list[str] | None = None,
-    status: str = Registration.Status.WAITING,
+    status: str = Registration.Status.VERIFIED,
 ) -> Registration:
     """Enrol a participant in the pool and return the Registration.
 
@@ -569,13 +583,13 @@ def register_participant(
     by the participant (eligibility declaration first, then T&C); it is
     persisted on ``Registration.accepted_terms`` alongside ``terms_accepted_at``.
 
-    ``status`` defaults to WAITING (immediate matching). Pass
-    ``status=Registration.Status.PENDING`` for the combined-form path where the
-    registration must be email-confirmed before it enters the pool — a PENDING
-    registration is *never* matched (Invariant 2).
+    ``status`` defaults to VERIFIED (immediate pool entry). Pass
+    ``status=Registration.Status.UNVERIFIED`` for the combined-form path where
+    the registration must be email-confirmed before it enters the pool — an
+    UNVERIFIED registration is *never* matched (Invariant 2).
 
-    After creating a WAITING registration, calls ``propose_match`` to attempt an
-    immediate pairing. The whole function runs inside a single transaction;
+    After creating a VERIFIED registration, calls ``propose_match`` to attempt
+    an immediate pairing. The whole function runs inside a single transaction;
     ``propose_match`` uses ``select_for_update`` for concurrency safety.
     """
     with transaction.atomic():
@@ -618,9 +632,9 @@ def register_participant(
             prior_decline_count=prior_decline_count,
         )
 
-        # Only propose a match for WAITING registrations; PENDING rows must
+        # Only propose a match for VERIFIED registrations; UNVERIFIED rows must
         # never enter the matching engine (Invariant 2).
-        if status == Registration.Status.WAITING:
+        if status == Registration.Status.VERIFIED:
             propose_match(registration)
 
     logger.info("Registered user pk=%s as %s (status=%s)", user.pk, role, status)
@@ -628,23 +642,23 @@ def register_participant(
 
 
 def confirm_registration(registration: Registration) -> Registration:
-    """Transition a PENDING registration to WAITING and trigger matching.
+    """Transition an UNVERIFIED registration to VERIFIED and trigger matching.
 
     Runs inside ``transaction.atomic()`` with a ``select_for_update()`` to
     prevent duplicate confirms under concurrency. If the registration is not
-    PENDING (already confirmed, or an invalid state), the function is a no-op
-    and returns the unchanged row — the caller is responsible for treating a
-    non-PENDING result as an invalid/used token.
+    UNVERIFIED (already confirmed, or an invalid state), the function is a
+    no-op and returns the unchanged row — the caller is responsible for treating
+    a non-UNVERIFIED result as an invalid/used token.
 
     After the status flip, ``propose_match`` is called to attempt an immediate
     pairing. The in-memory instance is synced and returned.
     """
     with transaction.atomic():
         locked = Registration.objects.select_for_update().get(pk=registration.pk)
-        if locked.status != Registration.Status.PENDING:
+        if locked.status != Registration.Status.UNVERIFIED:
             # Already confirmed or in an unexpected state; no-op.
             logger.info(
-                "confirm_registration called on non-PENDING registration pk=%s "
+                "confirm_registration called on non-UNVERIFIED registration pk=%s "
                 "(status=%s); no-op.",
                 registration.pk,
                 locked.status,
@@ -652,18 +666,18 @@ def confirm_registration(registration: Registration) -> Registration:
             registration.status = locked.status
             return registration
 
-        locked.status = Registration.Status.WAITING
+        locked.status = Registration.Status.VERIFIED
         locked.save(update_fields=["status", "updated_at"])
         registration.status = locked.status
 
         propose_match(registration)
 
-    logger.info("Confirmed registration pk=%s: PENDING → WAITING", registration.pk)
+    logger.info("Confirmed registration pk=%s: UNVERIFIED → VERIFIED", registration.pk)
     return registration
 
 
 def expire_lapsed_matches() -> int:
-    """Expire all PROPOSED matches past their contact window and re-queue.
+    """Expire all PROPOSED or PENDING matches past their contact window and re-queue.
 
     Selects candidate PKs up front, then processes each match in its own
     ``transaction.atomic()`` block so that one bad match does not abort the
@@ -692,9 +706,9 @@ def expire_lapsed_matches() -> int:
 
                 # Concurrency / idempotency guard: another worker or an
                 # accept/decline may have already changed the status.
-                if match.status != Match.Status.PROPOSED:
+                if match.status not in (Match.Status.PROPOSED, Match.Status.PENDING):
                     logger.debug(
-                        "Skipping match pk=%s: status is %r (expected PROPOSED)",
+                        "Skipping match pk=%s: status=%r (expected PROPOSED/PENDING)",
                         pk,
                         match.status,
                     )
@@ -711,7 +725,8 @@ def expire_lapsed_matches() -> int:
                 )
 
                 # Re-queue each side according to whether they had accepted.
-                # Both FKs are non-null on PROPOSED matches; assertions satisfy mypy.
+                # Both FKs are non-null on PROPOSED/PENDING matches; assertions
+                # satisfy mypy.
                 assert match.ambassador_registration is not None
                 assert match.referee_registration is not None
                 ambassador_reg = match.ambassador_registration
@@ -744,19 +759,17 @@ def expire_lapsed_matches() -> int:
 
 
 def withdraw_acceptance(match: Match, registration: Registration) -> Match:
-    """Clear ``registration``'s acceptance on a still-PROPOSED ``match``.
+    """Clear ``registration``'s acceptance on a PENDING ``match``.
 
-    A clean, no-penalty un-accept: while the match is ``PROPOSED`` and the
-    *other* side has not yet accepted, the viewing party may retract their own
-    acceptance. This returns them from the "waiting on partner" view to the
-    actionable ``proposed`` view (VERB-43 / ADR 0010).
+    A clean, no-penalty un-accept: while the match is ``PENDING`` (one side
+    has accepted) and the *other* side has not yet accepted, the viewing party
+    may retract their own acceptance. This transitions the match ``PENDING →
+    PROPOSED`` (a real status change logged to ``StateTransitionLog``) and
+    returns them to the actionable ``proposed`` view (VERB-43 / ADR 0010).
 
-    Only the accepting side's ``*_accepted_at`` timestamp is cleared. Nothing is
-    re-queued and no flake penalty is applied — withdrawing differs from a
-    decline (which removes the registration) and from a non-response flake. No
-    ``StateTransitionLog`` row is written: the match never left ``PROPOSED``, so
-    there is no status transition to log (symmetric with the first accept, which
-    also writes no log row).
+    Only the accepting side's ``*_accepted_at`` timestamp is cleared. Nothing
+    is re-queued and no flake penalty is applied — withdrawing differs from a
+    decline (which removes the registration) and from a non-response flake.
 
     The guard that the other side has not accepted is what keeps the operation
     safe: if both sides had accepted the match would already be ``ACCEPTED`` (a
@@ -771,8 +784,8 @@ def withdraw_acceptance(match: Match, registration: Registration) -> Match:
         The updated ``Match`` instance.
 
     Raises:
-        ValueError: if ``match.status`` is not ``PROPOSED``, or if this side has
-            not accepted (nothing to withdraw).
+        ValueError: if ``match.status`` is not ``PENDING``, or if this side
+            has not accepted (nothing to withdraw).
     """
     with transaction.atomic():
         match = (
@@ -781,10 +794,10 @@ def withdraw_acceptance(match: Match, registration: Registration) -> Match:
             .get(pk=match.pk)
         )
 
-        if match.status != Match.Status.PROPOSED:
+        if match.status != Match.Status.PENDING:
             raise ValueError(
                 f"Cannot withdraw acceptance on match pk={match.pk}: status is "
-                f"{match.status!r}, expected {Match.Status.PROPOSED!r}."
+                f"{match.status!r}, expected {Match.Status.PENDING!r}."
             )
 
         side = match.side_of(registration)
@@ -806,10 +819,20 @@ def withdraw_acceptance(match: Match, registration: Registration) -> Match:
             match.referee_accepted_at = None
             field = "referee_accepted_at"
 
-        match.save(update_fields=[field, "updated_at"])
+        # Transition PENDING → PROPOSED (a real status change).
+        status_before = match.status
+        match.status = Match.Status.PROPOSED
+        match.save(update_fields=[field, "status", "updated_at"])
+        record_transition(
+            match,
+            "status",
+            before=status_before,
+            after=match.status,
+        )
 
         logger.info(
-            "Match pk=%s acceptance withdrawn by %s (registration pk=%s)",
+            "Match pk=%s acceptance withdrawn by %s (registration pk=%s); "
+            "PENDING → PROPOSED",
             match.pk,
             side,
             registration.pk,
@@ -821,15 +844,14 @@ def withdraw_acceptance(match: Match, registration: Registration) -> Match:
 def record_acceptance(match: Match, registration: Registration) -> Match:
     """Record that ``registration`` has accepted ``match``.
 
-    On the first accept, only the accepting side's ``*_accepted_at`` timestamp
-    is set and the status stays ``PROPOSED``; **no** ``StateTransitionLog`` row
-    is written at this point.
+    On the first accept (match is PROPOSED), the accepting side's
+    ``*_accepted_at`` timestamp is set and the match transitions
+    ``PROPOSED → PENDING`` — a ``StateTransitionLog`` row is written.
 
-    On the second accept (both sides now have a timestamp), the match
-    transitions ``PROPOSED → ACCEPTED``, both registrations transition
-    ``MATCHED → CONFIRMED``, and **three** ``StateTransitionLog`` rows are
-    written — one for ``Match.status`` and one for each ``Registration.status``
-    — all inside the same atomic transaction.
+    On the second accept (match is PENDING), both sides now have a timestamp.
+    The match transitions ``PENDING → ACCEPTED`` and one ``StateTransitionLog``
+    row is written for ``Match.status``. Registration statuses are no longer
+    transitioned here (VERB-44: pool standing is independent of match progress).
 
     Re-accepting an already-accepted side is a no-op for that timestamp (the
     existing value is kept) so callers can safely retry without double-counting.
@@ -842,7 +864,7 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
         The updated ``Match`` instance.
 
     Raises:
-        ValueError: if ``match.status`` is not ``PROPOSED``.
+        ValueError: if ``match.status`` is not ``PROPOSED`` or ``PENDING``.
     """
     with transaction.atomic():
         match = (
@@ -851,10 +873,10 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
             .get(pk=match.pk)
         )
 
-        if match.status != Match.Status.PROPOSED:
+        if match.status not in (Match.Status.PROPOSED, Match.Status.PENDING):
             raise ValueError(
                 f"Cannot accept match pk={match.pk}: status is {match.status!r}, "
-                f"expected {Match.Status.PROPOSED!r}."
+                f"expected PROPOSED or PENDING."
             )
 
         side = match.side_of(registration)
@@ -873,13 +895,14 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
         if update_fields:
             match.save(update_fields=update_fields + ["updated_at"])
 
-        # Check if both sides have now accepted; the outer PROPOSED guard above
-        # guarantees status is still PROPOSED here.
-        if (
+        # After setting the timestamp, determine the next state.
+        both_accepted = (
             match.ambassador_accepted_at is not None
             and match.referee_accepted_at is not None
-        ):
-            # Transition match status.
+        )
+
+        if both_accepted:
+            # Second accept: PENDING → ACCEPTED.
             status_before = match.status
             match.status = Match.Status.ACCEPTED
             match.save(update_fields=["status", "updated_at"])
@@ -889,44 +912,30 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
                 before=status_before,
                 after=match.status,
             )
-
-            # Transition both registrations to CONFIRMED.
-            # Both FKs are non-null on PROPOSED matches; assertions satisfy mypy.
-            assert match.ambassador_registration is not None
-            assert match.referee_registration is not None
-            ambassador_reg = match.ambassador_registration
-            referee_reg = match.referee_registration
-
-            amb_status_before = ambassador_reg.status
-            ref_status_before = referee_reg.status
-
-            Registration.objects.filter(
-                pk__in=[ambassador_reg.pk, referee_reg.pk]
-            ).update(status=Registration.Status.CONFIRMED)
-
-            ambassador_reg.status = Registration.Status.CONFIRMED
-            referee_reg.status = Registration.Status.CONFIRMED
-
-            record_transition(
-                ambassador_reg,
-                "status",
-                before=amb_status_before,
-                after=ambassador_reg.status,
-            )
-            record_transition(
-                referee_reg,
-                "status",
-                before=ref_status_before,
-                after=referee_reg.status,
-            )
-
             logger.info(
                 "Match pk=%s ACCEPTED: both parties accepted "
                 "(ambassador reg pk=%s, referee reg pk=%s)",
                 match.pk,
-                ambassador_reg.pk,
-                referee_reg.pk,
+                match.ambassador_registration_id,
+                match.referee_registration_id,
             )
+        elif update_fields:
+            # First accept: PROPOSED → PENDING (only when a timestamp was actually set).
+            if match.status == Match.Status.PROPOSED:
+                status_before = match.status
+                match.status = Match.Status.PENDING
+                match.save(update_fields=["status", "updated_at"])
+                record_transition(
+                    match,
+                    "status",
+                    before=status_before,
+                    after=match.status,
+                )
+                logger.info(
+                    "Match pk=%s first accept by %s: PROPOSED → PENDING",
+                    match.pk,
+                    side,
+                )
 
     return match
 
@@ -938,12 +947,12 @@ def report_no_show(match: Match, registration: Registration) -> Match:
     accused is the other party on the match.
 
     Atomically:
-    1. Transitions ``match.status`` ACCEPTED → ABANDONED and sets
+    1. Transitions ``match.status`` ACCEPTED → CANCELLED and sets
        ``no_show_reported_by`` / ``no_show_reported_at``.
     2. Writes one ``StateTransitionLog`` row for ``Match.status``.
     3. Suspends the accused (``SUSPENDED``, ``flake_count += 1``) and logs
        the accused's ``Registration.status`` transition.
-    4. Re-queues the reporter to the front of the pool (``WAITING``,
+    4. Re-queues the reporter to the front of the pool (``VERIFIED``,
        ``priority += 1``). The reporter's status transition is **not** logged,
        consistent with the decline path.
     5. Queues ``send_no_show_notification`` to fire after the transaction
@@ -992,11 +1001,11 @@ def report_no_show(match: Match, registration: Registration) -> Match:
         else:
             accused = match.ambassador_registration
 
-        # Transition the match to ABANDONED.
+        # Transition the match to CANCELLED.
         status_before = match.status
         match.no_show_reported_by = side
         match.no_show_reported_at = timezone.now()
-        match.status = Match.Status.ABANDONED
+        match.status = Match.Status.CANCELLED
         match.save(
             update_fields=[
                 "no_show_reported_by",
@@ -1027,7 +1036,7 @@ def report_no_show(match: Match, registration: Registration) -> Match:
         requeue_to_front(registration)
 
         logger.info(
-            "report_no_show: match pk=%s ABANDONED by %s (registration pk=%s); "
+            "report_no_show: match pk=%s CANCELLED by %s (registration pk=%s); "
             "accused (pk=%s) SUSPENDED, reporter re-queued to front.",
             match.pk,
             side,
@@ -1052,7 +1061,7 @@ def send_no_show_notification(match: Match, accused_registration: Registration) 
     Each email is rendered under the accused's ``preferred_language``.
 
     Args:
-        match: The match that was abandoned.
+        match: The match that was cancelled.
         accused_registration: The registration of the party being notified.
     """
     # Reload to ensure we have the latest related user.
@@ -1082,7 +1091,7 @@ def record_decline(match: Match, registration: Registration) -> Match:
     """Record that ``registration`` has declined ``match``.
 
     Sets ``declined_by``, ``declined_at``, ``declined_by_email_hash``, and
-    transitions the match from ``PROPOSED → DECLINED``. One
+    transitions the match from ``PROPOSED or PENDING → DECLINED``. One
     ``StateTransitionLog`` row is written for the status change.
 
     The email hash is captured here, before ``decline_match`` deletes the
@@ -1102,15 +1111,15 @@ def record_decline(match: Match, registration: Registration) -> Match:
         The updated ``Match`` instance.
 
     Raises:
-        ValueError: if ``match.status`` is not ``PROPOSED``.
+        ValueError: if ``match.status`` is not ``PROPOSED`` or ``PENDING``.
     """
     with transaction.atomic():
         match = Match.objects.select_for_update().get(pk=match.pk)
 
-        if match.status != Match.Status.PROPOSED:
+        if match.status not in (Match.Status.PROPOSED, Match.Status.PENDING):
             raise ValueError(
                 f"Cannot decline match pk={match.pk}: status is {match.status!r}, "
-                f"expected {Match.Status.PROPOSED!r}."
+                f"expected PROPOSED or PENDING."
             )
 
         side = match.side_of(registration)

@@ -94,12 +94,12 @@ def test_has_flakes_filter_no_returns_only_clean(client: Client) -> None:
 
 
 def _post_action(client: Client, pks: list[int]) -> HttpResponse:
-    """POST the export_abandoned_as_csv action for the given Match PKs."""
+    """POST the export_cancelled_as_csv action for the given Match PKs."""
     url = reverse("admin:matching_match_changelist")
     return client.post(
         url,
         {
-            "action": "export_abandoned_as_csv",
+            "action": "export_cancelled_as_csv",
             "_selected_action": [str(pk) for pk in pks],
         },
     )
@@ -107,7 +107,7 @@ def _post_action(client: Client, pks: list[int]) -> HttpResponse:
 
 def test_csv_export_returns_200_and_correct_content_type(client: Client) -> None:
     """The export action returns 200 with a text/csv content type."""
-    match = MatchFactory.create(abandoned=True)
+    match = MatchFactory.create(cancelled=True)
     staff = make_staff_user()
     client.force_login(staff)
     response = _post_action(client, [match.pk])
@@ -117,7 +117,7 @@ def test_csv_export_returns_200_and_correct_content_type(client: Client) -> None
 
 def test_csv_export_header_row_present(client: Client) -> None:
     """The CSV always contains the expected header row."""
-    match = MatchFactory.create(abandoned=True)
+    match = MatchFactory.create(cancelled=True)
     staff = make_staff_user()
     client.force_login(staff)
     response = _post_action(client, [match.pk])
@@ -127,9 +127,9 @@ def test_csv_export_header_row_present(client: Client) -> None:
     assert "referee_email" in content
 
 
-def test_csv_export_contains_abandoned_match(client: Client) -> None:
-    """The CSV body includes a row for each ABANDONED match selected."""
-    match = MatchFactory.create(abandoned=True)
+def test_csv_export_contains_cancelled_match(client: Client) -> None:
+    """The CSV body includes a row for each CANCELLED match selected."""
+    match = MatchFactory.create(cancelled=True)
     staff = make_staff_user()
     client.force_login(staff)
     response = _post_action(client, [match.pk])
@@ -140,25 +140,25 @@ def test_csv_export_contains_abandoned_match(client: Client) -> None:
     assert match.referee_registration.user.email in content
 
 
-def test_csv_export_excludes_non_abandoned_matches(client: Client) -> None:
-    """The CSV body must not include matches that are not ABANDONED."""
-    abandoned = MatchFactory.create(abandoned=True)
+def test_csv_export_excludes_non_cancelled_matches(client: Client) -> None:
+    """The CSV body must not include matches that are not CANCELLED."""
+    cancelled = MatchFactory.create(cancelled=True)
     proposed = MatchFactory.create()
     staff = make_staff_user()
     client.force_login(staff)
-    response = _post_action(client, [abandoned.pk, proposed.pk])
+    response = _post_action(client, [cancelled.pk, proposed.pk])
     content = response.content.decode()
     # The proposed match's ambassador email must not appear.
     proposed_email = proposed.ambassador_registration.user.email
-    abandoned_email = abandoned.ambassador_registration.user.email
-    assert abandoned_email in content
+    cancelled_email = cancelled.ambassador_registration.user.email
+    assert cancelled_email in content
     # Factories create distinct users, so these emails differ.
-    assert proposed_email != abandoned_email
+    assert proposed_email != cancelled_email
     assert proposed_email not in content
 
 
-def test_csv_export_empty_when_no_abandoned_selected(client: Client) -> None:
-    """Selecting only non-ABANDONED matches produces a header-only CSV."""
+def test_csv_export_empty_when_no_cancelled_selected(client: Client) -> None:
+    """Selecting only non-CANCELLED matches produces a header-only CSV."""
     match = MatchFactory.create()  # PROPOSED by default
     staff = make_staff_user()
     client.force_login(staff)

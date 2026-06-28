@@ -37,25 +37,25 @@ class HasFlakesListFilter(admin.SimpleListFilter):
         return queryset
 
 
-@admin.action(description=_("Export selected abandoned matches as CSV"))
-def export_abandoned_as_csv(
+@admin.action(description=_("Export selected cancelled matches as CSV"))
+def export_cancelled_as_csv(
     model_admin: admin.ModelAdmin,
     request: HttpRequest,
     queryset: Any,
 ) -> HttpResponse:
-    """Stream a CSV of the ABANDONED matches from the selected queryset.
+    """Stream a CSV of the CANCELLED matches from the selected queryset.
 
-    Filters the queryset to ABANDONED status before writing rows. Returns a
-    header-only CSV when no selected matches are ABANDONED. Emails are read
+    Filters the queryset to CANCELLED status before writing rows. Returns a
+    header-only CSV when no selected matches are CANCELLED. Emails are read
     via select_related to avoid N+1 queries.
     """
-    abandoned = queryset.filter(status=Match.Status.ABANDONED).select_related(
+    cancelled = queryset.filter(status=Match.Status.CANCELLED).select_related(
         "ambassador_registration__user",
         "referee_registration__user",
     )
 
     response = HttpResponse(content_type="text/csv")
-    response["Content-Disposition"] = "attachment; filename=abandoned_matches.csv"
+    response["Content-Disposition"] = "attachment; filename=cancelled_matches.csv"
 
     writer = csv.writer(response)
     writer.writerow(
@@ -69,7 +69,7 @@ def export_abandoned_as_csv(
         ]
     )
 
-    for match in abandoned:
+    for match in cancelled:
         writer.writerow(
             [
                 match.pk,
@@ -121,7 +121,7 @@ class RegistrationAdmin(admin.ModelAdmin):
 class MatchAdmin(admin.ModelAdmin):
     """Admin for Match."""
 
-    actions = [export_abandoned_as_csv]
+    actions = [export_cancelled_as_csv]
 
     list_display = [
         "pk",

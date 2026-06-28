@@ -84,11 +84,16 @@ def is_registration_open() -> bool:
 def is_eligible_pair(ambassador: Registration, referee: Registration) -> bool:
     """Return True if ``ambassador`` and ``referee`` form an eligible match.
 
-    Eligibility rules:
-    - Opposite roles.
-    - Both VERIFIED and without an active non-terminal match.
+    Eligibility rules (checked here):
+    - Opposite roles (ambassador vs. referee).
+    - Both have VERIFIED pool standing.
     - Ambassador holds SEASONAL, ANNUAL, or MONT4 prior pass.
     - Referee holds NONE prior pass (genuinely new).
+
+    The active-match exclusion (neither holds a PROPOSED, PENDING, or ACCEPTED
+    match) is enforced upstream by ``eligible_ambassadors()`` /
+    ``eligible_referees()`` querysets and ``propose_match``; it is not
+    re-checked here to avoid an extra DB query per candidate pair.
     """
     if ambassador.role != Registration.Role.AMBASSADOR:
         return False

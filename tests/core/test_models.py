@@ -117,10 +117,10 @@ def test_record_transition_works_with_registration_instance() -> None:
     """record_transition is model-agnostic — it works with Registration too."""
     reg = RegistrationFactory.create()
 
-    log = record_transition(reg, "status", before="WAITING", after="MATCHED")
+    log = record_transition(reg, "status", before="UNVERIFIED", after="VERIFIED")
 
     assert log.field_name == "status"
-    assert log.state_before == "WAITING"
-    assert log.state_after == "MATCHED"
+    assert log.state_before == "UNVERIFIED"
+    assert log.state_after == "VERIFIED"
     assert log.object_id == reg.pk
     assert log.content_type == ContentType.objects.get_for_model(reg)

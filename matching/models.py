@@ -125,8 +125,7 @@ class Registration(BaseModel):
         SUSPENDED: the participant was suspended by the system (e.g. 2 flakes
             or a post-accept no-show accusation).
 
-        MATCHED and CONFIRMED are removed — match progress is now tracked
-        exclusively on Match.Status (ADR 0011 / VERB-44).
+        Match progress is tracked on Match.Status, not here (ADR 0011).
         """
 
         UNVERIFIED = "UNVERIFIED", _("Unverified")

@@ -26,7 +26,7 @@ def make_registration_confirmation_token(registration_pk: int) -> str:
 
     Used in the combined-form flow: the token is emailed to the registrant and
     consumed by ``register_confirm`` to transition the registration from
-    PENDING to WAITING. Salt is distinct from the match-access salt
+    UNVERIFIED to VERIFIED. Salt is distinct from the match-access salt
     (Invariant 6).
     """
     return signing.dumps({"registration_pk": registration_pk}, salt=_CONFIRM_SALT)

@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("matching", "0007_verb44_update_status_enums"),
+        ("matching", "0008_registration_nationality"),
     ]
 
     operations = [

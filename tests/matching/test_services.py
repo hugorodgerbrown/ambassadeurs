@@ -963,6 +963,38 @@ def test_register_participant_verified_still_proposes_match() -> None:
 
 
 # ---------------------------------------------------------------------------
+# register_participant — nationality kwarg
+# ---------------------------------------------------------------------------
+
+
+def test_register_participant_persists_nationality() -> None:
+    """Supplying nationality persists the ISO country code on the Registration."""
+    registration = register_participant(
+        role=Registration.Role.AMBASSADOR,
+        first_name="Ada",
+        last_name="Lovelace",
+        email="ada-nationality@example.com",
+        prior_pass=Registration.PriorPass.SEASONAL,
+        nationality="CH",
+        accepted_terms=_AMBASSADOR_STATEMENTS,
+    )
+    assert str(registration.nationality) == "CH"
+
+
+def test_register_participant_nationality_defaults_to_empty() -> None:
+    """Omitting nationality stores an empty string (field is optional)."""
+    registration = register_participant(
+        role=Registration.Role.AMBASSADOR,
+        first_name="Ada",
+        last_name="Lovelace",
+        email="ada-no-nationality@example.com",
+        prior_pass=Registration.PriorPass.SEASONAL,
+        accepted_terms=_AMBASSADOR_STATEMENTS,
+    )
+    assert str(registration.nationality) == ""
+
+
+# ---------------------------------------------------------------------------
 # confirm_registration (VERB-24 / VERB-44)
 # ---------------------------------------------------------------------------
 

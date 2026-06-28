@@ -21,6 +21,7 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django_countries.fields import CountryField
 
 from core.models import BaseModel, BaseQuerySet
 
@@ -166,6 +167,10 @@ class Registration(BaseModel):
         choices=Resort.choices,
         blank=True,
         help_text="Soft preference; used to rank matches, never to gate them.",
+    )
+    nationality = CountryField(
+        blank=True,
+        help_text="ISO 3166-1 alpha-2 country code. Optional; collected for analytics.",
     )
     prior_pass = models.CharField(
         max_length=16,

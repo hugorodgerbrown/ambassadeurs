@@ -2,7 +2,7 @@
 #
 # A single ``normalise_email`` function is the canonical entry point for
 # cleaning an email address before storage or lookup.  All entry points in the
-# codebase (forms, services, adapters, hashing) route through here so that the
+# codebase (forms, services, views, hashing) route through here so that the
 # stored value and every derived value (e.g. the blind-index hash) are always
 # produced from the same normalised form (CLAUDE.md invariant 5).
 

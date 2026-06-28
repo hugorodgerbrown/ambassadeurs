@@ -303,9 +303,9 @@ def register_email_sent(request: HttpRequest) -> HttpResponse:
 def register_confirm(request: HttpRequest, token: str) -> HttpResponse:
     """Consume the registration confirmation token.
 
-    Reads the token, loads the Registration, transitions UNVERIFIED → VERIFIED,
-    marks the email verified in allauth, logs the user in, and redirects to
-    ``register_done`` for the appropriate role.
+    Reads the token, loads the Registration, transitions UNVERIFIED → VERIFIED
+    via ``confirm_registration``, logs the user in with Django's ModelBackend,
+    and redirects to ``register_done`` for the appropriate role.
 
     Returns 400 on a bad/expired token or a non-UNVERIFIED registration (used
     or invalid link).

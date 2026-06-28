@@ -160,8 +160,10 @@ def login_verify(request: HttpRequest, token: str) -> HttpResponse:
         return render(request, "accounts/login_invalid.html", status=400)
 
     try:
-        user = User.objects.get(pk=user_pk)
+        user = User.objects.get(pk=user_pk, is_active=True)
     except User.DoesNotExist:
+        # Covers both deleted users and deactivated (is_active=False) users;
+        # treat both as invalid tokens so inactive accounts cannot log in.
         return render(request, "accounts/login_invalid.html", status=400)
 
     if request.method == "POST":

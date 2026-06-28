@@ -772,6 +772,20 @@ msgid ""
 "both accepted."
 msgstr ""
 
+msgid "Nationality (optional)"
+msgstr ""
+
+msgid ""
+"Providing your nationality is optional — the default is “Prefer not to say”. "
+"Where you choose to share it, we use it only to understand the geographic "
+"spread of programme participants in aggregate (for example, to report on how "
+"widely the programme reaches). Your nationality is never shown to another "
+"participant, is never used to match or rank you, and is visible only to "
+"programme staff. The legal basis for this processing is our legitimate "
+"interest in understanding the reach of the programme; you can decline at any "
+"time by leaving “Prefer not to say” selected."
+msgstr ""
+
 msgid "How long we keep it"
 msgstr ""
 

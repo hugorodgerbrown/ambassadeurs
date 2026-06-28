@@ -5,15 +5,18 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('matching', '0007_verb44_update_status_enums'),
+        ("matching", "0007_verb44_update_status_enums"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='registration',
-            name='nationality',
-            field=django_countries.fields.CountryField(blank=True, help_text='ISO 3166-1 alpha-2 country code. Optional; collected for analytics.', max_length=2),
+            model_name="registration",
+            name="nationality",
+            field=django_countries.fields.CountryField(
+                blank=True,
+                help_text="ISO 3166-1 alpha-2 country code. Optional; collected for analytics.",
+                max_length=2,
+            ),
         ),
     ]

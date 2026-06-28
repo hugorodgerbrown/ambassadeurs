@@ -251,6 +251,39 @@ def test_detail_status_sentence(status: str, expected_label: bytes) -> None:
     assert expected_label in response.content
 
 
+@pytest.mark.parametrize(
+    ("status", "tone", "label"),
+    [
+        (Registration.Status.PENDING, b"tag-status--muted", b"Email unconfirmed"),
+        (Registration.Status.WAITING, b"tag-status--muted", b"In the queue"),
+        (Registration.Status.MATCHED, b"tag-status--wait", b"Match pending"),
+        (Registration.Status.CONFIRMED, b"tag-status--done", b"Match confirmed"),
+        (Registration.Status.WITHDRAWN, b"tag-status--muted", b"Withdrawn"),
+        (Registration.Status.SUSPENDED, b"tag-status--muted", b"Suspended"),
+    ],
+)
+def test_detail_status_pill(status: str, tone: bytes, label: bytes) -> None:
+    """The Match status heading shows a tone-coded pill for each status."""
+    registration = RegistrationFactory.create(status=status)
+    client = Client()
+    client.force_login(registration.user)
+    response = client.get(reverse("accounts:detail"))
+    assert response.status_code == 200
+    assert tone in response.content
+    assert label in response.content
+
+
+def test_detail_status_pill_no_registration() -> None:
+    """A user without a registration sees a neutral 'No match' pill."""
+    user = UserFactory.create()
+    client = Client()
+    client.force_login(user)
+    response = client.get(reverse("accounts:detail"))
+    assert response.status_code == 200
+    assert b"tag-status--muted" in response.content
+    assert b"No match" in response.content
+
+
 # ---------------------------------------------------------------------------
 # MATCHED sub-states: partner name + partner response (VERB-37, amended)
 # ---------------------------------------------------------------------------

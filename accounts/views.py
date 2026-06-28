@@ -31,6 +31,35 @@ from .services import delete_account, send_confirmation_email, update_account
 from .tokens import make_match_access_token
 
 
+# Tone modifiers map to the design system's ``.tag-status--*`` pill variants:
+# "muted" (neutral grey — no match yet), "wait" (warm — match pending), and
+# "done" (green — match confirmed). One pill per registration status, shown on
+# the Match status card heading.
+def _match_status_pill(registration: Registration | None) -> dict[str, str]:
+    """Return the ``{label, tone}`` for the Match status heading pill.
+
+    ``tone`` is the ``.tag-status--<tone>`` suffix; ``label`` is translated.
+    Covers every Registration.Status plus the no-registration case. WAITING and
+    the pre/post-pool states share the neutral "muted" tone (there is no match);
+    MATCHED is "wait"; CONFIRMED is "done".
+    """
+    if registration is None:
+        return {"label": _("No match"), "tone": "muted"}
+    pills = {
+        Registration.Status.PENDING: (_("Email unconfirmed"), "muted"),
+        Registration.Status.WAITING: (_("In the queue"), "muted"),
+        Registration.Status.MATCHED: (_("Match pending"), "wait"),
+        Registration.Status.CONFIRMED: (_("Match confirmed"), "done"),
+        Registration.Status.WITHDRAWN: (_("Withdrawn"), "muted"),
+        Registration.Status.SUSPENDED: (_("Suspended"), "muted"),
+    }
+    label, tone = pills.get(
+        Registration.Status(registration.status),
+        (registration.get_status_display(), "muted"),
+    )
+    return {"label": str(label), "tone": tone}
+
+
 @login_required
 def account_detail(request: HttpRequest) -> HttpResponse:
     """Show the participant's profile, match status and security controls.
@@ -103,6 +132,7 @@ def account_detail(request: HttpRequest) -> HttpResponse:
             "registration": registration,
             "email_verified": email_verified,
             "debug_verify_url": debug_verify_url,
+            "status_pill": _match_status_pill(registration),
             "partner_first_name": partner_first_name,
             "partner_accepted": partner_accepted,
             "queue_position": position,

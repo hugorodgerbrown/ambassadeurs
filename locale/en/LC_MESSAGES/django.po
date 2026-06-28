@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-27 17:56+0200\n"
+"POT-Creation-Date: 2026-06-28 11:44+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -42,6 +42,27 @@ msgid ""
 "%(url)s\n"
 "\n"
 "This link expires in 24 hours. If you didn't request it, ignore this email."
+msgstr ""
+
+msgid "No match"
+msgstr ""
+
+msgid "Email unconfirmed"
+msgstr ""
+
+msgid "In the queue"
+msgstr ""
+
+msgid "Match pending"
+msgstr ""
+
+msgid "Match confirmed"
+msgstr ""
+
+msgid "Withdrawn"
+msgstr ""
+
+msgid "Suspended"
 msgstr ""
 
 msgid "your partner"
@@ -163,12 +184,6 @@ msgid "Matched"
 msgstr ""
 
 msgid "Confirmed"
-msgstr ""
-
-msgid "Withdrawn"
-msgstr ""
-
-msgid "Suspended"
 msgstr ""
 
 msgid "None — I did not hold a prior pass"

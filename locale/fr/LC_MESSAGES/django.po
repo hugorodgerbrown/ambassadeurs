@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-27 17:56+0200\n"
+"POT-Creation-Date: 2026-06-28 11:44+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -51,6 +51,27 @@ msgstr ""
 "\n"
 "Ce lien expire dans 24 heures. Si vous n'avez pas fait cette demande, "
 "ignorez cet e-mail."
+
+msgid "No match"
+msgstr "Aucune mise en relation"
+
+msgid "Email unconfirmed"
+msgstr "E-mail non confirmé"
+
+msgid "In the queue"
+msgstr "Dans la file d'attente"
+
+msgid "Match pending"
+msgstr "Mise en relation en attente"
+
+msgid "Match confirmed"
+msgstr "Mise en relation confirmée"
+
+msgid "Withdrawn"
+msgstr "Retiré"
+
+msgid "Suspended"
+msgstr "Suspendu"
 
 msgid "your partner"
 msgstr "votre partenaire"
@@ -179,12 +200,6 @@ msgstr "Mis en relation"
 
 msgid "Confirmed"
 msgstr "Confirmé"
-
-msgid "Withdrawn"
-msgstr "Retiré"
-
-msgid "Suspended"
-msgstr "Suspendu"
 
 msgid "None — I did not hold a prior pass"
 msgstr "Aucun — je n'avais pas d'abonnement précédent"
@@ -456,8 +471,8 @@ msgstr ""
 #, python-format
 msgid "You have been matched with %(name)s. They have not yet responded."
 msgstr ""
-"Vous avez été mis(e) en relation avec %(name)s. Cette personne n'a pas encore "
-"répondu."
+"Vous avez été mis(e) en relation avec %(name)s. Cette personne n'a pas "
+"encore répondu."
 
 #, python-format
 msgid ""
@@ -1605,9 +1620,6 @@ msgstr ""
 
 #~ msgid "Match · Your move"
 #~ msgstr "Mise en relation · À vous de jouer"
-
-#~ msgid "Match · Confirmed"
-#~ msgstr "Mise en relation · Confirmée"
 
 #~ msgid "Match · Declined"
 #~ msgstr "Mise en relation · Refusée"

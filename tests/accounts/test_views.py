@@ -135,18 +135,41 @@ def test_login_verify_get_shows_target_email() -> None:
     assert b"ada@example.com" in response.content
 
 
-def test_login_verify_get_expired_token_returns_400() -> None:
-    """GET with an expired token returns 400 and renders login_invalid."""
+def test_login_verify_get_corrupted_token_returns_400() -> None:
+    """GET with a corrupted (tampered) token returns 400 and renders login_invalid."""
     user = UserFactory.create()
     token = make_login_token(user.pk)
-    # Forge expiry by passing max_age=-1 directly is not possible via URL;
-    # instead mint a token then override via a re-signed call to the view with
-    # a known-bad token value.
     response = Client().get(
         reverse("accounts:login_verify", args=[token + "corrupted"])
     )
     assert response.status_code == 400
     assert "accounts/login_invalid.html" in [t.name for t in response.templates]
+
+
+def test_login_verify_get_expired_token_returns_400(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """GET with a properly-signed but expired token returns 400 without logging in.
+
+    Uses monkeypatch to make ``read_login_token`` evaluate the token with
+    ``max_age=-1``, simulating expiry without waiting or mocking the clock.
+    """
+    import accounts.views as views_module
+    from accounts.tokens import read_login_token as real_read
+
+    user = UserFactory.create()
+    token = make_login_token(user.pk)
+
+    def _always_expired(t: str, max_age: int = -1) -> int | None:
+        return real_read(t, max_age=-1)
+
+    monkeypatch.setattr(views_module, "read_login_token", _always_expired)
+
+    client = Client()
+    response = client.get(reverse("accounts:login_verify", args=[token]))
+    assert response.status_code == 400
+    assert "accounts/login_invalid.html" in [t.name for t in response.templates]
+    assert SESSION_KEY not in client.session
 
 
 def test_login_verify_get_garbage_token_returns_400() -> None:
@@ -169,6 +192,31 @@ def test_login_verify_post_valid_token_logs_in_and_redirects() -> None:
     # User must be logged in.
     assert SESSION_KEY in client.session
     assert int(client.session[SESSION_KEY]) == user.pk
+
+
+def test_login_verify_post_inactive_user_returns_400() -> None:
+    """POST with a valid token for an inactive user returns 400 without logging in.
+
+    Covers the is_active=True guard added to close the deactivated-user blocker.
+    """
+    user = UserFactory.create(is_active=False)
+    token = make_login_token(user.pk)
+    client = Client()
+    response = client.post(reverse("accounts:login_verify", args=[token]))
+    assert response.status_code == 400
+    assert "accounts/login_invalid.html" in [t.name for t in response.templates]
+    assert SESSION_KEY not in client.session
+
+
+def test_login_verify_get_deleted_user_returns_400() -> None:
+    """GET with a valid token whose user has since been deleted returns 400."""
+    user = UserFactory.create()
+    user_pk = user.pk
+    token = make_login_token(user_pk)
+    user.delete()
+    response = Client().get(reverse("accounts:login_verify", args=[token]))
+    assert response.status_code == 400
+    assert "accounts/login_invalid.html" in [t.name for t in response.templates]
 
 
 def test_login_verify_post_invalid_token_returns_400() -> None:

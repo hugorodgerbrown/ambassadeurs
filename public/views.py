@@ -53,6 +53,7 @@ from accounts.tokens import (
     read_registration_confirmation_token,
 )
 from core.decorators import require_htmx
+from core.geo import geolocate, get_client_ip
 from matching.forms import RegistrationForm
 from matching.models import Match, Registration
 from matching.services import (
@@ -193,6 +194,12 @@ def register(request: HttpRequest) -> HttpResponse:
         raise Http404("Unknown registration role.")
     role_value = post_role_value
 
+    # Resolve geolocation once, before the auth/anon branch, so both call
+    # sites receive the same country and region. The raw IP is discarded after
+    # the lookup — it is NEVER persisted (data minimisation).
+    _client_ip = get_client_ip(request)
+    _geo_country, _geo_region = geolocate(_client_ip) if _client_ip else ("", "")
+
     if request.user.is_authenticated:
         # Defensive authenticated path (not reachable from the standard UI but
         # handled for completeness). Create a VERIFIED registration immediately.
@@ -210,7 +217,10 @@ def register(request: HttpRequest) -> HttpResponse:
                 phone=data.get("phone", ""),
                 preferred_location=data.get("preferred_location", ""),
                 preferred_language=data.get("preferred_language", ""),
+                nationality=data.get("nationality", ""),
                 accepted_terms=form.accepted_statements(),
+                registration_country=_geo_country,
+                registration_region=_geo_region,
             )
             return redirect("public:register_done", role=role_slug)
         return render(
@@ -256,8 +266,11 @@ def register(request: HttpRequest) -> HttpResponse:
                     phone=data.get("phone", ""),
                     preferred_location=data.get("preferred_location", ""),
                     preferred_language=data.get("preferred_language", ""),
+                    nationality=data.get("nationality", ""),
                     accepted_terms=form.accepted_statements(),
                     status=Registration.Status.UNVERIFIED,
+                    registration_country=_geo_country,
+                    registration_region=_geo_region,
                 )
                 confirm_url = send_confirmation_email(request, registration)
     except IntegrityError:

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-28 17:06+0200\n"
+"POT-Creation-Date: 2026-06-28 17:19+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -145,11 +145,17 @@ msgstr "E-mail"
 msgid "Preferred resort / ticket office"
 msgstr "Station / guichet préféré"
 
+msgid "Nationality"
+msgstr ""
+
 msgid "Prior-season pass type"
 msgstr "Type d'abonnement saison précédente"
 
 msgid "I have read and agree to the Terms of Use"
 msgstr "J'ai lu et j'accepte les Conditions d'utilisation"
+
+msgid "Prefer not to say"
+msgstr ""
 
 msgid ""
 "I have held a seasonal or annual pass from one of the 4 Vallées companies in "

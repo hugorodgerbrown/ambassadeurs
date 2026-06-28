@@ -21,6 +21,7 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django_countries.fields import CountryField
 
 from core.models import BaseModel, BaseQuerySet
 
@@ -167,6 +168,10 @@ class Registration(BaseModel):
         blank=True,
         help_text="Soft preference; used to rank matches, never to gate them.",
     )
+    nationality = CountryField(
+        blank=True,
+        help_text="ISO 3166-1 alpha-2 country code. Optional; collected for analytics.",
+    )
     prior_pass = models.CharField(
         max_length=16,
         choices=PriorPass.choices,
@@ -214,6 +219,31 @@ class Registration(BaseModel):
         blank=True,
         help_text=(
             "Tz-aware timestamp at which the participant accepted the statements."
+        ),
+    )
+
+    # --- Geolocation fields (admin-only, never shown to participants) ----------
+    # Derived from the request's client IP at registration time (in memory only;
+    # the IP itself is never stored). Stored as free-text resolved from the
+    # MaxMind GeoLite2-City database. Empty when the database is absent or the
+    # IP is private/unroutable (e.g. local development).
+    registration_country = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text=(
+            "Country name derived from the client IP at registration time "
+            "(admin-only, never shown to participants). The raw IP is never stored."
+        ),
+    )
+    registration_region = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        help_text=(
+            "Region / subdivision name derived from the client IP at registration "
+            "time (admin-only, never shown to participants). "
+            "The raw IP is never stored."
         ),
     )
 

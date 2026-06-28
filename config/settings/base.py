@@ -29,6 +29,7 @@ THIRD_PARTY_APPS = [
     "allauth.socialaccount",
     "allauth.socialaccount.providers.facebook",
     "django_htmx",
+    "django_countries",
 ]
 
 LOCAL_APPS = [
@@ -163,6 +164,17 @@ STORAGES = {
 }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# --- GeoIP (MaxMind GeoLite2-City) ----------------------------------------
+# Path to the local GeoLite2-City .mmdb file. The file is downloaded by
+# build.sh when MAXMIND_LICENSE_KEY is set; absent locally unless you run
+# the download script. When the file is missing, geolocation degrades
+# gracefully: registration_country/region are stored as empty strings and a
+# warning is logged. The raw client IP is NEVER persisted (in memory only).
+GEOIP_DATABASE_PATH: str = config(
+    "GEOIP_DATABASE_PATH",
+    default=str(BASE_DIR / "geoip" / "GeoLite2-City.mmdb"),
+)
 
 DEFAULT_FROM_EMAIL = config(
     "DEFAULT_FROM_EMAIL", default="Ambassadeurs <noreply@example.com>"

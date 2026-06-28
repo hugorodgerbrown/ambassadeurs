@@ -88,9 +88,7 @@ def make_login_token(user_pk: int) -> str:
     return signing.dumps({"user_pk": user_pk}, salt=_LOGIN_SALT)
 
 
-def read_login_token(
-    token: str, max_age: int = LOGIN_TOKEN_MAX_AGE
-) -> int | None:
+def read_login_token(token: str, max_age: int = LOGIN_TOKEN_MAX_AGE) -> int | None:
     """Return the user pk for a valid login token, else ``None``.
 
     Returns ``None`` for a tampered, malformed, expired token, or one whose

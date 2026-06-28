@@ -183,22 +183,22 @@ class RegistrationForm(forms.Form):
         if self.role != Registration.Role.AMBASSADOR:
             cleaned["prior_pass"] = Registration.PriorPass.NONE
 
-        # Duplicate-registration guard: one non-PENDING registration per user.
-        # PENDING rows are excluded so that a re-submit for the same email is
+        # Duplicate-registration guard: one non-UNVERIFIED registration per user.
+        # UNVERIFIED rows are excluded so that a re-submit for the same email is
         # handled by the view (resend the confirmation link) rather than
         # surfacing a validation error here.
         already_registered = False
         if self.user is not None:
             already_registered = (
                 Registration.objects.filter(user=self.user)
-                .exclude(status=Registration.Status.PENDING)
+                .exclude(status=Registration.Status.UNVERIFIED)
                 .exists()
             )
         else:
             email = cleaned.get("email")
             already_registered = bool(email) and (
                 Registration.objects.filter(user__email=email)
-                .exclude(status=Registration.Status.PENDING)
+                .exclude(status=Registration.Status.UNVERIFIED)
                 .exists()
             )
         if already_registered:

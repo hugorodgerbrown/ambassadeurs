@@ -20,14 +20,9 @@ DJANGO_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django.contrib.sites",
 ]
 
 THIRD_PARTY_APPS = [
-    "allauth",
-    "allauth.account",
-    "allauth.socialaccount",
-    "allauth.socialaccount.providers.facebook",
     "django_htmx",
 ]
 
@@ -53,7 +48,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "allauth.account.middleware.AccountMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
 ]
 
@@ -112,7 +106,6 @@ APPLICATION_FORM_URL: str = config(
 
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
-    "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -125,22 +118,10 @@ AUTH_PASSWORD_VALIDATORS = [
     )
 ]
 
-SITE_ID = 1
-
-# allauth — passwordless, email-first. The signed-link and Facebook flows are
-# finalised in the auth tickets (VERB-2/3/4); these are valid baseline values.
-ACCOUNT_ADAPTER = "accounts.adapters.AccountAdapter"
-ACCOUNT_LOGIN_METHODS = {"email"}
-ACCOUNT_SIGNUP_FIELDS = ["email*"]
-ACCOUNT_UNIQUE_EMAIL = True
-ACCOUNT_EMAIL_VERIFICATION = "mandatory"
-ACCOUNT_LOGIN_BY_CODE_ENABLED = True
-# The default User model carries a username we don't use; let allauth ignore it.
-ACCOUNT_USER_MODEL_USERNAME_FIELD = None
-SOCIALACCOUNT_PROVIDERS = {"facebook": {}}
-
-LOGIN_REDIRECT_URL = "/"
-LOGIN_URL = "account_login"
+# Magic-link login (VERB-46 — allauth removed).
+# LOGIN_URL uses the named URL so @login_required redirects go to the new form.
+LOGIN_URL = "accounts:login"
+LOGIN_REDIRECT_URL = "accounts:detail"
 
 # --- Internationalisation -------------------------------------------------
 

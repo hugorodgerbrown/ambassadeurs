@@ -13,15 +13,24 @@
 #   from the active match (if any) and passes it to the template, so the
 #   template never needs to compare Registration.Status values to infer match
 #   progress.
+#
+# Login flow (VERB-46 — allauth removed):
+#   login_request  GET/POST — email form → sends magic link
+#   login_sent     GET — static "check your inbox" page
+#   login_verify   GET — show "Sign in as <email>" + Confirm button (no login)
+#                  POST — validate token, call login(), redirect to accounts:detail
+#   logout         POST — calls logout(), redirects to public:home
+#                  GET  — renders logout confirmation page
 
 from __future__ import annotations
 
+import logging
 from typing import cast
 
-from allauth.account.models import EmailAddress
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import logout
+from django.contrib.auth import login
+from django.contrib.auth import logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Q
@@ -29,13 +38,21 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils.translation import gettext as _
 
+from core.emails import normalise_email
 from matching.models import Match, Registration
 from matching.services import queue_position as get_queue_position
 from public.views import _render_match_page
 
 from .forms import AccountForm
-from .services import delete_account, send_confirmation_email, update_account
-from .tokens import make_match_access_token
+from .services import (
+    delete_account,
+    send_confirmation_email,
+    send_login_email,
+    update_account,
+)
+from .tokens import make_match_access_token, read_login_token
+
+logger = logging.getLogger(__name__)
 
 
 def _match_status_pill(
@@ -77,6 +94,104 @@ def _match_status_pill(
     return {"label": str(label), "tone": tone}
 
 
+# ---------------------------------------------------------------------------
+# Magic-link login flow (VERB-46)
+# ---------------------------------------------------------------------------
+
+
+def login_request(request: HttpRequest) -> HttpResponse:
+    """Show the magic-link login form (GET) or process the email submission (POST).
+
+    GET — renders the email form at ``accounts/login.html``.
+    POST — normalises the submitted email, looks up an active User with that
+    address, and if found sends a magic link via ``send_login_email``. Always
+    redirects to ``accounts:login_sent`` regardless of whether the address was
+    found — no enumeration (Invariant 5, acceptance criterion).
+    """
+    if request.method == "POST":
+        raw_email = request.POST.get("email", "")
+        email = normalise_email(raw_email)
+        try:
+            user = User.objects.get(email=email, is_active=True)
+        except User.DoesNotExist:
+            user = None
+
+        if user is not None:
+            login_url = send_login_email(request, user)
+            if settings.DEBUG:
+                request.session["debug_login_url"] = login_url
+
+        return redirect("accounts:login_sent")
+
+    return render(request, "accounts/login.html")
+
+
+def login_sent(request: HttpRequest) -> HttpResponse:
+    """Static "check your inbox" page shown after a login link is requested.
+
+    Under DEBUG, the session may carry ``debug_login_url`` — pop it and pass
+    it to the template so developers can click through without email.
+    """
+    debug_login_url = None
+    if settings.DEBUG:
+        debug_login_url = request.session.pop("debug_login_url", None)
+    return render(
+        request,
+        "accounts/login_sent.html",
+        {"debug_login_url": debug_login_url},
+    )
+
+
+def login_verify(request: HttpRequest, token: str) -> HttpResponse:
+    """Render the magic-link confirmation page (GET) or complete the login (POST).
+
+    GET — validates the token via ``read_login_token``. Invalid/expired tokens
+    render ``accounts/login_invalid.html`` with status 400 and do NOT log the
+    user in (prefetch-safe, Invariant 6). Valid tokens render
+    ``accounts/login_verify.html`` showing the target user's email and a
+    Confirm button that POSTs to this same URL.
+
+    POST — re-validates the token (idempotent guard against replay), then calls
+    ``django.contrib.auth.login`` with ``ModelBackend`` and redirects to
+    ``accounts:detail``.
+    """
+    user_pk = read_login_token(token)
+    if user_pk is None:
+        return render(request, "accounts/login_invalid.html", status=400)
+
+    try:
+        user = User.objects.get(pk=user_pk)
+    except User.DoesNotExist:
+        return render(request, "accounts/login_invalid.html", status=400)
+
+    if request.method == "POST":
+        login(
+            request,
+            user,
+            backend="django.contrib.auth.backends.ModelBackend",
+        )
+        return redirect("accounts:detail")
+
+    return render(request, "accounts/login_verify.html", {"email": user.email})
+
+
+def logout_view(request: HttpRequest) -> HttpResponse:
+    """Log out the current user (POST) or show the logout confirmation page (GET).
+
+    POST — calls ``django.contrib.auth.logout`` and redirects to ``public:home``.
+    GET  — renders ``accounts/logout.html`` with a confirmation form.
+    """
+    if request.method == "POST":
+        auth_logout(request)
+        return redirect("public:home")
+    return render(request, "accounts/logout.html")
+
+
+# ---------------------------------------------------------------------------
+# Account self-service views (authenticated)
+# ---------------------------------------------------------------------------
+
+
 @login_required
 def account_detail(request: HttpRequest) -> HttpResponse:
     """Show the participant's profile, match status and security controls.
@@ -90,6 +205,10 @@ def account_detail(request: HttpRequest) -> HttpResponse:
 
     Queue position and accepted-match count are computed for VERIFIED
     registrations that are currently in the pool (no active match).
+
+    ``email_verified`` is derived from the Registration status (not from the
+    former allauth EmailAddress model, which has been removed in VERB-46).
+    An admin user with no Registration is treated as unverified (False).
     """
     user = cast(User, request.user)
     try:
@@ -97,7 +216,13 @@ def account_detail(request: HttpRequest) -> HttpResponse:
     except Registration.DoesNotExist:
         registration = None
 
-    email_verified = EmailAddress.objects.filter(user=user, verified=True).exists()
+    # Email is considered verified once the registration leaves UNVERIFIED status
+    # (i.e. the confirmation link was clicked). Admin users without a registration
+    # are treated as unverified for display purposes.
+    email_verified = (
+        registration is not None
+        and registration.status != Registration.Status.UNVERIFIED
+    )
 
     debug_verify_url = None
     if settings.DEBUG:
@@ -180,6 +305,9 @@ def account_resend_confirmation(request: HttpRequest) -> HttpResponse:
     found, resends the confirmation email and stashes the URL in the session
     under DEBUG. On any other method, redirects to the account detail page
     without sending.
+
+    Messages have been removed (owner decision, VERB-46). The view is now
+    redirect-only — the redirect itself is the only feedback.
     """
     if request.method != "POST":
         return redirect("accounts:detail")
@@ -190,17 +318,9 @@ def account_resend_confirmation(request: HttpRequest) -> HttpResponse:
             user=user, status=Registration.Status.UNVERIFIED
         )
     except Registration.DoesNotExist:
-        messages.error(
-            request,
-            _("No pending registration found. Your email may already be confirmed."),
-        )
         return redirect("accounts:detail")
 
     confirm_url = send_confirmation_email(request, registration)
-    messages.success(
-        request,
-        _("Confirmation email resent. Please check your inbox."),
-    )
     if settings.DEBUG:
         request.session["debug_verify_url"] = confirm_url
 
@@ -252,7 +372,7 @@ def account_delete(request: HttpRequest) -> HttpResponse:
     """Confirm (GET) and perform (POST) deletion of the participant's account."""
     if request.method == "POST":
         user = cast(User, request.user)
-        logout(request)
+        auth_logout(request)
         delete_account(user)
         messages.success(request, _("Your account has been deleted."))
         return redirect("public:home")

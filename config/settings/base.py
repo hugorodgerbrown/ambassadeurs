@@ -29,6 +29,7 @@ THIRD_PARTY_APPS = [
     "allauth.socialaccount",
     "allauth.socialaccount.providers.facebook",
     "django_htmx",
+    "django_countries",
 ]
 
 LOCAL_APPS = [

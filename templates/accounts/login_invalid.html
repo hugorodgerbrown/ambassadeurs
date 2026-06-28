@@ -9,7 +9,7 @@
         <h1 class="mb-4 text-ink">{% translate "This link has expired or is invalid" %}</h1>
         <p class="mb-6 text-body">
             {% blocktranslate trimmed %}
-                Sign-in links are valid for one hour and can only be used once. Please request a new link to sign in.
+                Sign-in links are valid for one hour. Please request a new link to sign in.
             {% endblocktranslate %}
         </p>
         <a href="{% url 'accounts:login' %}" class="btn btn--primary">

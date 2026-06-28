@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Components · Match status panel{% endblock %}
+
+{% comment %}
+    DEBUG-only component gallery (debug.views.components). Renders the account
+    Match status panel (accounts/partials/match_status.html) in every
+    combination, each rendered live with synthetic context — not a mock. The
+    role theme is fixed to Ambassador (accent) here; the panel content is
+    role-independent, only the "View your match" button colour follows the role.
+{% endcomment %}
+{% block content %}
+    <section class="role-theme mx-auto max-w-xl">
+        <p class="eyebrow mb-2">Components · DEBUG</p>
+        <h1 class="mb-2 text-ink">Match status panel</h1>
+        <p class="mb-8 text-sm text-body">
+            Every combination of the account Match status panel, rendered live from <code
+            >accounts/partials/match_status.html</code>.
+        </p>
+
+        {% for s in scenarios %}
+            <div class="mb-8">
+                <p class="label mb-2">{{ s.label }}</p>
+                {% include "accounts/partials/match_status.html" with registration=s.registration status_pill=s.status_pill partner_first_name=s.partner_first_name partner_accepted=s.partner_accepted queue_position=s.queue_position total_accepted_matches=s.total_accepted_matches %}
+            </div>
+        {% endfor %}
+    </section>
+{% endblock %}

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-27 17:08+0200\n"
+"POT-Creation-Date: 2026-06-28 11:44+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -51,6 +51,30 @@ msgstr ""
 "\n"
 "Ce lien expire dans 24 heures. Si vous n'avez pas fait cette demande, "
 "ignorez cet e-mail."
+
+msgid "No match"
+msgstr "Aucune mise en relation"
+
+msgid "Email unconfirmed"
+msgstr "E-mail non confirmé"
+
+msgid "In the queue"
+msgstr "Dans la file d'attente"
+
+msgid "Match pending"
+msgstr "Mise en relation en attente"
+
+msgid "Match confirmed"
+msgstr "Mise en relation confirmée"
+
+msgid "Withdrawn"
+msgstr "Retiré"
+
+msgid "Suspended"
+msgstr "Suspendu"
+
+msgid "your partner"
+msgstr "votre partenaire"
 
 msgid "No pending registration found. Your email may already be confirmed."
 msgstr ""
@@ -176,12 +200,6 @@ msgstr "Mis en relation"
 
 msgid "Confirmed"
 msgstr "Confirmé"
-
-msgid "Withdrawn"
-msgstr "Retiré"
-
-msgid "Suspended"
-msgstr "Suspendu"
 
 msgid "None — I did not hold a prior pass"
 msgstr "Aucun — je n'avais pas d'abonnement précédent"
@@ -443,19 +461,26 @@ msgid_plural "%(counter)s pairs matched so far this season."
 msgstr[0] "%(counter)s paire mise en relation jusqu'ici cette saison."
 msgstr[1] "%(counter)s paires mises en relation jusqu'ici cette saison."
 
-msgid "You have accepted. Waiting for your partner to respond."
-msgstr "Vous avez accepté. En attente de la réponse de votre partenaire."
-
-msgid "You have been matched. Check your email to accept or decline."
-msgstr ""
-"Vous avez été mis(e) en relation. Consultez votre e-mail pour accepter ou "
-"refuser."
-
+#, python-format
 msgid ""
-"Your match is confirmed. Contact your partner to buy your passes together."
+"You have been matched with %(name)s. They are waiting for you to respond."
 msgstr ""
-"Votre mise en relation est confirmée. Contactez votre partenaire pour "
-"acheter vos abonnements ensemble."
+"Vous avez été mis(e) en relation avec %(name)s. Cette personne attend votre "
+"réponse."
+
+#, python-format
+msgid "You have been matched with %(name)s. They have not yet responded."
+msgstr ""
+"Vous avez été mis(e) en relation avec %(name)s. Cette personne n'a pas "
+"encore répondu."
+
+#, python-format
+msgid ""
+"You have been matched with %(name)s — view the match to see their contact "
+"details."
+msgstr ""
+"Vous avez été mis(e) en relation avec %(name)s — consultez votre match pour "
+"voir ses coordonnées."
 
 msgid "Your registration has been withdrawn."
 msgstr "Votre inscription a été retirée."
@@ -1104,9 +1129,6 @@ msgstr ""
 msgid "Re-register"
 msgstr "Se réinscrire"
 
-msgid "your partner"
-msgstr "votre partenaire"
-
 #, python-format
 msgid "%(partner)s has already accepted — you're the last yes needed."
 msgstr "%(partner)s a déjà accepté — il ne manque plus que votre accord."
@@ -1565,6 +1587,12 @@ msgstr ""
 "connecter à %(site_name)s. Pour terminer, veuillez confirmer votre adresse e-"
 "mail."
 
+#~ msgid ""
+#~ "Your match is confirmed. Contact your partner to buy your passes together."
+#~ msgstr ""
+#~ "Votre mise en relation est confirmée. Contactez votre partenaire pour "
+#~ "acheter vos abonnements ensemble."
+
 #~ msgid "To change role you must delete your account and start again."
 #~ msgstr ""
 #~ "Pour changer de rôle, vous devez supprimer votre compte et recommencer."
@@ -1592,9 +1620,6 @@ msgstr ""
 
 #~ msgid "Match · Your move"
 #~ msgstr "Mise en relation · À vous de jouer"
-
-#~ msgid "Match · Confirmed"
-#~ msgstr "Mise en relation · Confirmée"
 
 #~ msgid "Match · Declined"
 #~ msgstr "Mise en relation · Refusée"

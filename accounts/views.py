@@ -31,15 +31,44 @@ from .services import delete_account, send_confirmation_email, update_account
 from .tokens import make_match_access_token
 
 
+# Tone modifiers map to the design system's ``.tag-status--*`` pill variants:
+# "muted" (neutral grey — no match yet), "wait" (warm — match pending), and
+# "done" (green — match confirmed). One pill per registration status, shown on
+# the Match status card heading.
+def _match_status_pill(registration: Registration | None) -> dict[str, str]:
+    """Return the ``{label, tone}`` for the Match status heading pill.
+
+    ``tone`` is the ``.tag-status--<tone>`` suffix; ``label`` is translated.
+    Covers every Registration.Status plus the no-registration case. WAITING and
+    the pre/post-pool states share the neutral "muted" tone (there is no match);
+    MATCHED is "wait"; CONFIRMED is "done".
+    """
+    if registration is None:
+        return {"label": _("No match"), "tone": "muted"}
+    pills = {
+        Registration.Status.PENDING: (_("Email unconfirmed"), "muted"),
+        Registration.Status.WAITING: (_("In the queue"), "muted"),
+        Registration.Status.MATCHED: (_("Match pending"), "wait"),
+        Registration.Status.CONFIRMED: (_("Match confirmed"), "done"),
+        Registration.Status.WITHDRAWN: (_("Withdrawn"), "muted"),
+        Registration.Status.SUSPENDED: (_("Suspended"), "muted"),
+    }
+    label, tone = pills.get(
+        Registration.Status(registration.status),
+        (registration.get_status_display(), "muted"),
+    )
+    return {"label": str(label), "tone": tone}
+
+
 @login_required
 def account_detail(request: HttpRequest) -> HttpResponse:
     """Show the participant's profile, match status and security controls.
 
-    When the registration is MATCHED, fetches the active PROPOSED match via the
-    appropriate reverse accessor and derives ``i_have_accepted`` — whether the
-    viewing registration's own acceptance timestamp is set. The Match object
-    itself is never passed to the template (PII Invariant 1: contact details
-    must not be exposed before mutual accept).
+    When the registration is MATCHED or CONFIRMED, fetches the active match and
+    derives ``partner_first_name`` (shown to identify the partner) and
+    ``partner_accepted`` (whether the partner has responded yet, which selects
+    the MATCHED copy). Only the partner's first name is passed to the template;
+    their email, phone and surname stay hidden until mutual accept (Invariant 1).
     """
     user = cast(User, request.user)
     try:
@@ -53,18 +82,41 @@ def account_detail(request: HttpRequest) -> HttpResponse:
     if settings.DEBUG:
         debug_verify_url = request.session.pop("debug_verify_url", None)
 
-    # Derive whether the viewer has already accepted their current proposed match.
-    # Only meaningful when status is MATCHED; defaults to False otherwise.
-    i_have_accepted = False
-    if registration is not None and registration.status == Registration.Status.MATCHED:
-        if registration.role == Registration.Role.AMBASSADOR:
-            match: Match | None = registration.matches_as_ambassador.proposed().first()
-            if match is not None:
-                i_have_accepted = match.ambassador_accepted_at is not None
-        else:
-            match = registration.matches_as_referee.proposed().first()
-            if match is not None:
-                i_have_accepted = match.referee_accepted_at is not None
+    # When the registration has an active match (MATCHED or CONFIRMED), surface the
+    # partner's first name and whether the partner has responded. The partner's
+    # first name may be shown before mutual accept (Invariant 1); their email,
+    # phone and full name stay hidden until both accept. ``partner_accepted``
+    # drives the MATCHED copy (partner still pending vs partner waiting on us).
+    partner_accepted = False
+    partner_first_name = ""
+    if registration is not None and registration.status in (
+        Registration.Status.MATCHED,
+        Registration.Status.CONFIRMED,
+    ):
+        match: Match | None = (
+            Match.objects.active()
+            .filter(
+                Q(ambassador_registration__user=user)
+                | Q(referee_registration__user=user)
+            )
+            .select_related(
+                "ambassador_registration__user",
+                "referee_registration__user",
+            )
+            .first()
+        )
+        if match is not None:
+            if registration.role == Registration.Role.AMBASSADOR:
+                partner_accepted = match.referee_accepted_at is not None
+                partner = match.referee_registration
+            else:
+                partner_accepted = match.ambassador_accepted_at is not None
+                partner = match.ambassador_registration
+            if partner is not None:
+                partner_first_name = partner.user.first_name
+    # Fall back to a generic noun when the partner has no first name on file.
+    if not partner_first_name:
+        partner_first_name = _("your partner")
 
     # Queue position and accepted-match count — only computed for WAITING registrations.
     position: int | None = None
@@ -80,7 +132,9 @@ def account_detail(request: HttpRequest) -> HttpResponse:
             "registration": registration,
             "email_verified": email_verified,
             "debug_verify_url": debug_verify_url,
-            "i_have_accepted": i_have_accepted,
+            "status_pill": _match_status_pill(registration),
+            "partner_first_name": partner_first_name,
+            "partner_accepted": partner_accepted,
             "queue_position": position,
             "total_accepted_matches": accepted_count,
         },

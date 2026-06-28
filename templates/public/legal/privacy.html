@@ -6,7 +6,7 @@
 {% block content %}
     <article class="mx-auto max-w-2xl space-y-4 text-body">
         <h1 class="text-2xl font-bold text-ink">{% translate "Privacy Policy" %}</h1>
-        <p class="text-sm text-meta">{% translate "Last updated" %}: 2026-06-23</p>
+        <p class="text-sm text-meta">{% translate "Last updated" %}: 2026-06-28</p>
 
         <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "Who we are" %}</h2>
         <p>
@@ -22,8 +22,9 @@
             {% blocktranslate trimmed %}
                 We deliberately collect only what matchmaking and contact require: your name, email address, phone
                 number, your role (Ambassador or Referee), your chosen price category, your prior-season eligibility
-                attestation, and your preferred resort. We do not collect the full application details (date of birth,
-                address, photo ID, keycard, insurance) — those are handled off-app when you apply in person.
+                attestation, and your preferred resort. We also ask, optionally, for your nationality — you can always
+                leave this set to “Prefer not to say”. We do not collect the full application details (date of
+                birth, address, photo ID, keycard, insurance) — those are handled off-app when you apply in person.
             {% endblocktranslate %}
         </p>
 
@@ -33,6 +34,18 @@
                 We use your data to place you in the matching queue, pair you with a partner, and let you contact each
                 other once you have both accepted a match. Your email and phone are never shown to another participant
                 before you have both accepted.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "Nationality (optional)" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                Providing your nationality is optional — the default is “Prefer not to say”. Where you choose to
+                share it, we use it only to understand the geographic spread of programme participants in aggregate (for
+                example, to report on how widely the programme reaches). Your nationality is never shown to another
+                participant, is never used to match or rank you, and is visible only to programme staff. The legal basis
+                for this processing is our legitimate interest in understanding the reach of the programme; you can
+                decline at any time by leaving “Prefer not to say” selected.
             {% endblocktranslate %}
         </p>
 

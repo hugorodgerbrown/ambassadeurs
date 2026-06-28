@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-28 11:44+0200\n"
+"POT-Creation-Date: 2026-06-28 13:28+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -47,16 +47,16 @@ msgstr ""
 msgid "No match"
 msgstr ""
 
-msgid "Email unconfirmed"
-msgstr ""
-
-msgid "In the queue"
-msgstr ""
-
 msgid "Match pending"
 msgstr ""
 
 msgid "Match confirmed"
+msgstr ""
+
+msgid "Email unconfirmed"
+msgstr ""
+
+msgid "In the queue"
 msgstr ""
 
 msgid "Withdrawn"
@@ -128,7 +128,7 @@ msgstr ""
 msgid "No"
 msgstr ""
 
-msgid "Export selected abandoned matches as CSV"
+msgid "Export selected cancelled matches as CSV"
 msgstr ""
 
 msgid "Email"
@@ -174,16 +174,10 @@ msgstr ""
 msgid "Bruson"
 msgstr ""
 
-msgid "Pending"
+msgid "Unverified"
 msgstr ""
 
-msgid "Waiting"
-msgstr ""
-
-msgid "Matched"
-msgstr ""
-
-msgid "Confirmed"
+msgid "Verified"
 msgstr ""
 
 msgid "None — I did not hold a prior pass"
@@ -201,6 +195,9 @@ msgstr ""
 msgid "Proposed"
 msgstr ""
 
+msgid "Pending"
+msgstr ""
+
 msgid "Accepted"
 msgstr ""
 
@@ -210,7 +207,7 @@ msgstr ""
 msgid "Expired"
 msgstr ""
 
-msgid "Abandoned"
+msgid "Cancelled"
 msgstr ""
 
 msgid "You have been matched — 4 Vallées Ambassadors Program"
@@ -373,64 +370,10 @@ msgstr ""
 msgid "Email verified"
 msgstr ""
 
-msgid "Unverified"
-msgstr ""
-
 msgid "Resend confirmation email"
 msgstr ""
 
 msgid "Language"
-msgstr ""
-
-msgid "Match status"
-msgstr ""
-
-msgid "Please confirm your email address to enter the pool."
-msgstr ""
-
-msgid "You are in the queue. We'll email you when a match is found."
-msgstr ""
-
-#, python-format
-msgid "You are number %(position)s in the queue."
-msgstr ""
-
-#, python-format
-msgid "%(counter)s pair matched so far this season."
-msgid_plural "%(counter)s pairs matched so far this season."
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid ""
-"You have been matched with %(name)s. They are waiting for you to respond."
-msgstr ""
-
-#, python-format
-msgid "You have been matched with %(name)s. They have not yet responded."
-msgstr ""
-
-#, python-format
-msgid ""
-"You have been matched with %(name)s — view the match to see their contact "
-"details."
-msgstr ""
-
-msgid "Your registration has been withdrawn."
-msgstr ""
-
-msgid ""
-"Your registration has been suspended. Contact support if you think this is "
-"an error."
-msgstr ""
-
-msgid "View your match"
-msgstr ""
-
-msgid "You have no registration yet."
-msgstr ""
-
-msgid "Register now"
 msgstr ""
 
 msgid "Security"
@@ -452,6 +395,57 @@ msgid "Your role and email can't be changed here."
 msgstr ""
 
 msgid "Save changes"
+msgstr ""
+
+msgid "Match status"
+msgstr ""
+
+#, python-format
+msgid ""
+"You have been matched with %(name)s. They are waiting for you to respond."
+msgstr ""
+
+#, python-format
+msgid "You have been matched with %(name)s. They have not yet responded."
+msgstr ""
+
+#, python-format
+msgid ""
+"You have been matched with %(name)s — view the match to see their contact "
+"details."
+msgstr ""
+
+msgid "Please confirm your email address to enter the pool."
+msgstr ""
+
+msgid "You are in the queue. We'll email you when a match is found."
+msgstr ""
+
+#, python-format
+msgid "You are number %(position)s in the queue."
+msgstr ""
+
+#, python-format
+msgid "%(counter)s pair matched so far this season."
+msgid_plural "%(counter)s pairs matched so far this season."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Your registration has been withdrawn."
+msgstr ""
+
+msgid ""
+"Your registration has been suspended. Contact support if you think this is "
+"an error."
+msgstr ""
+
+msgid "View your match"
+msgstr ""
+
+msgid "You have no registration yet."
+msgstr ""
+
+msgid "Register now"
 msgstr ""
 
 msgid "4 Vallées Ambassadors"

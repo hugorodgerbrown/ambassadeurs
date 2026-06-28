@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-28 11:44+0200\n"
+"POT-Creation-Date: 2026-06-28 13:28+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -55,17 +55,17 @@ msgstr ""
 msgid "No match"
 msgstr "Aucune mise en relation"
 
-msgid "Email unconfirmed"
-msgstr "E-mail non confirmé"
-
-msgid "In the queue"
-msgstr "Dans la file d'attente"
-
 msgid "Match pending"
 msgstr "Mise en relation en attente"
 
 msgid "Match confirmed"
 msgstr "Mise en relation confirmée"
+
+msgid "Email unconfirmed"
+msgstr "E-mail non confirmé"
+
+msgid "In the queue"
+msgstr "Dans la file d'attente"
 
 msgid "Withdrawn"
 msgstr "Retiré"
@@ -139,7 +139,9 @@ msgstr "Oui"
 msgid "No"
 msgstr "Non"
 
-msgid "Export selected abandoned matches as CSV"
+#, fuzzy
+#| msgid "Export selected abandoned matches as CSV"
+msgid "Export selected cancelled matches as CSV"
 msgstr "Exporter les mises en relation abandonnées sélectionnées en CSV"
 
 msgid "Email"
@@ -189,17 +191,13 @@ msgstr "La Tzoumaz"
 msgid "Bruson"
 msgstr "Bruson"
 
-msgid "Pending"
-msgstr "En attente de confirmation"
+msgid "Unverified"
+msgstr "Non vérifié"
 
-msgid "Waiting"
-msgstr "En file d'attente"
-
-msgid "Matched"
-msgstr "Mis en relation"
-
-msgid "Confirmed"
-msgstr "Confirmé"
+#, fuzzy
+#| msgid "Unverified"
+msgid "Verified"
+msgstr "Non vérifié"
 
 msgid "None — I did not hold a prior pass"
 msgstr "Aucun — je n'avais pas d'abonnement précédent"
@@ -216,6 +214,9 @@ msgstr "Carte Mont 4 / réduction spéciale"
 msgid "Proposed"
 msgstr "Proposé"
 
+msgid "Pending"
+msgstr "En attente de confirmation"
+
 msgid "Accepted"
 msgstr "Accepté"
 
@@ -225,8 +226,10 @@ msgstr "Refusé"
 msgid "Expired"
 msgstr "Expiré"
 
-msgid "Abandoned"
-msgstr "Abandonné"
+#, fuzzy
+#| msgid "Cancel"
+msgid "Cancelled"
+msgstr "Annuler"
 
 msgid "You have been matched — 4 Vallées Ambassadors Program"
 msgstr "Vous avez été mis en relation — Programme Ambassadeurs des 4 Vallées"
@@ -431,35 +434,35 @@ msgstr "Nom"
 msgid "Email verified"
 msgstr "E-mail vérifié"
 
-msgid "Unverified"
-msgstr "Non vérifié"
-
 msgid "Resend confirmation email"
 msgstr "Renvoyer l'e-mail de confirmation"
 
 msgid "Language"
 msgstr "Langue"
 
+msgid "Security"
+msgstr "Sécurité"
+
+msgid "Delete account"
+msgstr "Supprimer le compte"
+
+msgid "Permanently delete your account. This cannot be undone."
+msgstr "Supprimez définitivement votre compte. Cette action est irréversible."
+
+msgid "Delete account "
+msgstr "Supprimer le compte "
+
+msgid "Edit your details"
+msgstr "Modifier vos informations"
+
+msgid "Your role and email can't be changed here."
+msgstr "Votre rôle et votre e-mail ne peuvent pas être modifiés ici."
+
+msgid "Save changes"
+msgstr "Enregistrer les modifications"
+
 msgid "Match status"
 msgstr "Statut de la mise en relation"
-
-msgid "Please confirm your email address to enter the pool."
-msgstr "Veuillez confirmer votre adresse e-mail pour rejoindre la file."
-
-msgid "You are in the queue. We'll email you when a match is found."
-msgstr ""
-"Vous êtes dans la file d'attente. Nous vous enverrons un e-mail dès qu'une "
-"mise en relation sera trouvée."
-
-#, python-format
-msgid "You are number %(position)s in the queue."
-msgstr "Vous êtes en position %(position)s dans la file d'attente."
-
-#, python-format
-msgid "%(counter)s pair matched so far this season."
-msgid_plural "%(counter)s pairs matched so far this season."
-msgstr[0] "%(counter)s paire mise en relation jusqu'ici cette saison."
-msgstr[1] "%(counter)s paires mises en relation jusqu'ici cette saison."
 
 #, python-format
 msgid ""
@@ -482,6 +485,24 @@ msgstr ""
 "Vous avez été mis(e) en relation avec %(name)s — consultez votre match pour "
 "voir ses coordonnées."
 
+msgid "Please confirm your email address to enter the pool."
+msgstr "Veuillez confirmer votre adresse e-mail pour rejoindre la file."
+
+msgid "You are in the queue. We'll email you when a match is found."
+msgstr ""
+"Vous êtes dans la file d'attente. Nous vous enverrons un e-mail dès qu'une "
+"mise en relation sera trouvée."
+
+#, python-format
+msgid "You are number %(position)s in the queue."
+msgstr "Vous êtes en position %(position)s dans la file d'attente."
+
+#, python-format
+msgid "%(counter)s pair matched so far this season."
+msgid_plural "%(counter)s pairs matched so far this season."
+msgstr[0] "%(counter)s paire mise en relation jusqu'ici cette saison."
+msgstr[1] "%(counter)s paires mises en relation jusqu'ici cette saison."
+
 msgid "Your registration has been withdrawn."
 msgstr "Votre inscription a été retirée."
 
@@ -500,27 +521,6 @@ msgstr "Vous n'avez pas encore d'inscription."
 
 msgid "Register now"
 msgstr "S'inscrire maintenant"
-
-msgid "Security"
-msgstr "Sécurité"
-
-msgid "Delete account"
-msgstr "Supprimer le compte"
-
-msgid "Permanently delete your account. This cannot be undone."
-msgstr "Supprimez définitivement votre compte. Cette action est irréversible."
-
-msgid "Delete account "
-msgstr "Supprimer le compte "
-
-msgid "Edit your details"
-msgstr "Modifier vos informations"
-
-msgid "Your role and email can't be changed here."
-msgstr "Votre rôle et votre e-mail ne peuvent pas être modifiés ici."
-
-msgid "Save changes"
-msgstr "Enregistrer les modifications"
 
 msgid "4 Vallées Ambassadors"
 msgstr "Ambassadeurs des 4 Vallées"
@@ -1586,6 +1586,18 @@ msgstr ""
 "Vous êtes sur le point d'utiliser votre compte %(provider_name)s pour vous "
 "connecter à %(site_name)s. Pour terminer, veuillez confirmer votre adresse e-"
 "mail."
+
+#~ msgid "Waiting"
+#~ msgstr "En file d'attente"
+
+#~ msgid "Matched"
+#~ msgstr "Mis en relation"
+
+#~ msgid "Confirmed"
+#~ msgstr "Confirmé"
+
+#~ msgid "Abandoned"
+#~ msgstr "Abandonné"
 
 #~ msgid ""
 #~ "Your match is confirmed. Contact your partner to buy your passes together."

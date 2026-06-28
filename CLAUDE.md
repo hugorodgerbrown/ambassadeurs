@@ -73,9 +73,9 @@ database rows. See `docs/decisions/0005-single-season-matching-engine.md`.
   `REFEREE`). OneToOneField to `User`. Holds the role, `prior_pass` attestation
   (`NONE / SEASONAL / ANNUAL / MONT4`) that gates match eligibility, phone,
   preferred language, preferred ticket office / resort (a *soft* preference —
-  used to rank matches, not to gate them), `status` (`WAITING` → `MATCHED` →
-  `CONFIRMED`, or `WITHDRAWN`), and the queue **priority** that asymmetric
-  flaking handling adjusts.
+  used to rank matches, not to gate them), `status` (`UNVERIFIED` →
+  `VERIFIED` or `WITHDRAWN` / `SUSPENDED`), and the queue **priority** that
+  asymmetric flaking handling adjusts. See [ADR 0011](docs/decisions/0011-two-state-machines.md).
 - **Match** — a system-created link of one ambassador registration and one
   referee registration. Terminal matches accumulate as history (no unique
   constraint on the registration FKs). State machine:
@@ -83,14 +83,17 @@ database rows. See `docs/decisions/0005-single-season-matching-engine.md`.
     each party the other's **first name** (so the pairing reads as human), but
     **neither sees the other's email or phone** — the data needed to actually make
     contact — until both accept (see [ADR 0009](docs/decisions/0009-reveal-partner-first-name.md)).
-  - each side accepts or declines within the contact window.
+  - first side accepts → `PENDING` (one-sided accept state); other side is notified.
   - both accept → `ACCEPTED` — contact details are revealed and the pair
-    proceeds to the off-app application. Terminal success; both leave the pool.
+    proceeds to the off-app application. Terminal success.
   - one declines → `DECLINED`; window lapses without both accepting → `EXPIRED`.
     In both, the registrations re-queue with **asymmetric** priority: the party
     who accepted keeps their place near the front; the non-responder is sent to
     the **back of the queue**. The contact window is **72 hours** by default
     (`CONTACT_WINDOW_HOURS` env var).
+  - post-accept no-show → `CANCELLED` (reporter re-queues to front; reported is
+    `SUSPENDED`). Registration.Status is never `MATCHED` or `CONFIRMED` — pool
+    availability is enforced by `_without_active_match()` queryset exclusion.
 
 **The matching engine** assigns rather than letting users choose. Referees are
 the scarce side — there are always more ambassadors than referees looking to
@@ -112,8 +115,8 @@ rationale in [`docs/decisions/`](docs/decisions/).
   season.
 - **Referee `prior_pass == NONE`** — did *not* hold any prior pass (genuinely
   new). This is self-attested; proof happens off-app at the kiosk.
-- **Both must be `WAITING`** — neither can already be in a proposed or accepted
-  match.
+- **Both must be `VERIFIED` with no active match** — neither can already be in
+  a PROPOSED, PENDING, or ACCEPTED match (`_without_active_match()` enforces this).
 - **Mont 4 / special-reduction ambassadors** (`prior_pass == MONT4`) are fully
   eligible to match. The referee they take still benefits from the referral
   discount even if the ambassador does not receive one.
@@ -385,7 +388,8 @@ feature docs are written:
 | Domain term → code symbol map | [`docs/glossary.md`](docs/glossary.md) |
 | Accepted architectural decisions | [`docs/decisions/`](docs/decisions/) |
 | Matching engine (queue, assignment, eligibility) | _to be written_ |
-| Match lifecycle (states, contact window, reveal-on-accept) | [ADR 0007](docs/decisions/0007-post-match-confirmation-workflow.md) |
+| Match lifecycle (states, contact window, reveal-on-accept) | [ADR 0007](docs/decisions/0007-post-match-confirmation-workflow.md), [ADR 0011](docs/decisions/0011-two-state-machines.md) |
+| Registration.Status / Match.Status state machines | [ADR 0011](docs/decisions/0011-two-state-machines.md) |
 | Flaking / priority handling | [ADR 0007](docs/decisions/0007-post-match-confirmation-workflow.md) |
 | Authentication (signed links + Facebook) | _to be written_ |
 | Internationalisation | _to be written_ |

@@ -183,3 +183,50 @@ def test_accepted_statements_returns_referee_specific_eligibility_label() -> Non
     assert "not held" in statements[0]
     assert "2024-25 or 2025-26" in statements[0]
     assert statements[1] == "I have read and agree to the Terms of Use"
+
+
+# ---------------------------------------------------------------------------
+# nationality field
+# ---------------------------------------------------------------------------
+
+
+def test_nationality_field_present_in_form() -> None:
+    """RegistrationForm always exposes the nationality select field."""
+    form = RegistrationForm(role=Registration.Role.AMBASSADOR)
+    assert "nationality" in form.fields
+
+
+def test_nationality_field_is_not_required() -> None:
+    """The nationality field is optional (required=False)."""
+    form = RegistrationForm(role=Registration.Role.AMBASSADOR)
+    assert form.fields["nationality"].required is False
+
+
+def test_form_valid_with_nationality_supplied() -> None:
+    """Form is valid when a country code is supplied for nationality."""
+    form = RegistrationForm(
+        role=Registration.Role.AMBASSADOR,
+        data=_valid_ambassador_data(nationality="CH"),
+    )
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["nationality"] == "CH"
+
+
+def test_form_valid_with_nationality_omitted() -> None:
+    """Form is valid when nationality is omitted; cleaned value is empty string."""
+    form = RegistrationForm(
+        role=Registration.Role.AMBASSADOR,
+        data=_valid_ambassador_data(),
+    )
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data.get("nationality", "") == ""
+
+
+def test_referee_form_valid_with_nationality_supplied() -> None:
+    """Referee form is valid when a country code is supplied for nationality."""
+    form = RegistrationForm(
+        role=Registration.Role.REFEREE,
+        data=_valid_referee_data(nationality="FR"),
+    )
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["nationality"] == "FR"

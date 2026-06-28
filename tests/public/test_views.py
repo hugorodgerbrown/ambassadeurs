@@ -280,6 +280,22 @@ def test_register_post_does_not_stash_url_outside_debug() -> None:
     assert "debug_verify_url" not in client.session
 
 
+def test_register_post_persists_nationality() -> None:
+    """POSTing nationality persists it on the created Registration."""
+    payload = _valid_referee_post()
+    payload["nationality"] = "CH"
+    Client().post(reverse("public:register"), payload)
+    reg = Registration.objects.get(role=Registration.Role.REFEREE)
+    assert str(reg.nationality) == "CH"
+
+
+def test_register_post_nationality_optional() -> None:
+    """Omitting nationality from the POST still creates a Registration."""
+    Client().post(reverse("public:register"), _valid_referee_post())
+    reg = Registration.objects.get(role=Registration.Role.REFEREE)
+    assert str(reg.nationality) == ""
+
+
 # ---------------------------------------------------------------------------
 # register_email_sent
 # ---------------------------------------------------------------------------
@@ -1825,3 +1841,110 @@ def test_match_detail_expired_match_shows_expired_outcome() -> None:
     assert response.context["view"] == "expired"
     assert "This match expired" in content
     assert b"<button" not in response.content
+
+
+# ---------------------------------------------------------------------------
+# Geolocation on registration POST (VERB-49)
+# ---------------------------------------------------------------------------
+
+
+def test_register_post_stores_geo_country_and_region() -> None:
+    """An anonymous registration POST resolves geo and stores country + region."""
+    url = reverse("public:register") + "?role=ambassador"
+    with (
+        patch("public.views.get_client_ip", return_value="203.0.113.45"),
+        patch("public.views.geolocate", return_value=("Switzerland", "Valais")),
+    ):
+        response = Client().post(
+            url,
+            {
+                "role": "ambassador",
+                "first_name": "Ada",
+                "last_name": "Lovelace",
+                "email": "ada_geo_view@example.com",
+                "prior_pass": "SEASONAL",
+                "phone": "+41790001234",
+                "preferred_language": "en",
+                "preferred_location": "",
+                "prior_pass_attestation": True,
+                "terms_accepted": True,
+            },
+        )
+
+    # POST should redirect to register_email_sent.
+    assert response.status_code == 302
+
+    from matching.models import Registration
+
+    reg = Registration.objects.get(user__email="ada_geo_view@example.com")
+    assert reg.registration_country == "Switzerland"
+    assert reg.registration_region == "Valais"
+    # The raw IP must never be persisted: assert the source IP string appears in
+    # no stored field value on the registration (no-IP-storage invariant).
+    field_values = [
+        str(getattr(reg, field.attname)) for field in Registration._meta.fields
+    ]
+    assert all("203.0.113.45" not in value for value in field_values)
+
+
+def test_register_post_geo_empty_when_private_ip() -> None:
+    """A registration from a private IP stores empty strings for geo fields."""
+    url = reverse("public:register") + "?role=ambassador"
+    with (
+        patch("public.views.get_client_ip", return_value="127.0.0.1"),
+        patch("public.views.geolocate", return_value=("", "")),
+    ):
+        response = Client().post(
+            url,
+            {
+                "role": "ambassador",
+                "first_name": "Bob",
+                "last_name": "Builder",
+                "email": "bob_no_geo@example.com",
+                "prior_pass": "SEASONAL",
+                "phone": "+41790005678",
+                "preferred_language": "en",
+                "preferred_location": "",
+                "prior_pass_attestation": True,
+                "terms_accepted": True,
+            },
+        )
+
+    assert response.status_code == 302
+
+    from matching.models import Registration
+
+    reg = Registration.objects.get(user__email="bob_no_geo@example.com")
+    assert reg.registration_country == ""
+    assert reg.registration_region == ""
+
+
+def test_register_post_skips_geolocate_when_no_client_ip() -> None:
+    """When no client IP is resolvable, geolocate is not called and geo is empty."""
+    url = reverse("public:register") + "?role=ambassador"
+    with (
+        patch("public.views.get_client_ip", return_value=None),
+        patch("public.views.geolocate") as mock_geolocate,
+    ):
+        response = Client().post(
+            url,
+            {
+                "role": "ambassador",
+                "first_name": "Carol",
+                "last_name": "Danvers",
+                "email": "carol_no_ip@example.com",
+                "prior_pass": "SEASONAL",
+                "phone": "+41790009012",
+                "preferred_language": "en",
+                "preferred_location": "",
+                "prior_pass_attestation": True,
+                "terms_accepted": True,
+            },
+        )
+
+    assert response.status_code == 302
+    mock_geolocate.assert_not_called()
+
+    reg = Registration.objects.get(user__email="carol_no_ip@example.com")
+    assert reg.registration_country == ""
+    assert reg.registration_region == ""

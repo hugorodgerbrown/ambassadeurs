@@ -138,6 +138,27 @@ def test_eligible_referees_excludes_suspended() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Registration — nationality field
+# ---------------------------------------------------------------------------
+
+
+def test_nationality_stores_valid_country_code() -> None:
+    """nationality stores an ISO 3166-1 alpha-2 code and round-trips cleanly."""
+    registration = RegistrationFactory.create(nationality="CH")
+    registration.refresh_from_db()
+    # CountryField stores the alpha-2 code; comparing as str covers both the
+    # Country wrapper object and a plain str.
+    assert str(registration.nationality) == "CH"
+
+
+def test_nationality_accepts_blank() -> None:
+    """nationality is optional; a blank value is stored and retrieved as empty."""
+    registration = RegistrationFactory.create(nationality="")
+    registration.refresh_from_db()
+    assert str(registration.nationality) == ""
+
+
+# ---------------------------------------------------------------------------
 # Match
 # ---------------------------------------------------------------------------
 

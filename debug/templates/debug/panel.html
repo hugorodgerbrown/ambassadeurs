@@ -50,8 +50,8 @@ Context variables injected by debug.context_processors.debug_panel:
                         name="state"
                         class="rounded border border-line bg-surface px-2 py-1 text-xs text-ink"
                     >
-                        <option value="WAITING">{% translate "Waiting (match immediately)" %}</option>
-                        <option value="PENDING">{% translate "Pending (email confirm required)" %}</option>
+                        <option value="VERIFIED">{% translate "Verified (match immediately)" %}</option>
+                        <option value="UNVERIFIED">{% translate "Email confirm required (UNVERIFIED)" %}</option>
                     </select>
                     <button
                         type="submit"

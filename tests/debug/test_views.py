@@ -1,6 +1,6 @@
 # Tests for debug app views.
 #
-# Covers: create_counterpart (WAITING/PENDING), counterpart_accept,
+# Covers: create_counterpart (VERIFIED/UNVERIFIED), counterpart_accept,
 # counterpart_decline, counterpart_login, and the require_debug guard
 # (DEBUG=False → 404 on every endpoint).
 
@@ -39,7 +39,7 @@ def test_create_counterpart_404_when_not_debug() -> None:
     user = UserFactory.create()
     RegistrationFactory.create(user=user)
     client = _authenticated_client(user)
-    response = client.post(reverse("debug:create_counterpart"), {"state": "WAITING"})
+    response = client.post(reverse("debug:create_counterpart"), {"state": "VERIFIED"})
     assert response.status_code == 404
 
 
@@ -82,9 +82,9 @@ def test_counterpart_login_404_when_not_debug() -> None:
 
 
 @override_settings(DEBUG=True)
-def test_create_counterpart_waiting_creates_registration_and_match() -> None:
-    """WAITING state creates the opposite-role registration and proposes a match."""
-    # Create an ambassador waiting in the pool.
+def test_create_counterpart_verified_creates_registration_and_match() -> None:
+    """VERIFIED state creates the opposite-role registration and proposes a match."""
+    # Create an ambassador in the pool.
     user = UserFactory.create()
     ambassador_reg = RegistrationFactory.create(
         user=user,
@@ -96,7 +96,7 @@ def test_create_counterpart_waiting_creates_registration_and_match() -> None:
     client = _authenticated_client(user)
     response = client.post(
         reverse("debug:create_counterpart"),
-        {"state": "WAITING"},
+        {"state": "VERIFIED"},
     )
 
     assert response.status_code == 302
@@ -366,8 +366,8 @@ _PREVIEW_VIEW_KEYS = [
     "declined_you",
     "declined_partner",
     "expired",
-    "abandoned_you",
-    "abandoned_partner",
+    "cancelled_you",
+    "cancelled_partner",
 ]
 
 

@@ -2160,3 +2160,43 @@ def test_total_accepted_matches_counts_only_accepted() -> None:
     MatchFactory.create(cancelled=True)  # was ACCEPTED, then reported as no-show
 
     assert total_accepted_matches() == 2
+
+
+# ---------------------------------------------------------------------------
+# register_participant — geolocation fields (VERB-49)
+# ---------------------------------------------------------------------------
+
+
+def test_register_participant_stores_country_and_region() -> None:
+    """register_participant persists registration_country and registration_region."""
+    registration = register_participant(
+        role=Registration.Role.AMBASSADOR,
+        first_name="Ada",
+        last_name="Lovelace",
+        email="ada_geo@example.com",
+        prior_pass=Registration.PriorPass.SEASONAL,
+        registration_country="Switzerland",
+        registration_region="Valais",
+    )
+
+    assert registration.registration_country == "Switzerland"
+    assert registration.registration_region == "Valais"
+
+    # Verify the values are persisted to the database.
+    from_db = Registration.objects.get(pk=registration.pk)
+    assert from_db.registration_country == "Switzerland"
+    assert from_db.registration_region == "Valais"
+
+
+def test_register_participant_geo_defaults_to_empty_strings() -> None:
+    """register_participant defaults geo fields to empty strings when not passed."""
+    registration = register_participant(
+        role=Registration.Role.AMBASSADOR,
+        first_name="Ada",
+        last_name="Lovelace",
+        email="ada_no_geo@example.com",
+        prior_pass=Registration.PriorPass.SEASONAL,
+    )
+
+    assert registration.registration_country == ""
+    assert registration.registration_region == ""

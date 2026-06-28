@@ -1825,3 +1825,75 @@ def test_match_detail_expired_match_shows_expired_outcome() -> None:
     assert response.context["view"] == "expired"
     assert "This match expired" in content
     assert b"<button" not in response.content
+
+
+# ---------------------------------------------------------------------------
+# Geolocation on registration POST (VERB-49)
+# ---------------------------------------------------------------------------
+
+
+def test_register_post_stores_geo_country_and_region() -> None:
+    """An anonymous registration POST resolves geo and stores country + region."""
+    url = reverse("public:register") + "?role=ambassador"
+    with (
+        patch("public.views.get_client_ip", return_value="203.0.113.45"),
+        patch("public.views.geolocate", return_value=("Switzerland", "Valais")),
+    ):
+        response = Client().post(
+            url,
+            {
+                "role": "ambassador",
+                "first_name": "Ada",
+                "last_name": "Lovelace",
+                "email": "ada_geo_view@example.com",
+                "prior_pass": "SEASONAL",
+                "phone": "+41790001234",
+                "preferred_language": "en",
+                "preferred_location": "",
+                "prior_pass_attestation": True,
+                "terms_accepted": True,
+            },
+        )
+
+    # POST should redirect to register_email_sent.
+    assert response.status_code == 302
+
+    from matching.models import Registration
+
+    reg = Registration.objects.get(user__email="ada_geo_view@example.com")
+    assert reg.registration_country == "Switzerland"
+    assert reg.registration_region == "Valais"
+    # The raw IP must not appear on the model.
+    assert not hasattr(reg, "ip") or not getattr(reg, "ip", None)
+
+
+def test_register_post_geo_empty_when_private_ip() -> None:
+    """A registration from a private IP stores empty strings for geo fields."""
+    url = reverse("public:register") + "?role=ambassador"
+    with (
+        patch("public.views.get_client_ip", return_value="127.0.0.1"),
+        patch("public.views.geolocate", return_value=("", "")),
+    ):
+        response = Client().post(
+            url,
+            {
+                "role": "ambassador",
+                "first_name": "Bob",
+                "last_name": "Builder",
+                "email": "bob_no_geo@example.com",
+                "prior_pass": "SEASONAL",
+                "phone": "+41790005678",
+                "preferred_language": "en",
+                "preferred_location": "",
+                "prior_pass_attestation": True,
+                "terms_accepted": True,
+            },
+        )
+
+    assert response.status_code == 302
+
+    from matching.models import Registration
+
+    reg = Registration.objects.get(user__email="bob_no_geo@example.com")
+    assert reg.registration_country == ""
+    assert reg.registration_region == ""

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Sign in" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-md">
+        <p class="eyebrow mb-2">{% translate "Sign in" %}</p>
+        <h1 class="mb-4 text-ink">{% translate "Sign in to your account" %}</h1>
+        <p class="mb-6 text-body">
+            {% translate "Enter your email address and we'll send you a sign-in link." %}
+        </p>
+
+        <div class="card">
+            <form method="post" action="{% url 'accounts:login' %}">
+                {% csrf_token %}
+
+                <div class="field mb-5">
+                    <label class="field__label" for="id_email">
+                        {% translate "Email address" %}
+                        <span class="field__req">*</span>
+                    </label>
+                    <input
+                        class="input"
+                        type="email"
+                        name="email"
+                        id="id_email"
+                        autocomplete="email"
+                        autofocus
+                        required
+                    >
+                </div>
+
+                <button type="submit" class="btn btn--primary btn--block">
+                    {% translate "Send a sign-in link" %}
+                </button>
+            </form>
+        </div>
+    </section>
+{% endblock %}

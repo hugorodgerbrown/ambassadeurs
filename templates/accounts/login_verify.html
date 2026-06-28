@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Confirm sign-in" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-md text-center">
+        <p class="eyebrow mb-2">{% translate "Sign in" %}</p>
+        <h1 class="mb-4 text-ink">{% translate "Confirm your sign-in" %}</h1>
+        <p class="mb-6 text-body">
+            {% blocktranslate trimmed with email=email %}
+                Sign in as <strong>{{ email }}</strong>?
+            {% endblocktranslate %}
+        </p>
+
+        <div class="card">
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--primary btn--block">
+                    {% translate "Sign in" %}
+                </button>
+            </form>
+        </div>
+
+        <p class="mt-4 text-sm text-meta">
+            {% blocktranslate trimmed %}
+                Not you? You can safely close this page — the link will expire in one hour.
+            {% endblocktranslate %}
+        </p>
+    </section>
+{% endblock %}

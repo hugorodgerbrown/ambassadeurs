@@ -58,7 +58,7 @@ the nav.
                     <a href="{% url 'accounts:detail' %}" class="mb-2 block text-sm text-body hover:text-ink">
                         {% translate "My account" %}
                     </a>
-                    <form method="post" action="{% url 'account_logout' %}">
+                    <form method="post" action="{% url 'accounts:logout' %}">
                         {% csrf_token %}
                         <button
                             type="submit"
@@ -68,7 +68,7 @@ the nav.
                         </button>
                     </form>
                 {% else %}
-                    <a href="{% url 'account_login' %}" class="mb-2 block text-sm text-body hover:text-ink">
+                    <a href="{% url 'accounts:login' %}" class="mb-2 block text-sm text-body hover:text-ink">
                         {% translate "Log in" %}
                     </a>
                     <a href="{% url 'public:register' %}" class="block text-sm text-body hover:text-ink">

@@ -33,14 +33,14 @@ user's role (sienna for a Referee).
                 <a href="{% url 'accounts:detail' %}" class="font-medium text-ink">
                     {% translate "My account" %}
                 </a>
-                <form method="post" action="{% url 'account_logout' %}" class="inline">
+                <form method="post" action="{% url 'accounts:logout' %}" class="inline">
                     {% csrf_token %}
                     <button type="submit" class="cursor-pointer border-0 bg-transparent p-0 text-body">
                         {% translate "Log out" %}
                     </button>
                 </form>
             {% else %}
-                <a href="{% url 'account_login' %}" class="font-medium text-ink">
+                <a href="{% url 'accounts:login' %}" class="font-medium text-ink">
                     {% translate "Log in" %}
                 </a>
             {% endif %}

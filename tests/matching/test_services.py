@@ -95,11 +95,11 @@ def test_eligible_pair_returns_true_for_valid_pair() -> None:
     ambassador = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.WAITING,
+        status=Registration.Status.VERIFIED,
     )
     referee = RegistrationFactory.create(
         referee=True,
-        status=Registration.Status.WAITING,
+        status=Registration.Status.VERIFIED,
     )
     assert is_eligible_pair(ambassador, referee) is True
 
@@ -137,26 +137,26 @@ def test_eligible_pair_rejects_referee_with_prior_pass() -> None:
     assert is_eligible_pair(ambassador, referee) is False
 
 
-def test_eligible_pair_rejects_non_waiting_ambassador() -> None:
-    """is_eligible_pair rejects an ambassador who is not WAITING."""
+def test_eligible_pair_rejects_non_verified_ambassador() -> None:
+    """is_eligible_pair rejects an ambassador who is not VERIFIED."""
     ambassador = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.SUSPENDED,
     )
     referee = RegistrationFactory.create(referee=True)
     assert is_eligible_pair(ambassador, referee) is False
 
 
-def test_eligible_pair_rejects_non_waiting_referee() -> None:
-    """is_eligible_pair rejects a referee who is not WAITING."""
+def test_eligible_pair_rejects_non_verified_referee() -> None:
+    """is_eligible_pair rejects a referee who is not VERIFIED."""
     ambassador = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
     )
     referee = RegistrationFactory.create(
         referee=True,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.SUSPENDED,
     )
     assert is_eligible_pair(ambassador, referee) is False
 
@@ -166,8 +166,8 @@ def test_eligible_pair_rejects_non_waiting_referee() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_propose_match_creates_match_for_ambassador_with_waiting_referee() -> None:
-    """propose_match pairs an ambassador with the top waiting eligible referee."""
+def test_propose_match_creates_match_for_ambassador_with_verified_referee() -> None:
+    """propose_match pairs an ambassador with the top verified eligible referee."""
     referee = RegistrationFactory.create(referee=True)
     ambassador = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
@@ -181,14 +181,15 @@ def test_propose_match_creates_match_for_ambassador_with_waiting_referee() -> No
     assert match.referee_registration == referee
     assert match.status == Match.Status.PROPOSED
 
+    # VERB-44: registrations remain VERIFIED after a match is proposed.
     ambassador.refresh_from_db()
     referee.refresh_from_db()
-    assert ambassador.status == Registration.Status.MATCHED
-    assert referee.status == Registration.Status.MATCHED
+    assert ambassador.status == Registration.Status.VERIFIED
+    assert referee.status == Registration.Status.VERIFIED
 
 
-def test_propose_match_creates_match_for_referee_with_waiting_ambassador() -> None:
-    """propose_match pairs a referee with the top waiting eligible ambassador."""
+def test_propose_match_creates_match_for_referee_with_verified_ambassador() -> None:
+    """propose_match pairs a referee with the top verified eligible ambassador."""
     ambassador = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
@@ -236,9 +237,9 @@ def test_propose_match_prefers_shared_location() -> None:
 
     assert match is not None
     assert match.referee_registration == verbier_referee
-    # The Thyon referee is still waiting.
+    # The Thyon referee is still VERIFIED (not matched away).
     thyon_referee.refresh_from_db()
-    assert thyon_referee.status == Registration.Status.WAITING
+    assert thyon_referee.status == Registration.Status.VERIFIED
 
 
 def test_propose_match_uses_priority_as_secondary_rank() -> None:
@@ -264,7 +265,7 @@ def test_propose_match_uses_priority_as_secondary_rank() -> None:
     assert match is not None
     assert match.referee_registration == high_priority
     low_priority.refresh_from_db()
-    assert low_priority.status == Registration.Status.WAITING
+    assert low_priority.status == Registration.Status.VERIFIED
 
 
 def test_propose_match_sets_expires_at() -> None:
@@ -322,17 +323,15 @@ def test_propose_match_fifo_tiebreak_within_equal_priority() -> None:
     assert match is not None
     assert match.referee_registration == earlier_referee
     later_referee.refresh_from_db()
-    assert later_referee.status == Registration.Status.WAITING
+    assert later_referee.status == Registration.Status.VERIFIED
 
 
 def test_propose_match_single_counterpart_matched_only_once() -> None:
-    """A waiting counterpart can be matched by at most one registration.
+    """A verified counterpart can be matched by at most one registration.
 
     Two referees both attempt to match the same sole waiting ambassador.
-    Exactly one match is created; the other referee remains WAITING.
-    This is the deterministic equivalent of a concurrency safety test — both
-    referees call propose_match sequentially; the select_for_update lock on the
-    candidate set ensures the second call sees the ambassador already MATCHED.
+    Exactly one match is created; the other referee remains VERIFIED (pool
+    availability is controlled by _without_active_match, not status flipping).
     """
     RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
@@ -343,8 +342,8 @@ def test_propose_match_single_counterpart_matched_only_once() -> None:
 
     with transaction.atomic():
         match_one = propose_match(referee_one)
-    # After the first match, the ambassador is MATCHED; the second call must
-    # find no eligible counterpart.
+    # After the first match, the ambassador holds an active match; the second
+    # call must find no eligible (unmatched) counterpart.
     with transaction.atomic():
         match_two = propose_match(referee_two)
 
@@ -352,7 +351,7 @@ def test_propose_match_single_counterpart_matched_only_once() -> None:
     assert match_two is None
     assert Match.objects.count() == 1
     referee_two.refresh_from_db()
-    assert referee_two.status == Registration.Status.WAITING
+    assert referee_two.status == Registration.Status.VERIFIED
 
 
 def test_propose_match_skips_ineligible_ambassador() -> None:
@@ -542,7 +541,7 @@ def test_register_participant_triggers_match_when_counterpart_waiting() -> None:
     The notification email is deferred via transaction.on_commit so it only fires
     on a successful commit; captureOnCommitCallbacks(execute=True) runs it here.
     """
-    # Pre-populate a waiting ambassador.
+    # Pre-populate a verified ambassador.
     RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
@@ -618,18 +617,32 @@ def test_propose_match_skips_ineligible_referee() -> None:
     assert Match.objects.count() == 0
 
 
-def test_propose_match_skips_matched_registration() -> None:
-    """propose_match returns None for a registration that is already MATCHED."""
-    RegistrationFactory.create(referee=True)
+def test_propose_match_skips_registration_with_active_match() -> None:
+    """propose_match skips a registration that already holds an active match.
+
+    VERB-44: pool availability is controlled by _without_active_match (a
+    queryset exclusion on the Match table), not by flipping Registration.status
+    to MATCHED. A registration stays VERIFIED but is excluded from the pool
+    while an active match (PROPOSED, PENDING, or ACCEPTED) exists.
+    """
+    referee = RegistrationFactory.create(referee=True)
     already_matched = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.MATCHED,
     )
+    # Create an active match tying the ambassador to the existing referee.
+    MatchFactory.create(
+        ambassador_registration=already_matched,
+        referee_registration=referee,
+    )
+    # Create a second referee looking for a partner.
+    new_referee = RegistrationFactory.create(referee=True)
+
     with transaction.atomic():
-        result = propose_match(already_matched)
+        result = propose_match(new_referee)
+    # The ambassador already has an active match; the second referee finds no partner.
     assert result is None
-    assert Match.objects.count() == 0
+    assert Match.objects.count() == 1
 
 
 # ---------------------------------------------------------------------------
@@ -637,17 +650,17 @@ def test_propose_match_skips_matched_registration() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_requeue_to_front_sets_waiting_and_increments_priority() -> None:
-    """requeue_to_front sets status=WAITING and increments priority by 1."""
+def test_requeue_to_front_sets_verified_and_increments_priority() -> None:
+    """requeue_to_front sets status=VERIFIED and increments priority by 1."""
     reg = RegistrationFactory.create(
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
         priority=0,
         flake_count=1,
     )
     requeue_to_front(reg)
 
     reg.refresh_from_db()
-    assert reg.status == Registration.Status.WAITING
+    assert reg.status == Registration.Status.VERIFIED
     assert reg.priority == 1
     assert reg.flake_count == 1  # unchanged
 
@@ -655,13 +668,13 @@ def test_requeue_to_front_sets_waiting_and_increments_priority() -> None:
 def test_requeue_to_front_syncs_in_memory_instance() -> None:
     """requeue_to_front syncs the passed-in instance's fields to the DB values."""
     reg = RegistrationFactory.create(
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
         priority=5,
     )
     requeue_to_front(reg)
 
     # In-memory fields must match DB without an extra refresh.
-    assert reg.status == Registration.Status.WAITING
+    assert reg.status == Registration.Status.VERIFIED
     assert reg.priority == 6
 
 
@@ -672,7 +685,7 @@ def test_requeue_to_front_lost_update_guard() -> None:
     increment must be computed from the locked row (5 → 6), not the stale 0.
     """
     reg = RegistrationFactory.create(
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
         priority=5,  # DB value is 5
     )
     reg.priority = 0  # stale — must NOT be used by the service
@@ -688,17 +701,17 @@ def test_requeue_to_front_lost_update_guard() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_requeue_to_back_sets_waiting_and_decrements_priority() -> None:
-    """requeue_to_back sets status=WAITING and decrements priority by 1."""
+def test_requeue_to_back_sets_verified_and_decrements_priority() -> None:
+    """requeue_to_back sets status=VERIFIED and decrements priority by 1."""
     reg = RegistrationFactory.create(
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
         priority=0,
         flake_count=0,
     )
     requeue_to_back(reg)
 
     reg.refresh_from_db()
-    assert reg.status == Registration.Status.WAITING
+    assert reg.status == Registration.Status.VERIFIED
     assert reg.priority == -1
     assert reg.flake_count == 0  # unchanged
 
@@ -706,12 +719,12 @@ def test_requeue_to_back_sets_waiting_and_decrements_priority() -> None:
 def test_requeue_to_back_syncs_in_memory_instance() -> None:
     """requeue_to_back syncs the passed-in instance's fields to the DB values."""
     reg = RegistrationFactory.create(
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
         priority=3,
     )
     requeue_to_back(reg)
 
-    assert reg.status == Registration.Status.WAITING
+    assert reg.status == Registration.Status.VERIFIED
     assert reg.priority == 2
 
 
@@ -722,7 +735,7 @@ def test_requeue_to_back_lost_update_guard() -> None:
     decrement must be computed from the locked row (3 → 2), not the stale 0.
     """
     reg = RegistrationFactory.create(
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
         priority=3,  # DB value is 3
     )
     reg.priority = 0  # stale — must NOT be used by the service
@@ -741,7 +754,7 @@ def test_requeue_to_back_lost_update_guard() -> None:
 def test_record_flake_first_flake_requeues_to_back() -> None:
     """record_flake_and_requeue: first flake (count 0→1) requeues to back."""
     reg = RegistrationFactory.create(
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
         priority=0,
         flake_count=0,
     )
@@ -749,7 +762,7 @@ def test_record_flake_first_flake_requeues_to_back() -> None:
 
     reg.refresh_from_db()
     assert reg.flake_count == 1
-    assert reg.status == Registration.Status.WAITING
+    assert reg.status == Registration.Status.VERIFIED
     assert reg.priority == -1
 
 
@@ -760,7 +773,7 @@ def test_record_flake_boundary_suspends_at_two() -> None:
     """
     starting_priority = 5
     reg = RegistrationFactory.create(
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
         priority=starting_priority,
         flake_count=1,
     )
@@ -779,7 +792,7 @@ def test_record_flake_lost_update_guard() -> None:
     The function must read 1 from DB, increment to 2, and suspend.
     """
     reg = RegistrationFactory.create(
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
         priority=0,
         flake_count=1,  # DB value is 1
     )
@@ -797,7 +810,7 @@ def test_record_flake_lost_update_guard() -> None:
 def test_record_flake_lost_update_guard_syncs_instance() -> None:
     """record_flake_and_requeue syncs the passed-in instance after the DB write."""
     reg = RegistrationFactory.create(
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
         priority=0,
         flake_count=1,
     )
@@ -818,7 +831,7 @@ def test_record_flake_lost_update_guard_syncs_instance() -> None:
 def test_suspend_for_no_show_sets_suspended_and_increments_flake() -> None:
     """suspend_for_no_show sets status=SUSPENDED and increments flake_count."""
     reg = RegistrationFactory.create(
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
         flake_count=0,
     )
     suspend_for_no_show(reg)
@@ -831,7 +844,7 @@ def test_suspend_for_no_show_sets_suspended_and_increments_flake() -> None:
 def test_suspend_for_no_show_syncs_in_memory_instance() -> None:
     """suspend_for_no_show syncs the passed-in instance's fields to the DB values."""
     reg = RegistrationFactory.create(
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
         flake_count=0,
     )
     suspend_for_no_show(reg)
@@ -843,7 +856,7 @@ def test_suspend_for_no_show_syncs_in_memory_instance() -> None:
 def test_suspend_for_no_show_increments_flake_unconditionally() -> None:
     """suspend_for_no_show increments flake_count regardless of its current value."""
     reg = RegistrationFactory.create(
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
         flake_count=2,
     )
     suspend_for_no_show(reg)
@@ -896,29 +909,29 @@ def test_is_eligible_pair_returns_false_when_referee_suspended() -> None:
 
 
 # ---------------------------------------------------------------------------
-# register_participant — PENDING status (VERB-24)
+# register_participant — UNVERIFIED status (VERB-24 / VERB-44)
 # ---------------------------------------------------------------------------
 
 
-def test_register_participant_pending_creates_pending_registration() -> None:
-    """register_participant with status=PENDING creates a PENDING registration."""
+def test_register_participant_unverified_creates_unverified_registration() -> None:
+    """register_participant(status=UNVERIFIED) creates an UNVERIFIED registration."""
     registration = register_participant(
         role=Registration.Role.REFEREE,
         first_name="Grace",
         last_name="Hopper",
         email="grace@example.com",
         prior_pass=Registration.PriorPass.NONE,
-        status=Registration.Status.PENDING,
+        status=Registration.Status.UNVERIFIED,
     )
-    assert registration.status == Registration.Status.PENDING
+    assert registration.status == Registration.Status.UNVERIFIED
 
 
-def test_register_participant_pending_does_not_propose_match() -> None:
-    """A PENDING registration must never trigger propose_match (Invariant 2)."""
+def test_register_participant_unverified_does_not_propose_match() -> None:
+    """An UNVERIFIED registration must never trigger propose_match (Invariant 2)."""
     RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.WAITING,
+        status=Registration.Status.VERIFIED,
     )
     register_participant(
         role=Registration.Role.REFEREE,
@@ -926,17 +939,17 @@ def test_register_participant_pending_does_not_propose_match() -> None:
         last_name="Hopper",
         email="grace@example.com",
         prior_pass=Registration.PriorPass.NONE,
-        status=Registration.Status.PENDING,
+        status=Registration.Status.UNVERIFIED,
     )
     assert Match.objects.count() == 0
 
 
-def test_register_participant_waiting_still_proposes_match() -> None:
-    """The default (WAITING) path still calls propose_match (regression guard)."""
+def test_register_participant_verified_still_proposes_match() -> None:
+    """The default (VERIFIED) path still calls propose_match (regression guard)."""
     RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.WAITING,
+        status=Registration.Status.VERIFIED,
     )
     with TestCase.captureOnCommitCallbacks(execute=True):
         register_participant(
@@ -950,74 +963,76 @@ def test_register_participant_waiting_still_proposes_match() -> None:
 
 
 # ---------------------------------------------------------------------------
-# confirm_registration (VERB-24)
+# confirm_registration (VERB-24 / VERB-44)
 # ---------------------------------------------------------------------------
 
 
-def test_confirm_registration_transitions_pending_to_waiting() -> None:
-    """confirm_registration transitions a PENDING registration to WAITING."""
+def test_confirm_registration_transitions_unverified_to_verified() -> None:
+    """confirm_registration transitions an UNVERIFIED registration to VERIFIED."""
     reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.PENDING,
+        status=Registration.Status.UNVERIFIED,
     )
     result = confirm_registration(reg)
-    assert result.status == Registration.Status.WAITING
+    assert result.status == Registration.Status.VERIFIED
     reg.refresh_from_db()
-    assert reg.status == Registration.Status.WAITING
+    assert reg.status == Registration.Status.VERIFIED
 
 
 def test_confirm_registration_proposes_match_after_flip() -> None:
-    """confirm_registration calls propose_match after transitioning to WAITING."""
+    """confirm_registration calls propose_match after transitioning to VERIFIED."""
     RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.WAITING,
+        status=Registration.Status.VERIFIED,
     )
     reg = RegistrationFactory.create(
         referee=True,
-        status=Registration.Status.PENDING,
+        status=Registration.Status.UNVERIFIED,
     )
     with TestCase.captureOnCommitCallbacks(execute=True):
         confirm_registration(reg)
     assert Match.objects.count() == 1
 
 
-def test_confirm_registration_non_pending_is_noop() -> None:
-    """confirm_registration on a non-PENDING registration is a no-op."""
+def test_confirm_registration_non_unverified_is_noop() -> None:
+    """confirm_registration on a non-UNVERIFIED registration is a no-op."""
     reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.WAITING,
+        status=Registration.Status.VERIFIED,
     )
     result = confirm_registration(reg)
     # Status unchanged; no match created (no counterpart anyway).
-    assert result.status == Registration.Status.WAITING
+    assert result.status == Registration.Status.VERIFIED
     assert Match.objects.count() == 0
 
 
 def test_confirm_registration_syncs_in_memory_instance() -> None:
     """confirm_registration syncs the passed-in instance's status field."""
     reg = RegistrationFactory.create(
-        status=Registration.Status.PENDING,
+        status=Registration.Status.UNVERIFIED,
     )
     result = confirm_registration(reg)
     # Must be synced without a separate refresh.
-    assert result.status == Registration.Status.WAITING
-    assert reg.status == Registration.Status.WAITING
+    assert result.status == Registration.Status.VERIFIED
+    assert reg.status == Registration.Status.VERIFIED
 
 
 # ---------------------------------------------------------------------------
-# record_acceptance
+# record_acceptance (VERB-44: PROPOSED→PENDING on first, PENDING→ACCEPTED on second)
 # ---------------------------------------------------------------------------
 
 
-def test_record_acceptance_first_accept_sets_ambassador_timestamp_only() -> None:
-    """First accept by ambassador sets ambassador_accepted_at; status stays PROPOSED."""
-    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED
-    )
+def test_record_acceptance_first_accept_by_ambassador_goes_pending() -> None:
+    """First accept by ambassador sets ambassador_accepted_at; status goes PENDING.
+
+    VERB-44: the first acceptance transitions PROPOSED → PENDING and writes a
+    StateTransitionLog row. Registrations remain VERIFIED.
+    """
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
@@ -1028,22 +1043,21 @@ def test_record_acceptance_first_accept_sets_ambassador_timestamp_only() -> None
 
     after = timezone.now()
     result.refresh_from_db()
-    assert result.status == Match.Status.PROPOSED
+    assert result.status == Match.Status.PENDING
     assert result.ambassador_accepted_at is not None
     assert before <= result.ambassador_accepted_at <= after
     assert result.referee_accepted_at is None
-    # No log row on first accept.
-    assert StateTransitionLog.objects.count() == 0
+    # One log row written for PROPOSED → PENDING.
+    assert StateTransitionLog.objects.count() == 1
+    log = StateTransitionLog.objects.get()
+    assert log.state_before == Match.Status.PROPOSED
+    assert log.state_after == Match.Status.PENDING
 
 
-def test_record_acceptance_first_accept_by_referee_sets_referee_timestamp_only() -> (
-    None
-):
-    """First accept by referee sets referee_accepted_at; status stays PROPOSED."""
-    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED
-    )
+def test_record_acceptance_first_accept_by_referee_goes_pending() -> None:
+    """First accept by referee sets referee_accepted_at; status goes PENDING."""
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
@@ -1052,48 +1066,54 @@ def test_record_acceptance_first_accept_by_referee_sets_referee_timestamp_only()
     result = record_acceptance(match, referee_reg)
 
     result.refresh_from_db()
-    assert result.status == Match.Status.PROPOSED
+    assert result.status == Match.Status.PENDING
     assert result.referee_accepted_at is not None
     assert result.ambassador_accepted_at is None
-    assert StateTransitionLog.objects.count() == 0
+    assert StateTransitionLog.objects.count() == 1
 
 
 def test_record_acceptance_second_accept_transitions_to_accepted() -> None:
-    """Second accept transitions Match → ACCEPTED and both registrations → CONFIRMED."""
-    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED
-    )
+    """Second accept transitions Match → ACCEPTED.
+
+    VERB-44: Registration statuses remain VERIFIED — pool standing is
+    independent of match progress.
+    """
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
     )
 
-    # First accept — ambassador.
+    # First accept — ambassador (PROPOSED → PENDING).
     record_acceptance(match, ambassador_reg)
     match.refresh_from_db()
-    assert match.status == Match.Status.PROPOSED
+    assert match.status == Match.Status.PENDING
 
-    # Second accept — referee triggers the full transition.
+    # Second accept — referee (PENDING → ACCEPTED).
     result = record_acceptance(match, referee_reg)
 
     result.refresh_from_db()
     assert result.status == Match.Status.ACCEPTED
 
+    # Registrations stay VERIFIED — they no longer flip to CONFIRMED (VERB-44).
     ambassador_reg.refresh_from_db()
     referee_reg.refresh_from_db()
-    assert ambassador_reg.status == Registration.Status.CONFIRMED
-    assert referee_reg.status == Registration.Status.CONFIRMED
+    assert ambassador_reg.status == Registration.Status.VERIFIED
+    assert referee_reg.status == Registration.Status.VERIFIED
 
 
-def test_record_acceptance_second_accept_writes_three_log_rows() -> None:
-    """Mutual accept writes exactly three StateTransitionLog rows."""
+def test_record_acceptance_second_accept_writes_two_log_rows() -> None:
+    """Mutual accept writes exactly two StateTransitionLog rows.
+
+    VERB-44: one for PROPOSED → PENDING (first accept) and one for
+    PENDING → ACCEPTED (second accept). Registration statuses are no longer
+    logged because they no longer change.
+    """
     from django.contrib.contenttypes.models import ContentType
 
-    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED
-    )
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
@@ -1103,57 +1123,21 @@ def test_record_acceptance_second_accept_writes_three_log_rows() -> None:
     record_acceptance(match, referee_reg)
 
     logs = list(StateTransitionLog.objects.order_by("pk"))
-    assert len(logs) == 3
+    assert len(logs) == 2
 
     match_ct = ContentType.objects.get_for_model(Match)
-    reg_ct = ContentType.objects.get_for_model(Registration)
+    match_logs = [log for log in logs if log.content_type_id == match_ct.pk]
+    assert len(match_logs) == 2
 
-    # One log for Match.status.
-    match_log = next(
-        (
-            log
-            for log in logs
-            if log.content_type_id == match_ct.pk and log.object_id == match.pk
-        ),
-        None,
-    )
-    assert match_log is not None
-    assert match_log.state_before == Match.Status.PROPOSED
-    assert match_log.state_after == Match.Status.ACCEPTED
-
-    # One log for ambassador Registration.status.
-    amb_log = next(
-        (
-            log
-            for log in logs
-            if log.content_type_id == reg_ct.pk and log.object_id == ambassador_reg.pk
-        ),
-        None,
-    )
-    assert amb_log is not None
-    assert amb_log.state_before == Registration.Status.MATCHED
-    assert amb_log.state_after == Registration.Status.CONFIRMED
-
-    # One log for referee Registration.status.
-    ref_log = next(
-        (
-            log
-            for log in logs
-            if log.content_type_id == reg_ct.pk and log.object_id == referee_reg.pk
-        ),
-        None,
-    )
-    assert ref_log is not None
-    assert ref_log.state_before == Registration.Status.MATCHED
-    assert ref_log.state_after == Registration.Status.CONFIRMED
+    transitions = {(log.state_before, log.state_after) for log in match_logs}
+    assert (Match.Status.PROPOSED, Match.Status.PENDING) in transitions
+    assert (Match.Status.PENDING, Match.Status.ACCEPTED) in transitions
 
 
 def test_record_acceptance_re_accept_is_idempotent_for_timestamp() -> None:
     """Re-accepting an already-accepted side does not change the existing timestamp."""
-    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED
-    )
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
@@ -1167,16 +1151,16 @@ def test_record_acceptance_re_accept_is_idempotent_for_timestamp() -> None:
     result_second = record_acceptance(result_first, ambassador_reg)
     result_second.refresh_from_db()
     assert result_second.ambassador_accepted_at == original_ts
-    # Status still PROPOSED (referee hasn't accepted).
-    assert result_second.status == Match.Status.PROPOSED
+    # Status stays PENDING (ambassador accepted but referee hasn't).
+    assert result_second.status == Match.Status.PENDING
 
 
-def test_record_acceptance_raises_for_non_proposed_match() -> None:
-    """record_acceptance raises ValueError if match.status != PROPOSED."""
+def test_record_acceptance_raises_for_non_active_match() -> None:
+    """record_acceptance raises ValueError if match.status is terminal."""
     match = MatchFactory.create(status=Match.Status.DECLINED)
     ambassador_reg = match.ambassador_registration
 
-    with pytest.raises(ValueError, match="PROPOSED"):
+    with pytest.raises(ValueError, match="PROPOSED or PENDING"):
         record_acceptance(match, ambassador_reg)
 
 
@@ -1187,10 +1171,8 @@ def test_record_acceptance_raises_for_non_proposed_match() -> None:
 
 def test_record_decline_transitions_match_to_declined() -> None:
     """record_decline transitions match PROPOSED → DECLINED and sets declined_by/at."""
-    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED
-    )
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
@@ -1209,10 +1191,8 @@ def test_record_decline_transitions_match_to_declined() -> None:
 
 def test_record_decline_by_referee_sets_referee_side() -> None:
     """record_decline by the referee side sets declined_by=REFEREE."""
-    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED
-    )
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
@@ -1242,10 +1222,8 @@ def test_record_decline_writes_one_log_row_for_match_status() -> None:
 
 def test_record_decline_does_not_change_registration_statuses() -> None:
     """record_decline leaves Registration.status untouched — re-queue is VERB-17."""
-    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED
-    )
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
@@ -1256,16 +1234,16 @@ def test_record_decline_does_not_change_registration_statuses() -> None:
     ambassador_reg.refresh_from_db()
     referee_reg.refresh_from_db()
     # Re-queuing belongs to VERB-17; this service must not touch these.
-    assert ambassador_reg.status == Registration.Status.MATCHED
-    assert referee_reg.status == Registration.Status.MATCHED
+    assert ambassador_reg.status == Registration.Status.VERIFIED
+    assert referee_reg.status == Registration.Status.VERIFIED
 
 
-def test_record_decline_raises_for_non_proposed_match() -> None:
-    """record_decline raises ValueError if match.status != PROPOSED."""
+def test_record_decline_raises_for_non_active_match() -> None:
+    """record_decline raises ValueError if match.status is terminal."""
     match = MatchFactory.create(status=Match.Status.ACCEPTED)
     referee_reg = match.referee_registration
 
-    with pytest.raises(ValueError, match="PROPOSED"):
+    with pytest.raises(ValueError, match="PROPOSED or PENDING"):
         record_decline(match, referee_reg)
 
 
@@ -1287,12 +1265,10 @@ def test_send_match_confirmed_email_contains_counterpart_details() -> None:
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
         phone="+41790001111",
-        status=Registration.Status.CONFIRMED,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
         phone="+41790002222",
-        status=Registration.Status.CONFIRMED,
     )
     match = MatchFactory.create(
         accepted=True,
@@ -1326,12 +1302,10 @@ def test_send_match_confirmed_email_respects_preferred_language() -> None:
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
         preferred_language="fr",
-        status=Registration.Status.CONFIRMED,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
         preferred_language="en",
-        status=Registration.Status.CONFIRMED,
     )
     match = MatchFactory.create(
         accepted=True,
@@ -1347,12 +1321,14 @@ def test_send_match_confirmed_email_respects_preferred_language() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_accept_match_first_accept_stays_proposed_no_email() -> None:
-    """First accept leaves match PROPOSED and sends no confirmed email."""
-    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED
-    )
+def test_accept_match_first_accept_goes_pending_no_email() -> None:
+    """First accept transitions match to PENDING and sends no confirmed email.
+
+    VERB-44: the first accept now moves the match PROPOSED → PENDING rather than
+    leaving it PROPOSED. No confirmed email is sent until both sides accept.
+    """
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
@@ -1360,27 +1336,28 @@ def test_accept_match_first_accept_stays_proposed_no_email() -> None:
     with TestCase.captureOnCommitCallbacks(execute=True):
         result = accept_match(match, ambassador_reg)
 
-    assert result.status == Match.Status.PROPOSED
+    assert result.status == Match.Status.PENDING
     assert len(mail.outbox) == 0
 
 
 def test_accept_match_second_accept_transitions_accepted_and_sends_email() -> None:
-    """Second accept transitions match to ACCEPTED and sends confirmed emails."""
-    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED
-    )
+    """Second accept transitions match to ACCEPTED and sends confirmed emails.
+
+    VERB-44: Registration statuses remain VERIFIED after the match is accepted.
+    """
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
     )
 
-    # First accept — ambassador.
+    # First accept — ambassador goes to PENDING.
     with TestCase.captureOnCommitCallbacks(execute=True):
         accept_match(match, ambassador_reg)
 
     match.refresh_from_db()
-    assert match.status == Match.Status.PROPOSED
+    assert match.status == Match.Status.PENDING
     assert len(mail.outbox) == 0
 
     # Second accept — referee triggers the full transition.
@@ -1389,32 +1366,36 @@ def test_accept_match_second_accept_transitions_accepted_and_sends_email() -> No
 
     assert result.status == Match.Status.ACCEPTED
 
+    # VERB-44: registrations remain VERIFIED — no longer flipped to CONFIRMED.
     ambassador_reg.refresh_from_db()
     referee_reg.refresh_from_db()
-    assert ambassador_reg.status == Registration.Status.CONFIRMED
-    assert referee_reg.status == Registration.Status.CONFIRMED
+    assert ambassador_reg.status == Registration.Status.VERIFIED
+    assert referee_reg.status == Registration.Status.VERIFIED
 
     # Two confirmed emails sent (one per party).
     assert len(mail.outbox) == 2
 
 
 # ---------------------------------------------------------------------------
-# withdraw_acceptance
+# withdraw_acceptance (VERB-43 / VERB-44)
 # ---------------------------------------------------------------------------
 
 
-def test_withdraw_acceptance_clears_ambassador_timestamp() -> None:
-    """Ambassador withdraws → ambassador_accepted_at cleared, status stays PROPOSED."""
-    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED
-    )
+def test_withdraw_acceptance_clears_ambassador_timestamp_and_goes_proposed() -> None:
+    """Ambassador withdraws: ambassador_accepted_at cleared, status → PROPOSED.
+
+    VERB-44: withdraw_acceptance requires the match to be in PENDING state.
+    The first accept has already transitioned it PROPOSED → PENDING.
+    """
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
     )
     record_acceptance(match, ambassador_reg)
     match.refresh_from_db()
+    assert match.status == Match.Status.PENDING
     assert match.ambassador_accepted_at is not None
 
     result = withdraw_acceptance(match, ambassador_reg)
@@ -1425,18 +1406,17 @@ def test_withdraw_acceptance_clears_ambassador_timestamp() -> None:
     assert result.referee_accepted_at is None
 
 
-def test_withdraw_acceptance_clears_referee_timestamp() -> None:
-    """Referee withdraws → referee_accepted_at cleared, status stays PROPOSED."""
-    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED
-    )
+def test_withdraw_acceptance_clears_referee_timestamp_and_goes_proposed() -> None:
+    """Referee withdraws from PENDING → referee_accepted_at cleared, status PROPOSED."""
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
     )
     record_acceptance(match, referee_reg)
     match.refresh_from_db()
+    assert match.status == Match.Status.PENDING
     assert match.referee_accepted_at is not None
 
     result = withdraw_acceptance(match, referee_reg)
@@ -1446,37 +1426,37 @@ def test_withdraw_acceptance_clears_referee_timestamp() -> None:
     assert result.referee_accepted_at is None
 
 
-def test_withdraw_acceptance_applies_no_penalty_and_writes_no_log() -> None:
-    """Withdraw leaves status/priority/flake untouched and writes no log row."""
-    ambassador_reg = RegistrationFactory.create(
-        status=Registration.Status.MATCHED, priority=0, flake_count=0
-    )
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED
-    )
+def test_withdraw_acceptance_applies_no_penalty_and_writes_one_log() -> None:
+    """Withdraw is penalty-free and writes one PENDING→PROPOSED log row."""
+    ambassador_reg = RegistrationFactory.create(priority=0, flake_count=0)
+    referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
     )
+    # First accept transitions PROPOSED → PENDING (one log row).
     record_acceptance(match, ambassador_reg)
+    assert StateTransitionLog.objects.count() == 1
 
+    # Withdraw transitions PENDING → PROPOSED (one more log row).
     withdraw_acceptance(match, ambassador_reg)
 
     ambassador_reg.refresh_from_db()
     # No re-queue and no flake — the registration is unchanged.
-    assert ambassador_reg.status == Registration.Status.MATCHED
+    assert ambassador_reg.status == Registration.Status.VERIFIED
     assert ambassador_reg.priority == 0
     assert ambassador_reg.flake_count == 0
-    # The match never left PROPOSED, so no transition is logged.
-    assert StateTransitionLog.objects.count() == 0
+    # Total log rows: PROPOSED→PENDING (first accept) + PENDING→PROPOSED (withdraw).
+    logs = list(StateTransitionLog.objects.order_by("pk"))
+    assert len(logs) == 2
+    assert logs[1].state_before == Match.Status.PENDING
+    assert logs[1].state_after == Match.Status.PROPOSED
 
 
-def test_withdraw_acceptance_raises_for_non_proposed_match() -> None:
-    """withdraw_acceptance raises ValueError if match.status != PROPOSED."""
-    ambassador_reg = RegistrationFactory.create(status=Registration.Status.CONFIRMED)
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.CONFIRMED
-    )
+def test_withdraw_acceptance_raises_for_non_pending_match() -> None:
+    """withdraw_acceptance raises ValueError if match.status != PENDING."""
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
@@ -1488,15 +1468,16 @@ def test_withdraw_acceptance_raises_for_non_proposed_match() -> None:
 
 def test_withdraw_acceptance_raises_when_side_has_not_accepted() -> None:
     """withdraw_acceptance raises ValueError if the calling side never accepted."""
-    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED
-    )
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
+    # Create a PENDING match where only the referee has accepted.
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
+        status=Match.Status.PENDING,
+        referee_accepted_at=datetime(2026, 9, 2, 10, 0, 0, tzinfo=UTC),
     )
-    # Neither side has accepted; the ambassador has nothing to withdraw.
+    # Ambassador has not accepted; nothing to withdraw.
     with pytest.raises(ValueError, match="has not accepted"):
         withdraw_acceptance(match, ambassador_reg)
 
@@ -1508,10 +1489,8 @@ def test_withdraw_acceptance_raises_when_side_has_not_accepted() -> None:
 
 def test_decline_match_transitions_to_declined() -> None:
     """decline_match transitions the match to DECLINED."""
-    ambassador_reg = RegistrationFactory.create(status=Registration.Status.MATCHED)
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED
-    )
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
@@ -1523,15 +1502,9 @@ def test_decline_match_transitions_to_declined() -> None:
 
 def test_decline_match_deletes_decliner_and_requeues_other_to_front() -> None:
     """decline_match deletes the decliner's User+Registration and re-queues other."""
-    from django.contrib.auth.models import User
-
-    ambassador_reg = RegistrationFactory.create(
-        status=Registration.Status.MATCHED, priority=0
-    )
+    ambassador_reg = RegistrationFactory.create(priority=0)
     ambassador_user_pk = ambassador_reg.user.pk
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED, priority=0
-    )
+    referee_reg = RegistrationFactory.create(referee=True, priority=0)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
@@ -1543,9 +1516,9 @@ def test_decline_match_deletes_decliner_and_requeues_other_to_front() -> None:
     assert not User.objects.filter(pk=ambassador_user_pk).exists()
     assert not Registration.objects.filter(pk=ambassador_reg.pk).exists()
 
-    # Other party (referee) re-queued to front: status WAITING, priority incremented.
+    # Other party (referee) re-queued to front: status VERIFIED, priority incremented.
     referee_reg.refresh_from_db()
-    assert referee_reg.status == Registration.Status.WAITING
+    assert referee_reg.status == Registration.Status.VERIFIED
     assert referee_reg.priority == 1
 
     # Match survives with the ambassador FK set to NULL.
@@ -1556,14 +1529,8 @@ def test_decline_match_deletes_decliner_and_requeues_other_to_front() -> None:
 
 def test_decline_match_by_referee_deletes_referee_and_requeues_ambassador() -> None:
     """decline_match by the referee side deletes referee and re-queues ambassador."""
-    from django.contrib.auth.models import User
-
-    ambassador_reg = RegistrationFactory.create(
-        status=Registration.Status.MATCHED, priority=5
-    )
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED, priority=5
-    )
+    ambassador_reg = RegistrationFactory.create(priority=5)
+    referee_reg = RegistrationFactory.create(referee=True, priority=5)
     referee_user_pk = referee_reg.user.pk
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -1578,7 +1545,7 @@ def test_decline_match_by_referee_deletes_referee_and_requeues_ambassador() -> N
 
     # Ambassador (other side) re-queued to front: priority 5 → 6.
     ambassador_reg.refresh_from_db()
-    assert ambassador_reg.status == Registration.Status.WAITING
+    assert ambassador_reg.status == Registration.Status.VERIFIED
     assert ambassador_reg.priority == 6
 
     # Match survives with the referee FK set to NULL.
@@ -1591,13 +1558,9 @@ def test_decline_match_records_email_hash_on_match() -> None:
     """decline_match records the decliner's email hash on the DECLINED match."""
     from core.hashing import hash_email
 
-    ambassador_reg = RegistrationFactory.create(
-        status=Registration.Status.MATCHED, priority=0
-    )
+    ambassador_reg = RegistrationFactory.create(priority=0)
     ambassador_email = ambassador_reg.user.email
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.MATCHED, priority=0
-    )
+    referee_reg = RegistrationFactory.create(referee=True, priority=0)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
@@ -1663,18 +1626,14 @@ def test_register_participant_sets_prior_decline_count_after_prior_decline() -> 
 
 
 # ---------------------------------------------------------------------------
-# report_no_show (VERB-21)
+# report_no_show (VERB-21 / VERB-44: ACCEPTED → CANCELLED)
 # ---------------------------------------------------------------------------
 
 
-def test_report_no_show_transitions_match_to_abandoned() -> None:
-    """report_no_show transitions match ACCEPTED → ABANDONED."""
-    ambassador_reg = RegistrationFactory.create(
-        status=Registration.Status.CONFIRMED, priority=0
-    )
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.CONFIRMED, priority=0
-    )
+def test_report_no_show_transitions_match_to_cancelled() -> None:
+    """report_no_show transitions match ACCEPTED → CANCELLED."""
+    ambassador_reg = RegistrationFactory.create(priority=0)
+    referee_reg = RegistrationFactory.create(referee=True, priority=0)
     match = MatchFactory.create(
         accepted=True,
         ambassador_registration=ambassador_reg,
@@ -1684,15 +1643,13 @@ def test_report_no_show_transitions_match_to_abandoned() -> None:
     result = report_no_show(match, ambassador_reg)
 
     result.refresh_from_db()
-    assert result.status == Match.Status.ABANDONED
+    assert result.status == Match.Status.CANCELLED
     assert result.no_show_reported_by == Match.Side.AMBASSADOR
     assert result.no_show_reported_at is not None
 
 
 def test_report_no_show_no_show_reported_at_is_tz_aware() -> None:
     """report_no_show sets a tz-aware no_show_reported_at timestamp."""
-    from django.utils import timezone
-
     match = MatchFactory.create(accepted=True)
     before = timezone.now()
     result = report_no_show(match, match.ambassador_registration)
@@ -1715,13 +1672,9 @@ def test_report_no_show_by_referee_sets_referee_side() -> None:
 
 
 def test_report_no_show_reporter_requeued_to_front() -> None:
-    """Reporter (kept-faith party) is re-queued to the front (WAITING, priority +1)."""
-    ambassador_reg = RegistrationFactory.create(
-        status=Registration.Status.CONFIRMED, priority=3
-    )
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.CONFIRMED, priority=0
-    )
+    """Reporter (kept-faith party) is re-queued to the front (VERIFIED, priority +1)."""
+    ambassador_reg = RegistrationFactory.create(priority=3)
+    referee_reg = RegistrationFactory.create(referee=True, priority=0)
     match = MatchFactory.create(
         accepted=True,
         ambassador_registration=ambassador_reg,
@@ -1731,18 +1684,14 @@ def test_report_no_show_reporter_requeued_to_front() -> None:
     report_no_show(match, ambassador_reg)
 
     ambassador_reg.refresh_from_db()
-    assert ambassador_reg.status == Registration.Status.WAITING
+    assert ambassador_reg.status == Registration.Status.VERIFIED
     assert ambassador_reg.priority == 4  # 3 + 1
 
 
 def test_report_no_show_accused_suspended() -> None:
     """The accused party is SUSPENDED and flake_count incremented."""
-    ambassador_reg = RegistrationFactory.create(
-        status=Registration.Status.CONFIRMED, flake_count=0
-    )
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.CONFIRMED, flake_count=0
-    )
+    ambassador_reg = RegistrationFactory.create(flake_count=0)
+    referee_reg = RegistrationFactory.create(referee=True, flake_count=0)
     match = MatchFactory.create(
         accepted=True,
         ambassador_registration=ambassador_reg,
@@ -1760,10 +1709,9 @@ def test_report_no_show_accused_suspended() -> None:
 def test_report_no_show_writes_two_transition_log_rows() -> None:
     """report_no_show writes exactly two StateTransitionLog rows for the objects.
 
-    One for Match.status (ACCEPTED → ABANDONED) and one for the accused
-    Registration.status (CONFIRMED → SUSPENDED). The reporter's CONFIRMED →
-    WAITING transition is intentionally not logged (consistent with the
-    decline path).
+    One for Match.status (ACCEPTED → CANCELLED) and one for the accused
+    Registration.status (VERIFIED → SUSPENDED). The reporter's VERIFIED →
+    VERIFIED transition is not logged (consistent with the decline path).
 
     The count is scoped to the specific match and accused-registration PKs so
     the assertion holds even when other rows exist in the table (e.g. from
@@ -1771,12 +1719,8 @@ def test_report_no_show_writes_two_transition_log_rows() -> None:
     """
     from django.contrib.contenttypes.models import ContentType
 
-    ambassador_reg = RegistrationFactory.create(
-        status=Registration.Status.CONFIRMED, priority=0
-    )
-    referee_reg = RegistrationFactory.create(
-        referee=True, status=Registration.Status.CONFIRMED, priority=0
-    )
+    ambassador_reg = RegistrationFactory.create(priority=0)
+    referee_reg = RegistrationFactory.create(referee=True, priority=0)
     match = MatchFactory.create(
         accepted=True,
         ambassador_registration=ambassador_reg,
@@ -1805,7 +1749,7 @@ def test_report_no_show_writes_two_transition_log_rows() -> None:
     assert match_log is not None
     assert match_log.object_id == match.pk
     assert match_log.state_before == Match.Status.ACCEPTED
-    assert match_log.state_after == Match.Status.ABANDONED
+    assert match_log.state_after == Match.Status.CANCELLED
 
     # One log for the accused (referee) Registration.status.
     reg_log = next(
@@ -1814,21 +1758,14 @@ def test_report_no_show_writes_two_transition_log_rows() -> None:
     )
     assert reg_log is not None
     assert reg_log.object_id == referee_reg.pk
-    assert reg_log.state_before == Registration.Status.CONFIRMED
+    assert reg_log.state_before == Registration.Status.VERIFIED
     assert reg_log.state_after == Registration.Status.SUSPENDED
 
 
 def test_report_no_show_sends_one_email_to_accused() -> None:
     """report_no_show queues one email to the accused party only (no reporter PII)."""
-    ambassador_reg = RegistrationFactory.create(
-        status=Registration.Status.CONFIRMED,
-        phone="+41790001111",
-    )
-    referee_reg = RegistrationFactory.create(
-        referee=True,
-        status=Registration.Status.CONFIRMED,
-        phone="+41790002222",
-    )
+    ambassador_reg = RegistrationFactory.create(phone="+41790001111")
+    referee_reg = RegistrationFactory.create(referee=True, phone="+41790002222")
     match = MatchFactory.create(
         accepted=True,
         ambassador_registration=ambassador_reg,
@@ -1858,14 +1795,9 @@ def test_report_no_show_email_contains_no_reporter_pii() -> None:
         user=reporter_user,
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.CONFIRMED,
         phone="+41790001111",
     )
-    referee_reg = RegistrationFactory.create(
-        referee=True,
-        status=Registration.Status.CONFIRMED,
-        phone="+41790002222",
-    )
+    referee_reg = RegistrationFactory.create(referee=True, phone="+41790002222")
     match = MatchFactory.create(
         accepted=True,
         ambassador_registration=ambassador_reg,
@@ -1885,15 +1817,8 @@ def test_report_no_show_email_contains_no_reporter_pii() -> None:
 
 def test_report_no_show_email_respects_accused_preferred_language() -> None:
     """send_no_show_notification renders under the accused's preferred_language."""
-    accused_reg = RegistrationFactory.create(
-        referee=True,
-        status=Registration.Status.CONFIRMED,
-        preferred_language="fr",
-    )
-    ambassador_reg = RegistrationFactory.create(
-        status=Registration.Status.CONFIRMED,
-        preferred_language="en",
-    )
+    accused_reg = RegistrationFactory.create(referee=True, preferred_language="fr")
+    ambassador_reg = RegistrationFactory.create(preferred_language="en")
     match = MatchFactory.create(
         accepted=True,
         ambassador_registration=ambassador_reg,
@@ -1906,8 +1831,7 @@ def test_report_no_show_email_respects_accused_preferred_language() -> None:
     # The single notification is addressed to the accused (the suspended party),
     # whose preferred_language drives the render. We assert delivery rather than
     # translated copy: the test env does not compile message catalogues, so
-    # gettext falls back to the source string (see the other *_preferred_language
-    # tests, which assert the same way).
+    # gettext falls back to the source string.
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == [accused_reg.user.email]
 
@@ -1949,7 +1873,7 @@ def test_report_no_show_returns_updated_match() -> None:
 
     result = report_no_show(match, match.ambassador_registration)
 
-    assert result.status == Match.Status.ABANDONED
+    assert result.status == Match.Status.CANCELLED
     assert result.pk == match.pk
 
 
@@ -1971,15 +1895,8 @@ def test_send_no_show_notification_sends_one_email() -> None:
 
 def test_send_no_show_notification_contains_no_reporter_pii() -> None:
     """send_no_show_notification must not contain any reporter PII (Invariant 1)."""
-    ambassador_reg = RegistrationFactory.create(
-        status=Registration.Status.CONFIRMED,
-        phone="+41790003333",
-    )
-    referee_reg = RegistrationFactory.create(
-        referee=True,
-        status=Registration.Status.CONFIRMED,
-        phone="+41790004444",
-    )
+    ambassador_reg = RegistrationFactory.create(phone="+41790003333")
+    referee_reg = RegistrationFactory.create(referee=True, phone="+41790004444")
     match = MatchFactory.create(
         accepted=True,
         ambassador_registration=ambassador_reg,
@@ -1997,11 +1914,7 @@ def test_send_no_show_notification_contains_no_reporter_pii() -> None:
 
 def test_send_no_show_notification_respects_preferred_language() -> None:
     """send_no_show_notification renders under the accused's preferred_language."""
-    accused_reg = RegistrationFactory.create(
-        referee=True,
-        status=Registration.Status.CONFIRMED,
-        preferred_language="fr",
-    )
+    accused_reg = RegistrationFactory.create(referee=True, preferred_language="fr")
     match = MatchFactory.create(
         accepted=True,
         referee_registration=accused_reg,
@@ -2020,12 +1933,22 @@ def test_send_no_show_notification_respects_preferred_language() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_queue_position_returns_none_for_non_waiting_registration() -> None:
-    """queue_position returns None when the registration is not WAITING."""
+def test_queue_position_returns_none_for_non_verified_registration() -> None:
+    """queue_position returns None when the registration is not VERIFIED."""
     reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.SUSPENDED,
+    )
+    assert queue_position(reg) is None
+
+
+def test_queue_position_returns_none_for_unverified_registration() -> None:
+    """queue_position returns None when the registration is UNVERIFIED."""
+    reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.UNVERIFIED,
     )
     assert queue_position(reg) is None
 
@@ -2035,7 +1958,7 @@ def test_queue_position_returns_one_for_sole_eligible_participant() -> None:
     reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.WAITING,
+        status=Registration.Status.VERIFIED,
         priority=0,
     )
     assert queue_position(reg) == 1
@@ -2114,9 +2037,9 @@ def test_queue_position_equal_priority_fifo_on_created_at() -> None:
 def test_queue_position_role_scoped_ambassador_ignores_referees() -> None:
     """An ambassador's queue position is computed only from the ambassador pool.
 
-    Waiting referees must not affect the ambassador's ordinal.
+    Verified referees must not affect the ambassador's ordinal.
     """
-    # One waiting referee in the pool.
+    # One verified referee in the pool.
     RegistrationFactory.create(referee=True, priority=99)
 
     ambassador = RegistrationFactory.create(
@@ -2132,9 +2055,9 @@ def test_queue_position_role_scoped_ambassador_ignores_referees() -> None:
 def test_queue_position_role_scoped_referee_ignores_ambassadors() -> None:
     """A referee's queue position is computed only from the referee pool.
 
-    Waiting ambassadors must not affect the referee's ordinal.
+    Verified ambassadors must not affect the referee's ordinal.
     """
-    # One waiting ambassador in the pool.
+    # One verified ambassador in the pool.
     RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
@@ -2147,18 +2070,35 @@ def test_queue_position_role_scoped_referee_ignores_ambassadors() -> None:
     assert queue_position(referee) == 1
 
 
-def test_queue_position_returns_none_for_ineligible_waiting_ambassador() -> None:
-    """queue_position returns None for a WAITING ambassador with no prior pass.
+def test_queue_position_returns_none_for_ineligible_verified_ambassador() -> None:
+    """queue_position returns None for a VERIFIED ambassador with no prior pass.
 
     An ambassador with prior_pass=NONE is not in the eligible pool even though
-    their status is WAITING (e.g. created via admin, bypassing the form
+    their status is VERIFIED (e.g. created via admin, bypassing the form
     validation). The function must return None rather than a misleading ordinal.
     """
     reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.NONE,
-        status=Registration.Status.WAITING,
+        status=Registration.Status.VERIFIED,
     )
+    assert queue_position(reg) is None
+
+
+def test_queue_position_returns_none_for_verified_reg_with_active_match() -> None:
+    """queue_position returns None for a VERIFIED registration holding an active match.
+
+    VERB-44: pool availability is controlled by _without_active_match. A
+    registration with an active match is excluded from the eligible pool, so
+    queue_position must return None rather than an ordinal.
+    """
+    reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.VERIFIED,
+    )
+    MatchFactory.create(ambassador_registration=reg, status=Match.Status.PROPOSED)
+    # The reg is VERIFIED but has an active match — it is not in the eligible pool.
     assert queue_position(reg) is None
 
 
@@ -2175,14 +2115,14 @@ def test_total_accepted_matches_returns_zero_with_no_matches() -> None:
 def test_total_accepted_matches_counts_only_accepted() -> None:
     """total_accepted_matches counts only ACCEPTED matches, not other statuses.
 
-    Includes an ABANDONED match (a no-show that was previously ACCEPTED) to
-    confirm it does not inflate the count — ABANDONED is a distinct terminal
+    Includes a CANCELLED match (a no-show that was previously ACCEPTED) to
+    confirm it does not inflate the count — CANCELLED is a distinct terminal
     status and must not be conflated with ACCEPTED.
     """
     MatchFactory.create(accepted=True)
     MatchFactory.create(accepted=True)
     MatchFactory.create()  # PROPOSED
     MatchFactory.create(declined=True)
-    MatchFactory.create(abandoned=True)  # was ACCEPTED, then reported as no-show
+    MatchFactory.create(cancelled=True)  # was ACCEPTED, then reported as no-show
 
     assert total_accepted_matches() == 2

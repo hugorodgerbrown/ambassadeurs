@@ -147,13 +147,13 @@ def _valid_referee_post() -> dict[str, object]:
 
 
 def test_register_post_creates_pending_registration() -> None:
-    """A valid anonymous POST creates a PENDING registration (not WAITING)."""
+    """A valid anonymous POST creates an UNVERIFIED registration (not VERIFIED)."""
     response = Client().post(reverse("public:register"), _valid_referee_post())
     assert response.status_code == 302
     assert response.url == reverse("public:register_email_sent")
     assert Registration.objects.count() == 1
     reg = Registration.objects.get()
-    assert reg.status == Registration.Status.PENDING
+    assert reg.status == Registration.Status.UNVERIFIED
     assert reg.role == Registration.Role.REFEREE
 
 
@@ -167,19 +167,19 @@ def test_register_post_sends_confirmation_email() -> None:
 
 
 def test_register_post_pending_not_matched() -> None:
-    """A PENDING registration must never trigger a match (Invariant 2)."""
-    # Pre-populate a waiting ambassador — if matching ran, a Match would be created.
+    """An UNVERIFIED registration must never trigger a match (Invariant 2)."""
+    # Pre-populate a verified ambassador — if matching ran, a Match would be created.
     RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.WAITING,
+        status=Registration.Status.VERIFIED,
     )
     Client().post(reverse("public:register"), _valid_referee_post())
     from matching.models import Match
 
     assert Match.objects.count() == 0
     reg = Registration.objects.filter(role=Registration.Role.REFEREE).get()
-    assert reg.status == Registration.Status.PENDING
+    assert reg.status == Registration.Status.UNVERIFIED
 
 
 def test_register_post_invalid_redisplays_form() -> None:
@@ -198,19 +198,19 @@ def test_register_post_unknown_role_404() -> None:
 
 
 def test_register_post_resends_for_existing_pending() -> None:
-    """A re-submit for an email with a PENDING registration resends the link.
+    """A re-submit for an email with an UNVERIFIED registration resends the link.
 
     No second Registration row is created; exactly one confirmation email is
     sent (plus the initial one that was sent when the row was created by the
     factory — we reset outbox before the second POST).
     """
-    # Simulate an existing PENDING row for this email.
+    # Simulate an existing UNVERIFIED row for this email.
     user = UserFactory.create(username="grace@example.com", email="grace@example.com")
     RegistrationFactory.create(
         user=user,
         role=Registration.Role.REFEREE,
         prior_pass=Registration.PriorPass.NONE,
-        status=Registration.Status.PENDING,
+        status=Registration.Status.UNVERIFIED,
     )
     mail.outbox.clear()
 
@@ -222,13 +222,13 @@ def test_register_post_resends_for_existing_pending() -> None:
 
 
 def test_register_post_duplicate_waiting_shows_validation_error() -> None:
-    """Submitting for an email with an existing WAITING registration shows an error."""
+    """Submitting for an email with an existing VERIFIED registration shows an error."""
     user = UserFactory.create(username="grace@example.com", email="grace@example.com")
     RegistrationFactory.create(
         user=user,
         role=Registration.Role.REFEREE,
         prior_pass=Registration.PriorPass.NONE,
-        status=Registration.Status.WAITING,
+        status=Registration.Status.VERIFIED,
     )
 
     response = Client().post(reverse("public:register"), _valid_referee_post())
@@ -331,14 +331,14 @@ def test_register_email_sent_hides_confirm_link_outside_debug() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_register_confirm_valid_token_transitions_to_waiting() -> None:
-    """A valid confirm token transitions the registration PENDING → WAITING."""
+def test_register_confirm_valid_token_transitions_to_verified() -> None:
+    """A valid confirm token transitions the registration UNVERIFIED → VERIFIED."""
     user = UserFactory.create(username="ada@example.com", email="ada@example.com")
     reg = RegistrationFactory.create(
         user=user,
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.PENDING,
+        status=Registration.Status.UNVERIFIED,
     )
     token = make_registration_confirmation_token(reg.pk)
     client = Client()
@@ -347,7 +347,7 @@ def test_register_confirm_valid_token_transitions_to_waiting() -> None:
     assert response.status_code == 302
     assert response.url == reverse("public:register_done", args=["ambassador"])
     reg.refresh_from_db()
-    assert reg.status == Registration.Status.WAITING
+    assert reg.status == Registration.Status.VERIFIED
 
 
 def test_register_confirm_logs_user_in() -> None:
@@ -357,7 +357,7 @@ def test_register_confirm_logs_user_in() -> None:
         user=user,
         role=Registration.Role.REFEREE,
         prior_pass=Registration.PriorPass.NONE,
-        status=Registration.Status.PENDING,
+        status=Registration.Status.UNVERIFIED,
     )
     token = make_registration_confirmation_token(reg.pk)
     client = Client()
@@ -367,18 +367,18 @@ def test_register_confirm_logs_user_in() -> None:
 
 
 def test_register_confirm_triggers_matching() -> None:
-    """Confirming a PENDING registration proposes a match if a counterpart waits."""
+    """Confirming an UNVERIFIED registration proposes a match if a counterpart waits."""
     RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.WAITING,
+        status=Registration.Status.VERIFIED,
     )
     user = UserFactory.create(username="grace@example.com", email="grace@example.com")
     reg = RegistrationFactory.create(
         user=user,
         role=Registration.Role.REFEREE,
         prior_pass=Registration.PriorPass.NONE,
-        status=Registration.Status.PENDING,
+        status=Registration.Status.UNVERIFIED,
     )
     token = make_registration_confirmation_token(reg.pk)
     with TestCase.captureOnCommitCallbacks(execute=True):
@@ -387,8 +387,9 @@ def test_register_confirm_triggers_matching() -> None:
     from matching.models import Match
 
     assert Match.objects.count() == 1
+    # VERB-44: registration stays VERIFIED (not MATCHED) after a match is proposed.
     reg.refresh_from_db()
-    assert reg.status == Registration.Status.MATCHED
+    assert reg.status == Registration.Status.VERIFIED
 
 
 def test_register_confirm_invalid_token_returns_400() -> None:
@@ -403,7 +404,7 @@ def test_register_confirm_tampered_token_returns_400() -> None:
     user = UserFactory.create(username="ada@example.com", email="ada@example.com")
     reg = RegistrationFactory.create(
         user=user,
-        status=Registration.Status.PENDING,
+        status=Registration.Status.UNVERIFIED,
     )
     token = make_registration_confirmation_token(reg.pk)
     response = Client().get(reverse("public:register_confirm", args=[token + "x"]))
@@ -415,7 +416,7 @@ def test_register_confirm_expired_token_returns_400() -> None:
     """A well-formed but expired confirm token shows the invalid-link page with 400.
 
     The token is valid (correct signature) but is read with max_age=-1 to
-    simulate expiry. The registration must remain PENDING (unchanged).
+    simulate expiry. The registration must remain UNVERIFIED (unchanged).
     """
     from unittest.mock import patch
 
@@ -424,7 +425,7 @@ def test_register_confirm_expired_token_returns_400() -> None:
     user = UserFactory.create(username="ada@example.com", email="ada@example.com")
     reg = RegistrationFactory.create(
         user=user,
-        status=Registration.Status.PENDING,
+        status=Registration.Status.UNVERIFIED,
     )
     token = make_registration_confirmation_token(reg.pk)
 
@@ -438,15 +439,15 @@ def test_register_confirm_expired_token_returns_400() -> None:
     assert response.status_code == 400
     assert "public/register_invalid.html" in [t.name for t in response.templates]
     reg.refresh_from_db()
-    assert reg.status == Registration.Status.PENDING
+    assert reg.status == Registration.Status.UNVERIFIED
 
 
 def test_register_confirm_already_confirmed_returns_400() -> None:
-    """A confirm link for a non-PENDING registration returns 400 (used/replayed)."""
+    """A confirm link for a non-UNVERIFIED registration returns 400 (used/replayed)."""
     user = UserFactory.create(username="ada@example.com", email="ada@example.com")
     reg = RegistrationFactory.create(
         user=user,
-        status=Registration.Status.WAITING,  # already confirmed
+        status=Registration.Status.VERIFIED,  # already confirmed
     )
     token = make_registration_confirmation_token(reg.pk)
     response = Client().get(reverse("public:register_confirm", args=[token]))
@@ -570,7 +571,7 @@ def test_register_get_already_registered_shows_banner_and_disabled_inputs() -> N
         user=user,
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.WAITING,
+        status=Registration.Status.VERIFIED,
     )
     client = Client()
     client.force_login(user)
@@ -604,7 +605,7 @@ def test_register_get_already_registered_locks_to_registered_role() -> None:
         user=user,
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.WAITING,
+        status=Registration.Status.VERIFIED,
     )
     client = Client()
     client.force_login(user)
@@ -628,7 +629,7 @@ def test_register_details_form_already_registered_shows_banner() -> None:
     RegistrationFactory.create(
         user=user,
         referee=True,
-        status=Registration.Status.WAITING,
+        status=Registration.Status.VERIFIED,
     )
     client = Client()
     client.force_login(user)
@@ -910,12 +911,12 @@ def test_match_detail_no_counterpart_pii_before_accept() -> None:
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
         phone="+41790009999",
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
         phone="+41790008888",
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -935,12 +936,12 @@ def test_match_detail_accepted_reveals_counterpart_pii() -> None:
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
         phone="+41790009999",
-        status=Registration.Status.CONFIRMED,
+        status=Registration.Status.VERIFIED,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
         phone="+41790008888",
-        status=Registration.Status.CONFIRMED,
+        status=Registration.Status.VERIFIED,
     )
     match = MatchFactory.create(
         accepted=True,
@@ -960,11 +961,11 @@ def test_match_detail_accepted_shows_next_steps_block() -> None:
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.CONFIRMED,
+        status=Registration.Status.VERIFIED,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
-        status=Registration.Status.CONFIRMED,
+        status=Registration.Status.VERIFIED,
     )
     match = MatchFactory.create(
         accepted=True,
@@ -986,11 +987,11 @@ def test_match_detail_next_steps_absent_before_mutual_accept() -> None:
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -1022,12 +1023,12 @@ def test_match_detail_htmx_accept_transitions_to_waiting_state() -> None:
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
         phone="+41790009999",
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
         phone="+41790008888",
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -1053,12 +1054,12 @@ def test_match_detail_htmx_second_accept_shows_accepted_state_and_pii() -> None:
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
         phone="+41790009999",
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
         phone="+41790008888",
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -1070,7 +1071,7 @@ def test_match_detail_htmx_second_accept_shows_accepted_state_and_pii() -> None:
         accept_match(match, ambassador_reg)
 
     match.refresh_from_db()
-    assert match.status == Match.Status.PROPOSED
+    assert match.status == Match.Status.PENDING  # VERB-44: first accept → PENDING
 
     # Second accept — referee via HTMX.
     token = make_match_access_token(match.pk, referee_reg.pk)
@@ -1094,13 +1095,13 @@ def test_match_detail_htmx_decline_shows_declined_state() -> None:
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
         priority=0,
     )
     ambassador_user_pk = ambassador_reg.user.pk
     referee_reg = RegistrationFactory.create(
         referee=True,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
         priority=0,
     )
     match = MatchFactory.create(
@@ -1118,7 +1119,7 @@ def test_match_detail_htmx_decline_shows_declined_state() -> None:
     # Decliner (ambassador) is deleted; other party (referee) is re-queued to front.
     assert not User.objects.filter(pk=ambassador_user_pk).exists()
     referee_reg.refresh_from_db()
-    assert referee_reg.status == Registration.Status.WAITING
+    assert referee_reg.status == Registration.Status.VERIFIED
     assert referee_reg.priority == 1
 
     content = response.content.decode()
@@ -1134,11 +1135,11 @@ def test_match_detail_htmx_decline_decliner_sees_removed_message() -> None:
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -1169,11 +1170,11 @@ def test_match_detail_htmx_decline_counterpart_sees_requeued_message() -> None:
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -1211,11 +1212,11 @@ def test_match_removed_page_has_register_link() -> None:
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -1332,11 +1333,11 @@ def test_match_withdraw_htmx_get_is_rejected() -> None:
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -1359,11 +1360,11 @@ def test_match_withdraw_htmx_returns_to_proposed_view() -> None:
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -1397,11 +1398,11 @@ def test_match_detail_post_fallback_accept_redirects() -> None:
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -1426,11 +1427,11 @@ def test_match_detail_post_fallback_decline_renders_removed_page() -> None:
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -1450,17 +1451,15 @@ def test_match_detail_post_fallback_decline_renders_removed_page() -> None:
 
 
 def _make_accepted_match() -> tuple[Match, Registration, Registration]:
-    """Create a mutually accepted match with both registrations CONFIRMED."""
+    """Create a mutually accepted match (VERB-44: both registrations stay VERIFIED)."""
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
         phone="+41790009999",
-        status=Registration.Status.CONFIRMED,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
         phone="+41790008888",
-        status=Registration.Status.CONFIRMED,
     )
     match = MatchFactory.create(
         accepted=True,
@@ -1470,8 +1469,8 @@ def _make_accepted_match() -> tuple[Match, Registration, Registration]:
     return match, ambassador_reg, referee_reg
 
 
-def test_match_report_no_show_htmx_post_transitions_to_abandoned() -> None:
-    """A valid HTMX POST on an ACCEPTED match transitions it to ABANDONED."""
+def test_match_report_no_show_htmx_post_transitions_to_cancelled() -> None:
+    """A valid HTMX POST on an ACCEPTED match transitions it to CANCELLED."""
     match, ambassador_reg, _ = _make_accepted_match()
     token = make_match_access_token(match.pk, ambassador_reg.pk)
     url = reverse("public:match_report_no_show", args=[token])
@@ -1481,7 +1480,7 @@ def test_match_report_no_show_htmx_post_transitions_to_abandoned() -> None:
 
     assert response.status_code == 200
     match.refresh_from_db()
-    assert match.status == Match.Status.ABANDONED
+    assert match.status == Match.Status.CANCELLED
     assert match.no_show_reported_by == Match.Side.AMBASSADOR
 
 
@@ -1544,8 +1543,8 @@ def test_match_report_no_show_on_non_accepted_match_is_noop() -> None:
 
 
 def test_match_report_no_show_second_report_is_noop() -> None:
-    """A second HTMX POST on an already-ABANDONED match is a no-op."""
-    match = MatchFactory.create(abandoned=True)
+    """A second HTMX POST on an already-CANCELLED match is a no-op."""
+    match = MatchFactory.create(cancelled=True)
     # The factory sets no_show_reported_by=REFEREE; try to report as ambassador.
     token = make_match_access_token(match.pk, match.ambassador_registration_id)
     url = reverse("public:match_report_no_show", args=[token])
@@ -1555,7 +1554,7 @@ def test_match_report_no_show_second_report_is_noop() -> None:
     assert response.status_code == 200
     match.refresh_from_db()
     # Status and reporter unchanged.
-    assert match.status == Match.Status.ABANDONED
+    assert match.status == Match.Status.CANCELLED
     assert match.no_show_reported_by == Match.Side.REFEREE
 
 
@@ -1604,22 +1603,22 @@ def test_match_detail_post_fallback_report_no_show_redirects() -> None:
     assert response.status_code == 302
     assert response.url == url
     match.refresh_from_db()
-    assert match.status == Match.Status.ABANDONED
+    assert match.status == Match.Status.CANCELLED
 
 
 def test_match_detail_post_fallback_report_no_show_already_reported_noop() -> None:
     """A no-JS report_no_show POST on an already-reported match is a no-op."""
-    match = MatchFactory.create(abandoned=True)
+    match = MatchFactory.create(cancelled=True)
     token = make_match_access_token(match.pk, match.ambassador_registration_id)
     url = reverse("public:match", args=[token])
 
     # The factory creates no_show_reported_by=REFEREE; try to report as ambassador
-    # on an already-ABANDONED match.
+    # on an already-CANCELLED match.
     response = Client().post(url, {"action": "report_no_show"})
 
     assert response.status_code == 302
     match.refresh_from_db()
-    assert match.status == Match.Status.ABANDONED
+    assert match.status == Match.Status.CANCELLED
     assert match.no_show_reported_by == Match.Side.REFEREE  # unchanged
 
 
@@ -1711,16 +1710,12 @@ def test_both_sides_panel_shows_pending_for_proposed_match() -> None:
 
 
 def test_both_sides_panel_shows_accepted_after_ambassador_accepts() -> None:
-    """After the ambassador accepts, the ambassador row shows Accepted."""
+    """After the ambassador accepts (PENDING), the ambassador row shows Accepted."""
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.MATCHED,
     )
-    referee_reg = RegistrationFactory.create(
-        referee=True,
-        status=Registration.Status.MATCHED,
-    )
+    referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
@@ -1729,6 +1724,8 @@ def test_both_sides_panel_shows_accepted_after_ambassador_accepts() -> None:
         accept_match(match, ambassador_reg)
 
     match.refresh_from_db()
+    # VERB-44: first accept transitions PROPOSED → PENDING.
+    assert match.status == Match.Status.PENDING
     url = _make_match_url(match, ambassador_reg)
     response = Client().get(url)
     content = response.content.decode()
@@ -1764,12 +1761,12 @@ def test_both_sides_panel_reveals_only_first_name_in_proposed_match() -> None:
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
         phone="+41790009999",
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
         phone="+41790008888",
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -1795,11 +1792,11 @@ def test_match_detail_partner_accepted_shows_callout_and_actions() -> None:
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
-        status=Registration.Status.MATCHED,
+        status=Registration.Status.VERIFIED,
     )
     # Referee (the partner) has accepted; ambassador (the viewer) has not.
     match = MatchFactory.create(

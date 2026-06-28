@@ -90,7 +90,7 @@ def test_create_counterpart_waiting_creates_registration_and_match() -> None:
         user=user,
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.WAITING,
+        status=Registration.Status.VERIFIED,
     )
 
     client = _authenticated_client(user)
@@ -114,50 +114,50 @@ def test_create_counterpart_waiting_creates_registration_and_match() -> None:
 
 
 @override_settings(DEBUG=True)
-def test_create_counterpart_pending_creates_no_match() -> None:
-    """PENDING state creates the registration but proposes no match."""
+def test_create_counterpart_unverified_creates_no_match() -> None:
+    """UNVERIFIED state creates the registration but proposes no match."""
     user = UserFactory.create()
     RegistrationFactory.create(
         user=user,
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.WAITING,
+        status=Registration.Status.VERIFIED,
     )
 
     client = _authenticated_client(user)
     response = client.post(
         reverse("debug:create_counterpart"),
-        {"state": "PENDING"},
+        {"state": "UNVERIFIED"},
     )
 
     assert response.status_code == 302
 
-    # A PENDING referee registration exists.
-    pending = Registration.objects.filter(
+    # An UNVERIFIED referee registration exists.
+    unverified = Registration.objects.filter(
         role=Registration.Role.REFEREE,
-        status=Registration.Status.PENDING,
+        status=Registration.Status.UNVERIFIED,
     ).first()
-    assert pending is not None
+    assert unverified is not None
 
     # No match created.
     assert not Match.objects.exists()
 
 
 @override_settings(DEBUG=True)
-def test_create_counterpart_pending_stashes_verify_url_in_session() -> None:
-    """PENDING state stashes the confirm URL in the session."""
+def test_create_counterpart_unverified_stashes_verify_url_in_session() -> None:
+    """UNVERIFIED state stashes the confirm URL in the session."""
     user = UserFactory.create()
     RegistrationFactory.create(
         user=user,
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
-        status=Registration.Status.WAITING,
+        status=Registration.Status.VERIFIED,
     )
 
     client = _authenticated_client(user)
     client.post(
         reverse("debug:create_counterpart"),
-        {"state": "PENDING"},
+        {"state": "UNVERIFIED"},
     )
 
     assert "debug_verify_url" in client.session
@@ -171,7 +171,7 @@ def test_create_counterpart_referee_creates_ambassador_counterpart() -> None:
         user=user,
         role=Registration.Role.REFEREE,
         prior_pass=Registration.PriorPass.NONE,
-        status=Registration.Status.WAITING,
+        status=Registration.Status.VERIFIED,
     )
 
     client = _authenticated_client(user)
@@ -198,12 +198,8 @@ def test_counterpart_accept_sets_counterpart_accepted_at() -> None:
     my_reg = RegistrationFactory.create(
         user=user,
         role=Registration.Role.AMBASSADOR,
-        status=Registration.Status.MATCHED,
     )
-    counterpart_reg = RegistrationFactory.create(
-        role=Registration.Role.REFEREE,
-        status=Registration.Status.MATCHED,
-    )
+    counterpart_reg = RegistrationFactory.create(role=Registration.Role.REFEREE)
     match = MatchFactory.create(
         ambassador_registration=my_reg,
         referee_registration=counterpart_reg,
@@ -215,8 +211,9 @@ def test_counterpart_accept_sets_counterpart_accepted_at() -> None:
 
     assert response.status_code == 302
     match.refresh_from_db()
-    # The counterpart (referee) has accepted; ambassador has not yet.
+    # The counterpart (referee) has accepted; match is now PENDING.
     assert match.referee_accepted_at is not None
+    assert match.status == Match.Status.PENDING
 
 
 @override_settings(DEBUG=True)
@@ -228,12 +225,8 @@ def test_counterpart_accept_then_user_accept_reaches_accepted() -> None:
     my_reg = RegistrationFactory.create(
         user=user,
         role=Registration.Role.AMBASSADOR,
-        status=Registration.Status.MATCHED,
     )
-    counterpart_reg = RegistrationFactory.create(
-        role=Registration.Role.REFEREE,
-        status=Registration.Status.MATCHED,
-    )
+    counterpart_reg = RegistrationFactory.create(role=Registration.Role.REFEREE)
     match = MatchFactory.create(
         ambassador_registration=my_reg,
         referee_registration=counterpart_reg,
@@ -241,10 +234,10 @@ def test_counterpart_accept_then_user_accept_reaches_accepted() -> None:
     )
 
     client = _authenticated_client(user)
-    # Counterpart accepts via the debug view.
+    # Counterpart accepts via the debug view — match goes PROPOSED → PENDING.
     client.post(reverse("debug:counterpart_accept"))
     match.refresh_from_db()
-    assert match.status == Match.Status.PROPOSED  # still proposed; one-sided
+    assert match.status == Match.Status.PENDING
 
     # Now the user (ambassador) accepts directly via the service.
     accept_match(match, my_reg)
@@ -261,15 +254,8 @@ def test_counterpart_accept_then_user_accept_reaches_accepted() -> None:
 def test_counterpart_decline_transitions_match_to_declined() -> None:
     """counterpart_decline transitions the match to DECLINED."""
     user = UserFactory.create()
-    my_reg = RegistrationFactory.create(
-        user=user,
-        role=Registration.Role.AMBASSADOR,
-        status=Registration.Status.MATCHED,
-    )
-    counterpart_reg = RegistrationFactory.create(
-        role=Registration.Role.REFEREE,
-        status=Registration.Status.MATCHED,
-    )
+    my_reg = RegistrationFactory.create(user=user, role=Registration.Role.AMBASSADOR)
+    counterpart_reg = RegistrationFactory.create(role=Registration.Role.REFEREE)
     match = MatchFactory.create(
         ambassador_registration=my_reg,
         referee_registration=counterpart_reg,
@@ -295,12 +281,10 @@ def test_counterpart_decline_deletes_counterpart_and_requeues_user() -> None:
     my_reg = RegistrationFactory.create(
         user=user,
         role=Registration.Role.AMBASSADOR,
-        status=Registration.Status.MATCHED,
         priority=0,
     )
     counterpart_reg = RegistrationFactory.create(
         role=Registration.Role.REFEREE,
-        status=Registration.Status.MATCHED,
         priority=0,
     )
     counterpart_user_pk = counterpart_reg.user.pk
@@ -321,7 +305,7 @@ def test_counterpart_decline_deletes_counterpart_and_requeues_user() -> None:
 
     # The kept-faith user is re-queued to the front (priority +1).
     my_reg.refresh_from_db()
-    assert my_reg.status == Registration.Status.WAITING
+    assert my_reg.status == Registration.Status.VERIFIED
     assert my_reg.priority == 1
 
 
@@ -334,15 +318,8 @@ def test_counterpart_decline_deletes_counterpart_and_requeues_user() -> None:
 def test_counterpart_login_switches_session_user() -> None:
     """counterpart_login logs out the current user and logs in as the counterpart."""
     user = UserFactory.create()
-    my_reg = RegistrationFactory.create(
-        user=user,
-        role=Registration.Role.AMBASSADOR,
-        status=Registration.Status.MATCHED,
-    )
-    counterpart_reg = RegistrationFactory.create(
-        role=Registration.Role.REFEREE,
-        status=Registration.Status.MATCHED,
-    )
+    my_reg = RegistrationFactory.create(user=user, role=Registration.Role.AMBASSADOR)
+    counterpart_reg = RegistrationFactory.create(role=Registration.Role.REFEREE)
     MatchFactory.create(
         ambassador_registration=my_reg,
         referee_registration=counterpart_reg,
@@ -363,15 +340,8 @@ def test_counterpart_login_switches_session_user() -> None:
 def test_counterpart_login_redirects_to_match_when_counterpart_has_match() -> None:
     """counterpart_login redirects to accounts:match when counterpart has a match."""
     user = UserFactory.create()
-    my_reg = RegistrationFactory.create(
-        user=user,
-        role=Registration.Role.AMBASSADOR,
-        status=Registration.Status.MATCHED,
-    )
-    counterpart_reg = RegistrationFactory.create(
-        role=Registration.Role.REFEREE,
-        status=Registration.Status.MATCHED,
-    )
+    my_reg = RegistrationFactory.create(user=user, role=Registration.Role.AMBASSADOR)
+    counterpart_reg = RegistrationFactory.create(role=Registration.Role.REFEREE)
     MatchFactory.create(
         ambassador_registration=my_reg,
         referee_registration=counterpart_reg,
@@ -487,8 +457,8 @@ def test_components_renders_every_pill_combination() -> None:
         assert label in content
     for tone in ("tag-status--muted", "tag-status--wait", "tag-status--done"):
         assert tone in content
-    # MATCHED / CONFIRMED scenarios name the partner.
+    # Proposed / pending / accepted match scenarios name the partner.
     assert "Bernard" in content
-    # Both WAITING variants are present (with and without a queue position).
+    # Both VERIFIED variants are present (with and without a queue position).
     assert "You are in the queue" in content
     assert "You are number 3 in the queue" in content

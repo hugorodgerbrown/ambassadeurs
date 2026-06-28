@@ -56,7 +56,7 @@ def test_update_account_without_registration_does_not_raise() -> None:
 
 def test_send_confirmation_email_sends_mail_and_returns_confirm_url() -> None:
     """send_confirmation_email sends one email and returns the confirm URL."""
-    registration = RegistrationFactory.create(status=Registration.Status.PENDING)
+    registration = RegistrationFactory.create(status=Registration.Status.UNVERIFIED)
     request = RequestFactory().get("/")
     request.META["SERVER_NAME"] = "testserver"
     request.META["SERVER_PORT"] = "80"
@@ -73,7 +73,7 @@ def test_send_confirmation_email_sends_mail_and_returns_confirm_url() -> None:
 
 def test_send_confirmation_email_subject_contains_confirm_phrase() -> None:
     """The confirmation email subject references email confirmation."""
-    registration = RegistrationFactory.create(status=Registration.Status.PENDING)
+    registration = RegistrationFactory.create(status=Registration.Status.UNVERIFIED)
     request = RequestFactory().get("/")
     request.META["SERVER_NAME"] = "testserver"
     request.META["SERVER_PORT"] = "80"

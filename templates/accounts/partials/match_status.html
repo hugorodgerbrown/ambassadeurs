@@ -1,0 +1,98 @@
+{% load i18n %}
+{% comment %}
+    Match status card (component).
+
+    A status pill on the heading (status_pill, from the view) gives the
+    at-a-glance state; a plain sentence below says what to do next. When there
+    is no registration, shows the "Register now" prompt instead.
+
+    Context:
+      registration          — the viewer's Registration, or None
+      status_pill           — {label, tone} for the heading pill (.tag-status--<tone>)
+      partner_first_name    — partner's first name (MATCHED / CONFIRMED copy)
+      partner_accepted      — whether the partner has responded (MATCHED copy)
+      queue_position        — 1-based queue ordinal, or None (WAITING copy)
+      total_accepted_matches — season pair count (WAITING copy)
+
+    Rendered by accounts/detail.html and by the DEBUG component gallery
+    (debug.views.components), so every combination can be reviewed in one place.
+{% endcomment %}
+{% if registration %}
+    <div class="card mb-6">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h2 class="text-h3 text-ink">{% translate "Match status" %}</h2>
+            <span class="tag-status tag-status--{{ status_pill.tone }}">{{ status_pill.label }}</span>
+        </div>
+        <p class="text-sm text-body">
+            {% if registration.status == 'PENDING' %}
+                {% blocktranslate trimmed %}
+                    Please confirm your email address to enter the pool.
+                {% endblocktranslate %}
+            {% elif registration.status == 'WAITING' %}
+                {% blocktranslate trimmed %}
+                    You are in the queue. We'll email you when a match is found.
+                {% endblocktranslate %}
+                {% if queue_position is not None %}
+                    <br>
+                    {% blocktranslate trimmed with position=queue_position %}
+                        You are number {{ position }} in the queue.
+                    {% endblocktranslate %}
+                    {% blocktranslate trimmed count counter=total_accepted_matches %}
+                        {{ counter }} pair matched so far this season.
+                    {% plural %}
+                        {{ counter }} pairs matched so far this season.
+                    {% endblocktranslate %}
+                {% endif %}
+            {% elif registration.status == 'MATCHED' %}
+                {% if partner_accepted %}
+                    {% blocktranslate trimmed with name=partner_first_name %}
+                        You have been matched with {{ name }}. They are waiting for you to respond.
+                    {% endblocktranslate %}
+                {% else %}
+                    {% blocktranslate trimmed with name=partner_first_name %}
+                        You have been matched with {{ name }}. They have not yet responded.
+                    {% endblocktranslate %}
+                {% endif %}
+            {% elif registration.status == 'CONFIRMED' %}
+                {% blocktranslate trimmed with name=partner_first_name %}
+                    You have been matched with {{ name }} — view the match to see their contact details.
+                {% endblocktranslate %}
+            {% elif registration.status == 'WITHDRAWN' %}
+                {% blocktranslate trimmed %}
+                    Your registration has been withdrawn.
+                {% endblocktranslate %}
+            {% elif registration.status == 'SUSPENDED' %}
+                {% blocktranslate trimmed %}
+                    Your registration has been suspended. Contact support if you think this is an error.
+                {% endblocktranslate %}
+            {% else %}
+                {{ registration.get_status_display }}
+            {% endif %}
+        </p>
+        {% comment %}
+            Show a "View your match" prompt only for MATCHED and CONFIRMED
+            registrations. MATCHED means the engine has paired the user but
+            mutual accept has not yet happened; CONFIRMED means both have
+            accepted and contact details are revealed. Both states have an
+            active match reachable via accounts:match.
+        {% endcomment %}
+        {% if registration.status == 'MATCHED' or registration.status == 'CONFIRMED' %}
+            <div class="mt-4 border-t border-line pt-4">
+                <a href="{% url 'accounts:match' %}" class="btn btn--role">
+                    {% translate "View your match" %}
+                </a>
+            </div>
+        {% endif %}
+    </div>
+{% else %}
+    <div class="card mb-6">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h2 class="text-h3 text-ink">{% translate "Match status" %}</h2>
+            <span class="tag-status tag-status--{{ status_pill.tone }}">{{ status_pill.label }}</span>
+        </div>
+        <p class="text-sm text-body">{% translate "You have no registration yet." %}</p>
+        <a href="{% url 'public:register' %}" class="btn btn--role mt-4">
+            {% translate "Register now" %}
+        </a>
+    </div>
+{% endif %}

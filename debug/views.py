@@ -32,6 +32,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from accounts.services import send_confirmation_email
+from accounts.views import _match_status_pill
 from core.decorators import require_debug
 from matching.models import Match, Registration
 from matching.services import (
@@ -413,3 +414,86 @@ def match_preview(request: HttpRequest) -> HttpResponse:
         for key, label in _PREVIEW_VIEWS
     ]
     return render(request, "public/match.html", context)
+
+
+# ---------------------------------------------------------------------------
+# Component gallery (visual QA of the account Match status panel)
+# ---------------------------------------------------------------------------
+
+
+def _match_status_scenario(
+    label: str,
+    *,
+    status: str | None,
+    partner_first_name: str = "",
+    partner_accepted: bool = False,
+    queue_position: int | None = None,
+    total_accepted_matches: int = 0,
+) -> dict[str, object]:
+    """Build one labelled render-context for the Match status partial.
+
+    ``status`` is a ``Registration.Status`` value, or ``None`` for the
+    no-registration case. The Registration is unsaved — the partial only reads
+    its ``status``/``get_status_display`` — and ``status_pill`` is derived the
+    same way the real view derives it (``_match_status_pill``).
+    """
+    registration = (
+        None
+        if status is None
+        else Registration(role=Registration.Role.REFEREE, status=status)
+    )
+    return {
+        "label": label,
+        "registration": registration,
+        "status_pill": _match_status_pill(registration),
+        "partner_first_name": partner_first_name,
+        "partner_accepted": partner_accepted,
+        "queue_position": queue_position,
+        "total_accepted_matches": total_accepted_matches,
+    }
+
+
+@require_debug
+def components(request: HttpRequest) -> HttpResponse:
+    """Render the account Match status panel in every combination (DEBUG-only).
+
+    A component gallery: each scenario is the real partial
+    (``accounts/partials/match_status.html``) rendered with synthetic context,
+    so the page is the live component — not a mock. Covers every
+    Registration.Status, both MATCHED partner-response variants, the two WAITING
+    queue-position variants, and the no-registration case.
+    """
+    scenarios = [
+        _match_status_scenario("No registration", status=None),
+        _match_status_scenario(
+            "Email unconfirmed (PENDING)", status=Registration.Status.PENDING
+        ),
+        _match_status_scenario(
+            "In the queue — no position", status=Registration.Status.WAITING
+        ),
+        _match_status_scenario(
+            "In the queue — with position",
+            status=Registration.Status.WAITING,
+            queue_position=3,
+            total_accepted_matches=5,
+        ),
+        _match_status_scenario(
+            "Matched — partner not responded",
+            status=Registration.Status.MATCHED,
+            partner_first_name="Bernard",
+        ),
+        _match_status_scenario(
+            "Matched — partner waiting on you",
+            status=Registration.Status.MATCHED,
+            partner_first_name="Bernard",
+            partner_accepted=True,
+        ),
+        _match_status_scenario(
+            "Confirmed",
+            status=Registration.Status.CONFIRMED,
+            partner_first_name="Bernard",
+        ),
+        _match_status_scenario("Withdrawn", status=Registration.Status.WITHDRAWN),
+        _match_status_scenario("Suspended", status=Registration.Status.SUSPENDED),
+    ]
+    return render(request, "debug/components.html", {"scenarios": scenarios})

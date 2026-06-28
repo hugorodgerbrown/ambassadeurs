@@ -456,3 +456,39 @@ def test_match_preview_reveals_contact_only_when_confirmed() -> None:
     assert "lea.maret@example.com" not in proposed
     assert "+41 79 482 16 03" not in proposed
     assert "Léa" in proposed
+
+
+# ---------------------------------------------------------------------------
+# components (account Match status panel gallery)
+# ---------------------------------------------------------------------------
+
+
+@override_settings(DEBUG=False)
+def test_components_404_when_not_debug() -> None:
+    """The component gallery returns 404 in production (require_debug guard)."""
+    response = Client().get(reverse("debug:components"))
+    assert response.status_code == 404
+
+
+@override_settings(DEBUG=True)
+def test_components_renders_every_pill_combination() -> None:
+    """The gallery renders each status pill tone and label, plus the partner name."""
+    content = Client().get(reverse("debug:components")).content.decode()
+    # One pill per scenario, tone-coded.
+    for label in (
+        "No match",
+        "Email unconfirmed",
+        "In the queue",
+        "Match pending",
+        "Match confirmed",
+        "Withdrawn",
+        "Suspended",
+    ):
+        assert label in content
+    for tone in ("tag-status--muted", "tag-status--wait", "tag-status--done"):
+        assert tone in content
+    # MATCHED / CONFIRMED scenarios name the partner.
+    assert "Bernard" in content
+    # Both WAITING variants are present (with and without a queue position).
+    assert "You are in the queue" in content
+    assert "You are number 3 in the queue" in content

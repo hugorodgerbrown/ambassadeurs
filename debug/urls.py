@@ -17,4 +17,5 @@ urlpatterns = [
     path("counterpart/decline/", views.counterpart_decline, name="counterpart_decline"),
     path("counterpart/login/", views.counterpart_login, name="counterpart_login"),
     path("match-preview/", views.match_preview, name="match_preview"),
+    path("components/", views.components, name="components"),
 ]

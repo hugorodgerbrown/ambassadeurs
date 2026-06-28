@@ -15,8 +15,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
-from typing import Any
+from datetime import datetime, timedelta
 
 from allauth.account.models import EmailAddress
 from django.conf import settings
@@ -145,12 +144,12 @@ def _make_registration(
     )
 
 
-def _future_expires_at() -> Any:
+def _future_expires_at() -> datetime:
     """Return a tz-aware expires_at suitable for an active (non-lapsed) match."""
     return timezone.now() + timedelta(hours=settings.CONTACT_WINDOW_HOURS)
 
 
-def _past_expires_at() -> Any:
+def _past_expires_at() -> datetime:
     """Return a tz-aware expires_at in the past (for terminal/historical matches)."""
     return timezone.now() - timedelta(hours=settings.CONTACT_WINDOW_HOURS)
 

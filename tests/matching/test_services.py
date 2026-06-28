@@ -1554,6 +1554,40 @@ def test_decline_match_by_referee_deletes_referee_and_requeues_ambassador() -> N
     assert match.referee_registration_id is None
 
 
+def test_decline_match_from_pending_by_referee_requeues_ambassador_to_front() -> None:
+    """Referee declines a PENDING match (ambassador already accepted).
+
+    VERB-44: the match is in PENDING state (one-sided accept). When the referee
+    declines, the accepting party (ambassador) must be re-queued to the FRONT
+    (priority +1, status VERIFIED). The decliner (referee) is deleted.
+    """
+    ambassador_reg = RegistrationFactory.create(priority=0)
+    referee_reg = RegistrationFactory.create(referee=True, priority=0)
+    referee_user_pk = referee_reg.user.pk
+    # PENDING: ambassador already accepted.
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+        status=Match.Status.PENDING,
+        ambassador_accepted_at=datetime(2026, 9, 1, 10, 0, 0, tzinfo=UTC),
+    )
+
+    decline_match(match, referee_reg)
+
+    # Match is DECLINED.
+    match.refresh_from_db()
+    assert match.status == Match.Status.DECLINED
+
+    # Decliner (referee) User and Registration are deleted.
+    assert not User.objects.filter(pk=referee_user_pk).exists()
+    assert not Registration.objects.filter(pk=referee_reg.pk).exists()
+
+    # Ambassador (kept-faith side) re-queued to the FRONT: priority 0 → 1.
+    ambassador_reg.refresh_from_db()
+    assert ambassador_reg.status == Registration.Status.VERIFIED
+    assert ambassador_reg.priority == 1
+
+
 def test_decline_match_records_email_hash_on_match() -> None:
     """decline_match records the decliner's email hash on the DECLINED match."""
     from core.hashing import hash_email

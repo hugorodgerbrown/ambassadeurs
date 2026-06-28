@@ -22,6 +22,7 @@ class RegistrationFactory(factory.django.DjangoModelFactory[Registration]):
     """Factory for Registration (ambassador with a seasonal pass by default).
 
     Use the ``referee`` trait for a referee (prior_pass=NONE).
+    Default status is VERIFIED (confirmed and in the pool).
     """
 
     class Meta:
@@ -33,7 +34,7 @@ class RegistrationFactory(factory.django.DjangoModelFactory[Registration]):
     phone = factory.Sequence(lambda n: f"+4179000{n:04d}")
     preferred_language = "en"
     preferred_location = ""
-    status = Registration.Status.WAITING
+    status = Registration.Status.VERIFIED
     priority = 0
     flake_count = 0
     accepted_terms = factory.LazyFunction(lambda: list(_DEFAULT_ACCEPTED_TERMS))
@@ -51,16 +52,19 @@ class RegistrationFactory(factory.django.DjangoModelFactory[Registration]):
         suspended = factory.Trait(
             status=Registration.Status.SUSPENDED,
         )
+        unverified = factory.Trait(
+            status=Registration.Status.UNVERIFIED,
+        )
 
 
 class MatchFactory(factory.django.DjangoModelFactory[Match]):
     """Factory for Match (PROPOSED by default).
 
     Traits:
-        accepted: status=ACCEPTED, both *_accepted_at populated, both
-            registrations CONFIRMED.
+        pending: status=PENDING, one side (*_accepted_at) populated.
+        accepted: status=ACCEPTED, both *_accepted_at populated.
         declined: status=DECLINED, declined_by=AMBASSADOR, declined_at set.
-        abandoned: status=ABANDONED, no_show_reported_by=REFEREE,
+        cancelled: status=CANCELLED, no_show_reported_by=REFEREE,
             no_show_reported_at set.
     """
 
@@ -77,19 +81,15 @@ class MatchFactory(factory.django.DjangoModelFactory[Match]):
     class Params:
         """Extra traits for common match states."""
 
+        pending = factory.Trait(
+            status=Match.Status.PENDING,
+            ambassador_accepted_at=factory.LazyFunction(lambda: _RESPONSE_AT),
+        )
+
         accepted = factory.Trait(
             status=Match.Status.ACCEPTED,
             ambassador_accepted_at=factory.LazyFunction(lambda: _RESPONSE_AT),
             referee_accepted_at=factory.LazyFunction(lambda: _RESPONSE_AT),
-            ambassador_registration=factory.SubFactory(
-                RegistrationFactory,
-                status=Registration.Status.CONFIRMED,
-            ),
-            referee_registration=factory.SubFactory(
-                RegistrationFactory,
-                referee=True,
-                status=Registration.Status.CONFIRMED,
-            ),
         )
 
         declined = factory.Trait(
@@ -98,8 +98,8 @@ class MatchFactory(factory.django.DjangoModelFactory[Match]):
             declined_at=factory.LazyFunction(lambda: _RESPONSE_AT),
         )
 
-        abandoned = factory.Trait(
-            status=Match.Status.ABANDONED,
+        cancelled = factory.Trait(
+            status=Match.Status.CANCELLED,
             ambassador_accepted_at=factory.LazyFunction(lambda: _RESPONSE_AT),
             referee_accepted_at=factory.LazyFunction(lambda: _RESPONSE_AT),
             no_show_reported_by=Match.Side.REFEREE,

@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, cast
 
 from django import forms
 from django.conf import settings
@@ -100,7 +100,7 @@ class RegistrationForm(forms.Form):
     nationality = forms.ChoiceField(
         label=_("Nationality"),
         required=False,
-        choices=[("", _("Prefer not to say"))] + list(countries),
+        # choices are set per-instance in __init__ (see below).
         widget=forms.Select(attrs={"class": _SELECT_CLASSES}),
     )
     prior_pass = forms.ChoiceField(
@@ -139,6 +139,16 @@ class RegistrationForm(forms.Form):
         self.role = role
         self.user = user
         super().__init__(data=data)
+
+        # Populate nationality choices per instance so django-countries resolves
+        # country names under the active request locale (not the import-time
+        # default). list(countries) calls countries.__iter__, which translates
+        # each name to the current language — freezing it in the class body
+        # would lock names to English for all users.
+        cast(forms.ChoiceField, self.fields["nationality"]).choices = [
+            ("", _("Prefer not to say")),
+            *list(countries),
+        ]
 
         # Set the role-specific eligibility declaration label.
         if role == Registration.Role.AMBASSADOR:

@@ -446,11 +446,10 @@ def test_components_renders_every_pill_combination() -> None:
     content = Client().get(reverse("debug:components")).content.decode()
     # One pill per scenario, tone-coded.
     for label in (
-        "No match",
-        "Email unconfirmed",
-        "In the queue",
-        "Match pending",
-        "Match confirmed",
+        "Queued",
+        "Unverified",
+        "Pending",
+        "Accepted",
         "Withdrawn",
         "Suspended",
     ):

@@ -31,7 +31,6 @@ from django.utils.translation import gettext as _
 
 from matching.models import Match, Registration
 from matching.services import queue_position as get_queue_position
-from matching.services import total_accepted_matches
 from public.views import _render_match_page
 
 from .forms import AccountForm
@@ -54,20 +53,20 @@ def _match_status_pill(
     of Registration.Status.
     """
     if registration is None:
-        return {"label": _("No match"), "tone": "muted"}
+        return {"label": _("Queued"), "tone": "muted"}
 
     # Active-match states override the registration-status pill.
     if match_state == "proposed":
-        return {"label": _("Match pending"), "tone": "wait"}
+        return {"label": _("Pending"), "tone": "wait"}
     if match_state == "pending":
-        return {"label": _("Match pending"), "tone": "wait"}
+        return {"label": _("Pending"), "tone": "wait"}
     if match_state == "accepted":
-        return {"label": _("Match confirmed"), "tone": "done"}
+        return {"label": _("Accepted"), "tone": "done"}
 
     # No active match — derive from pool standing.
     pills: dict[str, tuple[str, str]] = {
-        Registration.Status.UNVERIFIED: (_("Email unconfirmed"), "muted"),
-        Registration.Status.VERIFIED: (_("In the queue"), "muted"),
+        Registration.Status.UNVERIFIED: (_("Unverified"), "muted"),
+        Registration.Status.VERIFIED: (_("Queued"), "muted"),
         Registration.Status.WITHDRAWN: (_("Withdrawn"), "muted"),
         Registration.Status.SUSPENDED: (_("Suspended"), "muted"),
     }
@@ -147,17 +146,15 @@ def account_detail(request: HttpRequest) -> HttpResponse:
     if not partner_first_name:
         partner_first_name = _("your partner")
 
-    # Queue position and accepted-match count — only computed for VERIFIED
-    # registrations without an active match (pool members awaiting a pairing).
+    # Queue position — only computed for VERIFIED registrations without an active
+    # match (pool members awaiting a pairing).
     position: int | None = None
-    accepted_count: int = 0
     if (
         registration is not None
         and registration.status == Registration.Status.VERIFIED
         and active_match is None
     ):
         position = get_queue_position(registration)
-        accepted_count = total_accepted_matches()
 
     return render(
         request,
@@ -171,7 +168,6 @@ def account_detail(request: HttpRequest) -> HttpResponse:
             "partner_first_name": partner_first_name,
             "partner_accepted": partner_accepted,
             "queue_position": position,
-            "total_accepted_matches": accepted_count,
         },
     )
 

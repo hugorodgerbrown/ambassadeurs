@@ -229,7 +229,7 @@ def test_detail_hides_resend_button_when_email_verified() -> None:
             Registration.Status.UNVERIFIED,
             b"Please confirm your email address to enter the pool",
         ),
-        (Registration.Status.VERIFIED, b"You are in the queue"),
+        (Registration.Status.VERIFIED, b"in the queue"),
         (Registration.Status.WITHDRAWN, b"Your registration has been withdrawn"),
         (Registration.Status.SUSPENDED, b"Your registration has been suspended"),
     ],
@@ -247,8 +247,8 @@ def test_detail_status_sentence(status: str, expected_label: bytes) -> None:
 @pytest.mark.parametrize(
     ("status", "tone", "label"),
     [
-        (Registration.Status.UNVERIFIED, b"tag-status--muted", b"Email unconfirmed"),
-        (Registration.Status.VERIFIED, b"tag-status--muted", b"In the queue"),
+        (Registration.Status.UNVERIFIED, b"tag-status--muted", b"Unverified"),
+        (Registration.Status.VERIFIED, b"tag-status--muted", b"Queued"),
         (Registration.Status.WITHDRAWN, b"tag-status--muted", b"Withdrawn"),
         (Registration.Status.SUSPENDED, b"tag-status--muted", b"Suspended"),
     ],
@@ -265,14 +265,14 @@ def test_detail_status_pill(status: str, tone: bytes, label: bytes) -> None:
 
 
 def test_detail_status_pill_no_registration() -> None:
-    """A user without a registration sees a neutral 'No match' pill."""
+    """A user without a registration sees a neutral 'Queued' pill."""
     user = UserFactory.create()
     client = Client()
     client.force_login(user)
     response = client.get(reverse("accounts:detail"))
     assert response.status_code == 200
     assert b"tag-status--muted" in response.content
-    assert b"No match" in response.content
+    assert b"Queued" in response.content
 
 
 def test_detail_status_pill_proposed_match() -> None:
@@ -284,7 +284,7 @@ def test_detail_status_pill_proposed_match() -> None:
     response = client.get(reverse("accounts:detail"))
     assert response.status_code == 200
     assert b"tag-status--wait" in response.content
-    assert b"Match pending" in response.content
+    assert b"Pending" in response.content
 
 
 def test_detail_status_pill_accepted_match() -> None:
@@ -296,7 +296,7 @@ def test_detail_status_pill_accepted_match() -> None:
     response = client.get(reverse("accounts:detail"))
     assert response.status_code == 200
     assert b"tag-status--done" in response.content
-    assert b"Match confirmed" in response.content
+    assert b"Accepted" in response.content
 
 
 # ---------------------------------------------------------------------------
@@ -325,7 +325,7 @@ def test_detail_proposed_match_partner_pending_names_partner() -> None:
     client.force_login(reg.user)
     response = client.get(reverse("accounts:detail"))
     assert response.status_code == 200
-    assert b"You have been matched with Bernard" in response.content
+    assert b"You have been matched with <strong>Bernard</strong>" in response.content
     assert b"They have not yet responded" in response.content
     # PII invariant: surname, email and phone must not appear before mutual accept.
     assert b"Borel" not in response.content
@@ -351,7 +351,7 @@ def test_detail_pending_match_partner_waiting_on_you() -> None:
     client.force_login(reg.user)
     response = client.get(reverse("accounts:detail"))
     assert response.status_code == 200
-    assert b"You have been matched with Bernard" in response.content
+    assert b"You have been matched with <strong>Bernard</strong>" in response.content
     assert b"They are waiting for you to respond" in response.content
 
 
@@ -372,7 +372,7 @@ def test_detail_proposed_match_referee_view_names_ambassador_partner() -> None:
     client.force_login(ref_reg.user)
     response = client.get(reverse("accounts:detail"))
     assert response.status_code == 200
-    assert b"You have been matched with Astrid" in response.content
+    assert b"You have been matched with <strong>Astrid</strong>" in response.content
     assert b"They have not yet responded" in response.content
     # PII invariant: surname, email and phone must not appear before mutual accept.
     assert b"Aebi" not in response.content
@@ -396,7 +396,7 @@ def test_detail_accepted_match_names_partner_and_points_to_match() -> None:
     client.force_login(ref_reg.user)
     response = client.get(reverse("accounts:detail"))
     assert response.status_code == 200
-    assert b"You have been matched with Astrid" in response.content
+    assert b"You have been matched with <strong>Astrid</strong>" in response.content
     assert b"view the match to see their contact details" in response.content
 
 

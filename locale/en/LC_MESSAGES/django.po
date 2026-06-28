@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-28 13:28+0200\n"
+"POT-Creation-Date: 2026-06-28 14:18+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -44,19 +44,16 @@ msgid ""
 "This link expires in 24 hours. If you didn't request it, ignore this email."
 msgstr ""
 
-msgid "No match"
+msgid "Queued"
 msgstr ""
 
-msgid "Match pending"
+msgid "Pending"
 msgstr ""
 
-msgid "Match confirmed"
+msgid "Accepted"
 msgstr ""
 
-msgid "Email unconfirmed"
-msgstr ""
-
-msgid "In the queue"
+msgid "Unverified"
 msgstr ""
 
 msgid "Withdrawn"
@@ -101,10 +98,10 @@ msgstr ""
 msgid "State"
 msgstr ""
 
-msgid "Waiting (match immediately)"
+msgid "Verified (match immediately)"
 msgstr ""
 
-msgid "Pending (email confirm required)"
+msgid "Email confirm required (UNVERIFIED)"
 msgstr ""
 
 msgid "Create"
@@ -174,9 +171,6 @@ msgstr ""
 msgid "Bruson"
 msgstr ""
 
-msgid "Unverified"
-msgstr ""
-
 msgid "Verified"
 msgstr ""
 
@@ -193,12 +187,6 @@ msgid "Mont 4 Card / special reduction"
 msgstr ""
 
 msgid "Proposed"
-msgstr ""
-
-msgid "Pending"
-msgstr ""
-
-msgid "Accepted"
 msgstr ""
 
 msgid "Declined"
@@ -406,30 +394,34 @@ msgid ""
 msgstr ""
 
 #, python-format
-msgid "You have been matched with %(name)s. They have not yet responded."
+msgid ""
+"You have been matched with <strong>%(name)s</strong>. They have not yet "
+"responded."
 msgstr ""
 
 #, python-format
 msgid ""
-"You have been matched with %(name)s — view the match to see their contact "
-"details."
+"You have been matched with <strong>%(name)s</strong>. They are waiting for "
+"you to respond."
+msgstr ""
+
+#, python-format
+msgid ""
+"You have been matched with <strong>%(name)s</strong> — view the match to see "
+"their contact details."
 msgstr ""
 
 msgid "Please confirm your email address to enter the pool."
 msgstr ""
 
+#, python-format
+msgid ""
+"You are number %(position)s in the queue. We'll email you as soon as someone "
+"is available."
+msgstr ""
+
 msgid "You are in the queue. We'll email you when a match is found."
 msgstr ""
-
-#, python-format
-msgid "You are number %(position)s in the queue."
-msgstr ""
-
-#, python-format
-msgid "%(counter)s pair matched so far this season."
-msgid_plural "%(counter)s pairs matched so far this season."
-msgstr[0] ""
-msgstr[1] ""
 
 msgid "Your registration has been withdrawn."
 msgstr ""
@@ -1196,6 +1188,16 @@ msgstr ""
 
 msgid "Looking for your Ambassador"
 msgstr ""
+
+#, python-format
+msgid "You are number %(position)s in the queue."
+msgstr ""
+
+#, python-format
+msgid "%(counter)s pair matched so far this season."
+msgid_plural "%(counter)s pairs matched so far this season."
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Watch your inbox — we contact you by email."
 msgstr ""

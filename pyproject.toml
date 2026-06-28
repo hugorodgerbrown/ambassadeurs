@@ -11,7 +11,6 @@ description = "Partner matchmaking for the 4 Vallees Ambassadors Program."
 requires-python = ">=3.14"
 dependencies = [
     "django>=6.0,<6.1",
-    "django-allauth[socialaccount]>=65.0",
     "django-htmx>=1.21",
     "python-decouple>=3.8",
     "whitenoise>=6.7",
@@ -66,7 +65,7 @@ warn_unused_ignores = true
 exclude = ['(^|/)migrations/', '^config/settings/']
 
 [[tool.mypy.overrides]]
-module = ["factory.*", "allauth.*", "decouple.*"]
+module = ["factory.*", "decouple.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -75,11 +74,6 @@ ignore_missing_imports = true
 # stay unparametrised.
 module = ["*.admin", "matching.forms"]
 disallow_any_generics = false
-
-[[tool.mypy.overrides]]
-# allauth ships no type stubs, so its adapter base is Any.
-module = ["accounts.adapters"]
-disallow_subclassing_any = false
 
 [[tool.mypy.overrides]]
 # Settings modules are dynamic (env-driven) and not worth type-gating.

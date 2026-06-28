@@ -1,18 +1,21 @@
 # Account-domain service functions.
 #
-# Profile updates, account deletion, and confirmation-email dispatch run inline
-# here (no Django signals, CLAUDE.md "Models"), each in a single transaction.
+# Profile updates, account deletion, confirmation-email dispatch, and the
+# magic-link login email run inline here (no Django signals, CLAUDE.md "Models"),
+# each in a single transaction where applicable.
 #
 # Note: ``Account`` has been removed. Participant attributes (phone,
-# preferred_language) now live on ``matching.Registration``.
+# preferred_language) now live on ``matching.Registration`` (OneToOneField to User).
 # ``update_account`` writes onto the user's registration; if the user has no
 # registration the update is a no-op for those fields.
+#
+# allauth has been removed (VERB-46). Email-verified state is now derived from
+# Registration.status (not the allauth EmailAddress model).
 
 from __future__ import annotations
 
 import logging
 
-from allauth.account.models import EmailAddress
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
@@ -21,28 +24,46 @@ from django.http import HttpRequest
 from django.urls import reverse
 from django.utils.translation import gettext as _
 
-from accounts.tokens import make_registration_confirmation_token
-from core.emails import normalise_email
+from accounts.tokens import make_login_token, make_registration_confirmation_token
 from matching.models import Registration
 
 logger = logging.getLogger(__name__)
 
 
-def mark_email_verified(user: User) -> None:
-    """Record the allauth EmailAddress for ``user`` as verified and primary.
+def send_login_email(request: HttpRequest, user: User) -> str:
+    """Email a signed magic-link to ``user`` for passwordless login.
 
-    Called at registration-confirmation time (combined-form flow) so that the
-    allauth email state is consistent with the social-login path.  Mirrors what
-    ``get_or_create_participant_user`` does at email-verification time.  If the
-    EmailAddress row already exists with ``verified=True`` this is a no-op.
+    The token carries ``user.pk`` scoped to the single-purpose salt
+    ``accounts.login`` (Invariant 6). Returns the verify URL so the caller can
+    stash it for the DEBUG shortcut.
+
+    Args:
+        request: The current HTTP request, used to build the absolute verify URL.
+        user: The User who requested a login link.
     """
-    email = normalise_email(user.email)
-    EmailAddress.objects.update_or_create(
-        user=user,
-        email=email,
-        defaults={"verified": True, "primary": True},
+    token = make_login_token(user.pk)
+    verify_url = request.build_absolute_uri(
+        reverse("accounts:login_verify", args=[token])
     )
-    logger.info("Marked email verified for user pk=%s (%s)", user.pk, email)
+    subject = _("Sign in to 4 Vallées Ambassadors")
+    body = _(
+        "Click the link below to sign in to the 4 Vallées Ambassadors Program:\n\n"
+        "%(url)s\n\n"
+        "This link expires in 1 hour. If you didn't request it, ignore this email."
+    ) % {"url": verify_url}
+    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user.email])
+
+    # In development the email is written to the console. Log the unwrapped link
+    # on a single line for convenience. Gated on DEBUG so the signed token never
+    # reaches production logs.
+    if settings.DEBUG:
+        logger.info(
+            "Login link for user pk=%s: %s",
+            user.pk,
+            verify_url,
+        )
+
+    return verify_url
 
 
 def send_confirmation_email(request: HttpRequest, registration: Registration) -> str:

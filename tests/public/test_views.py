@@ -1901,3 +1901,34 @@ def test_register_post_geo_empty_when_private_ip() -> None:
     reg = Registration.objects.get(user__email="bob_no_geo@example.com")
     assert reg.registration_country == ""
     assert reg.registration_region == ""
+
+
+def test_register_post_skips_geolocate_when_no_client_ip() -> None:
+    """When no client IP is resolvable, geolocate is not called and geo is empty."""
+    url = reverse("public:register") + "?role=ambassador"
+    with (
+        patch("public.views.get_client_ip", return_value=None),
+        patch("public.views.geolocate") as mock_geolocate,
+    ):
+        response = Client().post(
+            url,
+            {
+                "role": "ambassador",
+                "first_name": "Carol",
+                "last_name": "Danvers",
+                "email": "carol_no_ip@example.com",
+                "prior_pass": "SEASONAL",
+                "phone": "+41790009012",
+                "preferred_language": "en",
+                "preferred_location": "",
+                "prior_pass_attestation": True,
+                "terms_accepted": True,
+            },
+        )
+
+    assert response.status_code == 302
+    mock_geolocate.assert_not_called()
+
+    reg = Registration.objects.get(user__email="carol_no_ip@example.com")
+    assert reg.registration_country == ""
+    assert reg.registration_region == ""

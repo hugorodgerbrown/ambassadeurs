@@ -7,7 +7,8 @@ from django.test import RequestFactory, override_settings
 
 from core.geo import geolocate, get_client_ip
 
-pytestmark = pytest.mark.django_db
+# No django_db marker: these tests use RequestFactory and mock geoip2 — they
+# never touch the ORM, so they must not request a database fixture.
 
 
 # ---------------------------------------------------------------------------
@@ -103,8 +104,17 @@ def test_geolocate_returns_empty_strings_when_db_missing(
 
 
 @override_settings(GEOIP_DATABASE_PATH="/fake/path/GeoLite2-City.mmdb")
-def test_geolocate_returns_empty_strings_for_private_ip() -> None:
-    """geolocate returns ('', '') silently for private/loopback addresses."""
+def test_geolocate_returns_empty_strings_for_private_ip(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """geolocate returns ('', '') silently for private/loopback addresses.
+
+    "Silently" means no warning is logged — an unroutable address is an expected
+    outcome, not an error. The caplog assertion guards against a regression that
+    adds a log line in the AddressNotFoundError branch.
+    """
+    import logging
+
     import geoip2.errors
 
     mock_reader = MagicMock()
@@ -112,11 +122,13 @@ def test_geolocate_returns_empty_strings_for_private_ip() -> None:
     mock_reader.__exit__ = MagicMock(return_value=False)
     mock_reader.city.side_effect = geoip2.errors.AddressNotFoundError("private")
 
-    with patch("geoip2.database.Reader", return_value=mock_reader):
-        country, region = geolocate("192.168.1.1")
+    with caplog.at_level(logging.WARNING, logger="core.geo"):
+        with patch("geoip2.database.Reader", return_value=mock_reader):
+            country, region = geolocate("192.168.1.1")
 
     assert country == ""
     assert region == ""
+    assert caplog.records == []
 
 
 @override_settings(GEOIP_DATABASE_PATH="/fake/path/GeoLite2-City.mmdb")

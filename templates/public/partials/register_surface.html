@@ -301,7 +301,7 @@ Context:
             </div>
 
             {% for field in form %}
-                {% if field.name == 'phone' or field.name == 'prior_pass' or field.name == 'preferred_location' or field.name == 'preferred_language' or field.name == 'email' %}
+                {% if field.name == 'phone' or field.name == 'prior_pass' or field.name == 'preferred_location' or field.name == 'preferred_language' or field.name == 'nationality' or field.name == 'email' %}
                     {% include "includes/_field.html" with field=field %}
                 {% endif %}
             {% endfor %}

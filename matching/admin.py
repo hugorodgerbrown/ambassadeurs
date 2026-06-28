@@ -97,6 +97,7 @@ class RegistrationAdmin(admin.ModelAdmin):
         "prior_decline_count",
         "priority",
         "preferred_location",
+        "nationality",
         "created_at",
     ]
     list_filter = [
@@ -104,6 +105,7 @@ class RegistrationAdmin(admin.ModelAdmin):
         "status",
         "prior_pass",
         "preferred_location",
+        "nationality",
         HasFlakesListFilter,
     ]
     search_fields = ["user__email", "user__first_name", "user__last_name"]

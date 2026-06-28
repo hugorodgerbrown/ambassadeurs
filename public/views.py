@@ -210,6 +210,7 @@ def register(request: HttpRequest) -> HttpResponse:
                 phone=data.get("phone", ""),
                 preferred_location=data.get("preferred_location", ""),
                 preferred_language=data.get("preferred_language", ""),
+                nationality=data.get("nationality", ""),
                 accepted_terms=form.accepted_statements(),
             )
             return redirect("public:register_done", role=role_slug)
@@ -256,6 +257,7 @@ def register(request: HttpRequest) -> HttpResponse:
                     phone=data.get("phone", ""),
                     preferred_location=data.get("preferred_location", ""),
                     preferred_language=data.get("preferred_language", ""),
+                    nationality=data.get("nationality", ""),
                     accepted_terms=form.accepted_statements(),
                     status=Registration.Status.UNVERIFIED,
                 )

@@ -280,6 +280,22 @@ def test_register_post_does_not_stash_url_outside_debug() -> None:
     assert "debug_verify_url" not in client.session
 
 
+def test_register_post_persists_nationality() -> None:
+    """POSTing nationality persists it on the created Registration."""
+    payload = _valid_referee_post()
+    payload["nationality"] = "CH"
+    Client().post(reverse("public:register"), payload)
+    reg = Registration.objects.get(role=Registration.Role.REFEREE)
+    assert str(reg.nationality) == "CH"
+
+
+def test_register_post_nationality_optional() -> None:
+    """Omitting nationality from the POST still creates a Registration."""
+    Client().post(reverse("public:register"), _valid_referee_post())
+    reg = Registration.objects.get(role=Registration.Role.REFEREE)
+    assert str(reg.nationality) == ""
+
+
 # ---------------------------------------------------------------------------
 # register_email_sent
 # ---------------------------------------------------------------------------

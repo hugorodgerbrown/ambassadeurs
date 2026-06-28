@@ -34,6 +34,7 @@ class RegistrationFactory(factory.django.DjangoModelFactory[Registration]):
     phone = factory.Sequence(lambda n: f"+4179000{n:04d}")
     preferred_language = "en"
     preferred_location = ""
+    nationality = ""
     status = Registration.Status.VERIFIED
     priority = 0
     flake_count = 0

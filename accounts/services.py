@@ -34,12 +34,15 @@ def send_login_email(request: HttpRequest, user: User) -> str:
     """Email a signed magic-link to ``user`` for passwordless login.
 
     The token carries ``user.pk`` scoped to the single-purpose salt
-    ``accounts.login`` (Invariant 6). Returns the verify URL so the caller can
-    stash it for the DEBUG shortcut.
+    ``accounts.login`` (Invariant 6).
 
     Args:
         request: The current HTTP request, used to build the absolute verify URL.
         user: The User who requested a login link.
+
+    Returns:
+        The absolute verify URL embedded in the email, so the caller can stash
+        it in the session for the DEBUG shortcut link.
     """
     token = make_login_token(user.pk)
     verify_url = request.build_absolute_uri(

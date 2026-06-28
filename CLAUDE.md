@@ -46,11 +46,11 @@ Target app layout. Create apps as the domain needs them; don't pre-build empty s
 config/          Django project settings (split base/development/production)
 core/            Shared abstractions (BaseModel; abstract, no concrete tables),
                  HTTP-layer middleware, shared helpers
-accounts/        Signed-link auth, and Facebook social login (django-allauth);
-                 AUTH_USER_MODEL is the default Django model. Participant
-                 attributes (phone, preferred_language) live on
-                 matching.Registration (OneToOneField to User). Admin users
-                 have a User but no Registration.
+accounts/        Magic-link (passwordless) login flow; AUTH_USER_MODEL is the
+                 default Django model. Participant attributes (phone,
+                 preferred_language) live on matching.Registration
+                 (OneToOneField to User). Admin users have a User but no
+                 Registration.
 matching/        The core domain — Registration, Match, the matching engine
                  (queue + assignment) and the Match state machine
                  (proposed → accepted / declined / expired) and its services
@@ -232,15 +232,40 @@ so don't skip pieces for "simple" models:
 
 ## Authentication
 
-No passwords. Two entry paths, both keyed on a lowercase email address:
+No passwords. The sole login mechanism is a **magic link** — a signed, expiring
+URL emailed to the user.
 
-- **Signed email links** — registrants verify their email, log in, and action a
-  match (accept / decline) via signed, tokenised links (Django signing). Tokens are
-  single-purpose and expiring.
-- **Facebook login** — via `django-allauth`, since launch happens through the
-  Verbier Facebook community.
+**Login journey:**
 
-Normalise every email to lowercase at every entry point before storage and lookup.
+1. `GET /account/login/` — one email field; user submits their address.
+2. `POST /account/login/` — always redirects to the link-sent page (no email
+   enumeration). If the address matches an active user, a magic link is emailed.
+3. `GET /account/login/sent/` — static "check your inbox" page. Under DEBUG,
+   the link is surfaced on-page.
+4. `GET /account/login/<token>/` — validates the token and shows "Sign in as
+   you@example.com" + a Confirm button. **Does not log in** (prefetch-safe).
+   Invalid or expired tokens render an error page (HTTP 400).
+5. `POST /account/login/<token>/` — re-validates the token, calls
+   `django.contrib.auth.login` with `ModelBackend`, and redirects to
+   `accounts:detail`.
+6. `POST /account/logout/` — logs out and redirects to `public:home`.
+
+**Token:** `accounts.tokens.make_login_token` / `read_login_token`, scoped by
+`_LOGIN_SALT` (Invariant 6). Payload is `{user_pk}` only; expires after 1 hour
+(`LOGIN_TOKEN_MAX_AGE`). The token is URL-safe — it works cross-device (any
+browser, any device). Within its 1-hour window it is intentionally idempotent
+(re-submitting the Confirm form logs in again rather than erroring).
+
+**Email lowercasing** (Invariant 5) is applied in `login_request` via
+`core.emails.normalise_email`, and at every other entry point (registration
+forms, admin).
+
+The same signed-token system backs registration confirmation (`_CONFIRM_SALT`)
+and match-action links (`_MATCH_SALT`); all three salts are distinct (Invariant 6).
+
+`django-allauth` and Facebook social login have been removed (see
+[ADR 0012](docs/decisions/0012-magic-link-login.md)). `django.contrib.sites`
+and `SITE_ID` are not in use.
 
 ## Frontend
 
@@ -391,7 +416,7 @@ feature docs are written:
 | Match lifecycle (states, contact window, reveal-on-accept) | [ADR 0007](docs/decisions/0007-post-match-confirmation-workflow.md), [ADR 0011](docs/decisions/0011-two-state-machines.md) |
 | Registration.Status / Match.Status state machines | [ADR 0011](docs/decisions/0011-two-state-machines.md) |
 | Flaking / priority handling | [ADR 0007](docs/decisions/0007-post-match-confirmation-workflow.md) |
-| Authentication (signed links + Facebook) | _to be written_ |
+| Authentication (magic-link login) | [ADR 0012](docs/decisions/0012-magic-link-login.md) |
 | Internationalisation | _to be written_ |
 | Deployment (Render single-service) | _to be written_ |
 | Linear workflow (full lifecycle) | _to be written_ |

@@ -6,11 +6,12 @@
 # traffic. The Render runtime specifics (uv install, Node availability, plan
 # names) are finalised in the deployment ticket.
 #
-# GeoLite2-City download: if MAXMIND_LICENSE_KEY is set, the MaxMind GeoLite2
-# City database is downloaded and extracted to geoip/GeoLite2-City.mmdb before
-# static files are collected. If the key is absent, this step is skipped and
-# geolocation gracefully stores empty strings. Safe to run from either service
-# (web or headless cron).
+# GeoLite2-City download: if MAXMIND_ACCOUNT_ID and MAXMIND_LICENSE_KEY are both
+# set, the MaxMind GeoLite2 City database is downloaded and extracted to
+# geoip/GeoLite2-City.mmdb before static files are collected. MaxMind's download
+# API authenticates with HTTP Basic auth as ACCOUNT_ID:LICENSE_KEY — both are
+# required. If either is absent, this step is skipped and geolocation gracefully
+# stores empty strings. Safe to run from either service (web or headless cron).
 set -o errexit
 
 pip install uv
@@ -19,7 +20,7 @@ npm ci
 npm run css:build
 
 # --- Download MaxMind GeoLite2-City database (guarded) ----------------------
-if [ -n "${MAXMIND_LICENSE_KEY:-}" ]; then
+if [ -n "${MAXMIND_ACCOUNT_ID:-}" ] && [ -n "${MAXMIND_LICENSE_KEY:-}" ]; then
     echo "Downloading MaxMind GeoLite2-City database..."
     GEOIP_DIR="geoip"
     GEOIP_DEST="${GEOIP_DIR}/GeoLite2-City.mmdb"
@@ -29,7 +30,7 @@ if [ -n "${MAXMIND_LICENSE_KEY:-}" ]; then
     MAXMIND_URL="https://download.maxmind.com/geoip/databases/GeoLite2-City/download?suffix=tar.gz"
     HTTP_STATUS=$(
         curl --location --silent --show-error \
-            --user "${MAXMIND_LICENSE_KEY}:${MAXMIND_LICENSE_KEY}" \
+            --user "${MAXMIND_ACCOUNT_ID}:${MAXMIND_LICENSE_KEY}" \
             --output "${GEOIP_ARCHIVE}" \
             --write-out "%{http_code}" \
             "${MAXMIND_URL}"
@@ -64,7 +65,7 @@ if [ -n "${MAXMIND_LICENSE_KEY:-}" ]; then
         fi
     fi
 else
-    echo "MAXMIND_LICENSE_KEY not set; skipping GeoLite2 download. Geolocation disabled."
+    echo "MAXMIND_ACCOUNT_ID / MAXMIND_LICENSE_KEY not set; skipping GeoLite2 download. Geolocation disabled."
 fi
 # ---------------------------------------------------------------------------
 

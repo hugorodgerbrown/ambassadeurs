@@ -1863,8 +1863,12 @@ def test_register_post_stores_geo_country_and_region() -> None:
     reg = Registration.objects.get(user__email="ada_geo_view@example.com")
     assert reg.registration_country == "Switzerland"
     assert reg.registration_region == "Valais"
-    # The raw IP must not appear on the model.
-    assert not hasattr(reg, "ip") or not getattr(reg, "ip", None)
+    # The raw IP must never be persisted: assert the source IP string appears in
+    # no stored field value on the registration (no-IP-storage invariant).
+    field_values = [
+        str(getattr(reg, field.attname)) for field in Registration._meta.fields
+    ]
+    assert all("203.0.113.45" not in value for value in field_values)
 
 
 def test_register_post_geo_empty_when_private_ip() -> None:

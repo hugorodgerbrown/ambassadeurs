@@ -146,11 +146,11 @@ def register(request: HttpRequest) -> HttpResponse:
     """Combined registration form — no login required.
 
     GET: render the form themed for ``?role=`` (default ambassador).
-    POST (anonymous): validate, create a PENDING registration (or resend if one
-        already exists for the email), send a confirmation email, redirect to
-        ``register_email_sent``.
+    POST (anonymous): validate, create an UNVERIFIED registration (or resend if
+        one already exists for the email), send a confirmation email, redirect
+        to ``register_email_sent``.
     POST (authenticated, defensive): complete the registration immediately at
-        WAITING status and redirect to ``register_done``.
+        VERIFIED status and redirect to ``register_done``.
     """
     if not is_registration_open():
         return render(request, "public/register_closed.html")
@@ -195,7 +195,7 @@ def register(request: HttpRequest) -> HttpResponse:
 
     if request.user.is_authenticated:
         # Defensive authenticated path (not reachable from the standard UI but
-        # handled for completeness). Create a WAITING registration immediately.
+        # handled for completeness). Create a VERIFIED registration immediately.
         # Django stubs narrow request.user to User after is_authenticated.
         auth_user: User = request.user
         form = RegistrationForm(role=role_value, data=request.POST, user=auth_user)
@@ -304,12 +304,12 @@ def register_email_sent(request: HttpRequest) -> HttpResponse:
 def register_confirm(request: HttpRequest, token: str) -> HttpResponse:
     """Consume the registration confirmation token.
 
-    Reads the token, loads the Registration, transitions PENDING → WAITING,
+    Reads the token, loads the Registration, transitions UNVERIFIED → VERIFIED,
     marks the email verified in allauth, logs the user in, and redirects to
     ``register_done`` for the appropriate role.
 
-    Returns 400 on a bad/expired token or a non-PENDING registration (used or
-    invalid link).
+    Returns 400 on a bad/expired token or a non-UNVERIFIED registration (used
+    or invalid link).
     """
     pk = read_registration_confirmation_token(token)
     if pk is None:
@@ -342,7 +342,7 @@ def register_done(request: HttpRequest, role: str) -> HttpResponse:
     """Render the post-registration "what happens next" confirmation page.
 
     Resolves the authenticated user's registration (if any) and, when the
-    registration is in WAITING status, adds ``queue_position`` and
+    registration is in VERIFIED status, adds ``queue_position`` and
     ``total_accepted_matches`` to the context so the template can display the
     participant's position in the pool.
     """
@@ -504,8 +504,8 @@ def _match_view(match: Match, side: Match.Side) -> str:
     """Return the design view key for the match page, from the viewer's side.
 
     One of ``proposed``, ``you_accepted``, ``partner_accepted``, ``confirmed``,
-    ``declined_you``, ``declined_partner``, ``expired``, ``abandoned_you``,
-    ``abandoned_partner``. A PROPOSED or PENDING match whose contact window has
+    ``declined_you``, ``declined_partner``, ``expired``, ``cancelled_you``,
+    ``cancelled_partner``. A PROPOSED or PENDING match whose contact window has
     lapsed is presented as ``expired`` — both parties re-queue, the same outcome
     as a swept expiry — so the page need not distinguish the two.
 
@@ -521,9 +521,9 @@ def _match_view(match: Match, side: Match.Side) -> str:
         return "expired"
     if status == Match.Status.CANCELLED:
         return (
-            "abandoned_you"
+            "cancelled_you"
             if match.no_show_reported_by == side
-            else "abandoned_partner"
+            else "cancelled_partner"
         )
     # PROPOSED or PENDING — distinguish by window and per-side acceptance.
     if timezone.now() > match.expires_at:
@@ -855,7 +855,7 @@ def match_report_no_show(request: HttpRequest, token: str) -> HttpResponse:
 
     Re-validates the token, confirms the match is still ACCEPTED with no
     existing report, then calls ``report_no_show``. Renders
-    ``public/partials/match_actions.html`` reflecting the resulting ABANDONED
+    ``public/partials/match_actions.html`` reflecting the resulting CANCELLED
     state.
 
     A second POST on a match that is already CANCELLED (or otherwise

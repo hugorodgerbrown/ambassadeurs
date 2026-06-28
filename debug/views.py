@@ -309,8 +309,8 @@ _PREVIEW_VIEWS: list[tuple[str, str]] = [
     ("declined_you", "You declined"),
     ("declined_partner", "Partner declined"),
     ("expired", "Expired"),
-    ("abandoned_you", "No-show reported"),
-    ("abandoned_partner", "Reported (you)"),
+    ("cancelled_you", "No-show reported"),
+    ("cancelled_partner", "Reported (you)"),
 ]
 
 
@@ -384,13 +384,13 @@ def _build_preview_match(view_key: str) -> tuple[Match, Registration, Match.Side
     elif view_key == "expired":
         match.status = Match.Status.EXPIRED
         match.expires_at = now - timedelta(days=1)
-    elif view_key == "abandoned_you":
+    elif view_key == "cancelled_you":
         match.status = Match.Status.CANCELLED
         match.ambassador_accepted_at = now
         match.referee_accepted_at = now
         match.no_show_reported_by = Match.Side.REFEREE
         match.no_show_reported_at = now
-    elif view_key == "abandoned_partner":
+    elif view_key == "cancelled_partner":
         match.status = Match.Status.CANCELLED
         match.ambassador_accepted_at = now
         match.referee_accepted_at = now

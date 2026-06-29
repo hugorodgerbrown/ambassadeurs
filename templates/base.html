@@ -17,10 +17,25 @@
         <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        {% comment %}
+        Non-blocking font load: media="print" defers the stylesheet from the
+        render-blocking critical path; onload switches it to "all" once the
+        sheet is downloaded. The <noscript> fallback covers JS-disabled agents.
+        display=swap is already in the URL so text renders immediately in a
+        system font while the webfont downloads.
+        {% endcomment %}
         <link
             href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
             rel="stylesheet"
+            media="print"
+            onload="this.media='all'"
         >
+        <noscript>
+            <link
+                href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+                rel="stylesheet"
+            >
+        </noscript>
         <link rel="stylesheet" href="{% static 'css/output.css' %}">
         <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
     </head>

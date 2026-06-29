@@ -1974,3 +1974,100 @@ def test_register_post_skips_geolocate_when_no_client_ip() -> None:
     reg = Registration.objects.get(user__email="carol_no_ip@example.com")
     assert reg.registration_country == ""
     assert reg.registration_region == ""
+
+
+# ---------------------------------------------------------------------------
+# WCAG 2.1 AA — structural accessibility checks (VERB-69)
+# ---------------------------------------------------------------------------
+
+
+def test_base_template_has_skip_link() -> None:
+    """Every page built on base.html includes a skip-to-main-content link."""
+    response = Client().get(reverse("public:home"))
+    content = response.content
+    assert b'href="#main"' in content
+    assert b"Skip to main content" in content
+
+
+def test_base_template_main_has_id() -> None:
+    """The <main> element carries id=main so the skip link target resolves."""
+    response = Client().get(reverse("public:home"))
+    assert b'id="main"' in response.content
+
+
+def test_nav_has_aria_label() -> None:
+    """The <nav> element carries an aria-label for landmark disambiguation."""
+    response = Client().get(reverse("public:how_it_works"))
+    assert b"Main navigation" in response.content
+
+
+def test_register_form_labels_associated_with_inputs() -> None:
+    """The registration form renders <label for> matching each input id."""
+    response = Client().get(reverse("public:register") + "?role=ambassador")
+    content = response.content.decode()
+    for field_name in ("first_name", "last_name", "email"):
+        widget_id = f"id_{field_name}"
+        assert f'for="{widget_id}"' in content, (
+            f"No <label for='{widget_id}'> found on register page"
+        )
+        assert f'id="{widget_id}"' in content, (
+            f"No input with id='{widget_id}' found on register page"
+        )
+
+
+def test_register_form_error_has_role_alert() -> None:
+    """Field error messages carry role=alert so they are announced on injection."""
+    response = Client().post(
+        reverse("public:register") + "?role=ambassador",
+        {
+            "role": "ambassador",
+            "first_name": "",
+            "last_name": "Test",
+            "email": "test@example.com",
+            "prior_pass": "SEASONAL",
+            "phone": "",
+            "preferred_language": "",
+            "preferred_location": "",
+            "prior_pass_attestation": "",
+            "terms_accepted": "",
+        },
+    )
+    assert response.status_code == 200
+    assert b'role="alert"' in response.content
+
+
+def test_hero_image_has_nonempty_alt() -> None:
+    """The homepage hero image has a non-empty alt attribute."""
+    import re
+
+    response = Client().get(reverse("public:home"))
+    content = response.content.decode()
+    assert "images/hero.jpg" in content
+    hero_img = re.search(r"<img[^>]+hero\.jpg[^>]*>", content, re.DOTALL)
+    assert hero_img is not None, "hero img tag not found"
+    alt_match = re.search(r'alt=["\']([^"\']*)["\']', hero_img.group(0))
+    assert alt_match is not None, "hero img has no alt attribute"
+    assert alt_match.group(1).strip() != "", "hero img alt is empty"
+
+
+def test_match_actions_container_has_aria_live() -> None:
+    """The match-actions container carries aria-live so state changes are announced."""
+    amb_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        status=Registration.Status.VERIFIED,
+    )
+    ref_reg = RegistrationFactory.create(
+        role=Registration.Role.REFEREE,
+        status=Registration.Status.VERIFIED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=amb_reg,
+        referee_registration=ref_reg,
+        status=Match.Status.PROPOSED,
+        expires_at=datetime(2026, 12, 31, tzinfo=UTC),
+    )
+    token = make_match_access_token(match.pk, amb_reg.pk)
+    response = Client().get(reverse("public:match", args=[token]))
+    assert response.status_code == 200
+    assert b'aria-live="polite"' in response.content
+    assert b'id="match-actions"' in response.content

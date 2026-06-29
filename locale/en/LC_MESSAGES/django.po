@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 00:42+0200\n"
+"POT-Creation-Date: 2026-06-30 01:15+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -261,6 +261,21 @@ msgid ""
 "If you did not register for this programme, please ignore this email."
 msgstr ""
 
+msgid "Access denied"
+msgstr ""
+
+msgid "You don't have permission to view this page."
+msgstr ""
+
+msgid "Return to homepage"
+msgstr ""
+
+msgid "Page not found"
+msgstr ""
+
+msgid "The page you're looking for doesn't exist or has moved."
+msgstr ""
+
 msgid "Too many requests"
 msgstr ""
 
@@ -276,19 +291,6 @@ msgid ""
 msgstr ""
 
 msgid "Return to home"
-msgid "Access denied"
-msgstr ""
-
-msgid "You don't have permission to view this page."
-msgstr ""
-
-msgid "Return to homepage"
-msgstr ""
-
-msgid "Page not found"
-msgstr ""
-
-msgid "The page you're looking for doesn't exist or has moved."
 msgstr ""
 
 msgid "Delete my account"
@@ -482,6 +484,9 @@ msgstr ""
 msgid "4 Vallées Ambassadors"
 msgstr ""
 
+msgid "Skip to main content"
+msgstr ""
+
 msgid ""
 "Find your season-pass partner for the 4 Vallées Ambassadors Program. "
 "Register once — we match Ambassadors with Referees automatically."
@@ -526,6 +531,9 @@ msgstr ""
 msgid ""
 "Independent project — not affiliated with the official 4 Vallées pass "
 "operator."
+msgstr ""
+
+msgid "Main navigation"
 msgstr ""
 
 msgid "Menu"

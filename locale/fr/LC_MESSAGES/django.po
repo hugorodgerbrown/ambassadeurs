@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 00:42+0200\n"
+"POT-Creation-Date: 2026-06-30 01:14+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -319,6 +319,21 @@ msgstr ""
 "\n"
 "Si vous ne vous êtes pas inscrit(e) à ce programme, ignorez cet e-mail."
 
+msgid "Access denied"
+msgstr "Accès refusé"
+
+msgid "You don't have permission to view this page."
+msgstr "Vous n'avez pas la permission de consulter cette page."
+
+msgid "Return to homepage"
+msgstr "Retourner à la page d'accueil"
+
+msgid "Page not found"
+msgstr "Page introuvable"
+
+msgid "The page you're looking for doesn't exist or has moved."
+msgstr "La page que vous recherchez n'existe pas ou a été déplacée."
+
 msgid "Too many requests"
 msgstr "Trop de requêtes"
 
@@ -337,20 +352,6 @@ msgstr ""
 
 msgid "Return to home"
 msgstr "Retour à l'accueil"
-msgid "Access denied"
-msgstr "Accès refusé"
-
-msgid "You don't have permission to view this page."
-msgstr "Vous n'avez pas la permission de consulter cette page."
-
-msgid "Return to homepage"
-msgstr "Retourner à la page d'accueil"
-
-msgid "Page not found"
-msgstr "Page introuvable"
-
-msgid "The page you're looking for doesn't exist or has moved."
-msgstr "La page que vous recherchez n'existe pas ou a été déplacée."
 
 msgid "Delete my account"
 msgstr "Supprimer mon compte"
@@ -586,6 +587,9 @@ msgstr "S'inscrire maintenant"
 msgid "4 Vallées Ambassadors"
 msgstr "Ambassadeurs des 4 Vallées"
 
+msgid "Skip to main content"
+msgstr "Aller au contenu principal"
+
 msgid ""
 "Find your season-pass partner for the 4 Vallées Ambassadors Program. "
 "Register once — we match Ambassadors with Referees automatically."
@@ -638,6 +642,10 @@ msgid ""
 msgstr ""
 "Projet indépendant — sans affiliation avec l'opérateur officiel des "
 "abonnements des 4 Vallées."
+
+#, fuzzy
+msgid "Main navigation"
+msgstr "Navigation principale"
 
 msgid "Menu"
 msgstr "Menu"
@@ -1805,9 +1813,6 @@ msgstr "Recommencer"
 
 #~ msgid "Request new code"
 #~ msgstr "Demander un nouveau code"
-
-#~ msgid "Email confirmation"
-#~ msgstr "Confirmation d'e-mail"
 
 #, python-format
 #~ msgid "Please confirm that %(email)s is your email address."

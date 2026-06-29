@@ -189,6 +189,25 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /* WCAG 2.1 AA — visible focus indicator for interactive elements.
+     Uses :focus-visible so mouse users are unaffected; keyboard and
+     switch-access users get a 3px offset outline in the role colour (falls
+     back to the default accent outside a .role-theme region). The outline is
+     never suppressed — no outline:none without a visible replacement. */
+  :focus-visible {
+    outline: 3px solid var(--role);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  /* Inputs and selects already draw their own focus ring via box-shadow in
+     .input:focus / .select:focus — suppress the duplicate :focus-visible
+     outline for those elements only so the ring doesn't double up. */
+  .input:focus-visible,
+  .select:focus-visible {
+    outline: none;
+  }
+
   /* Headings carry the display face, colour and type-scale sizes by default so
      a bare <h1>/<h2>/<h3> renders at the intended size (Tailwind's preflight
      otherwise resets headings to inherit). Explicit text-* utilities still win
@@ -209,6 +228,31 @@
 /* --text-label-size → --text-label, --text-label-tracking →                   */
 /* --text-label--letter-spacing, --space-6 → literal 1.5rem.                   */
 @layer components {
+
+  /* Skip-navigation link — visually hidden until focused (WCAG 2.4.1).
+     Positioned off-screen via a large negative top value; slides into the
+     top-left corner on :focus-visible so keyboard users can skip the nav.
+     z-index 50 ensures it sits above the hero and any overlaid nav. */
+  .skip-link {
+    position: absolute;
+    top: -9999px;
+    left: 1rem;
+    z-index: 50;
+    padding: 12px 20px;
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: 2px solid var(--color-accent);
+    border-radius: var(--radius-control);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .skip-link:focus-visible {
+    top: 1rem;
+    outline: 3px solid var(--color-accent);
+    outline-offset: 3px;
+  }
 
   /* Buttons */
   .btn {

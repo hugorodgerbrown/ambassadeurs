@@ -1,0 +1,11 @@
+{% load i18n %}{% if first_name %}{% blocktranslate trimmed with first_name=first_name %}Hi {{ first_name }},{% endblocktranslate %}{% else %}{% translate "Hi," %}{% endif %}
+
+{% if is_ambassador %}{% blocktranslate trimmed %}Thanks for registering as an Ambassador for the 4 Vallées Ambassadors Programme. Please confirm your email address to enter the matching queue — we'll pair you with a Referee as soon as one is available.{% endblocktranslate %}{% else %}{% blocktranslate trimmed %}Thanks for registering as a Referee for the 4 Vallées Ambassadors Programme. Please confirm your email address to enter the matching queue — we'll pair you with an Ambassador as soon as one is available.{% endblocktranslate %}{% endif %}
+
+{% blocktranslate trimmed %}Click the link below to confirm your email:{% endblocktranslate %}
+
+{{ confirm_url }}
+
+{% blocktranslate trimmed with expiry_hours=expiry_hours %}This link expires in {{ expiry_hours }} hours. If you did not register for this programme, you can safely ignore this email.{% endblocktranslate %}
+
+{% translate "— 4 Vallées Ambassadors Programme" %}

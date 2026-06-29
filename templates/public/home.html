@@ -17,11 +17,13 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
 {% endcomment %}
 
 {% block hero %}
-    <section class="relative flex min-h-[90svh] flex-col justify-center">
+    <section class="relative flex min-h-[90svh] flex-col">
         {% comment %}Background photograph{% endcomment %}
         {% comment %}
         LCP image: fetchpriority high so the browser prioritises it; intrinsic
         width/height (1920x1071) reserve the box to avoid layout shift on load.
+        object-position biases right on mobile so the second person stays in
+        frame on a portrait crop; centred from sm: up.
         {% endcomment %}
         <img
             src="{% static 'images/hero.jpg' %}"
@@ -29,7 +31,7 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
             width="1920"
             height="1071"
             fetchpriority="high"
-            class="absolute inset-0 h-full w-full object-cover object-center"
+            class="absolute inset-0 h-full w-full object-cover object-[62%_center] sm:object-center"
         >
         {% comment %}
         Dark left-to-right gradient scrim. Dark on the left where headline
@@ -41,48 +43,55 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
         >
         </div>
         {% comment %}
-        Hero content: flush-left against the page gutter (over the darkest part
-        of the scrim) and vertically centred by the section's justify-center.
-        Gutter matches the overlaid nav so text and wordmark share a left edge.
+        Hero content. Flush-left against the page gutter (over the darkest part
+        of the scrim); the gutter matches the overlaid nav so text and wordmark
+        share a left edge. On mobile the eyebrow + heading are hoisted to the
+        top and the lead + CTAs pushed to the bottom (justify-between) so the
+        handshake sits centre-stage between them; from sm: up the two groups
+        collapse together and centre vertically (justify-center).
         {% endcomment %}
-        <div class="relative z-10 w-full px-6 py-24 sm:px-10 lg:px-16">
-            <p class="eyebrow mb-4 text-white/80">
-                {% translate "4 Vallées Ambassadors Program" %}
-            </p>
-            <h1 class="mb-5 max-w-lg text-h1 text-white">
-                {% translate "Find your season-pass partner" %}
-            </h1>
-            <p class="mb-8 max-w-md text-lead text-white/80">
-                {% blocktranslate trimmed %}
-                    No more frantic search in the Facebook group. Register once and we match you with a partner —
-                    Ambassador meets Referee.
-                {% endblocktranslate %}
-            </p>
-            <div class="flex flex-wrap gap-3">
-                <a href="{% url 'public:register' %}" class="btn btn--primary">
-                    {% translate "Get started" %}
-                    <svg
-                        width="17"
-                        height="17"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        aria-hidden="true"
+        <div class="relative z-10 flex grow flex-col justify-between gap-10 px-6 pb-16 pt-24 sm:justify-center sm:gap-0 sm:px-10 sm:py-24 lg:px-16">
+            <div>
+                <p class="eyebrow mb-4 text-white/80">
+                    {% translate "4 Vallées Ambassadors Program" %}
+                </p>
+                <h1 class="mb-5 max-w-lg text-h1 text-white">
+                    {% translate "Find your season-pass partner" %}
+                </h1>
+            </div>
+            <div>
+                <p class="mb-8 max-w-md text-lead text-white/80">
+                    {% blocktranslate trimmed %}
+                        No more frantic search in the Facebook group. Register once and we match you with a partner —
+                        Ambassador meets Referee.
+                    {% endblocktranslate %}
+                </p>
+                <div class="flex flex-wrap gap-3">
+                    <a href="{% url 'public:register' %}" class="btn btn--primary">
+                        {% translate "Get started" %}
+                        <svg
+                            width="17"
+                            height="17"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path d="M5 12h14" />
+                            <path d="m13 5 7 7-7 7" />
+                        </svg>
+                    </a>
+                    {% comment %}Light ghost over the dark hero — utilities override .btn's borderless fill.{% endcomment %}
+                    <a
+                        href="{% url 'public:how_it_works' %}"
+                        class="btn border border-white/40 bg-white/5 text-white hover:bg-white/15"
                     >
-                        <path d="M5 12h14" />
-                        <path d="m13 5 7 7-7 7" />
-                    </svg>
-                </a>
-                {% comment %}Light ghost over the dark hero — utilities override .btn's borderless fill.{% endcomment %}
-                <a
-                    href="{% url 'public:how_it_works' %}"
-                    class="btn border border-white/40 bg-white/5 text-white hover:bg-white/15"
-                >
-                    {% translate "How it works" %}
-                </a>
+                        {% translate "How it works" %}
+                    </a>
+                </div>
             </div>
         </div>
     </section>

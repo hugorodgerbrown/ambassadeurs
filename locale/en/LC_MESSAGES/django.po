@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-29 21:55+0200\n"
+"POT-Creation-Date: 2026-06-30 00:10+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -256,6 +256,21 @@ msgid ""
 "was made in error, please contact us for help.\n"
 "\n"
 "If you did not register for this programme, please ignore this email."
+msgstr ""
+
+msgid "Access denied"
+msgstr ""
+
+msgid "You don't have permission to view this page."
+msgstr ""
+
+msgid "Return to homepage"
+msgstr ""
+
+msgid "Page not found"
+msgstr ""
+
+msgid "The page you're looking for doesn't exist or has moved."
 msgstr ""
 
 msgid "Delete my account"
@@ -899,9 +914,6 @@ msgid "Your turn"
 msgstr ""
 
 msgid "Back to my status"
-msgstr ""
-
-msgid "Access denied"
 msgstr ""
 
 msgid "This match does not include you."

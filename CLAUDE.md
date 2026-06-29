@@ -417,6 +417,7 @@ feature docs are written:
 | Registration.Status / Match.Status state machines | [ADR 0011](docs/decisions/0011-two-state-machines.md) |
 | Flaking / priority handling | [ADR 0007](docs/decisions/0007-post-match-confirmation-workflow.md) |
 | Authentication (magic-link login) | [ADR 0012](docs/decisions/0012-magic-link-login.md) |
+| Lighthouse audits (CI, thresholds, baseline) | [`docs/lighthouse.md`](docs/lighthouse.md) |
 | Internationalisation | _to be written_ |
 | Deployment (Render single-service) | _to be written_ |
 | Linear workflow (full lifecycle) | _to be written_ |

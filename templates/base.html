@@ -9,7 +9,7 @@
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link
-            href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
             rel="stylesheet"
         >
         <link rel="stylesheet" href="{% static 'css/output.css' %}">
@@ -18,7 +18,17 @@
     <body class="min-h-screen bg-page text-body">
         {% comment %}Role tone-cue band, pinned above the nav. Role-themed pages fill this block; on public pages it stays empty.{% endcomment %}
         {% block topband %}{% endblock %}
-        {% include "includes/nav.html" %}
+        {% comment %}
+        Full-bleed hero escape hatch. The nav include lives inside this
+        relative wrapper so photographic hero pages (homepage only) can
+        overlay the nav with an absolute-positioned hero section that breaks
+        out of the max-w-3xl column. When the hero block is empty the nav
+        renders in normal flow and all other pages are unchanged.
+        {% endcomment %}
+        <div class="relative">
+            {% include "includes/nav.html" %}
+            {% block hero %}{% endblock %}
+        </div>
         <main class="mx-auto max-w-3xl px-4 py-10">
             {% block content %}{% endblock %}
         </main>

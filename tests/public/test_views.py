@@ -721,11 +721,17 @@ def test_register_done_unknown_role_404() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_home_contains_no_facebook_reference() -> None:
-    """The homepage must not mention Facebook."""
-    response = Client().get(reverse("public:home"))
-    assert b"Facebook" not in response.content
-    assert b"facebook" not in response.content
+def test_home_contains_no_facebook_login() -> None:
+    """The homepage must not offer Facebook login (allauth removed in VERB-46).
+
+    The hero copy legitimately names the Facebook *group* as the problem the
+    product replaces, so this guards against social-login remnants (an OAuth
+    endpoint or a "sign in with Facebook" affordance) rather than the word.
+    """
+    content = Client().get(reverse("public:home")).content.lower()
+    assert b"facebook.com" not in content
+    assert b"with facebook" not in content
+    assert b"/accounts/facebook" not in content
 
 
 def test_how_it_works_contains_no_facebook_reference() -> None:

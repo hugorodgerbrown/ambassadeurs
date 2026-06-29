@@ -54,14 +54,13 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
             </h1>
             <p class="mb-8 max-w-md text-lead text-white/80">
                 {% blocktranslate trimmed %}
-                    To claim the Ambassadors discount on the 4 Vallées annual pass, a returning holder and a new holder
-                    have to apply together. We match you with a partner automatically — no more scrambling for a
-                    partner, no chasing people who vanish.
+                    No more frantic search in the Facebook group. Register once and we match you with a partner —
+                    Ambassador meets Referee.
                 {% endblocktranslate %}
             </p>
             <div class="flex flex-wrap gap-3">
-                <a href="{% url 'public:register' %}?role=ambassador" class="btn btn--primary">
-                    {% translate "Register as an Ambassador" %}
+                <a href="{% url 'public:register' %}" class="btn btn--primary">
+                    {% translate "Get started" %}
                     <svg
                         width="17"
                         height="17"
@@ -77,32 +76,25 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
                         <path d="m13 5 7 7-7 7" />
                     </svg>
                 </a>
-                <a href="{% url 'public:register' %}?role=referee" class="btn btn--secondary">
-                    {% translate "Register as a Referee" %}
-                    <svg
-                        width="17"
-                        height="17"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        aria-hidden="true"
-                    >
-                        <path d="M5 12h14" />
-                        <path d="m13 5 7 7-7 7" />
-                    </svg>
+                {% comment %}Light ghost over the dark hero — utilities override .btn's borderless fill.{% endcomment %}
+                <a
+                    href="{% url 'public:how_it_works' %}"
+                    class="btn border border-white/40 bg-white/5 text-white hover:bg-white/15"
+                >
+                    {% translate "How it works" %}
                 </a>
             </div>
-            {% if not registration_open %}
-                <div class="announce mt-6">
-                    <span class="announce__dot"></span>
-                    {% translate "Registration opens soon — check back closer to the start of the season." %}
-                </div>
-            {% endif %}
         </div>
     </section>
+    {% if not registration_open %}
+        {% comment %}Full-width opens-soon band below the hero (notice tone, not a role colour).{% endcomment %}
+        <div class="border-b border-line bg-surface">
+            <p class="mx-auto flex max-w-5xl items-center justify-center gap-2.5 px-4 py-3 text-center font-mono text-sm tracking-wide text-meta">
+                <span class="h-2 w-2 flex-none rounded-full bg-notice"></span>
+                {% translate "Registration opens soon — check back closer to the start of the season." %}
+            </p>
+        </div>
+    {% endif %}
 {% endblock %}
 
 {% block content %}

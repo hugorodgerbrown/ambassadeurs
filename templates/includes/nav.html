@@ -3,25 +3,27 @@
 Navigation bar — two rendering variants gated on the current view:
 
 Homepage (public:home): transparent background, no border, positioned
-absolute so it overlays the full-bleed hero photograph. Text and the peak
-glyph render in white for contrast on the dark scrim. Role-theme classes
-are omitted on the homepage overlay — the glyph is always white, not role-
-coloured, because the two-tone hero carries the brand identity instead.
+absolute so it overlays the full-bleed hero photograph. White stacked
+wordmark + glyph for contrast on the dark scrim; right side carries the
+"How it works" link and (anonymous) a white Register pill + outlined Log in
+pill, or (authenticated) My account + Log out. Role-theme classes are
+omitted — the glyph is always white because the two-tone hero carries the
+brand identity instead.
 
 All other pages: bg-surface, border-b border-line, ink text — the standard
-nav appearance, unchanged from the previous version. The role-theme wrapper
-is applied here so the peak glyph and focus rings follow the signed-in
-user's role colour (accent for Ambassador, secondary for Referee).
+nav. The role-theme wrapper is applied here so the peak glyph and focus
+rings follow the signed-in user's role colour (accent for Ambassador,
+secondary for Referee).
 
-All link/auth/language-select markup is identical between variants; only
-colour and positioning differ.
+The language switcher is hidden pre-launch (removed from both variants); the
+set_language form can be restored from git history when FR is exposed in UI.
 {% endcomment %}
 {% if request.resolver_match.view_name == 'public:home' %}
     <header class="absolute inset-x-0 top-0 z-20">
         <nav class="flex w-full items-center justify-between px-6 py-4 sm:px-10 lg:px-16">
-            <a href="{% url 'public:home' %}" class="flex items-center gap-2">
+            <a href="{% url 'public:home' %}" class="flex items-center gap-2.5">
                 <span class="shrink-0 text-white">
-                    <svg width="20" height="20" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
                         <path
                             d="M11 3.5 L18.5 18 L3.5 18 Z"
                             stroke="currentColor"
@@ -37,40 +39,42 @@ colour and positioning differ.
                         />
                     </svg>
                 </span>
-                <span class="wordmark text-white">{% translate "4 Vallées Ambassadors" %}</span>
+                {% comment %}Stacked wordmark: narrow box wraps after "4 Vallées".{% endcomment %}
+                <span
+                    class="wordmark max-w-[7rem] leading-[1.05] text-white"
+                >{% translate "4 Vallées Ambassadors" %}</span>
             </a>
-            <div class="flex items-center gap-4 text-sm">
+            <div class="flex items-center gap-5 text-sm">
+                <a
+                    href="{% url 'public:how_it_works' %}"
+                    class="hidden font-mono text-xs uppercase tracking-[0.14em] text-white/85 hover:text-white sm:inline"
+                >
+                    {% translate "How it works" %}
+                </a>
                 {% if user.is_authenticated %}
                     <a href="{% url 'accounts:detail' %}" class="font-medium text-white">
                         {% translate "My account" %}
                     </a>
                     <form method="post" action="{% url 'accounts:logout' %}" class="inline">
                         {% csrf_token %}
-                        <button type="submit" class="cursor-pointer border-0 bg-transparent p-0 text-white/80">
+                        <button type="submit" class="cursor-pointer border-0 bg-transparent p-0 text-white/85">
                             {% translate "Log out" %}
                         </button>
                     </form>
                 {% else %}
-                    <a href="{% url 'accounts:login' %}" class="font-medium text-white">
+                    <a
+                        href="{% url 'public:register' %}"
+                        class="inline-flex items-center rounded-pill bg-white px-5 py-2 font-semibold text-ink hover:bg-white/90"
+                    >
+                        {% translate "Register" %}
+                    </a>
+                    <a
+                        href="{% url 'accounts:login' %}"
+                        class="inline-flex items-center rounded-pill border border-white/40 px-5 py-2 font-medium text-white hover:bg-white/10"
+                    >
                         {% translate "Log in" %}
                     </a>
                 {% endif %}
-                <form action="{% url 'set_language' %}" method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="next" value="{{ request.path }}">
-                    <select
-                        name="language"
-                        onchange="this.form.submit()"
-                        class="rounded-control border border-white/30 bg-white/10 px-2 py-1 text-white"
-                        aria-label="{% translate 'Change language' %}"
-                    >
-                        {% get_current_language as current %}
-                        {% get_available_languages as languages %}
-                        {% for code, name in languages %}
-                            <option value="{{ code }}" {% if code == current %}selected{% endif %}>{{ name }}</option>
-                        {% endfor %}
-                    </select>
-                </form>
             </div>
         </nav>
     </header>
@@ -118,22 +122,6 @@ colour and positioning differ.
                         {% translate "Log in" %}
                     </a>
                 {% endif %}
-                <form action="{% url 'set_language' %}" method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="next" value="{{ request.path }}">
-                    <select
-                        name="language"
-                        onchange="this.form.submit()"
-                        class="rounded-control border border-line bg-surface px-2 py-1"
-                        aria-label="{% translate 'Change language' %}"
-                    >
-                        {% get_current_language as current %}
-                        {% get_available_languages as languages %}
-                        {% for code, name in languages %}
-                            <option value="{{ code }}" {% if code == current %}selected{% endif %}>{{ name }}</option>
-                        {% endfor %}
-                    </select>
-                </form>
             </div>
         </nav>
     </header>

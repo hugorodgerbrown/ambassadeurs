@@ -3,6 +3,19 @@
 
 {% block title %}{% translate "Cookie Policy" %}{% endblock %}
 
+{% block meta %}
+    {% blocktranslate trimmed asvar page_description %}
+        Cookie Policy for the 4 Vallées Ambassadors partner-matching service. We use only strictly-necessary cookies
+        — no analytics, advertising, or third-party tracking.
+    {% endblocktranslate %}
+    {% blocktranslate trimmed asvar page_title %}
+        Cookie Policy — 4 Vallées Ambassadors
+    {% endblocktranslate %}
+    {% with meta_title=page_title meta_description=page_description %}
+        {% include "includes/_meta.html" %}
+    {% endwith %}
+{% endblock %}
+
 {% block content %}
     <article class="mx-auto max-w-2xl space-y-4 text-body">
         <h1 class="text-2xl font-bold text-ink">{% translate "Cookie Policy" %}</h1>

@@ -1,6 +1,18 @@
 {% extends "base.html" %}
 {% load i18n static %}
 
+{% block title %}{% translate "4 Vallées Ambassadors" %}{% endblock %}
+
+{% block meta %}
+    {% blocktranslate trimmed asvar page_description %}
+        Find your season-pass partner for the 4 Vallées Ambassadors Program. Register once — we match Ambassadors
+        with Referees automatically. No scramble, no Facebook group, no ghosting.
+    {% endblocktranslate %}
+    {% with meta_title="4 Vallées Ambassadors" meta_description=page_description %}
+        {% include "includes/_meta.html" %}
+    {% endwith %}
+{% endblock %}
+
 {% comment %}
 Homepage — Alpine v2 direction. Full-bleed photographic hero: two people (one
 in a red jacket, one in blue) shaking hands on a platform between a red gondola

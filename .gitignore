@@ -25,6 +25,10 @@ htmlcov/
 node_modules/
 static/css/output.css
 
+# Lighthouse CI reports
+.lighthouseci/
+lighthouse-reports/
+
 # Django
 db.sqlite3
 staticfiles/

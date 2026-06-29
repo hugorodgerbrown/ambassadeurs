@@ -66,6 +66,12 @@ def test_home_hides_opens_soon_when_registration_open() -> None:
     assert b"Registration opens soon" not in response.content
 
 
+def test_home_contains_hero_image() -> None:
+    """The homepage response includes the hero photograph path."""
+    response = Client().get(reverse("public:home"))
+    assert b"images/hero.jpg" in response.content
+
+
 # ---------------------------------------------------------------------------
 # Combined registration form (anonymous GET)
 # ---------------------------------------------------------------------------

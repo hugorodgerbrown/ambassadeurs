@@ -4,7 +4,7 @@
 #   - robots_txt: serves /robots.txt as text/plain, dynamically building the
 #     Sitemap absolute URL from the request host so it works on every
 #     deployment (local dev, staging, production) without configuration.
-# 
+#
 #   - healthz: health-check view.
 #
 # Provides a cheap liveness probe used by Render's health-check mechanism and
@@ -55,7 +55,7 @@ def robots_txt(request: HttpRequest) -> HttpResponse:
     )
     return HttpResponse(body, content_type="text/plain")
 
-  
+
 @require_GET
 def healthz(request: HttpRequest) -> HttpResponse:
     """Return HTTP 200 when the application and database are reachable.

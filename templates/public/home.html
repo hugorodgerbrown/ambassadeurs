@@ -34,12 +34,13 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
             class="absolute inset-0 h-full w-full object-cover object-[62%_center] sm:object-center"
         >
         {% comment %}
-        Dark left-to-right gradient scrim. Dark on the left where headline
-        and CTAs sit; transparent on the right so the handshake is visible.
+        Top-and-bottom gradient scrim. Dark at the top (eyebrow + heading) and
+        bottom (lead + CTAs) for legibility; clear through the middle so the
+        central handshake reads through.
         {% endcomment %}
         <div
             class="absolute inset-0"
-            style="background: linear-gradient(to right, rgb(0 0 0 / 0.72) 0%, rgb(0 0 0 / 0.50) 45%, rgb(0 0 0 / 0.12) 80%, transparent 100%)"
+            style="background: linear-gradient(to bottom, rgb(0 0 0 / 0.70) 0%, rgb(0 0 0 / 0.30) 22%, transparent 42%, transparent 58%, rgb(0 0 0 / 0.35) 80%, rgb(0 0 0 / 0.72) 100%)"
         >
         </div>
         {% comment %}

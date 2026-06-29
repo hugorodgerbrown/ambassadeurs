@@ -19,6 +19,7 @@ dependencies = [
     "gunicorn>=23.0",
     "django-countries>=9.0.0",
     "geoip2>=5.2.0",
+    "django-ratelimit>=4.1.0",
 ]
 
 [dependency-groups]
@@ -67,7 +68,7 @@ warn_unused_ignores = true
 exclude = ['(^|/)migrations/', '^config/settings/']
 
 [[tool.mypy.overrides]]
-module = ["factory.*", "decouple.*"]
+module = ["factory.*", "decouple.*", "django_ratelimit.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

@@ -112,6 +112,9 @@ msgstr "Votre compte a été supprimé."
 msgid "Target"
 msgstr "Cible"
 
+msgid "Too many attempts. Please wait a moment and try again."
+msgstr "Trop de tentatives. Veuillez patienter un moment et réessayer."
+
 msgid "Development panel"
 msgstr "Panneau de développement"
 
@@ -316,6 +319,24 @@ msgstr ""
 "\n"
 "Si vous ne vous êtes pas inscrit(e) à ce programme, ignorez cet e-mail."
 
+msgid "Too many requests"
+msgstr "Trop de requêtes"
+
+msgid "Rate limit reached"
+msgstr "Limite atteinte"
+
+msgid "Too many attempts"
+msgstr "Trop de tentatives"
+
+msgid ""
+"You have made too many requests in a short period. Please wait approximately "
+"one hour and try again."
+msgstr ""
+"Vous avez effectué trop de requêtes en peu de temps. Veuillez attendre "
+"environ une heure et réessayer."
+
+msgid "Return to home"
+msgstr "Retour à l'accueil"
 msgid "Access denied"
 msgstr "Accès refusé"
 

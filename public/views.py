@@ -45,6 +45,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from django_ratelimit.decorators import ratelimit
 
 from accounts.services import send_confirmation_email
 from accounts.tokens import (
@@ -53,6 +54,7 @@ from accounts.tokens import (
 )
 from core.decorators import require_htmx
 from core.geo import geolocate, get_client_ip
+from core.ratelimit import rate_limited_response
 from matching.forms import RegistrationForm
 from matching.models import Match, Registration
 from matching.services import (
@@ -147,6 +149,8 @@ def service_worker(request: HttpRequest) -> HttpResponse:
     return HttpResponse(_SERVICE_WORKER_BODY, content_type="application/javascript")
 
 
+@ratelimit(key="ip", rate="30/h", method="POST", block=False)  # type: ignore[untyped-decorator]  # django-ratelimit has no type stubs
+@ratelimit(key="post:email", rate="5/h", method="POST", block=False)  # type: ignore[untyped-decorator]  # django-ratelimit has no type stubs
 def register(request: HttpRequest) -> HttpResponse:
     """Combined registration form — no login required.
 
@@ -156,6 +160,12 @@ def register(request: HttpRequest) -> HttpResponse:
         to ``register_email_sent``.
     POST (authenticated, defensive): complete the registration immediately at
         VERIFIED status and redirect to ``register_done``.
+
+    Rate-limited: 30 POSTs/hour per IP and 5 POSTs/hour per email address.
+    Exceeding either limit returns a 429 response. The email key is derived
+    from the POST param; an absent ``email`` field (authenticated path) is
+    treated as an empty string by django-ratelimit and does not trigger the
+    per-email limit.
     """
     if not is_registration_open():
         return render(request, "public/register_closed.html")
@@ -192,6 +202,9 @@ def register(request: HttpRequest) -> HttpResponse:
         )
 
     # POST path.
+    if getattr(request, "limited", False):
+        return rate_limited_response(request)
+
     role_slug = request.POST.get("role", "")
     post_role_value = ROLE_BY_SLUG.get(role_slug)
     if post_role_value is None:

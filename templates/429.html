@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Too many requests" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-md text-center">
+        <p class="eyebrow mb-2">{% translate "Rate limit reached" %}</p>
+        <h1 class="mb-4 text-ink">{% translate "Too many attempts" %}</h1>
+        <p class="mb-6 text-body">
+            {% blocktranslate trimmed %}
+                You have made too many requests in a short period. Please wait approximately one hour and try again.
+            {% endblocktranslate %}
+        </p>
+        <a href="{% url 'public:home' %}" class="btn btn--secondary">
+            {% translate "Return to home" %}
+        </a>
+    </section>
+{% endblock %}

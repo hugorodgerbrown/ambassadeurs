@@ -10,7 +10,7 @@ from django.contrib import admin
 from django.contrib.sitemaps.views import sitemap
 from django.urls import include, path
 
-from core.views import healthz
+from core.views import healthz, robots_txt
 from public.sitemaps import StaticViewSitemap
 
 _sitemaps = {"static": StaticViewSitemap}
@@ -32,5 +32,7 @@ urlpatterns = [
     # DEBUG-only test-data panel. Always mounted; every view raises Http404
     # when settings.DEBUG is false (via require_debug decorator).
     path("debug/", include("debug.urls")),
+    # Search-engine control (VERB-63). Must come before the public catch-all.
+    path("robots.txt", robots_txt, name="robots_txt"),
     path("", include("public.urls")),
 ]

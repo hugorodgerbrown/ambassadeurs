@@ -86,6 +86,9 @@ msgstr ""
 msgid "Target"
 msgstr ""
 
+msgid "Too many attempts. Please wait a moment and try again."
+msgstr ""
+
 msgid "Development panel"
 msgstr ""
 
@@ -258,6 +261,21 @@ msgid ""
 "If you did not register for this programme, please ignore this email."
 msgstr ""
 
+msgid "Too many requests"
+msgstr ""
+
+msgid "Rate limit reached"
+msgstr ""
+
+msgid "Too many attempts"
+msgstr ""
+
+msgid ""
+"You have made too many requests in a short period. Please wait approximately "
+"one hour and try again."
+msgstr ""
+
+msgid "Return to home"
 msgid "Access denied"
 msgstr ""
 

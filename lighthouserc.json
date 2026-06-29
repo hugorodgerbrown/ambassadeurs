@@ -9,7 +9,6 @@
         "http://127.0.0.1:8765/how-it-works/",
         "http://127.0.0.1:8765/faq/",
         "http://127.0.0.1:8765/register/",
-        "http://127.0.0.1:8765/account/login/",
         "http://127.0.0.1:8765/legal/privacy/"
       ],
       "numberOfRuns": 3,

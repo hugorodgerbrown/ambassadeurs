@@ -9,6 +9,8 @@ under ``accounts/``.
 from django.contrib import admin
 from django.urls import include, path
 
+from core.views import robots_txt
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     # First-party magic-link auth + account self-service (VERB-46).
@@ -17,5 +19,7 @@ urlpatterns = [
     # DEBUG-only test-data panel. Always mounted; every view raises Http404
     # when settings.DEBUG is false (via require_debug decorator).
     path("debug/", include("debug.urls")),
+    # Search-engine control (VERB-63). Must come before the public catch-all.
+    path("robots.txt", robots_txt, name="robots_txt"),
     path("", include("public.urls")),
 ]

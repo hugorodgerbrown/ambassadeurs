@@ -1,0 +1,40 @@
+# Health-check view.
+#
+# Provides a cheap liveness probe used by Render's health-check mechanism and
+# any external uptime monitors. The endpoint is unauthenticated, GET-only, and
+# performs a trivial SELECT 1 to confirm the database is reachable.
+#
+# SSL redirect reasoning: production settings set SECURE_SSL_REDIRECT = True,
+# but also set SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https").
+# Render terminates TLS at its proxy and forwards requests with the header
+# X-Forwarded-Proto: https, so Django sees the probe as already secure and does
+# NOT issue a 301 redirect. No SSL-redirect exemption is needed here.
+
+import logging
+
+from django.db import OperationalError, connection
+from django.http import HttpRequest, HttpResponse
+from django.views.decorators.http import require_GET
+
+logger = logging.getLogger(__name__)
+
+
+@require_GET
+def healthz(request: HttpRequest) -> HttpResponse:
+    """Return HTTP 200 when the application and database are reachable.
+
+    Performs a ``SELECT 1`` via the default database connection. Returns a
+    plain-text ``ok`` body on success, or HTTP 503 if the database query
+    raises an exception.
+
+    This view is unauthenticated and CSRF-irrelevant (GET-only). It is
+    intentionally exempt from login guards and session overhead so that
+    monitoring probes never need a valid session or CSRF token.
+    """
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+    except OperationalError:
+        logger.exception("Health check failed: database unreachable")
+        return HttpResponse(status=503)
+    return HttpResponse("ok", content_type="text/plain")

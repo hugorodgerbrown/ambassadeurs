@@ -10,11 +10,14 @@ from django.contrib import admin
 from django.contrib.sitemaps.views import sitemap
 from django.urls import include, path
 
+from core.views import healthz
 from public.sitemaps import StaticViewSitemap
 
 _sitemaps = {"static": StaticViewSitemap}
 
 urlpatterns = [
+    # Liveness probe — unauthenticated, must come before any catch-all route.
+    path("healthz/", healthz, name="healthz"),
     path("admin/", admin.site.urls),
     # First-party magic-link auth + account self-service (VERB-46).
     path("account/", include("accounts.urls")),

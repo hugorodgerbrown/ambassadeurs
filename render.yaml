@@ -9,6 +9,7 @@ services:
     plan: starter
     buildCommand: ./build.sh
     startCommand: uv run gunicorn config.wsgi:application
+    healthCheckPath: /healthz/
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings.production

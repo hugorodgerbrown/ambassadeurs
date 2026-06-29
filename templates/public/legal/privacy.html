@@ -3,6 +3,19 @@
 
 {% block title %}{% translate "Privacy Policy" %}{% endblock %}
 
+{% block meta %}
+    {% blocktranslate trimmed asvar page_description %}
+        Privacy Policy for the 4 Vallées Ambassadors partner-matching service. We collect only what matchmaking
+        requires and never share your contact details before you have both accepted a match.
+    {% endblocktranslate %}
+    {% blocktranslate trimmed asvar page_title %}
+        Privacy Policy — 4 Vallées Ambassadors
+    {% endblocktranslate %}
+    {% with meta_title=page_title meta_description=page_description %}
+        {% include "includes/_meta.html" %}
+    {% endwith %}
+{% endblock %}
+
 {% block content %}
     <article class="mx-auto max-w-2xl space-y-4 text-body">
         <h1 class="text-2xl font-bold text-ink">{% translate "Privacy Policy" %}</h1>

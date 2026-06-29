@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 00:10+0200\n"
+"POT-Creation-Date: 2026-06-30 00:42+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -562,6 +562,17 @@ msgstr "Vous n'avez pas encore d'inscription."
 msgid "Register now"
 msgstr "S'inscrire maintenant"
 
+msgid "4 Vallées Ambassadors"
+msgstr "Ambassadeurs des 4 Vallées"
+
+msgid ""
+"Find your season-pass partner for the 4 Vallées Ambassadors Program. "
+"Register once — we match Ambassadors with Referees automatically."
+msgstr ""
+"Trouvez votre partenaire d'abonnement de saison pour le programme "
+"Ambassadeurs des 4 Vallées. Inscrivez-vous une seule fois — nous mettons en "
+"relation Ambassadeurs et Filleuls automatiquement."
+
 msgid "Ski Parrainage"
 msgstr "Ski Parrainage"
 
@@ -613,6 +624,18 @@ msgstr "Menu"
 msgid "FAQ"
 msgstr "FAQ"
 
+msgid ""
+"Frequently asked questions about the 4 Vallées Ambassadors partner-matching "
+"service — eligibility, how matching works, the contact window, and what "
+"happens after you are matched."
+msgstr ""
+"Questions fréquentes sur le service de mise en relation Ambassadeurs des 4 "
+"Vallées — éligibilité, fonctionnement de l'appariement, délai de contact et "
+"ce qui se passe après la mise en relation."
+
+msgid "FAQ — 4 Vallées Ambassadors"
+msgstr "FAQ — Ambassadeurs des 4 Vallées"
+
 msgid "Frequently asked questions"
 msgstr "Questions fréquentes"
 
@@ -627,6 +650,16 @@ msgstr ""
 
 msgid "Read how it works"
 msgstr "Lire « Comment ça fonctionne »"
+
+msgid ""
+"Find your season-pass partner for the 4 Vallées Ambassadors Program. "
+"Register once — we match Ambassadors with Referees automatically. No "
+"scramble, no Facebook group, no ghosting."
+msgstr ""
+"Trouvez votre partenaire d'abonnement de saison pour le programme "
+"Ambassadeurs des 4 Vallées. Inscrivez-vous une seule fois — nous mettons en "
+"relation Ambassadeurs et Filleuls automatiquement. Pas de bousculade, pas de "
+"groupe Facebook, pas de disparition."
 
 msgid ""
 "Two people — one in a red jacket, one in blue — shaking hands on a platform "
@@ -723,6 +756,19 @@ msgstr ""
 
 msgid "Register as a Referee"
 msgstr "S'inscrire en tant que Filleul"
+
+msgid ""
+"How the 4 Vallées Ambassadors partner-matching service works: register, join "
+"the queue, get matched automatically with a partner, accept within 72 hours, "
+"then apply together at the ticket office."
+msgstr ""
+"Comment fonctionne le service de mise en relation Ambassadeurs des 4 "
+"Vallées : inscrivez-vous, rejoignez la file d'attente, soyez mis en relation "
+"automatiquement avec un partenaire, acceptez dans les 72 heures, puis "
+"postulez ensemble au guichet."
+
+msgid "How it works — 4 Vallées Ambassadors"
+msgstr "Comment ça fonctionne — Ambassadeurs des 4 Vallées"
 
 msgid "What is the 4 Vallées Ambassadors Program?"
 msgstr "Qu'est-ce que le programme Ambassadeurs des 4 Vallées ?"
@@ -935,6 +981,18 @@ msgstr ""
 msgid "Cookie Policy"
 msgstr "Politique de cookies"
 
+msgid ""
+"Cookie Policy for the 4 Vallées Ambassadors partner-matching service. We use "
+"only strictly-necessary cookies — no analytics, advertising, or third-party "
+"tracking."
+msgstr ""
+"Politique de cookies du service de mise en relation Ambassadeurs des 4 "
+"Vallées. Nous n'utilisons que des cookies strictement nécessaires — pas "
+"d'analyse, de publicité ou de suivi tiers."
+
+msgid "Cookie Policy — 4 Vallées Ambassadors"
+msgstr "Politique de cookies — Ambassadeurs des 4 Vallées"
+
 msgid "Last updated"
 msgstr "Dernière mise à jour"
 
@@ -981,6 +1039,19 @@ msgstr ""
 
 msgid "Privacy Policy"
 msgstr "Politique de confidentialité"
+
+msgid ""
+"Privacy Policy for the 4 Vallées Ambassadors partner-matching service. We "
+"collect only what matchmaking requires and never share your contact details "
+"before you have both accepted a match."
+msgstr ""
+"Politique de confidentialité du service de mise en relation Ambassadeurs des "
+"4 Vallées. Nous ne collectons que ce dont la mise en relation nécessite et "
+"ne partageons jamais vos coordonnées avant que vous ayez tous les deux "
+"accepté la mise en relation."
+
+msgid "Privacy Policy — 4 Vallées Ambassadors"
+msgstr "Politique de confidentialité — Ambassadeurs des 4 Vallées"
 
 msgid "Who we are"
 msgstr "Qui nous sommes"
@@ -1091,6 +1162,18 @@ msgstr ""
 
 msgid "Terms of Use"
 msgstr "Conditions d'utilisation"
+
+msgid ""
+"Terms of Use for the 4 Vallées Ambassadors partner-matching service. This "
+"service handles matchmaking only — the discount application and ticket-"
+"office purchase happen separately."
+msgstr ""
+"Conditions d'utilisation du service de mise en relation Ambassadeurs des 4 "
+"Vallées. Ce service gère uniquement la mise en relation — la demande de "
+"réduction et l'achat au guichet se font séparément."
+
+msgid "Terms of Use — 4 Vallées Ambassadors"
+msgstr "Conditions d'utilisation — Ambassadeurs des 4 Vallées"
 
 msgid "What this service does"
 msgstr "Ce que fait ce service"
@@ -1555,6 +1638,19 @@ msgstr ""
 msgid "Back to home"
 msgstr "Retour à l'accueil"
 
+msgid ""
+"Register for the 4 Vallées Ambassadors partner-matching service. Tell us "
+"your role — Ambassador or Referee — and we will find you a partner "
+"automatically. Matching only; the application happens off-app."
+msgstr ""
+"Inscrivez-vous au service de mise en relation Ambassadeurs des 4 Vallées. "
+"Indiquez-nous votre rôle — Ambassadeur ou Filleul — et nous vous trouverons "
+"un partenaire automatiquement. Mise en relation uniquement ; la demande se "
+"fait hors application."
+
+msgid "Register — 4 Vallées Ambassadors"
+msgstr "Inscription — Ambassadeurs des 4 Vallées"
+
 msgid "You're in the queue"
 msgstr "Vous êtes dans la file d'attente"
 
@@ -1645,9 +1741,6 @@ msgstr ""
 
 msgid "Start again"
 msgstr "Recommencer"
-
-#~ msgid "4 Vallées Ambassadors"
-#~ msgstr "Ambassadeurs des 4 Vallées"
 
 #~ msgid "Change language"
 #~ msgstr "Changer de langue"

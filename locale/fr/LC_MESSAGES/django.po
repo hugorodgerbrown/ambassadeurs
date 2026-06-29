@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 00:24+0200\n"
+"POT-Creation-Date: 2026-06-30 00:10+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -337,6 +337,20 @@ msgstr ""
 
 msgid "Return to home"
 msgstr "Retour à l'accueil"
+msgid "Access denied"
+msgstr "Accès refusé"
+
+msgid "You don't have permission to view this page."
+msgstr "Vous n'avez pas la permission de consulter cette page."
+
+msgid "Return to homepage"
+msgstr "Retourner à la page d'accueil"
+
+msgid "Page not found"
+msgstr "Page introuvable"
+
+msgid "The page you're looking for doesn't exist or has moved."
+msgstr "La page que vous recherchez n'existe pas ou a été déplacée."
 
 msgid "Delete my account"
 msgstr "Supprimer mon compte"
@@ -1188,9 +1202,6 @@ msgstr "À vous"
 
 msgid "Back to my status"
 msgstr "Revenir à mon statut"
-
-msgid "Access denied"
-msgstr "Accès refusé"
 
 msgid "This match does not include you."
 msgstr "Vous ne faites pas partie de ce match."

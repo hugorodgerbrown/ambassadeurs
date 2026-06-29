@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Page not found" %}{% endblock %}
+
+{% block content %}
+    <article class="mx-auto max-w-2xl space-y-4 text-body">
+        <p class="eyebrow">404</p>
+        <h1 class="text-h1 text-ink">{% translate "Page not found" %}</h1>
+        <p>
+            {% blocktranslate trimmed %}
+                The page you're looking for doesn't exist or has moved.
+            {% endblocktranslate %}
+        </p>
+        <p>
+            <a href="{% url 'public:home' %}" class="btn btn--primary">
+                {% translate "Return to homepage" %}
+            </a>
+        </p>
+    </article>
+{% endblock %}

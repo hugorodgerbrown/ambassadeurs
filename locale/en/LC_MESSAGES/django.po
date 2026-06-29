@@ -276,6 +276,19 @@ msgid ""
 msgstr ""
 
 msgid "Return to home"
+msgid "Access denied"
+msgstr ""
+
+msgid "You don't have permission to view this page."
+msgstr ""
+
+msgid "Return to homepage"
+msgstr ""
+
+msgid "Page not found"
+msgstr ""
+
+msgid "The page you're looking for doesn't exist or has moved."
 msgstr ""
 
 msgid "Delete my account"
@@ -919,9 +932,6 @@ msgid "Your turn"
 msgstr ""
 
 msgid "Back to my status"
-msgstr ""
-
-msgid "Access denied"
 msgstr ""
 
 msgid "This match does not include you."

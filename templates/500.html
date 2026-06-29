@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<!--
+  Standalone 500 error page.
+  Must NOT use any Django template tags — no extends, no url, no static,
+  no translate. The 500 handler renders with an empty context and context
+  processors / DB / i18n machinery may be unavailable. Inline critical styles
+  so the page reads intentionally even if output.css fails to load.
+  Both English and French copy are hard-coded.
+-->
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Server error — Ski Parrainage</title>
+        <link
+            rel="preconnect"
+            href="https://fonts.googleapis.com"
+        >
+        <link
+            rel="preconnect"
+            href="https://fonts.gstatic.com"
+            crossorigin
+        >
+        <link
+            href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=Hanken+Grotesk:wght@400;600&display=swap"
+            rel="stylesheet"
+        >
+        {% comment %}
+        Progressive enhancement: output.css is linked but the page is fully
+        readable without it via the inline critical styles below.
+        {% endcomment %}
+        <link rel="stylesheet" href="/static/css/output.css">
+        <style>
+            /* Critical inline styles — matches the Alpine v2 design tokens.
+               Keeps the page readable if output.css does not load. */
+            *, *::before, *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                background-color: #eef2f4;
+                color: #44565d;
+                font-family: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+                -webkit-font-smoothing: antialiased;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                padding: 2rem 1rem;
+            }
+            .container {
+                width: 100%;
+                max-width: 560px;
+                text-align: center;
+            }
+            .glyph {
+                margin-bottom: 1.5rem;
+                color: #cf3127;
+            }
+            .code {
+                margin-bottom: 0.75rem;
+                color: #cf3127;
+                font-size: 0.75rem;
+                font-family: 'Space Mono', ui-monospace, SFMono-Regular, monospace;
+                letter-spacing: 0.18em;
+                text-transform: uppercase;
+            }
+            h1 {
+                margin-bottom: 0.75rem;
+                color: #0f2329;
+                font-weight: 700;
+                font-size: clamp(2rem, 4vw, 2.8rem);
+                line-height: 1.05;
+                font-family: 'Space Grotesk', system-ui, sans-serif;
+                letter-spacing: -0.03em;
+            }
+            .sub {
+                margin-bottom: 0.5rem;
+                color: #5f7178;
+                font-size: 1rem;
+                line-height: 1.55;
+            }
+            .divider {
+                width: 40px;
+                margin: 1.5rem auto;
+                border: none;
+                border-top: 1px solid rgba(15, 35, 41, 0.1);
+            }
+            .link {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                margin-top: 1.5rem;
+                padding: 14px 22px;
+                border-radius: 12px;
+                background: #cf3127;
+                color: #ffffff;
+                font-weight: 600;
+                font-size: 1rem;
+                font-family: 'Hanken Grotesk', system-ui, sans-serif;
+                letter-spacing: -0.01em;
+                text-decoration: none;
+            }
+            .link:hover {
+                background: #ad271f;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="glyph" aria-hidden="true">
+                <svg width="40" height="40" viewBox="0 0 22 22" fill="none">
+                    <path
+                        d="M11 3.5 L18.5 18 L3.5 18 Z"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linejoin="round"
+                    />
+                    <path
+                        d="M8.4 12.8 L11 8.2 L13.6 12.8"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linejoin="round"
+                        stroke-linecap="round"
+                    />
+                </svg>
+            </div>
+            <p class="code">500</p>
+            <h1>Something went wrong</h1>
+            <p class="sub">We hit an unexpected error. Try again in a moment.</p>
+            <hr class="divider">
+            <p class="sub">Une erreur inattendue s'est produite. Réessayez dans un instant.</p>
+            <a href="/" class="link">Return home / Retour à l'accueil</a>
+        </div>
+    </body>
+</html>

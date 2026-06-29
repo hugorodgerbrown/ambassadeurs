@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "FAQ" %}{% endblock %}
+
+{% comment %}
+Stub FAQ page — heading + placeholder only. The full question/answer list is
+to be populated later; for now it points readers to the How it works page,
+which already answers the common questions.
+{% endcomment %}
+{% block content %}
+    <article class="mx-auto max-w-2xl space-y-4 text-body">
+        <h1 class="text-2xl font-bold text-ink">{% translate "Frequently asked questions" %}</h1>
+        <p>
+            {% blocktranslate trimmed %}
+                We're putting together answers to the questions people ask most. In the meantime, the How it works page
+                covers how matching, eligibility, and the contact window work.
+            {% endblocktranslate %}
+        </p>
+        <p>
+            <a href="{% url 'public:how_it_works' %}" class="btn btn--primary">
+                {% translate "Read how it works" %}
+            </a>
+        </p>
+    </article>
+{% endblock %}

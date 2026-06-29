@@ -796,6 +796,20 @@ def test_how_it_works_renders_for_anonymous_user() -> None:
     assert "public/how_it_works.html" in [t.name for t in response.templates]
 
 
+def test_faq_renders_for_anonymous_user() -> None:
+    """The FAQ page returns 200 with the correct template (anonymous)."""
+    response = Client().get(reverse("public:faq"))
+    assert response.status_code == 200
+    assert "public/faq.html" in [t.name for t in response.templates]
+
+
+def test_home_menu_links_to_faq_and_how_it_works() -> None:
+    """The homepage hamburger menu links to the FAQ and how-it-works pages."""
+    content = Client().get(reverse("public:home")).content
+    assert reverse("public:faq").encode() in content
+    assert reverse("public:how_it_works").encode() in content
+
+
 def test_how_it_works_contains_section_markers() -> None:
     """The how-it-works page renders its section headings."""
     response = Client().get(reverse("public:how_it_works"))

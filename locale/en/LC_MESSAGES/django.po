@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-29 19:02+0200\n"
+"POT-Creation-Date: 2026-06-29 20:43+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -485,6 +485,24 @@ msgstr ""
 msgid ""
 "Independent project — not affiliated with the official 4 Vallées pass "
 "operator."
+msgstr ""
+
+msgid "Menu"
+msgstr ""
+
+msgid "FAQ"
+msgstr ""
+
+msgid "Frequently asked questions"
+msgstr ""
+
+msgid ""
+"We're putting together answers to the questions people ask most. In the "
+"meantime, the How it works page covers how matching, eligibility, and the "
+"contact window work."
+msgstr ""
+
+msgid "Read how it works"
 msgstr ""
 
 msgid ""

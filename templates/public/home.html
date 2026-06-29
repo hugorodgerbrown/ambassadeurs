@@ -91,13 +91,13 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
                         {% translate "How it works" %}
                     </a>
                 </div>
-                {% comment %}Quiet independence disclaimer, kept within the hero (above the fold).{% endcomment %}
-                <p class="mt-6 max-w-md text-xs text-white/55">
-                    {% translate "Independent project — not affiliated with the official 4 Vallées pass operator." %}
-                </p>
             </div>
         </div>
     </section>
+    {% comment %}Quiet independence disclaimer, just below the hero image.{% endcomment %}
+    <p class="px-6 pb-1 pt-3 text-center text-xs text-meta sm:px-10 lg:px-16">
+        {% translate "Independent project — not affiliated with the official 4 Vallées pass operator." %}
+    </p>
     {% if not registration_open %}
         {% comment %}Full-width opens-soon band below the hero (notice tone, not a role colour).{% endcomment %}
         <div class="border-b border-line bg-surface">

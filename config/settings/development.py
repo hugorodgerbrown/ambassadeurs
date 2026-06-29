@@ -33,3 +33,8 @@ EMAIL_HASH_SECRET = config(
     "EMAIL_HASH_SECRET",
     default="insecure-dev-email-hash-secret",  # noqa: S106
 )
+
+# Disable rate limiting in development and the test suite so repeated local
+# requests (and the test runner's 200+ hits from 127.0.0.1) are never blocked.
+# The rate-limit tests opt back in via @override_settings(RATELIMIT_ENABLE=True).
+RATELIMIT_ENABLE = False

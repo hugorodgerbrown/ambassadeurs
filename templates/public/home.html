@@ -1,67 +1,116 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% comment %}
-Homepage — the neutral dual-tone "lobby". It shows both roles, so it does NOT
-take a single .role-theme: the wordmark is neutral ink, the brand identity lives
-in the cable-car hero (teal terminus + sienna terminus), and the two role cards
-use the FIXED role tones directly (Ambassador = accent/teal, Referee =
-secondary/sienna) as the user's first preview of the palette they'll enter.
+Homepage — Alpine v2 direction. Full-bleed photographic hero: two people (one
+in a red jacket, one in blue) shaking hands on a platform between a red gondola
+and a blue gondola, both branded "4 Vallées Ambassadors", with alpine peaks
+behind. A dark left-to-right gradient scrim sits over the image so left-aligned
+light text stays legible while the central handshake reads through.
+
+The nav overlays the hero (absolute-positioned in base.html's hero block, white
+text, transparent background). The hero block fills ~90 vh then gives way to
+the standard max-w-3xl column for "How it works" and "Which one are you?".
+
+Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
+(#1f6db8, Referee). Both role cards below use their FIXED role tones directly.
 {% endcomment %}
 
-{% block content %}
-    <section class="text-center">
-        <p class="eyebrow mb-5">{% translate "4 Vallées Ambassadors Program" %}</p>
-        <h1 class="mb-5 text-h1 text-ink">
-            {% translate "Find your season-pass partner" %}
-        </h1>
-        <p class="mx-auto max-w-xl text-lead text-body">
-            {% blocktranslate trimmed %}
-                To claim the Ambassadors discount on the 4 Vallées annual pass, a returning holder and a new holder
-                have to apply together. We match you with a partner automatically — no more scrambling for a partner,
-                no chasing people who vanish.
-            {% endblocktranslate %}
-        </p>
-
-        {% comment %}Dual-tone brand graphic: the lift line joining a teal terminus and a sienna terminus — the two halves of a match.{% endcomment %}
-        <svg
-            viewBox="0 0 600 132"
-            width="100%"
-            class="mx-auto my-8 block max-w-md overflow-visible"
-            aria-hidden="true"
+{% block hero %}
+    <section class="relative flex min-h-[90svh] flex-col">
+        {% comment %}Background photograph{% endcomment %}
+        {% comment %}
+        LCP image: fetchpriority high so the browser prioritises it; intrinsic
+        width/height (1920x1071) reserve the box to avoid layout shift on load.
+        object-position biases right on mobile so the second person stays in
+        frame on a portrait crop; centred from sm: up.
+        {% endcomment %}
+        <img
+            src="{% static 'images/hero.jpg' %}"
+            alt='{% translate "Two people — one in a red jacket, one in blue — shaking hands on a platform between a red gondola and a blue gondola, both branded 4 Vallées Ambassadors, with alpine peaks behind" %}'
+            width="1920"
+            height="1071"
+            fetchpriority="high"
+            class="absolute inset-0 h-full w-full object-cover object-[62%_center] sm:object-center"
         >
-            <line x1="76" y1="110" x2="76" y2="54" stroke="#aebfc4" stroke-width="2.5" stroke-linecap="round" />
-            <line x1="524" y1="110" x2="524" y2="46" stroke="#aebfc4" stroke-width="2.5" stroke-linecap="round" />
-            <path
-                d="M76,52 Q300,96 524,44"
-                fill="none"
-                stroke="var(--color-accent)"
-                stroke-width="2.5"
-                stroke-linecap="round"
-            />
-            <circle cx="76" cy="52" r="5" fill="var(--color-accent)" />
-            <circle cx="524" cy="44" r="5" fill="var(--color-secondary)" />
-            <line
-                x1="300"
-                y1="73"
-                x2="300"
-                y2="90"
-                stroke="var(--color-accent)"
-                stroke-width="2"
-                stroke-linecap="round"
-                opacity="0.55"
-            />
-            <text x="300" y="118" font-size="30" text-anchor="middle">🚡</text>
-        </svg>
-
-        {% if not registration_open %}
-            <div class="announce">
-                <span class="announce__dot"></span>
-                {% translate "Registration opens soon — check back closer to the start of the season." %}
+        {% comment %}
+        Top-and-bottom gradient scrim. Dark at the top (eyebrow + heading) and
+        bottom (lead + CTAs) for legibility; clear through the middle so the
+        central handshake reads through.
+        {% endcomment %}
+        <div
+            class="absolute inset-0"
+            style="background: linear-gradient(to bottom, rgb(0 0 0 / 0.68) 0%, rgb(0 0 0 / 0.26) 18%, transparent 36%, transparent 48%, rgb(0 0 0 / 0.50) 66%, rgb(0 0 0 / 0.78) 84%, rgb(0 0 0 / 0.88) 100%)"
+        >
+        </div>
+        {% comment %}
+        Hero content. Flush-left against the page gutter (over the darkest part
+        of the scrim); the gutter matches the overlaid nav so text and wordmark
+        share a left edge. At every width the eyebrow + heading are hoisted to
+        the top and the lead + CTAs pushed to the bottom (justify-between) so
+        the handshake sits centre-stage between them.
+        {% endcomment %}
+        <div class="relative z-10 flex grow flex-col justify-between gap-10 px-6 pb-8 pt-20 sm:px-10 sm:pb-10 sm:pt-20 lg:px-16">
+            <div>
+                <p class="eyebrow mb-4 text-white/80">
+                    {% translate "4 Vallées Ambassadors Program" %}
+                </p>
+                <h1 class="mb-5 text-h1 text-white">
+                    {% translate "Find your season-pass partner" %}
+                </h1>
             </div>
-        {% endif %}
+            <div>
+                <p class="mb-8 max-w-md text-lead text-white/80">
+                    {% blocktranslate trimmed %}
+                        No more frantic search in the Facebook group. Register once and we match you with a partner —
+                        Ambassador meets Referee.
+                    {% endblocktranslate %}
+                </p>
+                <div class="flex flex-wrap gap-3">
+                    <a href="{% url 'public:register' %}" class="btn btn--primary">
+                        {% translate "Get started" %}
+                        <svg
+                            width="17"
+                            height="17"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path d="M5 12h14" />
+                            <path d="m13 5 7 7-7 7" />
+                        </svg>
+                    </a>
+                    {% comment %}Light ghost over the dark hero — utilities override .btn's borderless fill.{% endcomment %}
+                    <a
+                        href="{% url 'public:how_it_works' %}"
+                        class="btn border border-white/40 bg-white/5 text-white hover:bg-white/15"
+                    >
+                        {% translate "How it works" %}
+                    </a>
+                </div>
+            </div>
+        </div>
     </section>
+    {% comment %}Quiet independence disclaimer, just below the hero image.{% endcomment %}
+    <p class="px-6 pb-1 pt-3 text-center text-xs text-meta sm:px-10 lg:px-16">
+        {% translate "Independent project — not affiliated with the official 4 Vallées pass operator." %}
+    </p>
+    {% if not registration_open %}
+        {% comment %}Full-width opens-soon band below the hero (notice tone, not a role colour).{% endcomment %}
+        <div class="border-b border-line bg-surface">
+            <p class="mx-auto flex max-w-5xl items-center justify-center gap-2.5 px-4 py-3 text-center font-mono text-sm tracking-wide text-meta">
+                <span class="h-2 w-2 flex-none rounded-full bg-notice"></span>
+                {% translate "Registration opens soon — check back closer to the start of the season." %}
+            </p>
+        </div>
+    {% endif %}
+{% endblock %}
 
+{% block content %}
     {% comment %}How it works — set expectations before the user picks a role.{% endcomment %}
     <section class="mt-12">
         <h2 class="mb-8 text-center text-h2 text-ink">{% translate "How it works" %}</h2>
@@ -111,7 +160,7 @@ secondary/sienna) as the user's first preview of the palette they'll enter.
         </div>
     </section>
 
-    {% comment %}Which one are you? — the two role cards previewing the teal vs sienna palettes.{% endcomment %}
+    {% comment %}Which one are you? — the two role cards using fixed red/blue tones.{% endcomment %}
     <section class="mt-12">
         <h2 class="mb-8 text-center text-h2 text-ink">{% translate "Which one are you?" %}</h2>
         <div class="grid gap-6 sm:grid-cols-2">

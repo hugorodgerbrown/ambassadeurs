@@ -66,6 +66,12 @@ def test_home_hides_opens_soon_when_registration_open() -> None:
     assert b"Registration opens soon" not in response.content
 
 
+def test_home_contains_hero_image() -> None:
+    """The homepage response includes the hero photograph path."""
+    response = Client().get(reverse("public:home"))
+    assert b"images/hero.jpg" in response.content
+
+
 # ---------------------------------------------------------------------------
 # Combined registration form (anonymous GET)
 # ---------------------------------------------------------------------------
@@ -715,11 +721,17 @@ def test_register_done_unknown_role_404() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_home_contains_no_facebook_reference() -> None:
-    """The homepage must not mention Facebook."""
-    response = Client().get(reverse("public:home"))
-    assert b"Facebook" not in response.content
-    assert b"facebook" not in response.content
+def test_home_contains_no_facebook_login() -> None:
+    """The homepage must not offer Facebook login (allauth removed in VERB-46).
+
+    The hero copy legitimately names the Facebook *group* as the problem the
+    product replaces, so this guards against social-login remnants (an OAuth
+    endpoint or a "sign in with Facebook" affordance) rather than the word.
+    """
+    content = Client().get(reverse("public:home")).content.lower()
+    assert b"facebook.com" not in content
+    assert b"with facebook" not in content
+    assert b"/accounts/facebook" not in content
 
 
 def test_how_it_works_contains_no_facebook_reference() -> None:
@@ -782,6 +794,20 @@ def test_how_it_works_renders_for_anonymous_user() -> None:
     response = Client().get(reverse("public:how_it_works"))
     assert response.status_code == 200
     assert "public/how_it_works.html" in [t.name for t in response.templates]
+
+
+def test_faq_renders_for_anonymous_user() -> None:
+    """The FAQ page returns 200 with the correct template (anonymous)."""
+    response = Client().get(reverse("public:faq"))
+    assert response.status_code == 200
+    assert "public/faq.html" in [t.name for t in response.templates]
+
+
+def test_home_menu_links_to_faq_and_how_it_works() -> None:
+    """The homepage hamburger menu links to the FAQ and how-it-works pages."""
+    content = Client().get(reverse("public:home")).content
+    assert reverse("public:faq").encode() in content
+    assert reverse("public:how_it_works").encode() in content
 
 
 def test_how_it_works_contains_section_markers() -> None:

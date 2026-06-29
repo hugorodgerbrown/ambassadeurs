@@ -1,4 +1,4 @@
-/* Tailwind CSS v4 source — "Alpine" design system for 4 Vallées Ambassadors.
+/* Tailwind CSS v4 source — "Alpine v2" design system for 4 Vallées Ambassadors.
  *
  * Compiled to static/css/output.css by the @tailwindcss/cli (see package.json
  * and CLAUDE.md "Frontend"). Lives outside static/ so WhiteNoise never
@@ -6,10 +6,12 @@
  * generated utilities (bg-page, text-ink, rounded-card, …) rather than raw
  * palette values.
  *
- * Token vocabulary follows tailwind/theme.css from the Alpine export.
- * Component classes in @layer components are ported from tokens/components.css
- * with variable names reconciled to the @theme vocabulary (see rename table
- * in docs/ and the plan comment in VERB-11). */
+ * v2 palette: accent = alpine red (#cf3127, the Ambassador/red-gondola tone);
+ * secondary = brand blue (#1f6db8, the Referee/blue-gondola + 4V-shield tone).
+ * Display face swapped to Space Grotesk; mono to Space Mono (body Hanken
+ * Grotesk unchanged). Component classes in @layer components are ported from
+ * tokens/components.css with variable names reconciled to the @theme vocabulary
+ * (see rename table in docs/ and the plan comment in VERB-11). */
 
 @import "tailwindcss";
 
@@ -32,16 +34,16 @@
   --color-line:           rgb(15 35 41 / 0.10);
   --color-line-strong:    rgb(15 35 41 / 0.18);
 
-  --color-accent:         #0e7490;   /* glacier teal · primary + Ambassador */
-  --color-accent-hover:   #0c5e75;
-  --color-accent-tint:    #dcedf1;
-  --color-accent-ink:     #0a4250;
+  --color-accent:         #cf3127;   /* alpine red · primary + Ambassador (red gondola) */
+  --color-accent-hover:   #ad271f;
+  --color-accent-tint:    #f7e2df;
+  --color-accent-ink:     #7e1d17;
   --color-on-accent:      #ffffff;
 
-  --color-secondary:      #c2671c;   /* warm sienna · secondary + Referee */
-  --color-secondary-hover:#a5560f;
-  --color-secondary-tint: #f6e6d3;
-  --color-secondary-ink:  #7a3f0c;
+  --color-secondary:      #1f6db8;   /* brand blue · secondary + Referee (4V shield + blue gondola) */
+  --color-secondary-hover:#185a9a;
+  --color-secondary-tint: #dde8f5;
+  --color-secondary-ink:  #143f70;
   --color-on-secondary:   #ffffff;
 
   --color-success:        #1c7d4d;
@@ -52,10 +54,17 @@
   --color-danger-tint:    #fbe9e7;
   --color-danger-ink:     #8a2c22;
 
-  /* Fonts */
-  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+  /* Notice — action-needed / your-turn / time-sensitive. Deliberately distinct
+     from both role tones so a "your turn" cue never reads as a role colour. */
+  --color-notice:         #a8740a;
+  --color-notice-tint:    #fbf1cf;
+  --color-notice-ink:     #6e4a05;
+
+  /* Fonts (v2: Space Grotesk display, Space Mono mono; body Hanken Grotesk
+     unchanged). */
+  --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-sans:    "Hanken Grotesk", system-ui, -apple-system, sans-serif;
-  --font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-mono:    "Space Mono", ui-monospace, SFMono-Regular, monospace;
 
   /* Font sizes (with paired line-height / tracking / weight) */
   --text-eyebrow: 0.75rem;
@@ -107,7 +116,7 @@
   --container-grid:    1100px;
 }
 
-/* ── Dark mode — same warm-cool family, inverted ────────────────────────── */
+/* ── Dark mode — alpine v2 inverted palette ──────────────────────────────── */
 /* Re-points the theme variables; every colour utility + shadow-pop flips.   */
 .dark {
   --color-page:           #0c1417;
@@ -124,17 +133,19 @@
   --color-line:           rgb(255 255 255 / 0.10);
   --color-line-strong:    rgb(255 255 255 / 0.20);
 
-  --color-accent:         #2bb6d4;
-  --color-accent-hover:   #52c8e0;
-  --color-accent-tint:    #10333c;
-  --color-accent-ink:     #bce9f2;
-  --color-on-accent:      #06222a;   /* dark text on bright teal */
+  /* v2 dark accent: bright alpine red on dark */
+  --color-accent:         #ef6a5e;
+  --color-accent-hover:   #f3877d;
+  --color-accent-tint:    #3a1411;
+  --color-accent-ink:     #f4b8b2;
+  --color-on-accent:      #2a0c08;   /* dark text on bright red */
 
-  --color-secondary:      #e8994c;
-  --color-secondary-hover:#f0ad6a;
-  --color-secondary-tint: #36281a;
-  --color-secondary-ink:  #f1cda3;
-  --color-on-secondary:   #1c1208;
+  /* v2 dark secondary: bright brand blue on dark */
+  --color-secondary:       #4ea3e6;
+  --color-secondary-hover: #6fb6ec;
+  --color-secondary-tint:  #102a3c;
+  --color-secondary-ink:   #bcdcf5;
+  --color-on-secondary:    #06222a;
 
   --color-success:        #5fcf95;
   --color-success-tint:   #123524;
@@ -143,6 +154,11 @@
   --color-danger:         #f08579;
   --color-danger-tint:    #381512;
   --color-danger-ink:     #f4b6ae;
+
+  /* v2 dark notice: amber on dark */
+  --color-notice:         #e3b84a;
+  --color-notice-tint:    #382f12;
+  --color-notice-ink:     #f3dea2;
 
   --shadow-pop: 0 24px 60px -30px rgb(0 0 0 / 0.6);
 }
@@ -262,15 +278,17 @@
      --color-ink (was --color-text-1). */
   .chip { display: inline-flex; align-items: center; gap: 8px; padding: 7px 13px; border: 1px solid var(--color-line-strong); border-radius: var(--radius-pill); font-size: 13px; font-weight: 500; color: var(--color-ink); background: transparent; }
 
-  /* Announcement / inline callout. */
-  .announce { display: inline-flex; align-items: center; gap: 10px; padding: 12px 20px; background: var(--color-accent-tint); border: 1px solid rgb(14 116 144 / 0.20); border-radius: var(--radius-pill); color: var(--color-accent-ink); font-size: 14px; font-weight: 500; }
+  /* Announcement / inline callout. Border follows the red accent via
+     color-mix so it recolours automatically on palette change. */
+  .announce { display: inline-flex; align-items: center; gap: 10px; padding: 12px 20px; background: var(--color-accent-tint); border: 1px solid color-mix(in srgb, var(--color-accent) 22%, transparent); border-radius: var(--radius-pill); color: var(--color-accent-ink); font-size: 14px; font-weight: 500; }
   .announce__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent); flex: none; }
 
-  /* Status pill — tone via modifier. */
+  /* Status pill — tone via modifier. --action uses the notice (amber) token so
+     "your turn" cues are globally distinct from both role colours. */
   .status { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: var(--radius-control); font-size: 14px; font-weight: 500; }
-  .status--queue  { background: var(--color-accent-tint);    color: var(--color-accent-ink); }
-  .status--action { background: var(--color-secondary-tint); color: var(--color-secondary-ink); }
-  .status--done   { background: var(--color-success-tint);   color: var(--color-success-ink); }
+  .status--queue  { background: var(--color-accent-tint);  color: var(--color-accent-ink); }
+  .status--action { background: var(--color-notice-tint);  color: var(--color-notice-ink); }
+  .status--done   { background: var(--color-success-tint); color: var(--color-success-ink); }
 
   /* Nav + wordmark. border uses --color-line (was --color-border),
      --color-ink (was --color-text-1). */

@@ -1,65 +1,163 @@
 {% load i18n %}
 {% comment %}
-The wordmark text is always neutral ink — "Ambassadors" is the programme name,
-not the Ambassador role, so it never wears the role colour. Only the peak glyph
-carries colour: teal (the :root --role default) on public pages, and var(--role)
-on authenticated pages, which the role-theme wrapper re-points to the signed-in
-user's role (sienna for a Referee).
+Navigation bar — two rendering variants gated on the current view:
+
+Homepage (public:home): transparent background, no border, positioned
+absolute so it overlays the full-bleed hero photograph. White stacked
+wordmark + glyph for contrast on the dark scrim; the right side is a single
+hamburger menu collecting How it works, FAQ, and the auth links (Register +
+Log in, or My account + Log out). Role-theme classes are omitted — the glyph
+is always white because the two-tone hero carries the brand identity instead.
+
+All other pages: bg-surface, border-b border-line, ink text — the standard
+nav. The role-theme wrapper is applied here so the peak glyph and focus
+rings follow the signed-in user's role colour (accent for Ambassador,
+secondary for Referee).
+
+The language switcher is hidden pre-launch (removed from both variants); the
+set_language form can be restored from git history when FR is exposed in UI.
 {% endcomment %}
-<header class="role-theme{% if user.is_authenticated and user.registration.role == 'REFEREE' %} role-theme--referee{% endif %} border-b border-line bg-surface">
-    <nav class="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-        <a href="{% url 'public:home' %}" class="flex items-center gap-2">
-            <span class="shrink-0" style="color: var(--role)">
-                <svg width="20" height="20" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-                    <path
-                        d="M11 3.5 L18.5 18 L3.5 18 Z"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        stroke-linejoin="round"
-                    />
-                    <path
-                        d="M8.4 12.8 L11 8.2 L13.6 12.8"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        stroke-linejoin="round"
-                        stroke-linecap="round"
-                    />
-                </svg>
-            </span>
-            <span class="wordmark">{% translate "4 Vallées Ambassadors" %}</span>
-        </a>
-        <div class="flex items-center gap-4 text-sm">
-            {% if user.is_authenticated %}
-                <a href="{% url 'accounts:detail' %}" class="font-medium text-ink">
-                    {% translate "My account" %}
-                </a>
-                <form method="post" action="{% url 'accounts:logout' %}" class="inline">
-                    {% csrf_token %}
-                    <button type="submit" class="cursor-pointer border-0 bg-transparent p-0 text-body">
-                        {% translate "Log out" %}
-                    </button>
-                </form>
-            {% else %}
-                <a href="{% url 'accounts:login' %}" class="font-medium text-ink">
-                    {% translate "Log in" %}
-                </a>
-            {% endif %}
-            <form action="{% url 'set_language' %}" method="post">
-                {% csrf_token %}
-                <input type="hidden" name="next" value="{{ request.path }}">
-                <select
-                    name="language"
-                    onchange="this.form.submit()"
-                    class="rounded-control border border-line bg-surface px-2 py-1"
-                    aria-label="{% translate 'Change language' %}"
+{% if request.resolver_match.view_name == 'public:home' %}
+    <header class="absolute inset-x-0 top-0 z-20">
+        <nav class="flex w-full items-center justify-between px-6 py-4 sm:px-10 lg:px-16">
+            <a href="{% url 'public:home' %}" class="flex items-center gap-2.5">
+                <span class="shrink-0 text-white">
+                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+                        <path
+                            d="M11 3.5 L18.5 18 L3.5 18 Z"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linejoin="round"
+                        />
+                        <path
+                            d="M8.4 12.8 L11 8.2 L13.6 12.8"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linejoin="round"
+                            stroke-linecap="round"
+                        />
+                    </svg>
+                </span>
+                <span class="wordmark whitespace-nowrap text-white">{% translate "Ski Parrainage" %}</span>
+            </a>
+            {% comment %}
+            Hamburger menu (no-JS <details> toggle, same pattern as the role
+            select). Collects every nav action — How it works, FAQ, and the
+            auth links — into one dropdown over the hero.
+            {% endcomment %}
+            <details class="relative">
+                <summary
+                    class="flex cursor-pointer list-none items-center text-white [&::-webkit-details-marker]:hidden"
+                    aria-label="{% translate 'Menu' %}"
                 >
-                    {% get_current_language as current %}
-                    {% get_available_languages as languages %}
-                    {% for code, name in languages %}
-                        <option value="{{ code }}" {% if code == current %}selected{% endif %}>{{ name }}</option>
-                    {% endfor %}
-                </select>
-            </form>
-        </div>
-    </nav>
-</header>
+                    <svg
+                        width="26"
+                        height="26"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        aria-hidden="true"
+                    >
+                        <path d="M4 7h16" />
+                        <path d="M4 12h16" />
+                        <path d="M4 17h16" />
+                    </svg>
+                </summary>
+                <div class="absolute right-0 top-full z-30 mt-3 w-56 overflow-hidden rounded-control border border-line bg-surface py-1 shadow-pop">
+                    <a
+                        href="{% url 'public:how_it_works' %}"
+                        class="block px-4 py-2.5 text-sm font-medium text-ink hover:bg-surface-2"
+                    >
+                        {% translate "How it works" %}
+                    </a>
+                    <a
+                        href="{% url 'public:faq' %}"
+                        class="block px-4 py-2.5 text-sm font-medium text-ink hover:bg-surface-2"
+                    >
+                        {% translate "FAQ" %}
+                    </a>
+                    <div class="my-1 border-t border-line"></div>
+                    {% if user.is_authenticated %}
+                        <a
+                            href="{% url 'accounts:detail' %}"
+                            class="block px-4 py-2.5 text-sm font-medium text-ink hover:bg-surface-2"
+                        >
+                            {% translate "My account" %}
+                        </a>
+                        <form method="post" action="{% url 'accounts:logout' %}">
+                            {% csrf_token %}
+                            <button
+                                type="submit"
+                                class="block w-full cursor-pointer border-0 bg-transparent px-4 py-2.5 text-left text-sm font-medium text-ink hover:bg-surface-2"
+                            >
+                                {% translate "Log out" %}
+                            </button>
+                        </form>
+                    {% else %}
+                        <a
+                            href="{% url 'public:register' %}"
+                            class="block px-4 py-2.5 text-sm font-medium text-ink hover:bg-surface-2"
+                        >
+                            {% translate "Register" %}
+                        </a>
+                        <a
+                            href="{% url 'accounts:login' %}"
+                            class="block px-4 py-2.5 text-sm font-medium text-ink hover:bg-surface-2"
+                        >
+                            {% translate "Log in" %}
+                        </a>
+                    {% endif %}
+                </div>
+            </details>
+        </nav>
+    </header>
+{% else %}
+    <header class="role-theme{% if user.is_authenticated and user.registration.role == 'REFEREE' %} role-theme--referee{% endif %} border-b border-line bg-surface">
+        <nav class="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
+            <a href="{% url 'public:home' %}" class="flex items-center gap-2">
+                {% comment %}
+                Peak glyph follows the runtime role colour. --role is a CSS custom
+                property re-pointed by the .role-theme wrapper, so it cannot be a
+                Tailwind utility — hence the inline style.
+                {% endcomment %}
+                <span class="shrink-0" style="color: var(--role)">
+                    <svg width="20" height="20" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+                        <path
+                            d="M11 3.5 L18.5 18 L3.5 18 Z"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linejoin="round"
+                        />
+                        <path
+                            d="M8.4 12.8 L11 8.2 L13.6 12.8"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linejoin="round"
+                            stroke-linecap="round"
+                        />
+                    </svg>
+                </span>
+                <span class="wordmark">{% translate "Ski Parrainage" %}</span>
+            </a>
+            <div class="flex items-center gap-4 text-sm">
+                {% if user.is_authenticated %}
+                    <a href="{% url 'accounts:detail' %}" class="font-medium text-ink">
+                        {% translate "My account" %}
+                    </a>
+                    <form method="post" action="{% url 'accounts:logout' %}" class="inline">
+                        {% csrf_token %}
+                        <button type="submit" class="cursor-pointer border-0 bg-transparent p-0 text-body">
+                            {% translate "Log out" %}
+                        </button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'accounts:login' %}" class="font-medium text-ink">
+                        {% translate "Log in" %}
+                    </a>
+                {% endif %}
+            </div>
+        </nav>
+    </header>
+{% endif %}

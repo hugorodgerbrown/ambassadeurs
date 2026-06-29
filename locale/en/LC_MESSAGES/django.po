@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-28 17:45+0200\n"
+"POT-Creation-Date: 2026-06-29 21:55+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -446,7 +446,7 @@ msgstr ""
 msgid "Register now"
 msgstr ""
 
-msgid "4 Vallées Ambassadors"
+msgid "Ski Parrainage"
 msgstr ""
 
 msgid "An independent way to find your season-pass partner for the 4 Vallées."
@@ -487,7 +487,28 @@ msgid ""
 "operator."
 msgstr ""
 
-msgid "Change language"
+msgid "Menu"
+msgstr ""
+
+msgid "FAQ"
+msgstr ""
+
+msgid "Frequently asked questions"
+msgstr ""
+
+msgid ""
+"We're putting together answers to the questions people ask most. In the "
+"meantime, the How it works page covers how matching, eligibility, and the "
+"contact window work."
+msgstr ""
+
+msgid "Read how it works"
+msgstr ""
+
+msgid ""
+"Two people — one in a red jacket, one in blue — shaking hands on a platform "
+"between a red gondola and a blue gondola, both branded 4 Vallées "
+"Ambassadors, with alpine peaks behind"
 msgstr ""
 
 msgid "4 Vallées Ambassadors Program"
@@ -497,10 +518,11 @@ msgid "Find your season-pass partner"
 msgstr ""
 
 msgid ""
-"To claim the Ambassadors discount on the 4 Vallées annual pass, a returning "
-"holder and a new holder have to apply together. We match you with a partner "
-"automatically — no more scrambling for a partner, no chasing people who "
-"vanish."
+"No more frantic search in the Facebook group. Register once and we match you "
+"with a partner — Ambassador meets Referee."
+msgstr ""
+
+msgid "Get started"
 msgstr ""
 
 msgid "Registration opens soon — check back closer to the start of the season."

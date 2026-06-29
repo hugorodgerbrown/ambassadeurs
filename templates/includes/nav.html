@@ -78,6 +78,11 @@ colour and positioning differ.
     <header class="role-theme{% if user.is_authenticated and user.registration.role == 'REFEREE' %} role-theme--referee{% endif %} border-b border-line bg-surface">
         <nav class="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
             <a href="{% url 'public:home' %}" class="flex items-center gap-2">
+                {% comment %}
+                Peak glyph follows the runtime role colour. --role is a CSS custom
+                property re-pointed by the .role-theme wrapper, so it cannot be a
+                Tailwind utility — hence the inline style.
+                {% endcomment %}
                 <span class="shrink-0" style="color: var(--role)">
                     <svg width="20" height="20" viewBox="0 0 22 22" fill="none" aria-hidden="true">
                         <path

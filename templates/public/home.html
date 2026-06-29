@@ -19,9 +19,16 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
 {% block hero %}
     <section class="relative flex min-h-[90svh] flex-col justify-end">
         {% comment %}Background photograph{% endcomment %}
+        {% comment %}
+        LCP image: fetchpriority high so the browser prioritises it; intrinsic
+        width/height (1920x1071) reserve the box to avoid layout shift on load.
+        {% endcomment %}
         <img
             src="{% static 'images/hero.jpg' %}"
             alt='{% translate "Two people — one in a red jacket, one in blue — shaking hands on a platform between a red gondola and a blue gondola, both branded 4 Vallées Ambassadors, with alpine peaks behind" %}'
+            width="1920"
+            height="1071"
+            fetchpriority="high"
             class="absolute inset-0 h-full w-full object-cover object-center"
         >
         {% comment %}
@@ -44,7 +51,7 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
             <h1 class="mb-5 max-w-lg text-h1 text-white">
                 {% translate "Find your season-pass partner" %}
             </h1>
-            <p class="mb-8 max-w-md text-lead text-white/85">
+            <p class="mb-8 max-w-md text-lead text-white/80">
                 {% blocktranslate trimmed %}
                     To claim the Ambassadors discount on the 4 Vallées annual pass, a returning holder and a new holder
                     have to apply together. We match you with a partner automatically — no more scrambling for a

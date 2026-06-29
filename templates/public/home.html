@@ -17,7 +17,7 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
 {% endcomment %}
 
 {% block hero %}
-    <section class="relative flex min-h-[90svh] flex-col justify-end">
+    <section class="relative flex min-h-[90svh] flex-col justify-center">
         {% comment %}Background photograph{% endcomment %}
         {% comment %}
         LCP image: fetchpriority high so the browser prioritises it; intrinsic
@@ -41,10 +41,11 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
         >
         </div>
         {% comment %}
-        Hero content: left-aligned over the scrim, top padding clears the
-        overlaid absolute nav, bottom padding keeps content off the edge.
+        Hero content: flush-left against the page gutter (over the darkest part
+        of the scrim) and vertically centred by the section's justify-center.
+        Gutter matches the overlaid nav so text and wordmark share a left edge.
         {% endcomment %}
-        <div class="relative z-10 mx-auto w-full max-w-3xl px-4 pb-16 pt-28">
+        <div class="relative z-10 w-full px-6 py-24 sm:px-10 lg:px-16">
             <p class="eyebrow mb-4 text-white/80">
                 {% translate "4 Vallées Ambassadors Program" %}
             </p>

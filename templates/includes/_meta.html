@@ -1,0 +1,89 @@
+{% load static i18n %}
+{% comment %}
+SEO metadata partial — emits meta description, canonical URL, Open Graph and
+Twitter Card tags. Include once inside <head> (base.html does this by default
+inside {% block meta %}).
+
+Expected context variables (all optional — sensible defaults apply):
+  meta_title       — page title for og:title / twitter:title.
+                     Default: "4 Vallées Ambassadors".
+  meta_description — short description (~150 chars).
+                     Default: site-wide tagline defined below.
+  canonical_url    — absolute canonical URL.
+                     Default: request.build_absolute_uri (current page URL).
+
+All values must be static translated strings or safe computed values.
+Never pass user-supplied content here (Invariant 4 — no mark_safe).
+
+When rendered without a request context (e.g. render_to_string in tests or
+the Django 403/404 handlers before the request context processor runs), the
+request-dependent tags (canonical, og:url, og:image, twitter:image) are
+omitted rather than raising VariableDoesNotExist.
+{% endcomment %}
+{% translate "4 Vallées Ambassadors" as site_name %}
+{% blocktranslate trimmed asvar default_description %}
+    Find your season-pass partner for the 4 Vallées Ambassadors Program. Register once — we match Ambassadors with
+    Referees automatically.
+{% endblocktranslate %}
+{% with resolved_title=meta_title|default:site_name resolved_desc=meta_description|default:default_description %}
+    <meta
+        name="description"
+        content="{{ resolved_desc }}"
+    >
+    {% if request %}
+        <link
+            rel="canonical"
+            href="{{ canonical_url|default:request.build_absolute_uri }}"
+        >
+    {% endif %}
+    {# Open Graph #}
+    <meta
+        property="og:type"
+        content="website"
+    >
+    <meta
+        property="og:site_name"
+        content="{{ site_name }}"
+    >
+    <meta
+        property="og:title"
+        content="{{ resolved_title }}"
+    >
+    <meta
+        property="og:description"
+        content="{{ resolved_desc }}"
+    >
+    {% if request %}
+        <meta
+            property="og:url"
+            content="{{ canonical_url|default:request.build_absolute_uri }}"
+        >
+        <meta
+            property="og:image"
+            content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/hero.jpg' %}"
+        >
+    {% endif %}
+    <meta
+        property="og:locale"
+        content="{{ LANGUAGE_CODE|default:'en' }}"
+    >
+    {# Twitter Card #}
+    <meta
+        name="twitter:card"
+        content="summary_large_image"
+    >
+    <meta
+        name="twitter:title"
+        content="{{ resolved_title }}"
+    >
+    <meta
+        name="twitter:description"
+        content="{{ resolved_desc }}"
+    >
+    {% if request %}
+        <meta
+            name="twitter:image"
+            content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/hero.jpg' %}"
+        >
+    {% endif %}
+{% endwith %}

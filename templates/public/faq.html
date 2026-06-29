@@ -3,6 +3,19 @@
 
 {% block title %}{% translate "FAQ" %}{% endblock %}
 
+{% block meta %}
+    {% blocktranslate trimmed asvar page_description %}
+        Frequently asked questions about the 4 Vallées Ambassadors partner-matching service — eligibility, how
+        matching works, the contact window, and what happens after you are matched.
+    {% endblocktranslate %}
+    {% blocktranslate trimmed asvar page_title %}
+        FAQ — 4 Vallées Ambassadors
+    {% endblocktranslate %}
+    {% with meta_title=page_title meta_description=page_description %}
+        {% include "includes/_meta.html" %}
+    {% endwith %}
+{% endblock %}
+
 {% comment %}
 Full FAQ page covering eligibility, how matching works, the contact window,
 first-name-only reveal, flaking/suspension, and the off-app application.

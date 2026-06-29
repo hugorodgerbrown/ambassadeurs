@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-28 17:45+0200\n"
+"POT-Creation-Date: 2026-06-29 15:21+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -490,6 +490,12 @@ msgstr ""
 msgid "Change language"
 msgstr ""
 
+msgid ""
+"Two people — one in a red jacket, one in blue — shaking hands on a platform "
+"between a red gondola and a blue gondola, both branded 4 Vallées "
+"Ambassadors, with alpine peaks behind"
+msgstr ""
+
 msgid "4 Vallées Ambassadors Program"
 msgstr ""
 
@@ -501,6 +507,12 @@ msgid ""
 "holder and a new holder have to apply together. We match you with a partner "
 "automatically — no more scrambling for a partner, no chasing people who "
 "vanish."
+msgstr ""
+
+msgid "Register as an Ambassador"
+msgstr ""
+
+msgid "Register as a Referee"
 msgstr ""
 
 msgid "Registration opens soon — check back closer to the start of the season."
@@ -545,9 +557,6 @@ msgid ""
 "refer a new holder. You're the returning holder."
 msgstr ""
 
-msgid "Register as an Ambassador"
-msgstr ""
-
 msgid "New holder"
 msgstr ""
 
@@ -557,9 +566,6 @@ msgstr ""
 msgid ""
 "You're new to the 4 Vallées — you didn't hold a pass in either of the two "
 "previous seasons — and need an Ambassador to refer you."
-msgstr ""
-
-msgid "Register as a Referee"
 msgstr ""
 
 msgid "What is the 4 Vallées Ambassadors Program?"

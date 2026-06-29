@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-28 17:45+0200\n"
+"POT-Creation-Date: 2026-06-29 15:21+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -595,6 +595,16 @@ msgstr ""
 msgid "Change language"
 msgstr "Changer de langue"
 
+msgid ""
+"Two people — one in a red jacket, one in blue — shaking hands on a platform "
+"between a red gondola and a blue gondola, both branded 4 Vallées "
+"Ambassadors, with alpine peaks behind"
+msgstr ""
+"Deux personnes — l'une en veste rouge, l'autre en bleu — se serrant la main "
+"sur une plateforme entre une télécabine rouge et une télécabine bleue, "
+"toutes deux marquées 4 Vallées Ambassadeurs, avec des sommets alpins en "
+"arrière-plan"
+
 msgid "4 Vallées Ambassadors Program"
 msgstr "Programme Ambassadeurs des 4 Vallées"
 
@@ -611,6 +621,12 @@ msgstr ""
 "Vallées, un détenteur actuel et un nouveau détenteur doivent postuler "
 "ensemble. Nous vous trouvons automatiquement un partenaire — fini de courir "
 "après un partenaire, fini de se faire ignorer."
+
+msgid "Register as an Ambassador"
+msgstr "S'inscrire en tant qu'Ambassadeur"
+
+msgid "Register as a Referee"
+msgstr "S'inscrire en tant que Filleul"
 
 msgid "Registration opens soon — check back closer to the start of the season."
 msgstr ""
@@ -661,9 +677,6 @@ msgstr ""
 "saison récente et souhaitez parrainer un nouveau détenteur. Vous êtes le "
 "détenteur actuel."
 
-msgid "Register as an Ambassador"
-msgstr "S'inscrire en tant qu'Ambassadeur"
-
 msgid "New holder"
 msgstr "Nouveau détenteur"
 
@@ -677,9 +690,6 @@ msgstr ""
 "Vous êtes nouveau aux 4 Vallées — vous n'avez pas détenu d'abonnement lors "
 "des deux saisons précédentes — et avez besoin d'un Ambassadeur pour vous "
 "parrainer."
-
-msgid "Register as a Referee"
-msgstr "S'inscrire en tant que Filleul"
 
 msgid "What is the 4 Vallées Ambassadors Program?"
 msgstr "Qu'est-ce que le programme Ambassadeurs des 4 Vallées ?"

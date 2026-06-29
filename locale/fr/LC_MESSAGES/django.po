@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-29 21:55+0200\n"
+"POT-Creation-Date: 2026-06-30 00:24+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -111,6 +111,9 @@ msgstr "Votre compte a été supprimé."
 
 msgid "Target"
 msgstr "Cible"
+
+msgid "Too many attempts. Please wait a moment and try again."
+msgstr "Trop de tentatives. Veuillez patienter un moment et réessayer."
 
 msgid "Development panel"
 msgstr "Panneau de développement"
@@ -315,6 +318,25 @@ msgstr ""
 "signalement est erroné, contactez-nous pour obtenir de l'aide.\n"
 "\n"
 "Si vous ne vous êtes pas inscrit(e) à ce programme, ignorez cet e-mail."
+
+msgid "Too many requests"
+msgstr "Trop de requêtes"
+
+msgid "Rate limit reached"
+msgstr "Limite atteinte"
+
+msgid "Too many attempts"
+msgstr "Trop de tentatives"
+
+msgid ""
+"You have made too many requests in a short period. Please wait approximately "
+"one hour and try again."
+msgstr ""
+"Vous avez effectué trop de requêtes en peu de temps. Veuillez attendre "
+"environ une heure et réessayer."
+
+msgid "Return to home"
+msgstr "Retour à l'accueil"
 
 msgid "Delete my account"
 msgstr "Supprimer mon compte"

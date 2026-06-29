@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-29 21:55+0200\n"
+"POT-Creation-Date: 2026-06-30 00:24+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -84,6 +84,9 @@ msgid "Your account has been deleted."
 msgstr ""
 
 msgid "Target"
+msgstr ""
+
+msgid "Too many attempts. Please wait a moment and try again."
 msgstr ""
 
 msgid "Development panel"
@@ -256,6 +259,23 @@ msgid ""
 "was made in error, please contact us for help.\n"
 "\n"
 "If you did not register for this programme, please ignore this email."
+msgstr ""
+
+msgid "Too many requests"
+msgstr ""
+
+msgid "Rate limit reached"
+msgstr ""
+
+msgid "Too many attempts"
+msgstr ""
+
+msgid ""
+"You have made too many requests in a short period. Please wait approximately "
+"one hour and try again."
+msgstr ""
+
+msgid "Return to home"
 msgstr ""
 
 msgid "Delete my account"

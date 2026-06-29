@@ -37,8 +37,10 @@ from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils.translation import gettext as _
+from django_ratelimit.decorators import ratelimit
 
 from core.emails import normalise_email
+from core.ratelimit import rate_limited_response
 from matching.models import Match, Registration
 from matching.services import queue_position as get_queue_position
 from public.views import _render_match_page
@@ -99,6 +101,8 @@ def _match_status_pill(
 # ---------------------------------------------------------------------------
 
 
+@ratelimit(key="ip", rate="20/h", method="POST", block=False)  # type: ignore[untyped-decorator]  # django-ratelimit has no type stubs
+@ratelimit(key="post:email", rate="5/h", method="POST", block=False)  # type: ignore[untyped-decorator]  # django-ratelimit has no type stubs
 def login_request(request: HttpRequest) -> HttpResponse:
     """Show the magic-link login form (GET) or process the email submission (POST).
 
@@ -107,8 +111,14 @@ def login_request(request: HttpRequest) -> HttpResponse:
     address, and if found sends a magic link via ``send_login_email``. Always
     redirects to ``accounts:login_sent`` regardless of whether the address was
     found — no enumeration (Invariant 5, acceptance criterion).
+
+    Rate-limited: 20 POSTs/hour per IP and 5 POSTs/hour per email address.
+    Exceeding either limit returns a 429 response without revealing whether
+    the email is registered (Invariant 5 preserved).
     """
     if request.method == "POST":
+        if getattr(request, "limited", False):
+            return rate_limited_response(request)
         raw_email = request.POST.get("email", "")
         email = normalise_email(raw_email)
         try:

@@ -147,6 +147,18 @@ STORAGES = {
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# --- Cache ---------------------------------------------------------------
+# django-ratelimit requires a usable cache. LocMemCache is per-process and
+# is acceptable for the single-instance launch on Render. If the web service
+# is ever scaled horizontally this must be replaced with a shared backend
+# such as Redis or Memcached — otherwise rate-limit counters will not be
+# shared across instances and the limits will be ineffective.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    }
+}
+
 # --- GeoIP (MaxMind GeoLite2-City) ----------------------------------------
 # Path to the local GeoLite2-City .mmdb file. The file is downloaded by
 # build.sh when MAXMIND_LICENSE_KEY is set; absent locally unless you run

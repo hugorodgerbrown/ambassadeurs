@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 00:50+0200\n"
+"POT-Creation-Date: 2026-06-30 01:05+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -59,6 +59,9 @@ msgid "Your account has been deleted."
 msgstr ""
 
 msgid "Target"
+msgstr ""
+
+msgid "Too many attempts. Please wait a moment and try again."
 msgstr ""
 
 msgid "Development panel"
@@ -246,6 +249,23 @@ msgid "Page not found"
 msgstr ""
 
 msgid "The page you're looking for doesn't exist or has moved."
+msgstr ""
+
+msgid "Too many requests"
+msgstr ""
+
+msgid "Rate limit reached"
+msgstr ""
+
+msgid "Too many attempts"
+msgstr ""
+
+msgid ""
+"You have made too many requests in a short period. Please wait approximately "
+"one hour and try again."
+msgstr ""
+
+msgid "Return to home"
 msgstr ""
 
 msgid "Delete my account"
@@ -436,7 +456,7 @@ msgstr ""
 msgid "Register now"
 msgstr ""
 
-msgid "Ski Parrainage"
+msgid "4 Vallées Ambassadors"
 msgstr ""
 
 #, python-format
@@ -487,6 +507,14 @@ msgstr ""
 msgid "Sign in to 4 Vallées Ambassadors"
 msgstr ""
 
+msgid ""
+"Find your season-pass partner for the 4 Vallées Ambassadors Program. "
+"Register once — we match Ambassadors with Referees automatically."
+msgstr ""
+
+msgid "Ski Parrainage"
+msgstr ""
+
 msgid "An independent way to find your season-pass partner for the 4 Vallées."
 msgstr ""
 
@@ -531,6 +559,15 @@ msgstr ""
 msgid "FAQ"
 msgstr ""
 
+msgid ""
+"Frequently asked questions about the 4 Vallées Ambassadors partner-matching "
+"service — eligibility, how matching works, the contact window, and what "
+"happens after you are matched."
+msgstr ""
+
+msgid "FAQ — 4 Vallées Ambassadors"
+msgstr ""
+
 msgid "Frequently asked questions"
 msgstr ""
 
@@ -541,6 +578,12 @@ msgid ""
 msgstr ""
 
 msgid "Read how it works"
+msgstr ""
+
+msgid ""
+"Find your season-pass partner for the 4 Vallées Ambassadors Program. "
+"Register once — we match Ambassadors with Referees automatically. No "
+"scramble, no Facebook group, no ghosting."
 msgstr ""
 
 msgid ""
@@ -620,6 +663,15 @@ msgid ""
 msgstr ""
 
 msgid "Register as a Referee"
+msgstr ""
+
+msgid ""
+"How the 4 Vallées Ambassadors partner-matching service works: register, join "
+"the queue, get matched automatically with a partner, accept within 72 hours, "
+"then apply together at the ticket office."
+msgstr ""
+
+msgid "How it works — 4 Vallées Ambassadors"
 msgstr ""
 
 msgid "What is the 4 Vallées Ambassadors Program?"
@@ -766,6 +818,15 @@ msgstr ""
 msgid "Cookie Policy"
 msgstr ""
 
+msgid ""
+"Cookie Policy for the 4 Vallées Ambassadors partner-matching service. We use "
+"only strictly-necessary cookies — no analytics, advertising, or third-party "
+"tracking."
+msgstr ""
+
+msgid "Cookie Policy — 4 Vallées Ambassadors"
+msgstr ""
+
 msgid "Last updated"
 msgstr ""
 
@@ -800,6 +861,15 @@ msgid ""
 msgstr ""
 
 msgid "Privacy Policy"
+msgstr ""
+
+msgid ""
+"Privacy Policy for the 4 Vallées Ambassadors partner-matching service. We "
+"collect only what matchmaking requires and never share your contact details "
+"before you have both accepted a match."
+msgstr ""
+
+msgid "Privacy Policy — 4 Vallées Ambassadors"
 msgstr ""
 
 msgid "Who we are"
@@ -866,6 +936,15 @@ msgid ""
 msgstr ""
 
 msgid "Terms of Use"
+msgstr ""
+
+msgid ""
+"Terms of Use for the 4 Vallées Ambassadors partner-matching service. This "
+"service handles matchmaking only — the discount application and ticket-"
+"office purchase happen separately."
+msgstr ""
+
+msgid "Terms of Use — 4 Vallées Ambassadors"
 msgstr ""
 
 msgid "What this service does"
@@ -1241,6 +1320,15 @@ msgid ""
 msgstr ""
 
 msgid "Back to home"
+msgstr ""
+
+msgid ""
+"Register for the 4 Vallées Ambassadors partner-matching service. Tell us "
+"your role — Ambassador or Referee — and we will find you a partner "
+"automatically. Matching only; the application happens off-app."
+msgstr ""
+
+msgid "Register — 4 Vallées Ambassadors"
 msgstr ""
 
 msgid "You're in the queue"

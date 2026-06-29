@@ -3,6 +3,19 @@
 
 {% block title %}{% translate "Terms of Use" %}{% endblock %}
 
+{% block meta %}
+    {% blocktranslate trimmed asvar page_description %}
+        Terms of Use for the 4 Vallées Ambassadors partner-matching service. This service handles matchmaking only —
+        the discount application and ticket-office purchase happen separately.
+    {% endblocktranslate %}
+    {% blocktranslate trimmed asvar page_title %}
+        Terms of Use — 4 Vallées Ambassadors
+    {% endblocktranslate %}
+    {% with meta_title=page_title meta_description=page_description %}
+        {% include "includes/_meta.html" %}
+    {% endwith %}
+{% endblock %}
+
 {% block content %}
     <article class="mx-auto max-w-2xl space-y-4 text-body">
         <h1 class="text-2xl font-bold text-ink">{% translate "Terms of Use" %}</h1>

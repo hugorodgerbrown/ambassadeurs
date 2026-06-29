@@ -4,7 +4,16 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>{% block title %}{% translate "Ski Parrainage" %}{% endblock %}</title>
+        <title>{% block title %}{% translate "4 Vallées Ambassadors" %}{% endblock %}</title>
+        {% comment %}
+        SEO metadata. The _meta.html partial reads meta_title and
+        meta_description from context (set via {% block %} overrides below)
+        plus request for canonical/OG URLs. Child templates override the two
+        blocks below; base defaults serve pages that don't set their own.
+        {% endcomment %}
+        {% block meta %}
+            {% include "includes/_meta.html" %}
+        {% endblock %}
         <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

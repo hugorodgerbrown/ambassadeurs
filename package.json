@@ -5,9 +5,11 @@
   "description": "Tailwind CSS build for the Ambassadeurs app.",
   "scripts": {
     "css:watch": "tailwindcss -i ./src/css/main.css -o ./static/css/output.css --watch",
-    "css:build": "tailwindcss -i ./src/css/main.css -o ./static/css/output.css --minify"
+    "css:build": "tailwindcss -i ./src/css/main.css -o ./static/css/output.css --minify",
+    "lighthouse": "lhci autorun"
   },
   "devDependencies": {
+    "@lhci/cli": "^0.15.1",
     "@tailwindcss/cli": "^4.0.0"
   }
 }

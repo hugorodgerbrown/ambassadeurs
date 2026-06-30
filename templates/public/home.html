@@ -1,14 +1,13 @@
 {% extends "base.html" %}
 {% load i18n static %}
 
-{% block title %}{% translate "4 Vallées Ambassadors" %}{% endblock %}
+{% block title %}{% translate "Ski Parrainage &middot; 2026/27" %}{% endblock %}
 
 {% block meta %}
     {% blocktranslate trimmed asvar page_description %}
-        Find your season-pass partner for the 4 Vallées Ambassadors Program. Register once — we match Ambassadors
-        with Referees automatically. No scramble, no Facebook group, no ghosting.
+        Find your season-pass partner for the 4 Vallées Ambassadors Program.
     {% endblocktranslate %}
-    {% with meta_title="4 Vallées Ambassadors" meta_description=page_description %}
+    {% with meta_title="Ski Parrainage &middot; 2026/27" meta_description=page_description %}
         {% include "includes/_meta.html" %}
     {% endwith %}
 {% endblock %}

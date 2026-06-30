@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 13:32+0200\n"
+"POT-Creation-Date: 2026-06-30 13:39+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -506,15 +506,10 @@ msgstr ""
 msgid "Sign in to 4 Vallées Ambassadors"
 msgstr ""
 
-msgid "4 Vallées Ambassadors"
-msgstr ""
-
-msgid ""
-"Find your season-pass partner for the 4 Vallées Ambassadors Program. "
-"Register once — we match Ambassadors with Referees automatically."
-msgstr ""
-
 msgid "Ski Parrainage"
+msgstr ""
+
+msgid "Find your season-pass partner for the 4 Vallées Ambassadors Program."
 msgstr ""
 
 msgid "The easy way to find your season-pass partner."
@@ -725,6 +720,9 @@ msgid ""
 msgstr ""
 
 msgid "Read how it works"
+msgstr ""
+
+msgid "4 Vallées Ambassadors"
 msgstr ""
 
 msgid ""

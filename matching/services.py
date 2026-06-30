@@ -22,8 +22,15 @@
 # (PENDING → PROPOSED) — and a transition log row is written.
 #
 # expire_lapsed_matches is the periodic sweep entry point: it transitions all
-# PROPOSED or PENDING matches past their contact window to EXPIRED and re-queues
-# each side.
+# PROPOSED or PENDING matches past their contact window to EXPIRED. Non-
+# responders are paused (pause_registration); the faithful party re-queues to
+# the front (requeue_to_front). A window-expired notification email is queued
+# via transaction.on_commit for each paused non-responder.
+#
+# pause_registration (VERB-74 / ADR 0013) replaces requeue_to_back and
+# record_flake_and_requeue. Decline or non-response → PAUSED; the two-strike
+# flake model is retired. rejoin_queue is the self-service re-entry from the
+# account page (PAUSED → VERIFIED, priority -= 1, propose_match).
 #
 # report_no_show (VERB-21) implements the post-accept no-show path (ADR 0007):
 # the reporter's registration is re-queued to the front; the accused is
@@ -52,7 +59,6 @@ from django.utils.translation import gettext as _
 
 from accounts.tokens import make_match_access_token
 from core.emails import normalise_email
-from core.hashing import hash_email
 from core.services import record_transition
 
 from .models import Match, Registration
@@ -280,66 +286,118 @@ def requeue_to_front(registration: Registration) -> None:
     )
 
 
-def requeue_to_back(registration: Registration) -> None:
-    """Re-queue a decliner: status=VERIFIED, priority -= 1.
+def pause_registration(registration: Registration) -> None:
+    """Set a registration to PAUSED — removed from the pool, no priority change.
 
-    Used after this party explicitly declines a match. Not a flake — does not
-    touch flake_count.
+    Used after a participant declines a match or fails to respond within the
+    contact window (VERB-74 / ADR 0013). The registration row is retained; the
+    participant can rejoin the queue themselves from their account page via
+    ``rejoin_queue``. No priority is changed here; priority adjustment happens
+    on rejoin (priority -= 1 each time they re-enter).
+
+    Replaces the former ``requeue_to_back`` (decline path) and
+    ``record_flake_and_requeue`` (non-response path). The two-strike flake
+    model is retired.
 
     Runs inside a transaction with a SELECT FOR UPDATE to prevent lost updates.
     Syncs the passed-in instance's in-memory fields after the DB write.
     """
     with transaction.atomic():
         locked = Registration.objects.select_for_update().get(pk=registration.pk)
+        locked.status = Registration.Status.PAUSED
+        locked.save(update_fields=["status"])
+        registration.status = locked.status
+    logger.info(
+        "Paused registration pk=%s (out of pool; may self-rejoin)",
+        registration.pk,
+    )
+
+
+def rejoin_queue(registration: Registration) -> None:
+    """Transition a PAUSED registration back to VERIFIED and attempt matching.
+
+    Mirrors ``confirm_registration``: uses ``select_for_update`` inside an
+    atomic block for concurrency safety. If the registration is not PAUSED the
+    function is a no-op (idempotent guard). On success:
+      - status → VERIFIED
+      - priority -= 1 (one step toward the back each time they re-enter)
+      - ``propose_match`` is called to attempt an immediate pairing
+
+    This is the self-service re-entry point exposed via ``accounts:rejoin_queue``
+    (VERB-74 / ADR 0013).
+
+    Args:
+        registration: The registration to re-activate.
+    """
+    with transaction.atomic():
+        locked = Registration.objects.select_for_update().get(pk=registration.pk)
+        if locked.status != Registration.Status.PAUSED:
+            logger.info(
+                "rejoin_queue called on non-PAUSED registration pk=%s "
+                "(status=%s); no-op.",
+                registration.pk,
+                locked.status,
+            )
+            registration.status = locked.status
+            return
+
         locked.status = Registration.Status.VERIFIED
         locked.priority -= 1
         locked.save(update_fields=["status", "priority"])
         registration.status = locked.status
         registration.priority = locked.priority
+
+        propose_match(registration)
+
     logger.info(
-        "Re-queued registration pk=%s to back (priority=%s)",
+        "rejoin_queue: registration pk=%s PAUSED → VERIFIED (priority=%s)",
         registration.pk,
         registration.priority,
     )
 
 
-def record_flake_and_requeue(registration: Registration) -> None:
-    """Record a non-response flake and re-queue or suspend the registration.
+def send_window_expired_notification(registration: Registration) -> None:
+    """Send a contact-window expiry notification to a non-responding party.
 
-    Increments flake_count from the current DB value (lost-update guard via
-    SELECT FOR UPDATE). When the new count reaches 2 the registration is
-    SUSPENDED and priority is left untouched; below 2 it is re-queued to the
-    back (VERIFIED, priority -= 1).
+    Informs the participant that the match window closed because they did not
+    respond, that their registration is now paused, and that they may rejoin
+    the queue from their account page.
 
-    Syncs the passed-in instance's in-memory fields (status, priority,
-    flake_count) after the DB write.
+    Each email is rendered under the participant's ``preferred_language``.
+
+    No reporter or partner PII is included (Invariant 1).
+
+    Args:
+        registration: The non-responding party's registration.
     """
-    with transaction.atomic():
-        locked = Registration.objects.select_for_update().get(pk=registration.pk)
-        locked.flake_count += 1
-        if locked.flake_count >= 2:
-            locked.status = Registration.Status.SUSPENDED
-            locked.save(update_fields=["status", "flake_count"])
-        else:
-            locked.status = Registration.Status.VERIFIED
-            locked.priority -= 1
-            locked.save(update_fields=["status", "priority", "flake_count"])
-        registration.status = locked.status
-        registration.priority = locked.priority
-        registration.flake_count = locked.flake_count
+    # Reload to ensure we have the latest related user.
+    registration = Registration.objects.select_related("user").get(pk=registration.pk)
+    lang = registration.preferred_language or settings.LANGUAGE_CODE
+    account_url = settings.BASE_URL + reverse("accounts:detail")
+    with translation.override(lang):
+        subject = _("Your match has expired — rejoin the queue when you're ready")
+        body = _(
+            "The contact window for your recent match in the 4 Vallées "
+            "Ambassadors Program has closed because neither you nor your partner "
+            "confirmed in time.\n\n"
+            "Your registration is now paused. When you are ready to be matched "
+            "again, visit your account page and click \"Rejoin the queue\":\n\n"
+            "%(url)s\n\n"
+            "If you did not register for this programme, please ignore this email."
+        ) % {"url": account_url}
+    recipient_email = registration.user.email
+    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [recipient_email])
     logger.info(
-        "Recorded flake for registration pk=%s: flake_count=%s, status=%s",
+        "Sent window-expired notification to registration pk=%s",
         registration.pk,
-        registration.flake_count,
-        registration.status,
     )
 
 
 def suspend_for_no_show(registration: Registration) -> None:
     """Suspend a registration following a post-accept no-show report.
 
-    Sets status=SUSPENDED and increments flake_count unconditionally (even if
-    flake_count was already ≥ 2, the suspension still records the incident).
+    Sets status=SUSPENDED. The two-strike flake model is retired (VERB-74); a
+    no-show report suspends unconditionally with a single step.
 
     Runs inside a transaction with a SELECT FOR UPDATE to prevent lost updates.
     Syncs the passed-in instance's in-memory fields after the DB write.
@@ -347,14 +405,11 @@ def suspend_for_no_show(registration: Registration) -> None:
     with transaction.atomic():
         locked = Registration.objects.select_for_update().get(pk=registration.pk)
         locked.status = Registration.Status.SUSPENDED
-        locked.flake_count += 1
-        locked.save(update_fields=["status", "flake_count"])
+        locked.save(update_fields=["status"])
         registration.status = locked.status
-        registration.flake_count = locked.flake_count
     logger.info(
-        "Suspended registration pk=%s for no-show (flake_count=%s)",
+        "Suspended registration pk=%s for post-accept no-show",
         registration.pk,
-        registration.flake_count,
     )
 
 
@@ -492,26 +547,19 @@ def accept_match(match: Match, registration: Registration) -> Match:
 
 
 def decline_match(match: Match, registration: Registration) -> Match:
-    """Record a decline, delete the decliner's account, and re-queue the other party.
+    """Record a decline, pause the decliner's registration, and re-queue the other party.
 
-    Calls ``record_decline`` (which records ``declined_by_email_hash`` while
-    the registration still exists), then:
+    Calls ``record_decline``, then:
+    - Pauses the decliner's registration (``pause_registration``). The User and
+      Registration rows are retained; the participant can rejoin from their
+      account page (VERB-74 / ADR 0013).
     - Re-queues the other party to the front of the pool (``requeue_to_front``).
-    - Deletes the decliner's ``User`` row (which cascades to their
-      ``Registration`` via the OneToOneField). The match is preserved with its
-      FK set to NULL (``SET_NULL``); ``declined_by_email_hash`` carries the
-      decline record for post-season analysis and re-registration cross-checks.
 
-    Re-registering after declining is treated as no big deal — the participant
-    can use the same email at any time and their ``prior_decline_count`` will
-    reflect the history.
-
-    All three steps (record_decline, requeue_to_front, user.delete) run inside
-    a single outer ``transaction.atomic()`` block so that a crash between steps
-    cannot leave a partial state (e.g. match DECLINED but decliner still
-    present). The inner atomics in ``record_decline`` and ``requeue_to_front``
-    nest via savepoints — mirroring the pattern used in
-    ``expire_lapsed_matches``.
+    All three steps run inside a single outer ``transaction.atomic()`` block so
+    that a crash between steps cannot leave a partial state (e.g. match DECLINED
+    but decliner still VERIFIED). The inner atomics in ``record_decline``,
+    ``pause_registration``, and ``requeue_to_front`` nest via savepoints —
+    mirroring the pattern used in ``expire_lapsed_matches``.
 
     Args:
         match: The match being declined.
@@ -525,34 +573,25 @@ def decline_match(match: Match, registration: Registration) -> Match:
             or PENDING.
     """
     side = match.side_of(registration)
-    # Capture the user reference before record_decline returns (we need it after).
-    user = registration.user
 
     with transaction.atomic():
         match = record_decline(match, registration)
 
-        # Determine the other party from the match before deleting the decliner.
-        # Both FKs are non-null on PROPOSED/PENDING matches; assertion satisfies mypy.
+        # Determine the other party.
+        # Both FKs are non-null on PROPOSED/PENDING matches.
         if side == Match.Side.AMBASSADOR:
             other = match.referee_registration
         else:
             other = match.ambassador_registration
-        assert other is not None, (
-            f"Expected non-null other-party FK on active match pk={match.pk}"
-        )
 
+        pause_registration(registration)
         requeue_to_front(other)
-
-        # Delete the decliner's User (cascades to Registration via OneToOneField).
-        # The Match row survives with the FK set to NULL (SET_NULL).
-        user.delete()
 
     logger.info(
         "decline_match: match pk=%s DECLINED by registration pk=%s "
-        "(user pk=%s deleted); other party (pk=%s) queued to front.",
+        "(paused); other party (pk=%s) queued to front.",
         match.pk,
         registration.pk,
-        user.pk,
         other.pk,
     )
     return match
@@ -620,14 +659,6 @@ def register_participant(
             user.last_name = last_name
             user.save(update_fields=["first_name", "last_name"])
 
-        # Count prior declines by this email address using the hash so that
-        # decline history is preserved even after the original User row was
-        # deleted (VERB-41).  hash_email normalises internally.
-        email_for_hash = email if email else user.email
-        prior_decline_count = Match.objects.for_decline_hash(
-            hash_email(email_for_hash)
-        ).count()
-
         registration = Registration.objects.create(
             user=user,
             role=role,
@@ -639,7 +670,6 @@ def register_participant(
             accepted_terms=accepted_terms or [],
             terms_accepted_at=timezone.now() if accepted_terms else None,
             status=status,
-            prior_decline_count=prior_decline_count,
             registration_country=registration_country,
             registration_region=registration_region,
         )
@@ -689,17 +719,19 @@ def confirm_registration(registration: Registration) -> Registration:
 
 
 def expire_lapsed_matches() -> int:
-    """Expire all PROPOSED or PENDING matches past their contact window and re-queue.
+    """Expire all PROPOSED or PENDING matches past their contact window.
 
     Selects candidate PKs up front, then processes each match in its own
     ``transaction.atomic()`` block so that one bad match does not abort the
     whole sweep.
 
-    Per-side re-queue logic:
+    Per-side outcome logic (VERB-74 / ADR 0013):
     - If a side had already accepted (``*_accepted_at`` is not None), they kept
       faith → ``requeue_to_front``.
     - If a side had not responded by expiry, they are the non-responder →
-      ``record_flake_and_requeue`` (records the flake, may suspend).
+      ``pause_registration`` (removed from pool; may self-rejoin). A window-
+      expired notification email is queued via ``transaction.on_commit`` for
+      each paused non-responder.
 
     Returns:
         The number of matches that were transitioned to EXPIRED in this run.
@@ -736,9 +768,7 @@ def expire_lapsed_matches() -> int:
                     after=match.status,
                 )
 
-                # Re-queue each side according to whether they had accepted.
-                # Both FKs are non-null on PROPOSED/PENDING matches; assertions
-                # satisfy mypy.
+                # Both FKs are non-null; assertions satisfy mypy.
                 assert match.ambassador_registration is not None
                 assert match.referee_registration is not None
                 ambassador_reg = match.ambassador_registration
@@ -747,12 +777,22 @@ def expire_lapsed_matches() -> int:
                 if match.ambassador_accepted_at is not None:
                     requeue_to_front(ambassador_reg)
                 else:
-                    record_flake_and_requeue(ambassador_reg)
+                    pause_registration(ambassador_reg)
+                    transaction.on_commit(
+                        functools.partial(
+                            send_window_expired_notification, ambassador_reg
+                        )
+                    )
 
                 if match.referee_accepted_at is not None:
                     requeue_to_front(referee_reg)
                 else:
-                    record_flake_and_requeue(referee_reg)
+                    pause_registration(referee_reg)
+                    transaction.on_commit(
+                        functools.partial(
+                            send_window_expired_notification, referee_reg
+                        )
+                    )
 
                 expired_count += 1
                 logger.info(
@@ -1102,18 +1142,15 @@ def send_no_show_notification(match: Match, accused_registration: Registration) 
 def record_decline(match: Match, registration: Registration) -> Match:
     """Record that ``registration`` has declined ``match``.
 
-    Sets ``declined_by``, ``declined_at``, ``declined_by_email_hash``, and
-    transitions the match from ``PROPOSED or PENDING → DECLINED``. One
-    ``StateTransitionLog`` row is written for the status change.
+    Sets ``declined_by`` and ``declined_at`` and transitions the match from
+    ``PROPOSED or PENDING → DECLINED``. One ``StateTransitionLog`` row is
+    written for the status change.
 
-    The email hash is captured here, before ``decline_match`` deletes the
-    registration — it is the only place that has access to both the live
-    registration FK and the email address simultaneously.
-
-    NOTE: re-queuing / deleting the decliner's registration is **not** done
-    here; that belongs to ``decline_match``. This function deliberately leaves
-    both ``Registration.status`` values untouched so it is not mistaken for a
-    bug.
+    NOTE: pausing the decliner's registration and re-queuing the other party
+    are **not** done here; they belong to ``decline_match``. This function
+    deliberately leaves both ``Registration.status`` values untouched so it is
+    not mistaken for a bug. The email-hash field was removed in VERB-74 (see
+    ADR 0008 — superseded).
 
     Args:
         match: The match to decline.
@@ -1139,13 +1176,11 @@ def record_decline(match: Match, registration: Registration) -> Match:
 
         match.declined_by = side
         match.declined_at = timezone.now()
-        match.declined_by_email_hash = hash_email(registration.user.email)
         match.status = Match.Status.DECLINED
         match.save(
             update_fields=[
                 "declined_by",
                 "declined_at",
-                "declined_by_email_hash",
                 "status",
                 "updated_at",
             ]

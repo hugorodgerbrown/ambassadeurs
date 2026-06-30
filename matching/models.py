@@ -7,9 +7,11 @@
 #
 # Fixed choice values are TextChoices with UPPER_CASE values (CLAUDE.md).
 #
-# Two independent state machines (VERB-44 / ADR 0011):
+# Two independent state machines (VERB-44 / ADR 0011, updated VERB-74):
 #   Registration.Status tracks pool standing:
 #     UNVERIFIED → VERIFIED (on email confirm) → WITHDRAWN | SUSPENDED
+#     VERIFIED → PAUSED (decline or non-response; self-rejoin via rejoin_queue)
+#     PAUSED → VERIFIED (user rejoins from their account page)
 #   Match.Status tracks the match lifecycle:
 #     PROPOSED → PENDING (one side accepted) → ACCEPTED | DECLINED | EXPIRED
 #     ACCEPTED → CANCELLED (post-accept no-show report)
@@ -120,17 +122,22 @@ class Registration(BaseModel):
 
         UNVERIFIED: created from the combined form but not yet email-confirmed;
             never enters the matching engine.
-        VERIFIED: email confirmed and active in the pool (or previously active
-            and now waiting after a declined/expired match).
+        VERIFIED: email confirmed and active in the pool (or re-joined after
+            a paused registration was resumed via rejoin_queue).
+        PAUSED: the participant declined a match or failed to respond within the
+            contact window. They are out of the pool but their registration
+            is retained. They may rejoin from their account page (VERB-74 /
+            ADR 0013).
         WITHDRAWN: the participant withdrew themselves.
-        SUSPENDED: the participant was suspended by the system (e.g. 2 flakes
-            or a post-accept no-show accusation).
+        SUSPENDED: the participant was suspended by the system (e.g. a
+            post-accept no-show accusation).
 
         Match progress is tracked on Match.Status, not here (ADR 0011).
         """
 
         UNVERIFIED = "UNVERIFIED", _("Unverified")
         VERIFIED = "VERIFIED", _("Verified")
+        PAUSED = "PAUSED", _("Paused")
         WITHDRAWN = "WITHDRAWN", _("Withdrawn")
         SUSPENDED = "SUSPENDED", _("Suspended")
 
@@ -188,21 +195,9 @@ class Registration(BaseModel):
     )
     priority = models.IntegerField(
         default=0,
-        help_text="Queue priority; higher is nearer the front. Adjusted by flaking.",
-    )
-    prior_decline_count = models.PositiveIntegerField(
-        default=0,
         help_text=(
-            "Number of prior DECLINED matches associated with this email address "
-            "before this registration was created. Computed at registration time "
-            "from Match.declined_by_email_hash."
-        ),
-    )
-    flake_count = models.IntegerField(
-        default=0,
-        help_text=(
-            "Recorded flakes (non-responses and post-accept no-shows; not declines). "
-            "2 auto-suspends."
+            "Queue priority; higher is nearer the front. Adjusted on rejoin "
+            "(priority -= 1 each time) and on requeue-to-front (priority += 1)."
         ),
     )
     accepted_terms = models.JSONField(
@@ -302,19 +297,6 @@ class MatchQuerySet(BaseQuerySet):
             ]
         )
 
-    def for_decline_hash(self, email_hash: str) -> MatchQuerySet:
-        """Return DECLINED matches whose decliner's email hash matches ``email_hash``.
-
-        Used at registration time to count prior declines by the same address.
-        The method name avoids a clash with the model field
-        ``declined_by_email_hash``.
-        """
-        return self.filter(
-            status=Match.Status.DECLINED,
-            declined_by_email_hash=email_hash,
-        )
-
-
 class Match(BaseModel):
     """A system-proposed pairing of one ambassador and one referee.
 
@@ -365,16 +347,17 @@ class Match(BaseModel):
         AMBASSADOR = "AMBASSADOR", _("Ambassador")
         REFEREE = "REFEREE", _("Referee")
 
+    # FKs are non-nullable: registrations are never deleted on decline/expiry
+    # (VERB-74 / ADR 0013). CASCADE ensures referential integrity is maintained
+    # if a registration is explicitly removed (e.g. account deletion).
     ambassador_registration = models.ForeignKey(
         Registration,
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         related_name="matches_as_ambassador",
     )
     referee_registration = models.ForeignKey(
         Registration,
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         related_name="matches_as_referee",
     )
     status = models.CharField(
@@ -412,16 +395,6 @@ class Match(BaseModel):
         blank=True,
         help_text="Tz-aware instant the decline was recorded; null until then.",
     )
-    declined_by_email_hash = models.CharField(
-        max_length=64,
-        blank=True,
-        db_index=True,
-        help_text=(
-            "HMAC-SHA256 hex digest of the decliner's normalised email address, "
-            "set at decline time so that prior-decline history is preserved after "
-            "the decliner's User and Registration rows are deleted."
-        ),
-    )
     no_show_reported_by = models.CharField(
         max_length=16,
         choices=Side.choices,
@@ -444,13 +417,11 @@ class Match(BaseModel):
     def to_string(self) -> str:
         """Return a human-readable label for the match.
 
-        Registration FKs are nullable (SET_NULL on User delete) so either side
-        may be None on DECLINED matches where the decliner's row was removed.
+        Registration FKs are non-nullable (CASCADE; registrations are never
+        deleted on decline or expiry — VERB-74 / ADR 0013).
         """
-        amb_reg = self.ambassador_registration
-        amb = str(amb_reg.user) if amb_reg is not None else "(deleted)"
-        ref_reg = self.referee_registration
-        ref = str(ref_reg.user) if ref_reg is not None else "(deleted)"
+        amb = str(self.ambassador_registration.user)
+        ref = str(self.referee_registration.user)
         return f"Match {self.pk}: {amb} ↔ {ref} [{self.get_status_display()}]"
 
     def __str__(self) -> str:

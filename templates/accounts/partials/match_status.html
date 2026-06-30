@@ -13,10 +13,12 @@
       partner_first_name    — partner's first name (proposed/pending/accepted copy)
       partner_accepted      — whether the partner has responded (proposed copy)
       queue_position        — 1-based queue ordinal, or None (VERIFIED copy)
+      can_rejoin            — True when status is PAUSED and there is no active
+                              match; controls the "Rejoin the queue" button
 
     Match progress (proposed/pending/accepted) is derived from match_state, NOT
     from registration.status (VERB-44 / ADR 0011). registration.status reflects
-    pool standing only (UNVERIFIED, VERIFIED, WITHDRAWN, SUSPENDED).
+    pool standing only (UNVERIFIED, VERIFIED, PAUSED, WITHDRAWN, SUSPENDED).
 
     Rendered by accounts/detail.html and by the DEBUG component gallery
     (debug.views.components), so every combination can be reviewed in one place.
@@ -65,6 +67,22 @@
                     {% blocktranslate trimmed %}
                         You are in the queue. We'll email you when a match is found.
                     {% endblocktranslate %}
+                {% endif %}
+            {% elif registration.status == 'PAUSED' %}
+                {% blocktranslate trimmed %}
+                    Your registration is paused — you are not currently in the matching queue. Rejoin whenever you are ready.
+                {% endblocktranslate %}
+                {% if can_rejoin %}
+                    <form
+                        method="post"
+                        action="{% url 'accounts:rejoin_queue' %}"
+                        class="mt-4"
+                    >
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn--role">
+                            {% translate "Rejoin the queue" %}
+                        </button>
+                    </form>
                 {% endif %}
             {% elif registration.status == 'WITHDRAWN' %}
                 {% blocktranslate trimmed %}

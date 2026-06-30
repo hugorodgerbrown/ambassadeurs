@@ -89,6 +89,7 @@
                                     stroke-width="2.6"
                                     stroke-linecap="round"
                                     stroke-linejoin="round"
+                                    aria-hidden="true"
                                 >
                                     <path d="m5 12 5 5L20 7" />
                                 </svg>
@@ -107,8 +108,13 @@
                 {% endfor %}
             </div>
 
-            {% comment %}State-driven outcome block; swapped in place by the HTMX action endpoints.{% endcomment %}
-            <div id="match-actions">
+            {% comment %}
+            State-driven outcome block; swapped in place by the HTMX action
+            endpoints. aria-live="polite" ensures screen readers announce the
+            new content after an accept/decline action without interrupting
+            ongoing speech (WCAG 4.1.3 Status Messages).
+            {% endcomment %}
+            <div id="match-actions" aria-live="polite" aria-atomic="true">
                 {% include "public/partials/match_actions.html" %}
             </div>
 

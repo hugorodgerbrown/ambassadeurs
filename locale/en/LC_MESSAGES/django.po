@@ -31,31 +31,6 @@ msgstr ""
 msgid "No preference"
 msgstr ""
 
-msgid "Sign in to 4 Vallées Ambassadors"
-msgstr ""
-
-#, python-format
-msgid ""
-"Click the link below to sign in to the 4 Vallées Ambassadors Program:\n"
-"\n"
-"%(url)s\n"
-"\n"
-"This link expires in 1 hour. If you didn't request it, ignore this email."
-msgstr ""
-
-msgid "Confirm your email to join the queue"
-msgstr ""
-
-#, python-format
-msgid ""
-"Click the link below to confirm your email and join the matching queue for "
-"the 4 Vallées Ambassadors Program:\n"
-"\n"
-"%(url)s\n"
-"\n"
-"This link expires in 24 hours. If you didn't request it, ignore this email."
-msgstr ""
-
 msgid "Queued"
 msgstr ""
 
@@ -483,6 +458,57 @@ msgstr ""
 msgid "4 Vallées Ambassadors"
 msgstr ""
 
+msgid "Skip to main content"
+msgstr ""
+
+#, python-format
+msgid "Hi %(first_name)s,"
+msgstr ""
+
+msgid "Hi,"
+msgstr ""
+
+msgid ""
+"Thanks for registering as an Ambassador for the 4 Vallées Ambassadors "
+"Programme. Please confirm your email address to enter the matching queue — "
+"we'll pair you with a Referee as soon as one is available."
+msgstr ""
+
+msgid ""
+"Thanks for registering as a Referee for the 4 Vallées Ambassadors Programme. "
+"Please confirm your email address to enter the matching queue — we'll pair "
+"you with an Ambassador as soon as one is available."
+msgstr ""
+
+msgid "Click the link below to confirm your email:"
+msgstr ""
+
+#, python-format
+msgid ""
+"This link expires in %(expiry_hours)s hours. If you did not register for "
+"this programme, you can safely ignore this email."
+msgstr ""
+
+msgid "— 4 Vallées Ambassadors Programme"
+msgstr ""
+
+msgid "Confirm your email — 4 Vallées Ambassadors"
+msgstr ""
+
+msgid ""
+"Someone (probably you) asked to sign in to the 4 Vallées Ambassadors "
+"Programme. Click the link below to confirm your sign-in:"
+msgstr ""
+
+#, python-format
+msgid ""
+"This link expires in %(expiry_hours)s hour. If you did not request this, you "
+"can safely ignore this email — your account is not affected."
+msgstr ""
+
+msgid "Sign in to 4 Vallées Ambassadors"
+msgstr ""
+
 msgid ""
 "Find your season-pass partner for the 4 Vallées Ambassadors Program. "
 "Register once — we match Ambassadors with Referees automatically."
@@ -533,6 +559,10 @@ msgid ""
 msgstr ""
 
 msgid "Ski Parrainage &middot; 2026/27"
+msgid "Main navigation"
+msgstr ""
+
+msgid "Menu"
 msgstr ""
 
 msgid "Menu"
@@ -828,12 +858,12 @@ msgstr ""
 msgid "How do I apply?"
 msgstr ""
 
+#, python-format
 msgid ""
 "Download the application form, fill it in together with your partner, and "
-"email it to customer@televerbier.ch (Téléverbier). Both parties must sign "
-"the form and provide proof of identity (passport or national ID card) and a "
-"digital passport photo. If applying by email these can be photograph "
-"attachments."
+"email it to %(email)s (Téléverbier). Both parties must sign the form and "
+"provide proof of identity (passport or national ID card) and a digital "
+"passport photo. If applying by email these can be photograph attachments."
 msgstr ""
 
 msgid "Download application form"

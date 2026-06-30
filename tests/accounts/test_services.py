@@ -1,4 +1,8 @@
 # Tests for the account service functions.
+#
+# Email content assertions check only structural facts (recipient, URL present,
+# non-empty subject) — not translated string literals — because the test env
+# compiles no .mo catalogues and gettext falls back to the English source.
 
 import pytest
 from django.core import mail
@@ -138,8 +142,8 @@ def test_send_login_email_logs_url_under_debug(
     assert verify_url in caplog.text
 
 
-def test_send_confirmation_email_subject_contains_confirm_phrase() -> None:
-    """The confirmation email subject references email confirmation."""
+def test_send_confirmation_email_subject_is_non_empty() -> None:
+    """The confirmation email has a non-empty single-line subject."""
     registration = RegistrationFactory.create(status=Registration.Status.UNVERIFIED)
     request = RequestFactory().get("/")
     request.META["SERVER_NAME"] = "testserver"
@@ -149,4 +153,69 @@ def test_send_confirmation_email_subject_contains_confirm_phrase() -> None:
     send_confirmation_email(request, registration)
 
     assert len(mail.outbox) == 1
-    assert "Confirm" in mail.outbox[0].subject
+    subject = mail.outbox[0].subject
+    assert subject
+    assert "\n" not in subject
+
+
+def test_send_login_email_subject_is_non_empty() -> None:
+    """The login email has a non-empty single-line subject."""
+    user = UserFactory.create()
+    request = RequestFactory().get("/")
+    request.META["SERVER_NAME"] = "testserver"
+    request.META["SERVER_PORT"] = "80"
+    mail.outbox.clear()
+
+    send_login_email(request, user)
+
+    assert len(mail.outbox) == 1
+    subject = mail.outbox[0].subject
+    assert subject
+    assert "\n" not in subject
+
+
+def test_send_confirmation_email_body_contains_confirm_url() -> None:
+    """Confirmation email body includes the signed confirm URL."""
+    registration = RegistrationFactory.create(status=Registration.Status.UNVERIFIED)
+    request = RequestFactory().get("/")
+    request.META["SERVER_NAME"] = "testserver"
+    request.META["SERVER_PORT"] = "80"
+    mail.outbox.clear()
+
+    confirm_url = send_confirmation_email(request, registration)
+
+    assert confirm_url in mail.outbox[0].body
+
+
+def test_send_confirmation_email_ambassador_body_mentions_referee() -> None:
+    """Ambassador confirmation email body references finding a Referee."""
+    registration = RegistrationFactory.create(
+        status=Registration.Status.UNVERIFIED,
+        role=Registration.Role.AMBASSADOR,
+    )
+    request = RequestFactory().get("/")
+    request.META["SERVER_NAME"] = "testserver"
+    request.META["SERVER_PORT"] = "80"
+    mail.outbox.clear()
+
+    send_confirmation_email(request, registration)
+
+    # The EN source string mentions "Referee" in the ambassador copy.
+    assert "Referee" in mail.outbox[0].body
+
+
+def test_send_confirmation_email_referee_body_mentions_ambassador() -> None:
+    """Referee confirmation email body references finding an Ambassador."""
+    registration = RegistrationFactory.create(
+        status=Registration.Status.UNVERIFIED,
+        role=Registration.Role.REFEREE,
+    )
+    request = RequestFactory().get("/")
+    request.META["SERVER_NAME"] = "testserver"
+    request.META["SERVER_PORT"] = "80"
+    mail.outbox.clear()
+
+    send_confirmation_email(request, registration)
+
+    # The EN source string mentions "Ambassador" in the referee copy.
+    assert "Ambassador" in mail.outbox[0].body

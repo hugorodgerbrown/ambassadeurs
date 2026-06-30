@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 00:42+0200\n"
+"POT-Creation-Date: 2026-06-30 10:38+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -319,6 +319,21 @@ msgstr ""
 "\n"
 "Si vous ne vous êtes pas inscrit(e) à ce programme, ignorez cet e-mail."
 
+msgid "Access denied"
+msgstr "Accès refusé"
+
+msgid "You don't have permission to view this page."
+msgstr "Vous n'avez pas la permission de consulter cette page."
+
+msgid "Return to homepage"
+msgstr "Retourner à la page d'accueil"
+
+msgid "Page not found"
+msgstr "Page introuvable"
+
+msgid "The page you're looking for doesn't exist or has moved."
+msgstr "La page que vous recherchez n'existe pas ou a été déplacée."
+
 msgid "Too many requests"
 msgstr "Trop de requêtes"
 
@@ -337,20 +352,6 @@ msgstr ""
 
 msgid "Return to home"
 msgstr "Retour à l'accueil"
-msgid "Access denied"
-msgstr "Accès refusé"
-
-msgid "You don't have permission to view this page."
-msgstr "Vous n'avez pas la permission de consulter cette page."
-
-msgid "Return to homepage"
-msgstr "Retourner à la page d'accueil"
-
-msgid "Page not found"
-msgstr "Page introuvable"
-
-msgid "The page you're looking for doesn't exist or has moved."
-msgstr "La page que vous recherchez n'existe pas ou a été déplacée."
 
 msgid "Delete my account"
 msgstr "Supprimer mon compte"
@@ -828,15 +829,15 @@ msgstr ""
 msgid "How do I apply?"
 msgstr "Comment postuler ?"
 
+#, python-format
 msgid ""
 "Download the application form, fill it in together with your partner, and "
-"email it to customer@televerbier.ch (Téléverbier). Both parties must sign "
-"the form and provide proof of identity (passport or national ID card) and a "
-"digital passport photo. If applying by email these can be photograph "
-"attachments."
+"email it to %(email)s (Téléverbier). Both parties must sign the form and "
+"provide proof of identity (passport or national ID card) and a digital "
+"passport photo. If applying by email these can be photograph attachments."
 msgstr ""
 "Téléchargez le formulaire de demande, remplissez-le avec votre partenaire et "
-"envoyez-le par e-mail à customer@televerbier.ch (Téléverbier). Les deux "
+"envoyez-le par e-mail à %(email)s (Téléverbier). Les deux "
 "parties doivent signer le formulaire et fournir une pièce d'identité "
 "(passeport ou carte d'identité nationale) ainsi qu'une photo d'identité "
 "numérique. En cas d'envoi par e-mail, ces documents peuvent être des photos "

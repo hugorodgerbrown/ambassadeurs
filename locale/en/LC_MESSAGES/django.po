@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 00:42+0200\n"
+"POT-Creation-Date: 2026-06-30 10:39+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -261,6 +261,21 @@ msgid ""
 "If you did not register for this programme, please ignore this email."
 msgstr ""
 
+msgid "Access denied"
+msgstr ""
+
+msgid "You don't have permission to view this page."
+msgstr ""
+
+msgid "Return to homepage"
+msgstr ""
+
+msgid "Page not found"
+msgstr ""
+
+msgid "The page you're looking for doesn't exist or has moved."
+msgstr ""
+
 msgid "Too many requests"
 msgstr ""
 
@@ -276,19 +291,6 @@ msgid ""
 msgstr ""
 
 msgid "Return to home"
-msgid "Access denied"
-msgstr ""
-
-msgid "You don't have permission to view this page."
-msgstr ""
-
-msgid "Return to homepage"
-msgstr ""
-
-msgid "Page not found"
-msgstr ""
-
-msgid "The page you're looking for doesn't exist or has moved."
 msgstr ""
 
 msgid "Delete my account"
@@ -674,12 +676,12 @@ msgstr ""
 msgid "How do I apply?"
 msgstr ""
 
+#, python-format
 msgid ""
 "Download the application form, fill it in together with your partner, and "
-"email it to customer@televerbier.ch (Téléverbier). Both parties must sign "
-"the form and provide proof of identity (passport or national ID card) and a "
-"digital passport photo. If applying by email these can be photograph "
-"attachments."
+"email it to %(email)s (Téléverbier). Both parties must sign the form and "
+"provide proof of identity (passport or national ID card) and a digital "
+"passport photo. If applying by email these can be photograph attachments."
 msgstr ""
 
 msgid "Download application form"

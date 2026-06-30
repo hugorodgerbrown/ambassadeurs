@@ -21,10 +21,15 @@ from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.db import transaction
 from django.http import HttpRequest
+from django.template.loader import render_to_string
 from django.urls import reverse
-from django.utils.translation import gettext as _
 
-from accounts.tokens import make_login_token, make_registration_confirmation_token
+from accounts.tokens import (
+    LOGIN_TOKEN_MAX_AGE,
+    MAX_AGE_SECONDS,
+    make_login_token,
+    make_registration_confirmation_token,
+)
 from matching.models import Registration
 
 logger = logging.getLogger(__name__)
@@ -34,7 +39,9 @@ def send_login_email(request: HttpRequest, user: User) -> str:
     """Email a signed magic-link to ``user`` for passwordless login.
 
     The token carries ``user.pk`` scoped to the single-purpose salt
-    ``accounts.login`` (Invariant 6).
+    ``accounts.login`` (Invariant 6). Subject and body are rendered from
+    ``templates/email/login_subject.txt`` and ``templates/email/login_body.txt``
+    so copy can be translated without touching Python.
 
     Args:
         request: The current HTTP request, used to build the absolute verify URL.
@@ -48,12 +55,16 @@ def send_login_email(request: HttpRequest, user: User) -> str:
     verify_url = request.build_absolute_uri(
         reverse("accounts:login_verify", args=[token])
     )
-    subject = _("Sign in to 4 Vallées Ambassadors")
-    body = _(
-        "Click the link below to sign in to the 4 Vallées Ambassadors Program:\n\n"
-        "%(url)s\n\n"
-        "This link expires in 1 hour. If you didn't request it, ignore this email."
-    ) % {"url": verify_url}
+    expiry_hours = LOGIN_TOKEN_MAX_AGE // 3600
+    context = {
+        "first_name": user.first_name or "",
+        "verify_url": verify_url,
+        "expiry_hours": expiry_hours,
+    }
+    # Do not pass request — email templates do not need context processors, and
+    # passing a bare RequestFactory request triggers the debug_panel processor.
+    subject = render_to_string("email/login_subject.txt", context).strip()
+    body = render_to_string("email/login_body.txt", context).strip()
     send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user.email])
 
     # In development the email is written to the console. Log the unwrapped link
@@ -74,23 +85,28 @@ def send_confirmation_email(request: HttpRequest, registration: Registration) ->
 
     The token carries ``registration.pk`` scoped to the single-purpose salt
     ``accounts.registration-confirm`` (Invariant 6). Returns the confirm URL
-    so the caller can stash it for the DEBUG shortcut.
+    so the caller can stash it for the DEBUG shortcut. Subject and body are
+    rendered from ``templates/email/confirmation_subject.txt`` and
+    ``templates/email/confirmation_body.txt``.
 
     Args:
         request: The current HTTP request, used to build the absolute confirm URL.
-        registration: The PENDING Registration whose owner must confirm their email.
+        registration: The UNVERIFIED Registration whose owner must confirm their email.
     """
     token = make_registration_confirmation_token(registration.pk)
     confirm_url = request.build_absolute_uri(
         reverse("public:register_confirm", args=[token])
     )
-    subject = _("Confirm your email to join the queue")
-    body = _(
-        "Click the link below to confirm your email and join the matching queue "
-        "for the 4 Vallées Ambassadors Program:\n\n"
-        "%(url)s\n\n"
-        "This link expires in 24 hours. If you didn't request it, ignore this email."
-    ) % {"url": confirm_url}
+    expiry_hours = MAX_AGE_SECONDS // 3600
+    context = {
+        "first_name": registration.user.first_name or "",
+        "confirm_url": confirm_url,
+        "expiry_hours": expiry_hours,
+        "is_ambassador": registration.is_ambassador,
+    }
+    # Do not pass request — email templates do not need context processors.
+    subject = render_to_string("email/confirmation_subject.txt", context).strip()
+    body = render_to_string("email/confirmation_body.txt", context).strip()
     send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [registration.user.email])
 
     # In development the email is written to the console, where the long confirm

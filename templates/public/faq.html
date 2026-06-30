@@ -17,20 +17,236 @@
 {% endblock %}
 
 {% comment %}
-Stub FAQ page — heading + placeholder only. The full question/answer list is
-to be populated later; for now it points readers to the How it works page,
-which already answers the common questions.
+Full FAQ page covering eligibility, how matching works, the contact window,
+first-name-only reveal, flaking/suspension, and the off-app application.
+Uses <details>/<summary> accordions — keyboard-accessible by default.
 {% endcomment %}
 {% block content %}
     <article class="mx-auto max-w-2xl space-y-4 text-body">
         <h1 class="text-2xl font-bold text-ink">{% translate "Frequently asked questions" %}</h1>
         <p>
-            {% blocktranslate trimmed %}
-                We're putting together answers to the questions people ask most. In the meantime, the How it works page
-                covers how matching, eligibility, and the contact window work.
-            {% endblocktranslate %}
+            {% translate "Quick answers to the questions we hear most. For a full walkthrough of how the programme works, see the" %}
+            <a href="{% url 'public:how_it_works' %}" class="underline">{% translate "How it works" %}</a>
+            {% translate "page." %}
         </p>
-        <p>
+
+        {% comment %}
+        Section: Eligibility
+        {% endcomment %}
+        <h2 class="pt-4 text-lg font-semibold text-ink">{% translate "Eligibility" %}</h2>
+
+        <details class="group border-b border-gray-200 pb-2">
+            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
+                {% translate "Who qualifies as an Ambassador?" %}
+            </summary>
+            <div class="mt-2 space-y-2">
+                <p>
+                    {% blocktranslate trimmed %}
+                        An Ambassador is someone who held a 4 Vallées seasonal or annual pass — or a Mont 4 Card /
+                        special-reduction pass — in a prior season. When you register you self-attest to this; proof
+                        is checked off-app during the joint application at the ticket office.
+                    {% endblocktranslate %}
+                </p>
+            </div>
+        </details>
+
+        <details class="group border-b border-gray-200 pb-2">
+            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
+                {% translate "Who qualifies as a Referee?" %}
+            </summary>
+            <div class="mt-2 space-y-2">
+                <p>
+                    {% blocktranslate trimmed %}
+                        A Referee is someone who did not hold any 4 Vallées season pass in a prior season — they are
+                        genuinely new to the programme. This is self-attested on registration and verified at the ticket
+                        office when you apply together.
+                    {% endblocktranslate %}
+                </p>
+            </div>
+        </details>
+
+        <details class="group border-b border-gray-200 pb-2">
+            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
+                {% translate "Can a Mont 4 Card holder act as an Ambassador?" %}
+            </summary>
+            <div class="mt-2 space-y-2">
+                <p>
+                    {% blocktranslate trimmed %}
+                        Yes. A Mont 4 Card or special-reduction pass counts as a qualifying prior pass. The Referee they
+                        sponsor still benefits from the referral discount even if the Ambassador does not receive one
+                        themselves.
+                    {% endblocktranslate %}
+                </p>
+            </div>
+        </details>
+
+        {% comment %}
+        Section: How matching works
+        {% endcomment %}
+        <h2 class="pt-4 text-lg font-semibold text-ink">{% translate "How matching works" %}</h2>
+
+        <details class="group border-b border-gray-200 pb-2">
+            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
+                {% translate "Do I choose my own partner?" %}
+            </summary>
+            <div class="mt-2 space-y-2">
+                <p>
+                    {% blocktranslate trimmed %}
+                        No — the system assigns a match. You register once, and when an eligible partner is available
+                        the system proposes a pairing. You do not browse profiles or choose a partner, and the two of
+                        you do not know each other beforehand.
+                    {% endblocktranslate %}
+                </p>
+            </div>
+        </details>
+
+        <details class="group border-b border-gray-200 pb-2">
+            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
+                {% translate "How does the system decide who to pair me with?" %}
+            </summary>
+            <div class="mt-2 space-y-2">
+                <p>
+                    {% blocktranslate trimmed %}
+                        The engine pairs eligible participants in order of shared preferred location first, then by
+                        priority score, then by the order they registered (earliest first). Both parties must be
+                        verified with no active match already in progress.
+                    {% endblocktranslate %}
+                </p>
+            </div>
+        </details>
+
+        <details class="group border-b border-gray-200 pb-2">
+            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
+                {% translate "How long until I get a match?" %}
+            </summary>
+            <div class="mt-2 space-y-2">
+                <p>
+                    {% blocktranslate trimmed %}
+                        If an eligible partner is already waiting when you register, a match is proposed immediately.
+                        Ambassadors typically outnumber Referees, so Referees are often matched instantly; Ambassadors
+                        may wait in the queue. You can see your position from your status page.
+                    {% endblocktranslate %}
+                </p>
+            </div>
+        </details>
+
+        {% comment %}
+        Section: The contact window
+        {% endcomment %}
+        <h2 class="pt-4 text-lg font-semibold text-ink">{% translate "The contact window" %}</h2>
+
+        <details class="group border-b border-gray-200 pb-2">
+            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
+                {% translate "What is the contact window?" %}
+            </summary>
+            <div class="mt-2 space-y-2">
+                <p>
+                    {% blocktranslate trimmed %}
+                        Once a match is proposed, both parties have a fixed window — 72 hours by default — to
+                        accept. Neither side can see the other's contact details (email or phone) during this window;
+                        only your partner's first name is shown so the pairing feels human. Contact details are revealed
+                        only after both parties accept.
+                    {% endblocktranslate %}
+                </p>
+            </div>
+        </details>
+
+        <details class="group border-b border-gray-200 pb-2">
+            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
+                {% translate "Why can't I see my partner's contact details before accepting?" %}
+            </summary>
+            <div class="mt-2 space-y-2">
+                <p>
+                    {% blocktranslate trimmed %}
+                        Contact details (email and phone) are hidden until both parties have accepted the match. This
+                        protects everyone's privacy: if either side declines or the window expires, neither party's
+                        contact information is ever shared.
+                    {% endblocktranslate %}
+                </p>
+            </div>
+        </details>
+
+        <details class="group border-b border-gray-200 pb-2">
+            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
+                {% translate "What happens if I miss the contact window?" %}
+            </summary>
+            <div class="mt-2 space-y-2">
+                <p>
+                    {% blocktranslate trimmed %}
+                        If you do not respond within the window, the match expires and you are sent to the back of the
+                        queue. Your partner, who had no control over your non-response, keeps their position near the
+                        front and will be re-matched sooner.
+                    {% endblocktranslate %}
+                </p>
+            </div>
+        </details>
+
+        <details class="group border-b border-gray-200 pb-2">
+            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
+                {% translate "What happens if my partner misses the contact window?" %}
+            </summary>
+            <div class="mt-2 space-y-2">
+                <p>
+                    {% blocktranslate trimmed %}
+                        If your partner does not respond in time, the match expires and you are moved to the front of
+                        the queue. The system will propose a new match for you as soon as an eligible partner is
+                        available.
+                    {% endblocktranslate %}
+                </p>
+            </div>
+        </details>
+
+        {% comment %}
+        Section: After matching
+        {% endcomment %}
+        <h2 class="pt-4 text-lg font-semibold text-ink">{% translate "After matching" %}</h2>
+
+        <details class="group border-b border-gray-200 pb-2">
+            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
+                {% translate "What happens once both of us have accepted?" %}
+            </summary>
+            <div class="mt-2 space-y-2">
+                <p>
+                    {% blocktranslate trimmed %}
+                        Once both parties accept, each receives the other's email address and phone number. You then
+                        arrange to fill in the application form together and submit it to the ticket office. The pass
+                        purchase and application happen off this site, unchanged from the normal process.
+                    {% endblocktranslate %}
+                </p>
+            </div>
+        </details>
+
+        <details class="group border-b border-gray-200 pb-2">
+            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
+                {% translate "What if my partner doesn't show up after we've both accepted?" %}
+            </summary>
+            <div class="mt-2 space-y-2">
+                <p>
+                    {% blocktranslate trimmed %}
+                        If your partner fails to follow through after mutual acceptance you can report them as a
+                        no-show. The report is acted on immediately: you re-enter the queue at the front, and your
+                        partner's registration is suspended. Two no-show incidents automatically suspend a registration.
+                    {% endblocktranslate %}
+                </p>
+            </div>
+        </details>
+
+        <details class="group border-b border-gray-200 pb-2">
+            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
+                {% translate "Does this site handle the application form or pass purchase?" %}
+            </summary>
+            <div class="mt-2 space-y-2">
+                <p>
+                    {% blocktranslate trimmed %}
+                        No. This site handles the matchmaking only — connecting an Ambassador with a Referee so they
+                        can apply together. Filling in the application form and purchasing the passes at the ticket
+                        office are unchanged and happen entirely off this site.
+                    {% endblocktranslate %}
+                </p>
+            </div>
+        </details>
+
+        <p class="pt-4">
             <a href="{% url 'public:how_it_works' %}" class="btn btn--primary">
                 {% translate "Read how it works" %}
             </a>

@@ -803,6 +803,46 @@ def test_faq_renders_for_anonymous_user() -> None:
     assert "public/faq.html" in [t.name for t in response.templates]
 
 
+def test_faq_contains_eligibility_section() -> None:
+    """The FAQ page renders eligibility questions for both roles."""
+    response = Client().get(reverse("public:faq"))
+    content = response.content
+    assert b"Who qualifies as an Ambassador?" in content
+    assert b"Who qualifies as a Referee?" in content
+    assert b"Can a Mont 4 Card holder act as an Ambassador?" in content
+
+
+def test_faq_contains_matching_section() -> None:
+    """The FAQ page renders the matching-mechanics questions."""
+    response = Client().get(reverse("public:faq"))
+    content = response.content
+    assert b"Do I choose my own partner?" in content
+    assert b"How does the system decide who to pair me with?" in content
+
+
+def test_faq_contains_contact_window_section() -> None:
+    """The FAQ page renders the contact-window questions."""
+    response = Client().get(reverse("public:faq"))
+    content = response.content
+    assert b"What is the contact window?" in content
+    assert b"What happens if I miss the contact window?" in content
+    assert b"What happens if my partner misses the contact window?" in content
+
+
+def test_faq_contains_after_matching_section() -> None:
+    """The FAQ page renders the post-match questions including the off-app note."""
+    response = Client().get(reverse("public:faq"))
+    content = response.content
+    assert b"What happens once both of us have accepted?" in content
+    assert b"Does this site handle the application form or pass purchase?" in content
+
+
+def test_faq_links_to_how_it_works() -> None:
+    """The FAQ page links to the how-it-works page."""
+    response = Client().get(reverse("public:faq"))
+    assert reverse("public:how_it_works").encode() in response.content
+
+
 def test_home_menu_links_to_faq_and_how_it_works() -> None:
     """The homepage hamburger menu links to the FAQ and how-it-works pages."""
     content = Client().get(reverse("public:home")).content

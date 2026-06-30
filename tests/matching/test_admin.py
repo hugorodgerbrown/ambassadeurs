@@ -55,40 +55,6 @@ def test_match_changelist_returns_200(client: Client) -> None:
 
 
 # ---------------------------------------------------------------------------
-# HasFlakesListFilter
-# ---------------------------------------------------------------------------
-
-
-def test_has_flakes_filter_yes_returns_only_flaked(client: Client) -> None:
-    """?has_flakes=yes returns only registrations with flake_count > 0."""
-    clean = RegistrationFactory.create(flake_count=0)
-    flaked = RegistrationFactory.create(flake_count=1)
-    staff = make_staff_user()
-    client.force_login(staff)
-    url = reverse("admin:matching_registration_changelist")
-    response = client.get(url, {"has_flakes": "yes"})
-    assert response.status_code == 200
-    # The flaked registration must appear; the clean one must not.
-    content = response.content.decode()
-    assert str(flaked.user) in content
-    assert str(clean.user) not in content
-
-
-def test_has_flakes_filter_no_returns_only_clean(client: Client) -> None:
-    """?has_flakes=no returns only registrations with flake_count == 0."""
-    clean = RegistrationFactory.create(flake_count=0)
-    flaked = RegistrationFactory.create(flake_count=2)
-    staff = make_staff_user()
-    client.force_login(staff)
-    url = reverse("admin:matching_registration_changelist")
-    response = client.get(url, {"has_flakes": "no"})
-    assert response.status_code == 200
-    content = response.content.decode()
-    assert str(clean.user) in content
-    assert str(flaked.user) not in content
-
-
-# ---------------------------------------------------------------------------
 # export_abandoned_as_csv action
 # ---------------------------------------------------------------------------
 

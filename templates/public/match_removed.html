@@ -1,22 +1,22 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "Registration removed" %}{% endblock %}
+{% block title %}{% translate "Registration paused" %}{% endblock %}
 
 {% block content %}
     <section class="mx-auto max-w-md text-center">
         <h1 class="mb-4 text-2xl font-bold text-ink">
-            {% translate "Your registration has been removed" %}
+            {% translate "Your registration is paused" %}
         </h1>
         <p class="text-body">
             {% blocktranslate trimmed %}
-                You declined this match, so your registration has been removed from the pool. You can re-register at any
-                time if you change your mind.
+                You declined this match, so your registration is now paused. No hard feelings — rejoin the queue from
+                your account page whenever you are ready to be matched with someone new.
             {% endblocktranslate %}
         </p>
         <p class="mt-6">
-            <a href="{% url 'public:register' %}" class="btn btn--role">
-                {% translate "Re-register" %}
+            <a href="{% url 'accounts:detail' %}" class="btn btn--role">
+                {% translate "Go to my account" %}
             </a>
         </p>
     </section>

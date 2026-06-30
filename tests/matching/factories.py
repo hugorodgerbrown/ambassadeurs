@@ -37,7 +37,6 @@ class RegistrationFactory(factory.django.DjangoModelFactory[Registration]):
     nationality = ""
     status = Registration.Status.VERIFIED
     priority = 0
-    flake_count = 0
     accepted_terms = factory.LazyFunction(lambda: list(_DEFAULT_ACCEPTED_TERMS))
     terms_accepted_at = factory.LazyFunction(
         lambda: datetime(2026, 9, 1, 10, 0, 0, tzinfo=UTC)
@@ -52,6 +51,9 @@ class RegistrationFactory(factory.django.DjangoModelFactory[Registration]):
             role=Registration.Role.REFEREE,
             prior_pass=Registration.PriorPass.NONE,
         )
+        paused = factory.Trait(
+            status=Registration.Status.PAUSED,
+        )
         suspended = factory.Trait(
             status=Registration.Status.SUSPENDED,
         )
@@ -64,11 +66,11 @@ class MatchFactory(factory.django.DjangoModelFactory[Match]):
     """Factory for Match (PROPOSED by default).
 
     Traits:
-        pending: status=PENDING, one side (*_accepted_at) populated.
-        accepted: status=ACCEPTED, both *_accepted_at populated.
-        declined: status=DECLINED, declined_by=AMBASSADOR, declined_at set.
+        pending:   status=PENDING, ambassador_accepted_at populated.
+        accepted:  status=ACCEPTED, both *_accepted_at populated.
+        declined:  status=DECLINED, declined_by=AMBASSADOR, declined_at set.
         cancelled: status=CANCELLED, no_show_reported_by=REFEREE,
-            no_show_reported_at set.
+                   no_show_reported_at set.
     """
 
     class Meta:

@@ -2,6 +2,9 @@
 #
 # Mirrors the conventions in tests/matching/test_services.py: pytest + FactoryBoy,
 # tz-aware datetimes, factories called with .create().
+#
+# VERB-74: non-responders are now paused (pause_registration) rather than
+# record_flake_and_requeue'd. The two-strike flake model is retired.
 
 from datetime import UTC, datetime
 from io import StringIO
@@ -10,10 +13,11 @@ from unittest.mock import patch
 import pytest
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
+from django.test import TestCase
 
 from core.models import StateTransitionLog
 from matching.models import Match, Registration
-from matching.services import expire_lapsed_matches, record_flake_and_requeue
+from matching.services import expire_lapsed_matches, pause_registration
 from tests.matching.factories import MatchFactory, RegistrationFactory
 
 pytestmark = pytest.mark.django_db
@@ -29,18 +33,19 @@ _FUTURE = datetime(2099, 12, 31, 23, 59, 59, tzinfo=UTC)
 # ---------------------------------------------------------------------------
 
 
-def test_lapsed_both_sides_no_accept_flakes_both_and_expires() -> None:
-    """Lapsed match, neither side accepted → both registrations flaked and EXPIRED."""
+def test_lapsed_both_sides_no_accept_pauses_both_and_expires() -> None:
+    """Lapsed match, neither side accepted → both registrations PAUSED and EXPIRED.
+
+    VERB-74: non-responders are paused (not re-queued with a flake).
+    """
     ambassador_reg = RegistrationFactory.create(
         status=Registration.Status.VERIFIED,
         priority=0,
-        flake_count=0,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
         status=Registration.Status.VERIFIED,
         priority=0,
-        flake_count=0,
     )
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -59,28 +64,24 @@ def test_lapsed_both_sides_no_accept_flakes_both_and_expires() -> None:
     assert match.status == Match.Status.EXPIRED
 
     ambassador_reg.refresh_from_db()
-    assert ambassador_reg.flake_count == 1
-    assert ambassador_reg.status == Registration.Status.VERIFIED
-    assert ambassador_reg.priority == -1
+    assert ambassador_reg.status == Registration.Status.PAUSED
+    assert ambassador_reg.priority == 0  # unchanged on pause
 
     referee_reg.refresh_from_db()
-    assert referee_reg.flake_count == 1
-    assert referee_reg.status == Registration.Status.VERIFIED
-    assert referee_reg.priority == -1
+    assert referee_reg.status == Registration.Status.PAUSED
+    assert referee_reg.priority == 0  # unchanged on pause
 
 
-def test_lapsed_ambassador_accepted_gets_front_referee_flaked() -> None:
-    """Lapsed match, ambassador accepted → ambassador to front, referee flaked."""
+def test_lapsed_ambassador_accepted_gets_front_referee_paused() -> None:
+    """Lapsed match, ambassador accepted → ambassador to front, referee paused."""
     ambassador_reg = RegistrationFactory.create(
         status=Registration.Status.VERIFIED,
         priority=0,
-        flake_count=0,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
         status=Registration.Status.VERIFIED,
         priority=0,
-        flake_count=0,
     )
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -99,28 +100,24 @@ def test_lapsed_ambassador_accepted_gets_front_referee_flaked() -> None:
     assert match.status == Match.Status.EXPIRED
 
     ambassador_reg.refresh_from_db()
-    assert ambassador_reg.flake_count == 0  # kept faith — no flake
     assert ambassador_reg.status == Registration.Status.VERIFIED
     assert ambassador_reg.priority == 1  # front: priority += 1
 
     referee_reg.refresh_from_db()
-    assert referee_reg.flake_count == 1
-    assert referee_reg.status == Registration.Status.VERIFIED
-    assert referee_reg.priority == -1
+    assert referee_reg.status == Registration.Status.PAUSED
+    assert referee_reg.priority == 0  # unchanged
 
 
-def test_lapsed_referee_accepted_gets_front_ambassador_flaked() -> None:
-    """Lapsed match, referee accepted → referee to front, ambassador flaked."""
+def test_lapsed_referee_accepted_gets_front_ambassador_paused() -> None:
+    """Lapsed match, referee accepted → referee to front, ambassador paused."""
     ambassador_reg = RegistrationFactory.create(
         status=Registration.Status.VERIFIED,
         priority=0,
-        flake_count=0,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
         status=Registration.Status.VERIFIED,
         priority=0,
-        flake_count=0,
     )
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -139,12 +136,10 @@ def test_lapsed_referee_accepted_gets_front_ambassador_flaked() -> None:
     assert match.status == Match.Status.EXPIRED
 
     ambassador_reg.refresh_from_db()
-    assert ambassador_reg.flake_count == 1
-    assert ambassador_reg.status == Registration.Status.VERIFIED
-    assert ambassador_reg.priority == -1
+    assert ambassador_reg.status == Registration.Status.PAUSED
+    assert ambassador_reg.priority == 0  # unchanged
 
     referee_reg.refresh_from_db()
-    assert referee_reg.flake_count == 0  # kept faith — no flake
     assert referee_reg.status == Registration.Status.VERIFIED
     assert referee_reg.priority == 1  # front: priority += 1
 
@@ -185,13 +180,11 @@ def test_idempotency_second_run_returns_zero() -> None:
     ambassador_reg = RegistrationFactory.create(
         status=Registration.Status.VERIFIED,
         priority=0,
-        flake_count=0,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
         status=Registration.Status.VERIFIED,
         priority=0,
-        flake_count=0,
     )
     MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -207,17 +200,17 @@ def test_idempotency_second_run_returns_zero() -> None:
     # Capture state after first run.
     ambassador_reg.refresh_from_db()
     referee_reg.refresh_from_db()
-    amb_priority_after_first = ambassador_reg.priority
-    ref_priority_after_first = referee_reg.priority
+    assert ambassador_reg.status == Registration.Status.PAUSED
+    assert referee_reg.status == Registration.Status.PAUSED
 
     second_count = expire_lapsed_matches()
     assert second_count == 0
 
-    # DB state must be identical to after the first run.
+    # DB state is unchanged (no double-pause).
     ambassador_reg.refresh_from_db()
     referee_reg.refresh_from_db()
-    assert ambassador_reg.priority == amb_priority_after_first
-    assert referee_reg.priority == ref_priority_after_first
+    assert ambassador_reg.status == Registration.Status.PAUSED
+    assert referee_reg.status == Registration.Status.PAUSED
 
 
 def test_state_transition_log_written_for_proposed_to_expired() -> None:
@@ -243,33 +236,51 @@ def test_state_transition_log_written_for_proposed_to_expired() -> None:
     assert log.state_after == Match.Status.EXPIRED
 
 
-def test_second_flake_suspends_registration() -> None:
-    """Second flake (flake_count 1→2) suspends the registration."""
-    # Registration already has one flake on record.
-    ambassador_reg = RegistrationFactory.create(
-        status=Registration.Status.VERIFIED,
-        priority=0,
-        flake_count=1,
-    )
-    referee_reg = RegistrationFactory.create(
-        referee=True,
-        status=Registration.Status.VERIFIED,
-        priority=0,
-        flake_count=0,
-    )
+def test_expiry_email_sent_to_non_responders() -> None:
+    """A window-expired notification is sent to each non-responding party on commit."""
+    from django.core import mail
+
+    ambassador_reg = RegistrationFactory.create(priority=0)
+    referee_reg = RegistrationFactory.create(referee=True, priority=0)
     MatchFactory.create(
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
         expires_at=_PAST,
-        ambassador_accepted_at=None,  # ambassador did not accept → second flake
+        ambassador_accepted_at=None,
         referee_accepted_at=None,
     )
 
-    expire_lapsed_matches()
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        expire_lapsed_matches()
 
-    ambassador_reg.refresh_from_db()
-    assert ambassador_reg.flake_count == 2
-    assert ambassador_reg.status == Registration.Status.SUSPENDED
+    # Both parties are non-responders — each receives a notification.
+    assert len(mail.outbox) == 2
+    recipients = {msg.to[0] for msg in mail.outbox}
+    assert ambassador_reg.user.email in recipients
+    assert referee_reg.user.email in recipients
+
+
+def test_no_expiry_email_for_faithful_party() -> None:
+    """No expiry email is sent to the faithful party (they are re-queued, not paused)."""
+    from django.core import mail
+
+    ambassador_reg = RegistrationFactory.create(priority=0)
+    referee_reg = RegistrationFactory.create(referee=True, priority=0)
+    MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+        expires_at=_PAST,
+        ambassador_accepted_at=_PAST,  # ambassador accepted; referee did not
+        referee_accepted_at=None,
+        status=Match.Status.PENDING,
+    )
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        expire_lapsed_matches()
+
+    # Only the referee (non-responder) gets the email.
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == [referee_reg.user.email]
 
 
 def test_concurrency_skip_when_match_no_longer_proposed() -> None:
@@ -277,7 +288,7 @@ def test_concurrency_skip_when_match_no_longer_proposed() -> None:
 
     Simulates a race: lapsed() returns the PK, but by the time the sweep does
     the locked re-fetch the match has already been transitioned (e.g. accepted
-    just before the sweep locked it). The ``if match.status != PROPOSED:
+    just before the sweep locked it). The ``if match.status not in PROPOSED/PENDING:
     continue`` guard must skip the match without mutating anything.
     """
     match = MatchFactory.create(
@@ -291,8 +302,7 @@ def test_concurrency_skip_when_match_no_longer_proposed() -> None:
     Match.objects.filter(pk=match_pk).update(status=Match.Status.DECLINED)
 
     # Patch lapsed() so it still returns this PK as if the race happened
-    # between the initial PK query and the locked re-fetch.  We use
-    # Match.objects.filter to produce a real queryset with the correct PK.
+    # between the initial PK query and the locked re-fetch.
     fake_qs = Match.objects.filter(pk=match_pk)
 
     log_count_before = StateTransitionLog.objects.count()
@@ -314,17 +324,17 @@ def test_per_match_exception_isolation_continues_sweep(
 ) -> None:
     """An exception mid-sweep is isolated: the remaining matches are still processed.
 
-    Creates two lapsed PROPOSED matches. Patches record_flake_and_requeue to
-    raise on the first call only (simulating a DB or logic failure). The second
-    match must still be transitioned to EXPIRED and re-queued; the failed match
-    is left untouched. expire_lapsed_matches returns 1 (the successfully
-    processed match) and logs the error.
+    Creates two lapsed PROPOSED matches. Patches pause_registration to raise
+    on the first call only (simulating a DB or logic failure). The second match
+    must still be transitioned to EXPIRED and paused; the failed match is left
+    untouched. expire_lapsed_matches returns 1 (the successfully processed
+    match) and logs the error.
     """
     ambassador_reg_1 = RegistrationFactory.create(
-        status=Registration.Status.VERIFIED, priority=0, flake_count=0
+        status=Registration.Status.VERIFIED, priority=0
     )
     referee_reg_1 = RegistrationFactory.create(
-        referee=True, status=Registration.Status.VERIFIED, priority=0, flake_count=0
+        referee=True, status=Registration.Status.VERIFIED, priority=0
     )
     match_1 = MatchFactory.create(
         ambassador_registration=ambassador_reg_1,
@@ -335,10 +345,10 @@ def test_per_match_exception_isolation_continues_sweep(
     )
 
     ambassador_reg_2 = RegistrationFactory.create(
-        status=Registration.Status.VERIFIED, priority=0, flake_count=0
+        status=Registration.Status.VERIFIED, priority=0
     )
     referee_reg_2 = RegistrationFactory.create(
-        referee=True, status=Registration.Status.VERIFIED, priority=0, flake_count=0
+        referee=True, status=Registration.Status.VERIFIED, priority=0
     )
     match_2 = MatchFactory.create(
         ambassador_registration=ambassador_reg_2,
@@ -348,11 +358,11 @@ def test_per_match_exception_isolation_continues_sweep(
         referee_accepted_at=None,
     )
 
-    # Fail on the first call to record_flake_and_requeue, succeed thereafter.
+    # Fail on the first call to pause_registration, succeed thereafter.
     _call_count = {"n": 0}
-    _real = record_flake_and_requeue
+    _real = pause_registration
 
-    def _failing_requeue(registration: Registration) -> None:
+    def _failing_pause(registration: Registration) -> None:
         """Raise on the first invocation; delegate to the real function after."""
         _call_count["n"] += 1
         if _call_count["n"] == 1:
@@ -361,7 +371,7 @@ def test_per_match_exception_isolation_continues_sweep(
 
     import matching.services as _svc
 
-    with patch.object(_svc, "record_flake_and_requeue", _failing_requeue):
+    with patch.object(_svc, "pause_registration", _failing_pause):
         with caplog.at_level("ERROR", logger="matching.services"):
             count = expire_lapsed_matches()
 
@@ -431,13 +441,11 @@ def test_expire_matches_command_expires_lapsed_match() -> None:
     ambassador_reg = RegistrationFactory.create(
         status=Registration.Status.VERIFIED,
         priority=0,
-        flake_count=0,
     )
     referee_reg = RegistrationFactory.create(
         referee=True,
         status=Registration.Status.VERIFIED,
         priority=0,
-        flake_count=0,
     )
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,

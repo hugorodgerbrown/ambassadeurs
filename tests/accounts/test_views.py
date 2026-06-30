@@ -1154,3 +1154,61 @@ def test_detail_pii_hidden_for_proposed_match() -> None:
     assert b"SecretSurname" not in response.content
     assert ref_reg.user.email.encode() not in response.content
     assert ref_reg.phone.encode() not in response.content
+
+
+# ---------------------------------------------------------------------------
+# account_rejoin_queue (VERB-74 / ADR 0013)
+# ---------------------------------------------------------------------------
+
+
+def test_rejoin_queue_post_paused_transitions_to_verified() -> None:
+    """POST to rejoin_queue with a PAUSED registration transitions it to VERIFIED."""
+    reg = RegistrationFactory.create(status=Registration.Status.PAUSED)
+    client = Client()
+    client.force_login(reg.user)
+    response = client.post(reverse("accounts:rejoin_queue"))
+    assert response.status_code == 302
+    assert response.url == reverse("accounts:detail")
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.VERIFIED
+
+
+def test_rejoin_queue_get_redirects_to_detail() -> None:
+    """GET to rejoin_queue always redirects without performing any action."""
+    reg = RegistrationFactory.create(status=Registration.Status.PAUSED)
+    client = Client()
+    client.force_login(reg.user)
+    response = client.get(reverse("accounts:rejoin_queue"))
+    assert response.status_code == 302
+    assert response.url == reverse("accounts:detail")
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.PAUSED  # unchanged
+
+
+def test_rejoin_queue_non_paused_registration_redirects_without_change() -> None:
+    """POST for a VERIFIED registration redirects without changing status."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED)
+    client = Client()
+    client.force_login(reg.user)
+    response = client.post(reverse("accounts:rejoin_queue"))
+    assert response.status_code == 302
+    assert response.url == reverse("accounts:detail")
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.VERIFIED
+
+
+def test_rejoin_queue_no_registration_redirects() -> None:
+    """POST by a user with no Registration redirects to accounts:detail."""
+    user = UserFactory.create()
+    client = Client()
+    client.force_login(user)
+    response = client.post(reverse("accounts:rejoin_queue"))
+    assert response.status_code == 302
+    assert response.url == reverse("accounts:detail")
+
+
+def test_rejoin_queue_login_required() -> None:
+    """Unauthenticated request to rejoin_queue redirects to login."""
+    response = Client().post(reverse("accounts:rejoin_queue"))
+    assert response.status_code == 302
+    assert "/login/" in response.url

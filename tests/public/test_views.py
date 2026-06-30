@@ -1171,16 +1171,16 @@ def test_match_detail_htmx_second_accept_shows_accepted_state_and_pii() -> None:
 
 
 def test_match_detail_htmx_decline_shows_declined_state() -> None:
-    """HTMX decline → DECLINED state; decliner deleted, other party re-queued."""
-    from django.contrib.auth.models import User
+    """HTMX decline → DECLINED state; decliner paused, other party re-queued.
 
+    VERB-74: declining now pauses the decliner's registration (not deletes it).
+    """
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
         status=Registration.Status.VERIFIED,
         priority=0,
     )
-    ambassador_user_pk = ambassador_reg.user.pk
     referee_reg = RegistrationFactory.create(
         referee=True,
         status=Registration.Status.VERIFIED,
@@ -1198,21 +1198,23 @@ def test_match_detail_htmx_decline_shows_declined_state() -> None:
     match.refresh_from_db()
     assert match.status == Match.Status.DECLINED
 
-    # Decliner (ambassador) is deleted; other party (referee) is re-queued to front.
-    assert not User.objects.filter(pk=ambassador_user_pk).exists()
+    # Decliner (ambassador) is paused; other party (referee) is re-queued to front.
+    ambassador_reg.refresh_from_db()
+    assert ambassador_reg.status == Registration.Status.PAUSED
     referee_reg.refresh_from_db()
     assert referee_reg.status == Registration.Status.VERIFIED
     assert referee_reg.priority == 1
 
     content = response.content.decode()
-    assert "declined" in content.lower()
+    assert "paused" in content.lower()
 
 
-def test_match_detail_htmx_decline_decliner_sees_removed_message() -> None:
-    """HTMX decline partial shows the 'registration removed' message to the decliner.
+def test_match_detail_htmx_decline_decliner_sees_paused_message() -> None:
+    """HTMX decline partial shows the 'registration paused' message to the decliner.
 
-    The partial's DECLINED branch splits on match.declined_by == side. The
-    decliner (ambassador here) should see the removed message and re-register link.
+    VERB-74: the partial's DECLINED branch splits on match.declined_by == side.
+    The decliner (ambassador here) should see the paused message with a link
+    to their account page (not a re-register link).
     """
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
@@ -1233,10 +1235,13 @@ def test_match_detail_htmx_decline_decliner_sees_removed_message() -> None:
 
     assert response.status_code == 200
     assert "public/partials/match_actions.html" in [t.name for t in response.templates]
-    # The decliner's branch renders a re-register link (structural URL check,
+    # The decliner's branch renders a link to the account page (structural URL check,
     # independent of translation).
+    account_url = reverse("accounts:detail")
+    assert account_url.encode() in response.content
+    # The old re-register link must not appear.
     register_url = reverse("public:register")
-    assert register_url.encode() in response.content
+    assert register_url.encode() not in response.content
     # The match must be DECLINED in the database.
     match.refresh_from_db()
     assert match.status == Match.Status.DECLINED
@@ -1289,8 +1294,8 @@ def test_match_detail_htmx_decline_counterpart_sees_requeued_message() -> None:
     assert register_btn_fragment not in response.content
 
 
-def test_match_removed_page_has_register_link() -> None:
-    """match_removed.html renders a link to the registration page."""
+def test_match_removed_page_has_account_link() -> None:
+    """match_removed.html renders a link to the account page (VERB-74: paused, not deleted)."""
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
@@ -1310,14 +1315,22 @@ def test_match_removed_page_has_register_link() -> None:
 
     assert response.status_code == 200
     assert "public/match_removed.html" in [t.name for t in response.templates]
-    assert reverse("public:register").encode() in response.content
+    # The CTA button must link to the account page.
+    account_url = reverse("accounts:detail")
+    assert f'href="{account_url}" class="btn btn--role"'.encode() in response.content
 
 
-def test_register_participant_prior_decline_count_set_on_reregistration() -> None:
-    """After declining (which deletes registration), re-registration carries count=1."""
+def test_declining_pauses_registration_not_deletes_it() -> None:
+    """Declining a match pauses the decliner's registration (VERB-74: no deletion).
+
+    The registration is retained in PAUSED status; the user account is preserved.
+    This replaces test_register_participant_prior_decline_count_set_on_reregistration
+    which tested the now-retired account-deletion-on-decline path.
+    """
+    from django.contrib.auth.models import User as DjangoUser
+
     from matching.services import decline_match as svc_decline_match
 
-    # Create a matched pair — the ambassador will decline.
     referee_reg = RegistrationFactory.create(referee=True)
     ambassador_reg = register_participant(
         role=Registration.Role.AMBASSADOR,
@@ -1326,7 +1339,6 @@ def test_register_participant_prior_decline_count_set_on_reregistration() -> Non
         email="ada_view_reregister@example.com",
         prior_pass=Registration.PriorPass.SEASONAL,
     )
-    ambassador_email = ambassador_reg.user.email
 
     from matching.models import Match
 
@@ -1336,15 +1348,12 @@ def test_register_participant_prior_decline_count_set_on_reregistration() -> Non
     )
     svc_decline_match(match, ambassador_reg)
 
-    # Re-register with the same email.
-    new_reg = register_participant(
-        role=Registration.Role.AMBASSADOR,
-        first_name="Ada",
-        last_name="Lovelace",
-        email=ambassador_email,
-        prior_pass=Registration.PriorPass.SEASONAL,
-    )
-    assert new_reg.prior_decline_count == 1
+    # Registration must still exist — just PAUSED.
+    ambassador_reg.refresh_from_db()
+    assert ambassador_reg.status == Registration.Status.PAUSED
+
+    # User account must also still exist.
+    assert DjangoUser.objects.filter(pk=ambassador_reg.user_id).exists()
 
 
 def test_match_accept_requires_htmx() -> None:

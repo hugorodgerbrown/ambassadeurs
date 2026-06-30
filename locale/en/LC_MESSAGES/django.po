@@ -817,12 +817,12 @@ msgstr ""
 msgid "How do I apply?"
 msgstr ""
 
+#, python-format
 msgid ""
 "Download the application form, fill it in together with your partner, and "
-"email it to customer@televerbier.ch (Téléverbier). Both parties must sign "
-"the form and provide proof of identity (passport or national ID card) and a "
-"digital passport photo. If applying by email these can be photograph "
-"attachments."
+"email it to %(email)s (Téléverbier). Both parties must sign the form and "
+"provide proof of identity (passport or national ID card) and a digital "
+"passport photo. If applying by email these can be photograph attachments."
 msgstr ""
 
 msgid "Download application form"

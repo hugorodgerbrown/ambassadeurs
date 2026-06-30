@@ -46,11 +46,11 @@
 
         <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "How do I apply?" %}</h2>
         <p>
-            {% blocktranslate trimmed %}
+            {% blocktranslate trimmed with email="customer@televerbier.ch" %}
                 Download the application form, fill it in together with your partner, and email it to
-                customer@televerbier.ch (Téléverbier). Both parties must sign the form and provide proof of identity
-                (passport or national ID card) and a digital passport photo. If applying by email these can be
-                photograph attachments.
+                {{ email }} (Téléverbier). Both parties must sign the form and provide proof of identity (passport or
+                national ID card) and a digital passport photo. If applying by email these can be photograph
+                attachments.
             {% endblocktranslate %}
         </p>
         <p>

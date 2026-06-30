@@ -6,12 +6,26 @@ this template only supplies the label, required marker, hint and errors.
 Context: field — a bound form field. When the field is disabled (the view sets
 field.disabled, e.g. an already-registered user revisiting the form) the wrapper
 gains .field--disabled so the label and hint mute to match the greyed control.
+
+WCAG 2.1 AA notes:
+- Every input has an explicit <label for="{{ field.id_for_label }}"> association.
+- Hint text and error messages carry stable id attributes so callers can wire
+  aria-describedby on the widget if needed; the ids follow the pattern
+  id_<fieldname>-hint and id_<fieldname>-error.
+- Required fields: the asterisk is aria-hidden (decorative); required is
+  communicated semantically by the widget's own required attribute (Django
+  sets this automatically for required fields rendered as HTML5 inputs).
+- Error paragraphs carry role="alert" so they are announced on injection.
 {% endcomment %}
 <div class="field{% if field.field.disabled %} field--disabled{% endif %}">
     <label class="field__label" for="{{ field.id_for_label }}">
-        {{ field.label }}{% if field.field.required %} <span class="field__req">*</span>{% endif %}
+        {{ field.label }}{% if field.field.required %} <span class="field__req" aria-hidden="true">*</span>{% endif %}
     </label>
     {{ field }}
-    {% if field.help_text %}<p class="field__hint">{{ field.help_text }}</p>{% endif %}
-    {% for error in field.errors %}<p class="field__hint text-danger">{{ error }}</p>{% endfor %}
+    {% if field.help_text %}
+        <p class="field__hint" id="{{ field.id_for_label }}-hint">{{ field.help_text }}</p>
+    {% endif %}
+    {% for error in field.errors %}
+        <p class="field__hint text-danger" id="{{ field.id_for_label }}-error" role="alert">{{ error }}</p>
+    {% endfor %}
 </div>

@@ -40,6 +40,14 @@
         <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
     </head>
     <body class="min-h-screen bg-page text-body">
+        {% comment %}
+        Skip-navigation link — the first focusable element in the page. Hidden
+        off-screen until focused; becomes visible on :focus-visible so keyboard
+        and switch-access users can jump past the nav to #main content. The
+        .skip-link class in src/css/main.css positions it absolutely, clips it
+        off-screen, then slides it into view on :focus-visible.
+        {% endcomment %}
+        <a href="#main" class="skip-link">{% translate "Skip to main content" %}</a>
         {% comment %}Role tone-cue band, pinned above the nav. Role-themed pages fill this block; on public pages it stays empty.{% endcomment %}
         {% block topband %}{% endblock %}
         {% comment %}
@@ -53,7 +61,7 @@
             {% include "includes/nav.html" %}
             {% block hero %}{% endblock %}
         </div>
-        <main class="mx-auto max-w-3xl px-4 py-10">
+        <main id="main" class="mx-auto max-w-3xl px-4 py-10">
             {% block content %}{% endblock %}
         </main>
         {% include "includes/footer.html" %}

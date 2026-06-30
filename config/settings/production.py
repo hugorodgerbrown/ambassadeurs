@@ -22,6 +22,10 @@ DATABASES = {
 }
 
 # WhiteNoise with hashed, compressed filenames for cache-busting.
+# CompressedManifestStaticFilesStorage appends a content hash to every
+# filename, so WhiteNoise serves those files with
+# Cache-Control: max-age=31536000, immutable automatically — no
+# WHITENOISE_MAX_AGE override is required.
 STORAGES["staticfiles"] = {  # noqa: F405
     "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
 }

@@ -10,33 +10,6 @@ from django.utils.translation import gettext_lazy as _
 from .models import Match, Registration
 
 
-class HasFlakesListFilter(admin.SimpleListFilter):
-    """Filter registrations by whether they have at least one recorded flake."""
-
-    title = _("has flakes")
-    parameter_name = "has_flakes"
-
-    def lookups(
-        self, request: HttpRequest, model_admin: admin.ModelAdmin
-    ) -> list[tuple[str, str]]:
-        """Return the Yes/No filter options, reusing Django's built-in translations."""
-        # Reuse Django's own translated "Yes"/"No" (present in Django's locale
-        # files) so no new catalogue entries are needed in this project.
-        # _StrPromise is str-compatible at runtime; mypy treats them as distinct.
-        return [
-            ("yes", _("Yes")),  # type: ignore[list-item]
-            ("no", _("No")),  # type: ignore[list-item]
-        ]
-
-    def queryset(self, request: HttpRequest, queryset: Any) -> Any:
-        """Apply the flake filter to the queryset."""
-        if self.value() == "yes":
-            return queryset.filter(flake_count__gt=0)
-        if self.value() == "no":
-            return queryset.filter(flake_count=0)
-        return queryset
-
-
 @admin.action(description=_("Export selected cancelled matches as CSV"))
 def export_cancelled_as_csv(
     model_admin: admin.ModelAdmin,
@@ -93,8 +66,6 @@ class RegistrationAdmin(admin.ModelAdmin):
         "role",
         "prior_pass",
         "status",
-        "flake_count",
-        "prior_decline_count",
         "priority",
         "preferred_location",
         "nationality",
@@ -108,12 +79,10 @@ class RegistrationAdmin(admin.ModelAdmin):
         "prior_pass",
         "preferred_location",
         "nationality",
-        HasFlakesListFilter,
     ]
     search_fields = ["user__email", "user__first_name", "user__last_name"]
     raw_id_fields = ["user"]
     readonly_fields = [
-        "prior_decline_count",
         "accepted_terms",
         "terms_accepted_at",
         "registration_country",
@@ -150,7 +119,6 @@ class MatchAdmin(admin.ModelAdmin):
         "referee_accepted_at",
         "declined_by",
         "declined_at",
-        "declined_by_email_hash",
         "no_show_reported_by",
         "no_show_reported_at",
         "created_at",

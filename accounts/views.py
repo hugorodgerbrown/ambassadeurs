@@ -43,6 +43,7 @@ from core.emails import normalise_email
 from core.ratelimit import rate_limited_response
 from matching.models import Match, Registration
 from matching.services import queue_position as get_queue_position
+from matching.services import rejoin_queue
 from public.views import _render_match_page
 
 from .forms import AccountForm
@@ -86,6 +87,7 @@ def _match_status_pill(
     pills: dict[str, tuple[str, str]] = {
         Registration.Status.UNVERIFIED: (_("Unverified"), "muted"),
         Registration.Status.VERIFIED: (_("Queued"), "muted"),
+        Registration.Status.PAUSED: (_("Paused"), "muted"),
         Registration.Status.WITHDRAWN: (_("Withdrawn"), "muted"),
         Registration.Status.SUSPENDED: (_("Suspended"), "muted"),
     }
@@ -293,6 +295,14 @@ def account_detail(request: HttpRequest) -> HttpResponse:
     ):
         position = get_queue_position(registration)
 
+    # can_rejoin — True when the registration is PAUSED and there is no active
+    # match (the normal case after a decline or expiry).
+    can_rejoin = (
+        registration is not None
+        and registration.status == Registration.Status.PAUSED
+        and active_match is None
+    )
+
     return render(
         request,
         "accounts/detail.html",
@@ -305,6 +315,7 @@ def account_detail(request: HttpRequest) -> HttpResponse:
             "partner_first_name": partner_first_name,
             "partner_accepted": partner_accepted,
             "queue_position": position,
+            "can_rejoin": can_rejoin,
         },
     )
 
@@ -437,3 +448,30 @@ def account_match(request: HttpRequest) -> HttpResponse:
     # in-window (valid for CONTACT_WINDOW_HOURS), satisfying Invariant 6.
     token = make_match_access_token(match.pk, registration.pk)
     return _render_match_page(request, match, registration, side, token=token)
+
+
+@login_required
+def account_rejoin_queue(request: HttpRequest) -> HttpResponse:
+    """Re-activate a PAUSED registration and attempt an immediate match.
+
+    POST-only. Loads the authenticated user's PAUSED registration and calls
+    ``rejoin_queue``, which transitions it to VERIFIED (priority -= 1) and
+    attempts a match proposal. Non-POST requests and non-PAUSED registrations
+    both redirect to ``accounts:detail`` without action.
+
+    The view mirrors ``account_resend_confirmation`` in shape (guard →
+    redirect pattern, no messages).
+    """
+    if request.method != "POST":
+        return redirect("accounts:detail")
+
+    user = cast(User, request.user)
+    try:
+        registration = Registration.objects.get(
+            user=user, status=Registration.Status.PAUSED
+        )
+    except Registration.DoesNotExist:
+        return redirect("accounts:detail")
+
+    rejoin_queue(registration)
+    return redirect("accounts:detail")

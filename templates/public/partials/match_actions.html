@@ -56,8 +56,8 @@ Context:
         <p class="mb-3.5 text-small text-body">
             {% blocktranslate trimmed with partner=partner %}
                 Once you accept your contact details will be shared with your partner. If you choose not to accept (by
-                declining, or not responding in time), your registration will be cancelled and you will need to
-                re-register.
+                declining, or not responding in time), your registration will be paused — you can rejoin the queue
+                from your account page whenever you are ready.
             {% endblocktranslate %}
         </p>
         {% if show_deadline %}
@@ -484,19 +484,19 @@ Context:
         </a>
     </div>
 {% elif view == "declined_you" %}
-    {% comment %}Viewer declined — registration removed.{% endcomment %}
+    {% comment %}Viewer declined — registration paused (not deleted, VERB-74).{% endcomment %}
     <div class="card">
         <h2 class="mb-2 font-display text-[1.18rem] font-bold tracking-[-0.01em] text-ink">
-            {% translate "Registration removed" %}
+            {% translate "Registration paused" %}
         </h2>
         <p class="mb-4 text-small text-body">
             {% blocktranslate trimmed %}
-                You declined this match, so we've taken you out of the queue. No hard feelings — re-register whenever
-                you'd like to be matched with someone new.
+                You declined this match, so your registration is now paused. No hard feelings — rejoin the queue from
+                your account page whenever you are ready to be matched with someone new.
             {% endblocktranslate %}
         </p>
-        <a href="{% url 'public:register' %}" class="btn btn--primary">
-            {% translate "Re-register" %}
+        <a href="{% url 'accounts:detail' %}" class="btn btn--primary">
+            {% translate "Go to my account" %}
             <svg
                 width="16"
                 height="16"
@@ -556,19 +556,22 @@ Context:
         </p>
     </div>
 {% else %}
-    {% comment %}EXPIRED — window closed (or a PROPOSED match whose window lapsed).{% endcomment %}
+    {% comment %}
+        EXPIRED — window closed. Non-responders are paused (VERB-74 / ADR 0013);
+        the faithful party was re-queued to the front automatically.
+    {% endcomment %}
     <div class="card">
         <h2 class="mb-2 font-display text-[1.18rem] font-bold tracking-[-0.01em] text-ink">
             {% translate "This match expired" %}
         </h2>
         <p class="mb-4 text-small text-body">
             {% blocktranslate trimmed %}
-                The window closed before you both accepted, so this match has expired. You've gone back in the queue and
-                we'll pair you with someone new shortly.
+                The window closed before you both accepted, so this match has expired. Your registration is now paused
+                — rejoin the queue from your account page whenever you are ready.
             {% endblocktranslate %}
         </p>
         <a href="{% url 'accounts:detail' %}" class="btn btn--primary">
-            {% translate "Back to my status" %}
+            {% translate "Go to my account" %}
             <svg
                 width="16"
                 height="16"

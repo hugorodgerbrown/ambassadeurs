@@ -271,11 +271,12 @@ def test_counterpart_decline_transitions_match_to_declined() -> None:
 
 
 @override_settings(DEBUG=True)
-def test_counterpart_decline_deletes_counterpart_and_requeues_user() -> None:
-    """counterpart_decline deletes the counterpart and re-queues the user.
+def test_counterpart_decline_pauses_counterpart_and_requeues_user() -> None:
+    """counterpart_decline pauses the counterpart and re-queues the kept-faith user.
 
-    The counterpart (decliner) has their User and Registration deleted; the
-    matched user (kept-faith party) is re-queued to the front of the pool.
+    VERB-74: declining no longer deletes the User/Registration — instead the
+    decliner is paused (PAUSED status). The kept-faith party is re-queued to
+    the front of the pool (priority +1).
     """
     user = UserFactory.create()
     my_reg = RegistrationFactory.create(
@@ -287,7 +288,6 @@ def test_counterpart_decline_deletes_counterpart_and_requeues_user() -> None:
         role=Registration.Role.REFEREE,
         priority=0,
     )
-    counterpart_user_pk = counterpart_reg.user.pk
     MatchFactory.create(
         ambassador_registration=my_reg,
         referee_registration=counterpart_reg,
@@ -297,11 +297,9 @@ def test_counterpart_decline_deletes_counterpart_and_requeues_user() -> None:
     client = _authenticated_client(user)
     client.post(reverse("debug:counterpart_decline"))
 
-    from django.contrib.auth.models import User as DjangoUser
-
-    # The counterpart (decliner) is deleted.
-    assert not DjangoUser.objects.filter(pk=counterpart_user_pk).exists()
-    assert not Registration.objects.filter(pk=counterpart_reg.pk).exists()
+    # The counterpart (decliner) is paused — not deleted.
+    counterpart_reg.refresh_from_db()
+    assert counterpart_reg.status == Registration.Status.PAUSED
 
     # The kept-faith user is re-queued to the front (priority +1).
     my_reg.refresh_from_db()

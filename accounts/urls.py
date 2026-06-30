@@ -24,6 +24,7 @@ urlpatterns = [
     path("edit/", views.account_edit, name="edit"),
     path("delete/", views.account_delete, name="delete"),
     path("match/", views.account_match, name="match"),
+    path("rejoin/", views.account_rejoin_queue, name="rejoin_queue"),
     path(
         "resend-confirmation/",
         views.account_resend_confirmation,

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 13:39+0200\n"
+"POT-Creation-Date: 2026-06-30 15:36+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -41,6 +41,9 @@ msgid "Accepted"
 msgstr ""
 
 msgid "Unverified"
+msgstr ""
+
+msgid "Paused"
 msgstr ""
 
 msgid "Withdrawn"
@@ -98,15 +101,6 @@ msgid "Decline as counterpart"
 msgstr ""
 
 msgid "Log in as counterpart"
-msgstr ""
-
-msgid "has flakes"
-msgstr ""
-
-msgid "Yes"
-msgstr ""
-
-msgid "No"
 msgstr ""
 
 msgid "Export selected cancelled matches as CSV"
@@ -182,6 +176,22 @@ msgid "Expired"
 msgstr ""
 
 msgid "Cancelled"
+msgstr ""
+
+msgid "Your match has expired — rejoin the queue when you're ready"
+msgstr ""
+
+#, python-format
+msgid ""
+"The contact window for your recent match in the 4 Vallées Ambassadors "
+"Program has closed because the match was not confirmed in time.\n"
+"\n"
+"Your registration is now paused. When you are ready to be matched again, "
+"visit your account page and click \"Rejoin the queue\":\n"
+"\n"
+"%(url)s\n"
+"\n"
+"If you did not register for this programme, please ignore this email."
 msgstr ""
 
 msgid "You have been matched — 4 Vallées Ambassadors Program"
@@ -435,6 +445,14 @@ msgstr ""
 msgid "You are in the queue. We'll email you when a match is found."
 msgstr ""
 
+msgid ""
+"Your registration is paused — you are not currently in the matching queue. "
+"Rejoin whenever you are ready."
+msgstr ""
+
+msgid "Rejoin the queue"
+msgstr ""
+
 msgid "Your registration has been withdrawn."
 msgstr ""
 
@@ -452,7 +470,7 @@ msgstr ""
 msgid "Register now"
 msgstr ""
 
-msgid "Ski Parrainage | 4 Vallées Ambassadors"
+msgid "Ski Parrainage &middot; 2026/27"
 msgstr ""
 
 msgid "Skip to main content"
@@ -554,9 +572,6 @@ msgid ""
 msgstr ""
 
 msgid "Main navigation"
-msgstr ""
-
-msgid "Ski Parrainage &middot; 2026/27"
 msgstr ""
 
 msgid "Menu"
@@ -672,10 +687,10 @@ msgid "What happens if I miss the contact window?"
 msgstr ""
 
 msgid ""
-"If you do not respond within the window, the match expires and your account "
-"will be deleted on the basis that you are no longer interested. You are "
-"welcome to re-register if you wish to try again. Your partner, if they "
-"accepted the match, returns to the front of the queue."
+"If you do not respond within the window, the match expires and your "
+"registration is paused. You can rejoin the queue from your account page "
+"whenever you are ready. Your partner, if they accepted the match, returns to "
+"the front of the queue."
 msgstr ""
 
 msgid "What happens if my partner misses the contact window?"
@@ -706,7 +721,7 @@ msgstr ""
 msgid ""
 "If your partner fails to follow through after mutual acceptance you can "
 "report them as a no-show. The report is acted on immediately: you re-enter "
-"the queue at the front, and your partner's registration is deleted."
+"the queue at the front, and your partner's registration is suspended."
 msgstr ""
 
 msgid "Does this site handle the application form or pass purchase?"
@@ -720,15 +735,6 @@ msgid ""
 msgstr ""
 
 msgid "Read how it works"
-msgstr ""
-
-msgid "4 Vallées Ambassadors"
-msgstr ""
-
-msgid ""
-"Find your season-pass partner for the 4 Vallées Ambassadors Program. "
-"Register once — we match Ambassadors with Referees automatically. No "
-"scramble, no Facebook group, no ghosting."
 msgstr ""
 
 msgid ""
@@ -940,24 +946,27 @@ msgstr ""
 msgid ""
 "Once both parties accept the match, each receives the other's contact "
 "details. They then arrange to fill in the application form and submit the "
-"application. If either party declines or the acceptance window lapses, both "
-"re-enter the queue and the system proposes a new match."
+"application. If either party declines, or the acceptance window lapses, "
+"their registration is paused — they can rejoin the queue from their account "
+"page whenever they are ready, and the system proposes a new match."
 msgstr ""
 
 msgid "What happens if I miss the match confirmation window?"
 msgstr ""
 
 msgid ""
-"If you are matched but you miss the confirmation window, then the match is "
-"cancelled, and you will go to the back of the queue."
+"If you are matched but you miss the confirmation window, the match expires "
+"and your registration is paused. You can rejoin the queue from your account "
+"page whenever you are ready."
 msgstr ""
 
 msgid "What happens if my partner misses the confirmation window?"
 msgstr ""
 
 msgid ""
-"If you are matched but your partner misses the confirmation window, then the "
-"match is cancelled, and you will go to the front of the queue."
+"If you are matched but your partner misses the confirmation window, the "
+"match expires and you are moved to the front of the queue. The system will "
+"propose a new match for you as soon as an eligible partner is available."
 msgstr ""
 
 msgid "How long is the confirmation window?"
@@ -1108,6 +1117,16 @@ msgid ""
 "donations are welcome."
 msgstr ""
 
+msgid ""
+"If a user declines a match, their registration is paused — they may rejoin "
+"the queue from their account page."
+msgstr ""
+
+msgid ""
+"If a user does not respond in time, their registration is paused — they may "
+"rejoin the queue from their account page."
+msgstr ""
+
 msgid "Your responsibilities"
 msgstr ""
 
@@ -1119,8 +1138,8 @@ msgid "Respond to a match within 72 hours — accept or decline."
 msgstr ""
 
 msgid ""
-"If you do not respond in time, your match is cancelled, and you will need to "
-"re-register."
+"If you do not respond in time, your registration is paused — you can rejoin "
+"the queue from your account page when you are ready."
 msgstr ""
 
 msgid "Be respectful and prompt with the partner you are matched with."
@@ -1184,18 +1203,19 @@ msgid ""
 "recently, please contact us for help."
 msgstr ""
 
-msgid "Registration removed"
+msgid "Registration paused"
 msgstr ""
 
-msgid "Your registration has been removed"
+msgid "Your registration is paused"
 msgstr ""
 
 msgid ""
-"You declined this match, so your registration has been removed from the "
-"pool. You can re-register at any time if you change your mind."
+"You declined this match, so your registration is now paused. No hard "
+"feelings — rejoin the queue from your account page whenever you are ready to "
+"be matched with someone new."
 msgstr ""
 
-msgid "Re-register"
+msgid "Go to my account"
 msgstr ""
 
 #, python-format
@@ -1211,7 +1231,8 @@ msgstr ""
 msgid ""
 "Once you accept your contact details will be shared with your partner. If "
 "you choose not to accept (by declining, or not responding in time), your "
-"registration will be cancelled and you will need to re-register."
+"registration will be paused — you can rejoin the queue from your account "
+"page whenever you are ready."
 msgstr ""
 
 #, python-format
@@ -1331,11 +1352,6 @@ msgid ""
 "your next partner. We'll email you the moment we find one."
 msgstr ""
 
-msgid ""
-"You declined this match, so we've taken you out of the queue. No hard "
-"feelings — re-register whenever you'd like to be matched with someone new."
-msgstr ""
-
 msgid "No-show reported"
 msgstr ""
 
@@ -1356,8 +1372,9 @@ msgid "This match expired"
 msgstr ""
 
 msgid ""
-"The window closed before you both accepted, so this match has expired. "
-"You've gone back in the queue and we'll pair you with someone new shortly."
+"The window closed before you both accepted, so this match has expired. Your "
+"registration is now paused — rejoin the queue from your account page "
+"whenever you are ready."
 msgstr ""
 
 msgid "Eligibility · Ambassador"
@@ -1480,13 +1497,15 @@ msgstr ""
 msgid "Back to home"
 msgstr ""
 
-msgid ""
-"Register for the 4 Vallées Ambassadors partner-matching service. Tell us "
-"your role — Ambassador or Referee — and we will find you a partner "
-"automatically. Matching only; the application happens off-app."
+msgid "Register &middot; Ski Parrainage &middot; 2026/27"
 msgstr ""
 
-msgid "Register — 4 Vallées Ambassadors"
+msgid ""
+"Register for the Ski Parrainage 4 Vallées Ambassadors partner-matching "
+"service."
+msgstr ""
+
+msgid "Ski Parrainage - 2026/27"
 msgstr ""
 
 msgid "You're in the queue"
@@ -1528,14 +1547,11 @@ msgid "When matched, accept (or decline) within 72 hours."
 msgstr ""
 
 msgid ""
-"If you don't respond in time, your match is cancelled and you go to the back "
-"of the queue."
+"If you don't respond in time, your registration is paused — rejoin the queue "
+"from your account page when you are ready."
 msgstr ""
 
 msgid "Be respectful and prompt with your matched partner."
-msgstr ""
-
-msgid "Go to my account"
 msgstr ""
 
 msgid "Confirm your email"

@@ -87,10 +87,11 @@ database rows. See `docs/decisions/0005-single-season-matching-engine.md`.
   - both accept → `ACCEPTED` — contact details are revealed and the pair
     proceeds to the off-app application. Terminal success.
   - one declines → `DECLINED`; window lapses without both accepting → `EXPIRED`.
-    In both, the registrations re-queue with **asymmetric** priority: the party
-    who accepted keeps their place near the front; the non-responder is sent to
-    the **back of the queue**. The contact window is **72 hours** by default
-    (`CONTACT_WINDOW_HOURS` env var).
+    In both, the declining/non-responding party's registration is set to
+    **`PAUSED`** (out of pool; they self-rejoin from their account page via
+    "Rejoin the queue"). The party that had already accepted is re-queued to the
+    **front** (`priority += 1`). The contact window is **72 hours** by default
+    (`CONTACT_WINDOW_HOURS` env var). See ADR 0013.
   - post-accept no-show → `CANCELLED` (reporter re-queues to front; reported is
     `SUSPENDED`). Registration.Status is never `MATCHED` or `CONFIRMED` — pool
     availability is enforced by `_without_active_match()` queryset exclusion.
@@ -140,9 +141,12 @@ them across a match before mutual accept (see Invariants).
 Resolved (see [ADR 0007](docs/decisions/0007-post-match-confirmation-workflow.md),
 VERB-16):
 
-- **Asymmetric flaking specifics** — non-responder/decliner to the back, kept-faith
-  party to the front; a **flake** (non-response or post-accept no-show, *not* a
-  decline) is recorded, and **2 flakes auto-suspends** the registration.
+- **Decline/non-response handling (VERB-74 / ADR 0013)** — declining or
+  failing to respond within the contact window sets the registration to
+  **`PAUSED`** (out of pool, self-recoverable); the kept-faith party is
+  re-queued to the **front**. The two-strike flake model and account-deletion-
+  on-decline are retired. `SUSPENDED` is now only set by a post-accept
+  no-show report.
 - **Completion + post-accept no-shows** — a confirmed party can **report** the other
   as a no-show; the report is trusted immediately, the reporter re-queues to the
   front, and the reported party is **removed from the pool** (`SUSPENDED`). The app
@@ -357,8 +361,8 @@ Deployed on **Render**. Topology:
 
 - **Web service** (`ambassadeurs`) — serves the Django app via Gunicorn.
 - **Cron service** (`ambassadeurs-expire-matches`) — runs `manage.py expire_matches`
-  hourly (`0 * * * *`) to sweep PROPOSED matches whose contact window has expired and
-  re-queue both registrations.
+  hourly (`0 * * * *`) to sweep PROPOSED/PENDING matches whose contact window
+  has expired, pause non-responders, and re-queue the faithful party.
 - **Postgres database** (`ambassadeurs-db`) — shared by both services via
   `DATABASE_URL`.
 

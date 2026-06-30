@@ -15,20 +15,22 @@ from matching.services import (
     accept_match,
     confirm_registration,
     decline_match,
+    expire_lapsed_matches,
     is_eligible_pair,
     is_registration_open,
+    pause_registration,
     propose_match,
     queue_position,
     record_acceptance,
     record_decline,
-    record_flake_and_requeue,
     register_participant,
+    rejoin_queue,
     report_no_show,
-    requeue_to_back,
     requeue_to_front,
     send_match_confirmed_email,
     send_match_notification,
     send_no_show_notification,
+    send_window_expired_notification,
     suspend_for_no_show,
     total_accepted_matches,
     withdraw_acceptance,
@@ -655,14 +657,12 @@ def test_requeue_to_front_sets_verified_and_increments_priority() -> None:
     reg = RegistrationFactory.create(
         status=Registration.Status.VERIFIED,
         priority=0,
-        flake_count=1,
     )
     requeue_to_front(reg)
 
     reg.refresh_from_db()
     assert reg.status == Registration.Status.VERIFIED
     assert reg.priority == 1
-    assert reg.flake_count == 1  # unchanged
 
 
 def test_requeue_to_front_syncs_in_memory_instance() -> None:
@@ -697,130 +697,100 @@ def test_requeue_to_front_lost_update_guard() -> None:
 
 
 # ---------------------------------------------------------------------------
-# requeue_to_back
+# pause_registration (VERB-74 / ADR 0013)
 # ---------------------------------------------------------------------------
 
 
-def test_requeue_to_back_sets_verified_and_decrements_priority() -> None:
-    """requeue_to_back sets status=VERIFIED and decrements priority by 1."""
-    reg = RegistrationFactory.create(
-        status=Registration.Status.VERIFIED,
-        priority=0,
-        flake_count=0,
-    )
-    requeue_to_back(reg)
-
-    reg.refresh_from_db()
-    assert reg.status == Registration.Status.VERIFIED
-    assert reg.priority == -1
-    assert reg.flake_count == 0  # unchanged
-
-
-def test_requeue_to_back_syncs_in_memory_instance() -> None:
-    """requeue_to_back syncs the passed-in instance's fields to the DB values."""
+def test_pause_registration_sets_paused_status() -> None:
+    """pause_registration transitions a VERIFIED registration to PAUSED."""
     reg = RegistrationFactory.create(
         status=Registration.Status.VERIFIED,
         priority=3,
     )
-    requeue_to_back(reg)
-
-    assert reg.status == Registration.Status.VERIFIED
-    assert reg.priority == 2
-
-
-def test_requeue_to_back_lost_update_guard() -> None:
-    """requeue_to_back reads the locked DB row, not the stale instance.
-
-    The DB priority is 3 but the in-memory instance is stale at 0. The
-    decrement must be computed from the locked row (3 → 2), not the stale 0.
-    """
-    reg = RegistrationFactory.create(
-        status=Registration.Status.VERIFIED,
-        priority=3,  # DB value is 3
-    )
-    reg.priority = 0  # stale — must NOT be used by the service
-
-    requeue_to_back(reg)
+    pause_registration(reg)
 
     reg.refresh_from_db()
-    assert reg.priority == 2
+    assert reg.status == Registration.Status.PAUSED
+    assert reg.priority == 3  # unchanged
+
+
+def test_pause_registration_syncs_in_memory_instance() -> None:
+    """pause_registration syncs the passed-in instance's status without a refresh."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED)
+    pause_registration(reg)
+
+    assert reg.status == Registration.Status.PAUSED
+
+
+def test_pause_registration_excludes_from_eligible_pool() -> None:
+    """A PAUSED registration is not returned by eligible_ambassadors/referees."""
+    reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+    )
+    pause_registration(reg)
+
+    assert not Registration.objects.eligible_ambassadors().filter(pk=reg.pk).exists()
 
 
 # ---------------------------------------------------------------------------
-# record_flake_and_requeue
+# rejoin_queue (VERB-74 / ADR 0013)
 # ---------------------------------------------------------------------------
 
 
-def test_record_flake_first_flake_requeues_to_back() -> None:
-    """record_flake_and_requeue: first flake (count 0→1) requeues to back."""
+def test_rejoin_queue_transitions_paused_to_verified() -> None:
+    """rejoin_queue transitions a PAUSED registration back to VERIFIED."""
     reg = RegistrationFactory.create(
-        status=Registration.Status.VERIFIED,
+        status=Registration.Status.PAUSED,
         priority=0,
-        flake_count=0,
     )
-    record_flake_and_requeue(reg)
+    rejoin_queue(reg)
 
     reg.refresh_from_db()
-    assert reg.flake_count == 1
     assert reg.status == Registration.Status.VERIFIED
-    assert reg.priority == -1
+    assert reg.priority == -1  # priority -= 1 on each rejoin
 
 
-def test_record_flake_boundary_suspends_at_two() -> None:
-    """record_flake_and_requeue: second flake (count 1→2) suspends.
-
-    Priority must not be decremented on the suspend branch.
-    """
-    starting_priority = 5
+def test_rejoin_queue_syncs_in_memory_instance() -> None:
+    """rejoin_queue syncs the passed-in instance's fields without a refresh."""
     reg = RegistrationFactory.create(
-        status=Registration.Status.VERIFIED,
-        priority=starting_priority,
-        flake_count=1,
+        status=Registration.Status.PAUSED,
+        priority=5,
     )
-    record_flake_and_requeue(reg)
+    rejoin_queue(reg)
 
-    reg.refresh_from_db()
-    assert reg.flake_count == 2
-    assert reg.status == Registration.Status.SUSPENDED
-    assert reg.priority == starting_priority  # must not be decremented
+    assert reg.status == Registration.Status.VERIFIED
+    assert reg.priority == 4
 
 
-def test_record_flake_lost_update_guard() -> None:
-    """record_flake_and_requeue reads the locked DB row, not the stale instance.
-
-    The in-memory instance shows flake_count=0 but the DB already has 1.
-    The function must read 1 from DB, increment to 2, and suspend.
-    """
+def test_rejoin_queue_is_noop_for_non_paused_registration() -> None:
+    """rejoin_queue on a non-PAUSED registration is a no-op."""
     reg = RegistrationFactory.create(
         status=Registration.Status.VERIFIED,
         priority=0,
-        flake_count=1,  # DB value is 1
     )
-    # Simulate a stale in-memory instance by overwriting the Python attribute.
-    reg.flake_count = 0  # stale — must NOT be used by the service
+    rejoin_queue(reg)
 
-    record_flake_and_requeue(reg)
-
-    # DB must reflect the correct incremented value from the locked row.
     reg.refresh_from_db()
-    assert reg.flake_count == 2
-    assert reg.status == Registration.Status.SUSPENDED
+    assert reg.status == Registration.Status.VERIFIED
+    assert reg.priority == 0  # unchanged
 
 
-def test_record_flake_lost_update_guard_syncs_instance() -> None:
-    """record_flake_and_requeue syncs the passed-in instance after the DB write."""
-    reg = RegistrationFactory.create(
-        status=Registration.Status.VERIFIED,
-        priority=0,
-        flake_count=1,
+def test_rejoin_queue_proposes_match_when_counterpart_waiting() -> None:
+    """rejoin_queue calls propose_match; a match is created if a counterpart waits."""
+    referee = RegistrationFactory.create(referee=True)
+    ambassador = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.PAUSED,
     )
-    reg.flake_count = 0  # stale
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        rejoin_queue(ambassador)
 
-    record_flake_and_requeue(reg)
-
-    # In-memory instance must be synced (no extra refresh needed).
-    assert reg.flake_count == 2
-    assert reg.status == Registration.Status.SUSPENDED
+    assert Match.objects.count() == 1
+    match = Match.objects.get()
+    assert match.ambassador_registration == ambassador
+    assert match.referee_registration == referee
 
 
 # ---------------------------------------------------------------------------
@@ -828,42 +798,21 @@ def test_record_flake_lost_update_guard_syncs_instance() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_suspend_for_no_show_sets_suspended_and_increments_flake() -> None:
-    """suspend_for_no_show sets status=SUSPENDED and increments flake_count."""
-    reg = RegistrationFactory.create(
-        status=Registration.Status.VERIFIED,
-        flake_count=0,
-    )
+def test_suspend_for_no_show_sets_suspended() -> None:
+    """suspend_for_no_show sets status=SUSPENDED (no flake_count, VERB-74)."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED)
     suspend_for_no_show(reg)
 
     reg.refresh_from_db()
     assert reg.status == Registration.Status.SUSPENDED
-    assert reg.flake_count == 1
 
 
 def test_suspend_for_no_show_syncs_in_memory_instance() -> None:
-    """suspend_for_no_show syncs the passed-in instance's fields to the DB values."""
-    reg = RegistrationFactory.create(
-        status=Registration.Status.VERIFIED,
-        flake_count=0,
-    )
+    """suspend_for_no_show syncs the passed-in instance's status field."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED)
     suspend_for_no_show(reg)
 
     assert reg.status == Registration.Status.SUSPENDED
-    assert reg.flake_count == 1
-
-
-def test_suspend_for_no_show_increments_flake_unconditionally() -> None:
-    """suspend_for_no_show increments flake_count regardless of its current value."""
-    reg = RegistrationFactory.create(
-        status=Registration.Status.VERIFIED,
-        flake_count=2,
-    )
-    suspend_for_no_show(reg)
-
-    reg.refresh_from_db()
-    assert reg.status == Registration.Status.SUSPENDED
-    assert reg.flake_count == 3
 
 
 # ---------------------------------------------------------------------------
@@ -1460,7 +1409,7 @@ def test_withdraw_acceptance_clears_referee_timestamp_and_goes_proposed() -> Non
 
 def test_withdraw_acceptance_applies_no_penalty_and_writes_one_log() -> None:
     """Withdraw is penalty-free and writes one PENDING→PROPOSED log row."""
-    ambassador_reg = RegistrationFactory.create(priority=0, flake_count=0)
+    ambassador_reg = RegistrationFactory.create(priority=0)
     referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -1474,10 +1423,9 @@ def test_withdraw_acceptance_applies_no_penalty_and_writes_one_log() -> None:
     withdraw_acceptance(match, ambassador_reg)
 
     ambassador_reg.refresh_from_db()
-    # No re-queue and no flake — the registration is unchanged.
+    # No re-queue, no penalty — the registration is unchanged.
     assert ambassador_reg.status == Registration.Status.VERIFIED
     assert ambassador_reg.priority == 0
-    assert ambassador_reg.flake_count == 0
     # Total log rows: PROPOSED→PENDING (first accept) + PENDING→PROPOSED (withdraw).
     logs = list(StateTransitionLog.objects.order_by("pk"))
     assert len(logs) == 2
@@ -1532,8 +1480,12 @@ def test_decline_match_transitions_to_declined() -> None:
     assert result.status == Match.Status.DECLINED
 
 
-def test_decline_match_deletes_decliner_and_requeues_other_to_front() -> None:
-    """decline_match deletes the decliner's User+Registration and re-queues other."""
+def test_decline_match_pauses_decliner_and_requeues_other_to_front() -> None:
+    """decline_match pauses the decliner and re-queues the other to the front.
+
+    VERB-74: the decliner is paused (not deleted) and the other party is
+    re-queued to the front.
+    """
     ambassador_reg = RegistrationFactory.create(priority=0)
     ambassador_user_pk = ambassador_reg.user.pk
     referee_reg = RegistrationFactory.create(referee=True, priority=0)
@@ -1544,23 +1496,25 @@ def test_decline_match_deletes_decliner_and_requeues_other_to_front() -> None:
 
     decline_match(match, ambassador_reg)
 
-    # Decliner (ambassador) User and Registration are deleted.
-    assert not User.objects.filter(pk=ambassador_user_pk).exists()
-    assert not Registration.objects.filter(pk=ambassador_reg.pk).exists()
+    # Decliner (ambassador) is PAUSED; User and Registration rows are retained.
+    ambassador_reg.refresh_from_db()
+    assert ambassador_reg.status == Registration.Status.PAUSED
+    assert User.objects.filter(pk=ambassador_user_pk).exists()
+    assert Registration.objects.filter(pk=ambassador_reg.pk).exists()
 
     # Other party (referee) re-queued to front: status VERIFIED, priority incremented.
     referee_reg.refresh_from_db()
     assert referee_reg.status == Registration.Status.VERIFIED
     assert referee_reg.priority == 1
 
-    # Match survives with the ambassador FK set to NULL.
+    # Match survives with both FKs intact (CASCADE, non-null — VERB-74).
     match.refresh_from_db()
     assert match.status == Match.Status.DECLINED
-    assert match.ambassador_registration_id is None
+    assert match.ambassador_registration_id == ambassador_reg.pk
 
 
-def test_decline_match_by_referee_deletes_referee_and_requeues_ambassador() -> None:
-    """decline_match by the referee side deletes referee and re-queues ambassador."""
+def test_decline_match_by_referee_pauses_referee_and_requeues_ambassador() -> None:
+    """decline_match by the referee side pauses referee and re-queues ambassador."""
     ambassador_reg = RegistrationFactory.create(priority=5)
     referee_reg = RegistrationFactory.create(referee=True, priority=5)
     referee_user_pk = referee_reg.user.pk
@@ -1571,31 +1525,31 @@ def test_decline_match_by_referee_deletes_referee_and_requeues_ambassador() -> N
 
     decline_match(match, referee_reg)
 
-    # Decliner (referee) User and Registration are deleted.
-    assert not User.objects.filter(pk=referee_user_pk).exists()
-    assert not Registration.objects.filter(pk=referee_reg.pk).exists()
+    # Decliner (referee) is PAUSED; row retained.
+    referee_reg.refresh_from_db()
+    assert referee_reg.status == Registration.Status.PAUSED
+    assert User.objects.filter(pk=referee_user_pk).exists()
 
     # Ambassador (other side) re-queued to front: priority 5 → 6.
     ambassador_reg.refresh_from_db()
     assert ambassador_reg.status == Registration.Status.VERIFIED
     assert ambassador_reg.priority == 6
 
-    # Match survives with the referee FK set to NULL.
+    # Match survives with FK intact.
     match.refresh_from_db()
     assert match.status == Match.Status.DECLINED
-    assert match.referee_registration_id is None
+    assert match.referee_registration_id == referee_reg.pk
 
 
 def test_decline_match_from_pending_by_referee_requeues_ambassador_to_front() -> None:
     """Referee declines a PENDING match (ambassador already accepted).
 
-    VERB-44: the match is in PENDING state (one-sided accept). When the referee
+    VERB-44/74: the match is in PENDING state (one-sided accept). When the referee
     declines, the accepting party (ambassador) must be re-queued to the FRONT
-    (priority +1, status VERIFIED). The decliner (referee) is deleted.
+    (priority +1, status VERIFIED). The decliner (referee) is paused.
     """
     ambassador_reg = RegistrationFactory.create(priority=0)
     referee_reg = RegistrationFactory.create(referee=True, priority=0)
-    referee_user_pk = referee_reg.user.pk
     # PENDING: ambassador already accepted.
     match = MatchFactory.create(
         ambassador_registration=ambassador_reg,
@@ -1610,85 +1564,14 @@ def test_decline_match_from_pending_by_referee_requeues_ambassador_to_front() ->
     match.refresh_from_db()
     assert match.status == Match.Status.DECLINED
 
-    # Decliner (referee) User and Registration are deleted.
-    assert not User.objects.filter(pk=referee_user_pk).exists()
-    assert not Registration.objects.filter(pk=referee_reg.pk).exists()
+    # Decliner (referee) is PAUSED, not deleted.
+    referee_reg.refresh_from_db()
+    assert referee_reg.status == Registration.Status.PAUSED
 
     # Ambassador (kept-faith side) re-queued to the FRONT: priority 0 → 1.
     ambassador_reg.refresh_from_db()
     assert ambassador_reg.status == Registration.Status.VERIFIED
     assert ambassador_reg.priority == 1
-
-
-def test_decline_match_records_email_hash_on_match() -> None:
-    """decline_match records the decliner's email hash on the DECLINED match."""
-    from core.hashing import hash_email
-
-    ambassador_reg = RegistrationFactory.create(priority=0)
-    ambassador_email = ambassador_reg.user.email
-    referee_reg = RegistrationFactory.create(referee=True, priority=0)
-    match = MatchFactory.create(
-        ambassador_registration=ambassador_reg,
-        referee_registration=referee_reg,
-    )
-
-    decline_match(match, ambassador_reg)
-
-    match.refresh_from_db()
-    assert match.declined_by_email_hash == hash_email(ambassador_email)
-    assert len(match.declined_by_email_hash) == 64
-
-
-def test_register_participant_sets_prior_decline_count_to_zero_for_fresh_email() -> (
-    None
-):
-    """register_participant sets prior_decline_count=0 for a new email."""
-    registration = register_participant(
-        role=Registration.Role.AMBASSADOR,
-        first_name="Ada",
-        last_name="Lovelace",
-        email="ada_fresh@example.com",
-        prior_pass=Registration.PriorPass.SEASONAL,
-    )
-    assert registration.prior_decline_count == 0
-
-
-def test_register_participant_sets_prior_decline_count_after_prior_decline() -> None:
-    """register_participant sets prior_decline_count=1 after one prior decline.
-
-    The cycle: register → get matched → decline (deletes User+Registration) →
-    re-register with same email → prior_decline_count should be 1.
-    """
-    # Set up a matched pair.
-    referee_reg = RegistrationFactory.create(referee=True)
-    ambassador_reg = register_participant(
-        role=Registration.Role.AMBASSADOR,
-        first_name="Ada",
-        last_name="Lovelace",
-        email="ada_cycle@example.com",
-        prior_pass=Registration.PriorPass.SEASONAL,
-    )
-    ambassador_email = ambassador_reg.user.email
-
-    # The ambassador declines (deletes their User + Registration).
-    match = Match.objects.get(
-        ambassador_registration=ambassador_reg,
-        referee_registration=referee_reg,
-    )
-    decline_match(match, ambassador_reg)
-
-    # Verify the ambassador row is gone.
-    assert not Registration.objects.filter(user__email=ambassador_email).exists()
-
-    # Re-register with the same email.
-    re_reg = register_participant(
-        role=Registration.Role.AMBASSADOR,
-        first_name="Ada",
-        last_name="Lovelace",
-        email=ambassador_email,
-        prior_pass=Registration.PriorPass.SEASONAL,
-    )
-    assert re_reg.prior_decline_count == 1
 
 
 # ---------------------------------------------------------------------------
@@ -1755,9 +1638,9 @@ def test_report_no_show_reporter_requeued_to_front() -> None:
 
 
 def test_report_no_show_accused_suspended() -> None:
-    """The accused party is SUSPENDED and flake_count incremented."""
-    ambassador_reg = RegistrationFactory.create(flake_count=0)
-    referee_reg = RegistrationFactory.create(referee=True, flake_count=0)
+    """The accused party is SUSPENDED (no flake_count, VERB-74)."""
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
         accepted=True,
         ambassador_registration=ambassador_reg,
@@ -1769,7 +1652,6 @@ def test_report_no_show_accused_suspended() -> None:
     # Reporter is ambassador; accused is referee.
     referee_reg.refresh_from_db()
     assert referee_reg.status == Registration.Status.SUSPENDED
-    assert referee_reg.flake_count == 1
 
 
 def test_report_no_show_writes_two_transition_log_rows() -> None:
@@ -2192,6 +2074,157 @@ def test_total_accepted_matches_counts_only_accepted() -> None:
     MatchFactory.create(cancelled=True)  # was ACCEPTED, then reported as no-show
 
     assert total_accepted_matches() == 2
+
+
+# ---------------------------------------------------------------------------
+# expire_lapsed_matches (VERB-74)
+# ---------------------------------------------------------------------------
+
+
+def test_expire_lapsed_matches_transitions_proposed_to_expired() -> None:
+    """expire_lapsed_matches transitions a lapsed PROPOSED match to EXPIRED."""
+    past = datetime(2020, 1, 1, tzinfo=UTC)
+    match = MatchFactory.create(expires_at=past)
+    count = expire_lapsed_matches()
+    match.refresh_from_db()
+    assert match.status == Match.Status.EXPIRED
+    assert count == 1
+
+
+def test_expire_lapsed_matches_non_responder_gets_paused() -> None:
+    """Non-responders (no *_accepted_at) are paused on expiry (VERB-74)."""
+    past = datetime(2020, 1, 1, tzinfo=UTC)
+    ambassador_reg = RegistrationFactory.create(priority=0)
+    referee_reg = RegistrationFactory.create(referee=True, priority=0)
+    MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+        expires_at=past,
+    )
+
+    expire_lapsed_matches()
+
+    ambassador_reg.refresh_from_db()
+    referee_reg.refresh_from_db()
+    assert ambassador_reg.status == Registration.Status.PAUSED
+    assert referee_reg.status == Registration.Status.PAUSED
+
+
+def test_expire_lapsed_matches_faithful_party_requeued_to_front() -> None:
+    """A party who accepted before expiry is re-queued to the front (priority +1)."""
+    past = datetime(2020, 1, 1, tzinfo=UTC)
+    accepted_at = datetime(2019, 12, 31, tzinfo=UTC)
+    ambassador_reg = RegistrationFactory.create(priority=0)
+    referee_reg = RegistrationFactory.create(referee=True, priority=0)
+    MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+        expires_at=past,
+        ambassador_accepted_at=accepted_at,  # ambassador accepted; referee did not
+    )
+
+    expire_lapsed_matches()
+
+    ambassador_reg.refresh_from_db()
+    referee_reg.refresh_from_db()
+    assert ambassador_reg.status == Registration.Status.VERIFIED
+    assert ambassador_reg.priority == 1  # re-queued to front
+    assert referee_reg.status == Registration.Status.PAUSED  # non-responder
+
+
+def test_expire_lapsed_matches_idempotent_on_second_run() -> None:
+    """expire_lapsed_matches skips already-EXPIRED matches on a second run."""
+    past = datetime(2020, 1, 1, tzinfo=UTC)
+    MatchFactory.create(expires_at=past)
+
+    first_count = expire_lapsed_matches()
+    second_count = expire_lapsed_matches()
+
+    assert first_count == 1
+    assert second_count == 0
+
+
+def test_expire_lapsed_matches_sends_notification_to_non_responders(
+    mailoutbox: list,
+) -> None:
+    """A window-expired notification is sent to each non-responding party on commit."""
+    from django.test import TestCase as DjangoTestCase
+
+    past = datetime(2020, 1, 1, tzinfo=UTC)
+    ambassador_reg = RegistrationFactory.create(priority=0)
+    referee_reg = RegistrationFactory.create(referee=True, priority=0)
+    MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+        expires_at=past,
+    )
+
+    with DjangoTestCase.captureOnCommitCallbacks(execute=True):
+        expire_lapsed_matches()
+
+    # Both parties are non-responders — each receives a notification.
+    assert len(mailoutbox) == 2
+    recipients = {msg.to[0] for msg in mailoutbox}
+    assert ambassador_reg.user.email in recipients
+    assert referee_reg.user.email in recipients
+
+
+def test_expire_lapsed_matches_no_email_for_faithful_party(
+    mailoutbox: list,
+) -> None:
+    """No expiry email is sent to the faithful party (re-queued, not paused)."""
+    from django.test import TestCase as DjangoTestCase
+
+    past = datetime(2020, 1, 1, tzinfo=UTC)
+    accepted_at = datetime(2019, 12, 31, tzinfo=UTC)
+    ambassador_reg = RegistrationFactory.create(priority=0)
+    referee_reg = RegistrationFactory.create(referee=True, priority=0)
+    MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+        expires_at=past,
+        ambassador_accepted_at=accepted_at,
+    )
+
+    with DjangoTestCase.captureOnCommitCallbacks(execute=True):
+        expire_lapsed_matches()
+
+    # Only the referee (non-responder) gets the email; not the faithful ambassador.
+    assert len(mailoutbox) == 1
+    assert mailoutbox[0].to == [referee_reg.user.email]
+
+
+# ---------------------------------------------------------------------------
+# send_window_expired_notification (VERB-74)
+# ---------------------------------------------------------------------------
+
+
+def test_send_window_expired_notification_sends_one_email() -> None:
+    """send_window_expired_notification sends one email to the non-responder."""
+    reg = RegistrationFactory.create()
+    send_window_expired_notification(reg)
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == [reg.user.email]
+
+
+def test_send_window_expired_notification_includes_account_url() -> None:
+    """The expiry email body includes the account detail URL so the user can rejoin."""
+    from django.conf import settings
+
+    reg = RegistrationFactory.create()
+    send_window_expired_notification(reg)
+    body = mail.outbox[0].body
+    assert settings.BASE_URL in body
+    assert "/account/" in body
+
+
+def test_send_window_expired_notification_respects_preferred_language() -> None:
+    """send_window_expired_notification uses the recipient's preferred_language."""
+    reg = RegistrationFactory.create(preferred_language="fr")
+    send_window_expired_notification(reg)
+    # Assert delivery — test env has no compiled catalogues, so only check To:.
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == [reg.user.email]
 
 
 # ---------------------------------------------------------------------------

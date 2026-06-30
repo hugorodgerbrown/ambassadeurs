@@ -41,8 +41,9 @@ Split into two independent state machines:
 |-------|---------|
 | `UNVERIFIED` | Registered but email not yet confirmed (formerly `PENDING`). |
 | `VERIFIED` | In the pool, available to be matched. Replaces `WAITING`. |
+| `PAUSED` | Out of the pool; self-recoverable. Added in ADR 0013 / VERB-74. |
 | `WITHDRAWN` | Voluntarily left the pool. |
-| `SUSPENDED` | Removed by the system (two flakes or a reported no-show). |
+| `SUSPENDED` | Removed by the system (post-accept no-show report). |
 
 `MATCHED` and `CONFIRMED` are removed. A registration's pool-standing status
 never changes because a match was proposed — it stays `VERIFIED` until the
@@ -76,8 +77,8 @@ All three transitions are recorded in `StateTransitionLog`.
   without an active match. No `MATCHED`/`CONFIRMED` to handle.
 - The intermediate one-sided-accept state is now a real, logged DB value
   (`PENDING`) rather than a timestamp-only implication.
-- Re-queuing after decline/expiry is one write (Registration.priority/flake_count
-  update) rather than two (registration status + match status).
+- Re-queuing / pausing after decline/expiry is one write (Registration.status +
+  optional priority update) rather than two (registration status + match status).
 - `CANCELLED` is a clearer name for the post-accept no-show terminal state.
 - The two state machines can evolve independently.
 

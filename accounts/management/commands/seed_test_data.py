@@ -123,7 +123,6 @@ def _make_registration(
         preferred_language=preferred_language,
         preferred_location=preferred_location,
         priority=0,
-        flake_count=0,
         accepted_terms=list(_ACCEPTED_TERMS),
         terms_accepted_at=now,
     )

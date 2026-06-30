@@ -153,13 +153,11 @@ class RegistrationForm(forms.Form):
         # Set the role-specific eligibility declaration label.
         if role == Registration.Role.AMBASSADOR:
             self.fields["prior_pass_attestation"].label = _(
-                "I have held a seasonal or annual pass from one of the 4 Vallées"
-                " companies in 2024-25 or 2025-26."
+                "I purchased a season or annual pass in 2024/25 or 2025/26."
             )
         else:
             self.fields["prior_pass_attestation"].label = _(
-                "I have not held a mid-season, seasonal or annual pass from one of"
-                " the 4 Vallées companies in 2024-25 or 2025-26."
+                "I did not purchase a season or annual pass in 2024/25 or 2025/26."
             )
 
         if role != Registration.Role.AMBASSADOR:

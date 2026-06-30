@@ -5,11 +5,10 @@
 
 {% block meta %}
     {% blocktranslate trimmed asvar page_description %}
-        Terms of Use for the 4 Vallées Ambassadors partner-matching service. This service handles matchmaking only —
-        the discount application and ticket-office purchase happen separately.
+        Terms of Use for the Ski Parrainage partner-matching service.
     {% endblocktranslate %}
     {% blocktranslate trimmed asvar page_title %}
-        Terms of Use — 4 Vallées Ambassadors
+        Terms of Use — Ski Parrainage
     {% endblocktranslate %}
     {% with meta_title=page_title meta_description=page_description %}
         {% include "includes/_meta.html" %}
@@ -24,11 +23,35 @@
         <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "What this service does" %}</h2>
         <p>
             {% blocktranslate trimmed %}
-                This service helps you find a partner for the 4 Vallées Ambassadors Program. It is matchmaking only:
-                the actual discount application and the purchase at the ticket office happen separately, in person, and
-                are not part of this service.
+                This service exists to help you find a partner for the 4 Vallées Ambassadors Program. It is matchmaking
+                only: the ski pass application process (and payment) are done directly by you with the pass operator.
             {% endblocktranslate %}
         </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "What this service costs" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                This service is provided free of charge. If you get value from the service, donations are welcome.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "How it works" %}</h2>
+        <ul class="list-disc space-y-2 pl-5">
+            <li>Users register on the site as either Ambassador or Referee (as appropriate).</li>
+            <li>Registered users verify their email by clicking on a link supplied to that email address.</li>
+            <li>Verified users are then placed in a matching queue, which operates on a First in, first out basis.</li>
+            <li>As soon as someone is available, a match is proposed, and both parties notified.</li>
+            <li>
+                If both parties accept the match, contact details are shared through the site, and the process is
+                complete.
+            </li>
+            <li>If a user declines a match, their account is deleted, and they will need to reregister.</li>
+            <li>If a user does not respond in time, their account is deleted, and they will need to reregister.</li>
+            <li>
+                If one user accepts the match, but the other user declines or fails to respond, they will return to the
+                front of the queue.
+            </li>
+        </ul>
 
         <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "Your responsibilities" %}</h2>
         <ul class="list-disc space-y-2 pl-5">
@@ -36,7 +59,7 @@
             <li>{% translate "Respond to a match within 72 hours — accept or decline." %}</li>
             <li>
                 {% blocktranslate trimmed %}
-                    If you do not respond in time, your match is cancelled and you go to the back of the queue.
+                    If you do not respond in time, your match is cancelled, and you will need to re-register.
                 {% endblocktranslate %}
             </li>
             <li>{% translate "Be respectful and prompt with the partner you are matched with." %}</li>
@@ -45,23 +68,17 @@
         <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "Eligibility" %}</h2>
         <p>
             {% blocktranslate trimmed %}
-                Eligibility is self-declared here and verified off-app when you apply together at the ticket office.
-                Registering does not guarantee a match or entitle you to the discount; both depend on the off-app
-                application.
+                Eligibility is self-declared here, and is used for matchmaking only. Your eligibility will be verified
+                separately off-app when you apply for the season pass. Registering here does not guarantee a match or
+                entitle you to the discount; both depend on the application process with the operator.
             {% endblocktranslate %}
         </p>
 
         <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "No guarantee" %}</h2>
         <p>
             {% blocktranslate trimmed %}
-                There are usually more referees than ambassadors, so we cannot guarantee that everyone will be matched.
-            {% endblocktranslate %}
-        </p>
-
-        <p class="pt-4 text-sm text-meta">
-            {% blocktranslate trimmed %}
-                These terms are a first-draft baseline and should be reviewed by a legal professional before the program
-                launches.
+                This is a two-sided marketplace, there will always be more people on one side than the other - hence no
+                guarantee of a match is possible.
             {% endblocktranslate %}
         </p>
     </article>

@@ -29,15 +29,18 @@ the nav.
                 <span class="wordmark">{% translate "Ski Parrainage" %}</span>
             </div>
             <p class="mt-4 text-sm text-meta">
-                {% translate "An independent way to find your season-pass partner for the 4 Vallées." %}
+                {% translate "The easy way to find your season-pass partner." %}
             </p>
         </div>
 
         <div class="flex flex-wrap gap-14">
             <div>
                 <p class="label mb-3">{% translate "Program" %}</p>
-                <a href="{% url 'public:how_it_works' %}" class="block text-sm text-body hover:text-ink">
+                <a href="{% url 'public:how_it_works' %}" class="mb-2 block text-sm text-body hover:text-ink">
                     {% translate "How it works" %}
+                </a>
+                <a href="{% url 'public:faq' %}" class="mb-2 block text-sm text-body hover:text-ink">
+                    {% translate "FAQ" %}
                 </a>
             </div>
             <div>

@@ -1,14 +1,13 @@
 {% extends "base.html" %}
 {% load i18n static %}
 
-{% block title %}{% translate "4 Vallées Ambassadors" %}{% endblock %}
+{% block title %}{% translate "Ski Parrainage &middot; 2026/27" %}{% endblock %}
 
 {% block meta %}
     {% blocktranslate trimmed asvar page_description %}
-        Find your season-pass partner for the 4 Vallées Ambassadors Program. Register once — we match Ambassadors
-        with Referees automatically. No scramble, no Facebook group, no ghosting.
+        Find your season-pass partner for the 4 Vallées Ambassadors Program.
     {% endblocktranslate %}
-    {% with meta_title="4 Vallées Ambassadors" meta_description=page_description %}
+    {% with meta_title="Ski Parrainage &middot; 2026/27" meta_description=page_description %}
         {% include "includes/_meta.html" %}
     {% endwith %}
 {% endblock %}
@@ -62,23 +61,27 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
         the top and the lead + CTAs pushed to the bottom (justify-between) so
         the handshake sits centre-stage between them.
         {% endcomment %}
-        <div class="relative z-10 flex grow flex-col justify-between gap-10 px-6 pb-8 pt-20 sm:px-10 sm:pb-10 sm:pt-20 lg:px-16">
+        <div class="relative z-10 flex grow flex-col justify-between gap-10 px-6 pb-4 pt-20 sm:px-10 sm:pb-10 sm:pt-20 lg:px-16">
             <div>
                 <p class="eyebrow mb-4 text-white/80">
                     {% translate "4 Vallées Ambassadors Program" %}
                 </p>
                 <h1 class="mb-5 text-h1 text-white">
-                    {% translate "Find your season-pass partner" %}
+                    {% translate "Find your season-pass match" %}
                 </h1>
             </div>
             <div>
-                <p class="mb-8 max-w-md text-lead text-white/80">
+                <p class="mb-2 max-w-lg text-lead text-white/80">
                     {% blocktranslate trimmed %}
-                        No more frantic search in the Facebook group. Register once and we match you with a partner —
-                        Ambassador meets Referee.
+                        No more last minute search in the Facebook group. We automatically match you with a partner - for free*.
                     {% endblocktranslate %}
                 </p>
-                <div class="flex flex-wrap gap-3">
+                <p class="max-w-md mb-6 text-small text-white/80"><em>
+                    {% blocktranslate trimmed %}
+                        * Voluntary donations welcome
+                    {% endblocktranslate %}</em>
+                </p>
+                <div class="mb-2 flex flex-wrap gap-3">
                     <a href="{% url 'public:register' %}" class="btn btn--primary">
                         {% translate "Get started" %}
                         <svg
@@ -108,8 +111,11 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
         </div>
     </section>
     {% comment %}Quiet independence disclaimer, just below the hero image.{% endcomment %}
-    <p class="px-6 pb-1 pt-3 text-center text-xs text-meta sm:px-10 lg:px-16">
-        {% translate "Independent project — not affiliated with the official 4 Vallées pass operator." %}
+    <p class="px-6 pb-3 pt-3 border-b border-line text-center text-xs text-meta sm:px-10 lg:px-16">
+        {% blocktranslate %}
+        This is an independent project — it is not affiliated with the 4 Vallées pass operator, and is responsible
+        for matching only.
+        {% endblocktranslate %}
     </p>
     {% if not registration_open %}
         {% comment %}Full-width opens-soon band below the hero (notice tone, not a role colour).{% endcomment %}
@@ -124,7 +130,7 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
 
 {% block content %}
     {% comment %}How it works — set expectations before the user picks a role.{% endcomment %}
-    <section class="mt-12">
+    <section class="mt-6">
         <h2 class="mb-8 text-center text-h2 text-ink">{% translate "How it works" %}</h2>
         <div class="grid gap-4 sm:grid-cols-2">
             <div class="card flex gap-4">
@@ -174,7 +180,7 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
 
     {% comment %}Which one are you? — the two role cards using fixed red/blue tones.{% endcomment %}
     <section class="mt-12">
-        <h2 class="mb-8 text-center text-h2 text-ink">{% translate "Which one are you?" %}</h2>
+        <h2 class="mb-8 text-center text-h2 text-ink">{% translate "Which role are you?" %}</h2>
         <div class="grid gap-6 sm:grid-cols-2">
             <div class="role-card flex flex-col">
                 <p class="eyebrow mb-3 inline-flex items-center gap-2">

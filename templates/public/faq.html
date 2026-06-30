@@ -5,11 +5,11 @@
 
 {% block meta %}
     {% blocktranslate trimmed asvar page_description %}
-        Frequently asked questions about the 4 Vallées Ambassadors partner-matching service — eligibility, how
-        matching works, the contact window, and what happens after you are matched.
+        Frequently asked questions about the Ski Parrainage partner-matching service — eligibility, how matching
+        works, the contact window, and what happens after you are matched.
     {% endblocktranslate %}
     {% blocktranslate trimmed asvar page_title %}
-        FAQ — 4 Vallées Ambassadors
+        FAQ — Ski Parrainage
     {% endblocktranslate %}
     {% with meta_title=page_title meta_description=page_description %}
         {% include "includes/_meta.html" %}
@@ -43,8 +43,8 @@ Uses <details>/<summary> accordions — keyboard-accessible by default.
                 <p>
                     {% blocktranslate trimmed %}
                         An Ambassador is someone who held a 4 Vallées seasonal or annual pass — or a Mont 4 Card /
-                        special-reduction pass — in a prior season. When you register you self-attest to this; proof
-                        is checked off-app during the joint application at the ticket office.
+                        special-reduction pass — in one of the previous two seasons. When you register you self-attest
+                        to this; proof is checked off-app during the joint application process with the pass operator.
                     {% endblocktranslate %}
                 </p>
             </div>
@@ -57,9 +57,9 @@ Uses <details>/<summary> accordions — keyboard-accessible by default.
             <div class="mt-2 space-y-2">
                 <p>
                     {% blocktranslate trimmed %}
-                        A Referee is someone who did not hold any 4 Vallées season pass in a prior season — they are
-                        genuinely new to the programme. This is self-attested on registration and verified at the ticket
-                        office when you apply together.
+                        A Referee is someone who did not hold any 4 Vallées season pass in either of the two previous
+                        seasons. This is self-attested on registration and verified at the ticket office when you apply
+                        together.
                     {% endblocktranslate %}
                 </p>
             </div>
@@ -93,8 +93,7 @@ Uses <details>/<summary> accordions — keyboard-accessible by default.
                 <p>
                     {% blocktranslate trimmed %}
                         No — the system assigns a match. You register once, and when an eligible partner is available
-                        the system proposes a pairing. You do not browse profiles or choose a partner, and the two of
-                        you do not know each other beforehand.
+                        the system proposes a pairing. You do not browse profiles or choose a partner.
                     {% endblocktranslate %}
                 </p>
             </div>
@@ -107,9 +106,8 @@ Uses <details>/<summary> accordions — keyboard-accessible by default.
             <div class="mt-2 space-y-2">
                 <p>
                     {% blocktranslate trimmed %}
-                        The engine pairs eligible participants in order of shared preferred location first, then by
-                        priority score, then by the order they registered (earliest first). Both parties must be
-                        verified with no active match already in progress.
+                        The service pairs eligible participants in order of registration date (earliest first). Both
+                        parties must be verified with no active match already in progress.
                     {% endblocktranslate %}
                 </p>
             </div>
@@ -124,7 +122,7 @@ Uses <details>/<summary> accordions — keyboard-accessible by default.
                     {% blocktranslate trimmed %}
                         If an eligible partner is already waiting when you register, a match is proposed immediately.
                         Ambassadors typically outnumber Referees, so Referees are often matched instantly; Ambassadors
-                        may wait in the queue. You can see your position from your status page.
+                        may wait in the queue. You can see your position in the queue from your account page.
                     {% endblocktranslate %}
                 </p>
             </div>
@@ -173,9 +171,9 @@ Uses <details>/<summary> accordions — keyboard-accessible by default.
             <div class="mt-2 space-y-2">
                 <p>
                     {% blocktranslate trimmed %}
-                        If you do not respond within the window, the match expires and you are sent to the back of the
-                        queue. Your partner, who had no control over your non-response, keeps their position near the
-                        front and will be re-matched sooner.
+                        If you do not respond within the window, the match expires and your account will be deleted on
+                        the basis that you are no longer interested. You are welcome to re-register if you wish to try
+                        again. Your partner, if they accepted the match, returns to the front of the queue.
                     {% endblocktranslate %}
                 </p>
             </div>
@@ -208,9 +206,9 @@ Uses <details>/<summary> accordions — keyboard-accessible by default.
             <div class="mt-2 space-y-2">
                 <p>
                     {% blocktranslate trimmed %}
-                        Once both parties accept, each receives the other's email address and phone number. You then
-                        arrange to fill in the application form together and submit it to the ticket office. The pass
-                        purchase and application happen off this site, unchanged from the normal process.
+                        Once both parties accept, each receives the other's contact details. You must then arrange to
+                        fill in the application form together and submit it to the ticket office. The pass purchase and
+                        application happen off this site, unchanged from the normal process.
                     {% endblocktranslate %}
                 </p>
             </div>
@@ -225,7 +223,7 @@ Uses <details>/<summary> accordions — keyboard-accessible by default.
                     {% blocktranslate trimmed %}
                         If your partner fails to follow through after mutual acceptance you can report them as a
                         no-show. The report is acted on immediately: you re-enter the queue at the front, and your
-                        partner's registration is suspended. Two no-show incidents automatically suspend a registration.
+                        partner's registration is deleted.
                     {% endblocktranslate %}
                 </p>
             </div>

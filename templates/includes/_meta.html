@@ -20,10 +20,9 @@ the Django 403/404 handlers before the request context processor runs), the
 request-dependent tags (canonical, og:url, og:image, twitter:image) are
 omitted rather than raising VariableDoesNotExist.
 {% endcomment %}
-{% translate "4 Vallées Ambassadors" as site_name %}
+{% translate "Ski Parrainage" as site_name %}
 {% blocktranslate trimmed asvar default_description %}
-    Find your season-pass partner for the 4 Vallées Ambassadors Program. Register once — we match Ambassadors with
-    Referees automatically.
+    Find your season-pass partner for the 4 Vallées Ambassadors Program.
 {% endblocktranslate %}
 {% with resolved_title=meta_title|default:site_name resolved_desc=meta_description|default:default_description %}
     <meta

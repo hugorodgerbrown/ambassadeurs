@@ -459,7 +459,7 @@ def test_send_match_notification_respects_preferred_language() -> None:
 _AMBASSADOR_STATEMENTS = [
     (
         "I have held a seasonal or annual pass from one of the 4 Vallées"
-        " companies in 2024-25 or 2025-26."
+        " companies in 2024/25 or 2025/26."
     ),
     "I have read and agree to the Terms of Use",
 ]
@@ -556,7 +556,7 @@ def test_register_participant_triggers_match_when_counterpart_waiting() -> None:
             prior_pass=Registration.PriorPass.NONE,
             accepted_terms=[
                 "I have not held a mid-season, seasonal or annual pass from one of"
-                " the 4 Vallées companies in 2024-25 or 2025-26.",
+                " the 4 Vallées companies in 2024/25 or 2025/26.",
                 "I have read and agree to the Terms of Use",
             ],
         )
@@ -575,7 +575,7 @@ def test_register_participant_with_existing_user_reuses_it() -> None:
         prior_pass=Registration.PriorPass.NONE,
         accepted_terms=[
             "I have not held a mid-season, seasonal or annual pass from one of"
-            " the 4 Vallées companies in 2024-25 or 2025-26.",
+            " the 4 Vallées companies in 2024/25 or 2025/26.",
             "I have read and agree to the Terms of Use",
         ],
     )

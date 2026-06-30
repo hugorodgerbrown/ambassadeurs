@@ -1,15 +1,14 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "Register" %}{% endblock %}
+{% block title %}{% translate "Register &middot; Ski Parrainage &middot; 2026/27" %}{% endblock %}
 
 {% block meta %}
     {% blocktranslate trimmed asvar page_description %}
-        Register for the 4 Vallées Ambassadors partner-matching service. Tell us your role — Ambassador or Referee
-        — and we will find you a partner automatically. Matching only; the application happens off-app.
+        Register for the Ski Parrainage 4 Vallées Ambassadors partner-matching service.
     {% endblocktranslate %}
     {% blocktranslate trimmed asvar page_title %}
-        Register — 4 Vallées Ambassadors
+        Ski Parrainage - 2026/27
     {% endblocktranslate %}
     {% with meta_title=page_title meta_description=page_description %}
         {% include "includes/_meta.html" %}

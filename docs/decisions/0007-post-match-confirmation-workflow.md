@@ -127,22 +127,28 @@ surfaced read-only in admin (VERB-22).
 
 ### Failure — decline (honest "no")
 
+> **Updated by ADR 0013 (VERB-74).** The original design re-queued the decliner
+> to the back (`priority -= 1`). The current implementation pauses them instead.
+
 - One party declines → `Match → DECLINED`, record `declined_by` / `declined_at`.
-- **Decliner**: re-queued `WAITING`, sent to the **back** (`priority -= 1`). A
-  decline costs queue position (matching is scarce) but is **not** a flake — no
-  flake is recorded and it never counts toward suspension.
-- **Other party** (left hanging): re-queued `WAITING`, keeps their place near the
-  **front** (`priority += 1`).
+- **Decliner**: registration set to **`PAUSED`** (out of pool; can self-rejoin
+  from their account page at any time). No queue-position change on pause.
+- **Other party** (left hanging): re-queued to the **front** (`priority += 1`).
 
 ### Failure — non-response (contact window lapses)
 
-A periodic **expiry sweep** finds `PROPOSED` matches past `expires_at` and
-transitions them to `EXPIRED`, then re-queues asymmetrically based on who acted:
+> **Updated by ADR 0013 (VERB-74).** The original design incremented `flake_count`
+> and auto-suspended at 2 flakes. The current implementation pauses non-responders.
 
-- **Exactly one accepted**: the accepter keeps their place near the front
-  (`priority += 1`); the non-responder goes to the **back** (`priority -= 1`) and
-  a **flake is recorded** (`flake_count += 1`).
-- **Neither accepted**: both are non-responders → both to the back, both flake.
+A periodic **expiry sweep** finds `PROPOSED`/`PENDING` matches past `expires_at`
+and transitions them to `EXPIRED`, then acts asymmetrically based on who accepted:
+
+- **Exactly one accepted**: the accepter is re-queued to the **front**
+  (`priority += 1`); the non-responder is set to **`PAUSED`**.
+- **Neither accepted**: both are set to **`PAUSED`**.
+
+Each non-responder receives a "your match expired — rejoin when ready" email via
+`send_window_expired_notification` (queued with `transaction.on_commit`).
 
 (If both had accepted the match would already be `ACCEPTED`, never `EXPIRED`.)
 
@@ -153,45 +159,42 @@ partner vanished, from their match page (CSRF-protected POST / `require_htmx`
 fragment). The report is **trusted immediately** — no verification gate, because
 the only thing at stake is queue position and staff can review records in admin:
 
-- `Match → ABANDONED`; record `no_show_reported_by` / `no_show_reported_at`.
-- **Reporter** → re-queued to the **front** (`WAITING`, `priority += 1`) with
+- `Match → CANCELLED`; record `no_show_reported_by` / `no_show_reported_at`.
+- **Reporter** → re-queued to the **front** (`VERIFIED`, `priority += 1`) with
   on-screen reassurance ("You're back near the front of the queue").
-- **Accused (flaker)** → **removed from the pool**: `Registration.status →
-  SUSPENDED`, `flake_count += 1`, and a **polite** notification email.
-- **First report wins.** Once the match is `ABANDONED` the accused cannot
+- **Accused** → **removed from the pool**: `Registration.status → SUSPENDED`
+  and a polite notification email.
+- **First report wins.** Once the match is `CANCELLED` the accused cannot
   counter-report (the match is terminal and they are suspended). This is the
   known cost of the trust-immediately model; staff adjudicate disputes in admin.
 
-### Flaking record and suspension
+### Suspension
 
-- `Registration.flake_count` (integer, default 0) records flakes (non-responses
-  and post-accept no-shows; **not** declines).
-- A new `Registration.Status.SUSPENDED` marks an involuntary removal, distinct
-  from voluntary `WITHDRAWN`.
-- **Auto-suspend at 2 flakes.** When an increment takes `flake_count` to 2, the
-  registration is set `SUSPENDED` instead of re-queued. (A post-accept no-show is
-  itself an immediate removal, so the threshold is reached in practice via
-  repeated non-responses.)
-- `propose_match` / the eligibility querysets must exclude `SUSPENDED`
-  registrations so the engine never re-matches a suspended party.
+`Registration.Status.SUSPENDED` marks an involuntary removal, distinct from the
+voluntary `WITHDRAWN` and the self-recoverable `PAUSED`. `SUSPENDED` is now set
+**only** by a post-accept no-show report — the retired two-strike flake model
+(see ADR 0013) no longer auto-suspends for repeated non-responses.
+
+`propose_match` and the eligibility querysets exclude `SUSPENDED` registrations
+so the engine never re-matches a suspended party.
 
 ### Priority semantics
 
-Re-queue adjusts the existing `priority` band used by `propose_match`'s ranking
+Re-queue adjusts the `priority` band used by `propose_match`'s ranking
 (`-location_match, -priority, created_at`):
 
-- Kept-faith / wronged party: `priority += 1` (floats above the default band; a
-  repeat victim floats higher still).
-- Flaker / decliner: `priority -= 1` (sinks below the default band → back).
+- Kept-faith / wronged party: `priority += 1` (floats above the default band).
+- Paused (rejoin): `priority -= 1` (mild de-prioritisation on `rejoin_queue`;
+  the person left the pool and is rejoining behind those who never left).
 
 `created_at` continues to provide FIFO ordering within a band.
 
 ### Notifications
 
 Email only for launch, via signed links — confirming CLAUDE.md's assumed default;
-no SMS/push. New emails: confirmed-with-contact-details, polite no-show notice,
-and the back-in-queue reassurance (the last may be on-screen only). All under the
-recipient's `preferred_language` (Invariant 8).
+no SMS/push. Emails: confirmed-with-contact-details, window-expired reassurance
+(to non-responders via `send_window_expired_notification`), and polite no-show
+notice. All under the recipient's `preferred_language` (Invariant 8).
 
 ### Expiry sweep topology
 
@@ -207,13 +210,13 @@ CLAUDE.md "Path to live"). It must be idempotent and transactional
   (Invariant 1). The match-access token is single-purpose/expiring (Invariant 6);
   fragment endpoints stay `require_htmx`-guarded (Invariant 7).
 - **`ACCEPTED` is no longer immutable.** Reporting/analytics must treat
-  `ABANDONED` as the post-accept failure outcome distinct from `EXPIRED`/`DECLINED`.
+  `CANCELLED` as the post-accept failure outcome distinct from `EXPIRED`/`DECLINED`.
 - **Trust-immediately is abusable in the small.** A party could pre-emptively
   report the other to jump the queue. Accepted deliberately: low stakes (queue
   position only), and every report is recorded for staff review. If abuse
   materialises, revisit toward the provisional/staff-review model.
-- **Scheduler dependency.** Launch now requires the Render scheduler service for
-  the expiry sweep; document the topology in CLAUDE.md when that slice lands.
+- **Scheduler dependency.** Launch requires the Render scheduler service for
+  the expiry sweep; see CLAUDE.md "Path to live".
 - **Open item deferred.** Whether the app tracks that the pair *actually applied*
   off-app (beyond the no-show report) remains out of scope; the no-show report is
   the only completion signal for launch.
@@ -222,14 +225,14 @@ CLAUDE.md "Path to live"). It must be idempotent and transactional
 
 ## Coding follow-ups (sub-tickets of VERB-16)
 
-1. Per-party accept tracking + `Match` state machine (`ABANDONED`, response
+1. Per-party accept tracking + `Match` state machine (`CANCELLED`, response
    fields, accept/decline/mutual-accept transitions + contact reveal) +
    generic `core` transition audit log (`record_transition`).
-2. Asymmetric re-queue + flaking record + suspension (`flake_count`,
-   `SUSPENDED`, priority bands, exclude suspended from matching).
+2. Asymmetric pause/re-queue + suspension (`PAUSED`, `SUSPENDED`, priority
+   bands, exclude suspended from matching) — **see ADR 0013 for the final model**.
 3. Accept / decline endpoints + signed match-access token + match page +
    contact-reveal + confirmation email.
 4. Contact-window expiry sweep (management command + Render scheduler service).
 5. Post-accept no-show reporting + notifications + reassurance.
-6. Admin & flaking reporting (surface `flake_count`, `SUSPENDED`, `ABANDONED`,
-   no-show fields; a let-downs report).
+6. Admin reporting (surface `SUSPENDED`, `CANCELLED`, no-show fields; a
+   let-downs report).

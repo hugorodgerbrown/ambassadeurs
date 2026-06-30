@@ -176,7 +176,9 @@ def test_already_terminal_match_not_reprocessed() -> None:
 
 
 def test_idempotency_second_run_returns_zero() -> None:
-    """Running the sweep twice: second call returns 0 and DB state is unchanged."""
+    """Running the sweep twice: second call returns 0, DB unchanged, no extra emails."""
+    from django.core import mail
+
     ambassador_reg = RegistrationFactory.create(
         status=Registration.Status.VERIFIED,
         priority=0,
@@ -194,8 +196,10 @@ def test_idempotency_second_run_returns_zero() -> None:
         referee_accepted_at=None,
     )
 
-    first_count = expire_lapsed_matches()
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        first_count = expire_lapsed_matches()
     assert first_count == 1
+    assert len(mail.outbox) == 2  # both non-responders notified
 
     # Capture state after first run.
     ambassador_reg.refresh_from_db()
@@ -203,8 +207,14 @@ def test_idempotency_second_run_returns_zero() -> None:
     assert ambassador_reg.status == Registration.Status.PAUSED
     assert referee_reg.status == Registration.Status.PAUSED
 
-    second_count = expire_lapsed_matches()
+    mail.outbox.clear()
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        second_count = expire_lapsed_matches()
     assert second_count == 0
+
+    # No additional emails on second run.
+    assert len(mail.outbox) == 0
 
     # DB state is unchanged (no double-pause).
     ambassador_reg.refresh_from_db()

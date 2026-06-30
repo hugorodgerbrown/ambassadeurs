@@ -267,7 +267,7 @@ def requeue_to_front(registration: Registration) -> None:
 
     Used after a counterpart declines or a match expires where this party had
     already accepted (or the window lapsed without action from the other side).
-    Not a flake — does not touch flake_count.
+    Not a penalty — priority is only adjusted here, never on pause.
 
     Runs inside a transaction with a SELECT FOR UPDATE to prevent lost updates.
     Syncs the passed-in instance's in-memory fields after the DB write.
@@ -378,8 +378,8 @@ def send_window_expired_notification(registration: Registration) -> None:
         subject = _("Your match has expired — rejoin the queue when you're ready")
         body = _(
             "The contact window for your recent match in the 4 Vallées "
-            "Ambassadors Program has closed because neither you nor your partner "
-            "confirmed in time.\n\n"
+            "Ambassadors Program has closed because the match was not confirmed "
+            "in time.\n\n"
             "Your registration is now paused. When you are ready to be matched "
             'again, visit your account page and click "Rejoin the queue":\n\n'
             "%(url)s\n\n"

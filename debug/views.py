@@ -438,6 +438,7 @@ def _match_status_scenario(
     partner_accepted: bool = False,
     queue_position: int | None = None,
     total_accepted_matches: int = 0,
+    can_rejoin: bool = False,
 ) -> dict[str, object]:
     """Build one labelled render-context for the Match status partial.
 
@@ -447,6 +448,9 @@ def _match_status_scenario(
     (VERB-44). The Registration is unsaved — the partial only reads its
     ``status``/``get_status_display`` — and ``status_pill`` is derived the same
     way the real view derives it (``_match_status_pill``).
+
+    ``can_rejoin`` mirrors the context variable injected by ``account_detail``
+    for the PAUSED state (VERB-74).
     """
     registration = (
         None
@@ -462,6 +466,7 @@ def _match_status_scenario(
         "partner_accepted": partner_accepted,
         "queue_position": queue_position,
         "total_accepted_matches": total_accepted_matches,
+        "can_rejoin": can_rejoin,
     }
 
 
@@ -520,6 +525,11 @@ def components(request: HttpRequest) -> HttpResponse:
             status=Registration.Status.VERIFIED,
             match_state="accepted",
             partner_first_name="Bernard",
+        ),
+        _match_status_scenario(
+            "Paused (can rejoin)",
+            status=Registration.Status.PAUSED,
+            can_rejoin=True,
         ),
         _match_status_scenario("Withdrawn", status=Registration.Status.WITHDRAWN),
         _match_status_scenario("Suspended", status=Registration.Status.SUSPENDED),

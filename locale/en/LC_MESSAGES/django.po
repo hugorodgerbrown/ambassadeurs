@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 10:39+0200\n"
+"POT-Creation-Date: 2026-06-30 01:34+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -549,9 +549,150 @@ msgid "Frequently asked questions"
 msgstr ""
 
 msgid ""
-"We're putting together answers to the questions people ask most. In the "
-"meantime, the How it works page covers how matching, eligibility, and the "
-"contact window work."
+"Quick answers to the questions we hear most. For a full walkthrough of how "
+"the programme works, see the"
+msgstr ""
+
+msgid "page."
+msgstr ""
+
+msgid "Eligibility"
+msgstr ""
+
+msgid "Who qualifies as an Ambassador?"
+msgstr ""
+
+msgid ""
+"An Ambassador is someone who held a 4 Vallées seasonal or annual pass — or a "
+"Mont 4 Card / special-reduction pass — in a prior season. When you register "
+"you self-attest to this; proof is checked off-app during the joint "
+"application at the ticket office."
+msgstr ""
+
+msgid "Who qualifies as a Referee?"
+msgstr ""
+
+msgid ""
+"A Referee is someone who did not hold any 4 Vallées season pass in a prior "
+"season — they are genuinely new to the programme. This is self-attested on "
+"registration and verified at the ticket office when you apply together."
+msgstr ""
+
+msgid "Can a Mont 4 Card holder act as an Ambassador?"
+msgstr ""
+
+msgid ""
+"Yes. A Mont 4 Card or special-reduction pass counts as a qualifying prior "
+"pass. The Referee they sponsor still benefits from the referral discount "
+"even if the Ambassador does not receive one themselves."
+msgstr ""
+
+msgid "How matching works"
+msgstr ""
+
+msgid "Do I choose my own partner?"
+msgstr ""
+
+msgid ""
+"No — the system assigns a match. You register once, and when an eligible "
+"partner is available the system proposes a pairing. You do not browse "
+"profiles or choose a partner, and the two of you do not know each other "
+"beforehand."
+msgstr ""
+
+msgid "How does the system decide who to pair me with?"
+msgstr ""
+
+msgid ""
+"The engine pairs eligible participants in order of shared preferred location "
+"first, then by priority score, then by the order they registered (earliest "
+"first). Both parties must be verified with no active match already in "
+"progress."
+msgstr ""
+
+msgid "How long until I get a match?"
+msgstr ""
+
+msgid ""
+"If an eligible partner is already waiting when you register, a match is "
+"proposed immediately. Ambassadors typically outnumber Referees, so Referees "
+"are often matched instantly; Ambassadors may wait in the queue. You can see "
+"your position from your status page."
+msgstr ""
+
+msgid "The contact window"
+msgstr ""
+
+msgid "What is the contact window?"
+msgstr ""
+
+msgid ""
+"Once a match is proposed, both parties have a fixed window — 72 hours by "
+"default — to accept. Neither side can see the other's contact details (email "
+"or phone) during this window; only your partner's first name is shown so the "
+"pairing feels human. Contact details are revealed only after both parties "
+"accept."
+msgstr ""
+
+msgid "Why can't I see my partner's contact details before accepting?"
+msgstr ""
+
+msgid ""
+"Contact details (email and phone) are hidden until both parties have "
+"accepted the match. This protects everyone's privacy: if either side "
+"declines or the window expires, neither party's contact information is ever "
+"shared."
+msgstr ""
+
+msgid "What happens if I miss the contact window?"
+msgstr ""
+
+msgid ""
+"If you do not respond within the window, the match expires and you are sent "
+"to the back of the queue. Your partner, who had no control over your non-"
+"response, keeps their position near the front and will be re-matched sooner."
+msgstr ""
+
+msgid "What happens if my partner misses the contact window?"
+msgstr ""
+
+msgid ""
+"If your partner does not respond in time, the match expires and you are "
+"moved to the front of the queue. The system will propose a new match for you "
+"as soon as an eligible partner is available."
+msgstr ""
+
+msgid "After matching"
+msgstr ""
+
+msgid "What happens once both of us have accepted?"
+msgstr ""
+
+msgid ""
+"Once both parties accept, each receives the other's email address and phone "
+"number. You then arrange to fill in the application form together and submit "
+"it to the ticket office. The pass purchase and application happen off this "
+"site, unchanged from the normal process."
+msgstr ""
+
+msgid "What if my partner doesn't show up after we've both accepted?"
+msgstr ""
+
+msgid ""
+"If your partner fails to follow through after mutual acceptance you can "
+"report them as a no-show. The report is acted on immediately: you re-enter "
+"the queue at the front, and your partner's registration is suspended. Two no-"
+"show incidents automatically suspend a registration."
+msgstr ""
+
+msgid "Does this site handle the application form or pass purchase?"
+msgstr ""
+
+msgid ""
+"No. This site handles the matchmaking only — connecting an Ambassador with a "
+"Referee so they can apply together. Filling in the application form and "
+"purchasing the passes at the ticket office are unchanged and happen entirely "
+"off this site."
 msgstr ""
 
 msgid "Read how it works"
@@ -950,9 +1091,6 @@ msgid ""
 msgstr ""
 
 msgid "Be respectful and prompt with the partner you are matched with."
-msgstr ""
-
-msgid "Eligibility"
 msgstr ""
 
 msgid ""

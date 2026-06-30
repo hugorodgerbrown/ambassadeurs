@@ -1295,7 +1295,7 @@ def test_match_detail_htmx_decline_counterpart_sees_requeued_message() -> None:
 
 
 def test_match_removed_page_has_account_link() -> None:
-    """match_removed.html renders a link to the account page (VERB-74: paused, not deleted)."""
+    """match_removed.html renders a link to the account page (VERB-74: paused)."""
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,

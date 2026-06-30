@@ -381,7 +381,7 @@ def send_window_expired_notification(registration: Registration) -> None:
             "Ambassadors Program has closed because neither you nor your partner "
             "confirmed in time.\n\n"
             "Your registration is now paused. When you are ready to be matched "
-            "again, visit your account page and click \"Rejoin the queue\":\n\n"
+            'again, visit your account page and click "Rejoin the queue":\n\n'
             "%(url)s\n\n"
             "If you did not register for this programme, please ignore this email."
         ) % {"url": account_url}
@@ -547,7 +547,7 @@ def accept_match(match: Match, registration: Registration) -> Match:
 
 
 def decline_match(match: Match, registration: Registration) -> Match:
-    """Record a decline, pause the decliner's registration, and re-queue the other party.
+    """Record a decline, pause the decliner, and re-queue the other party.
 
     Calls ``record_decline``, then:
     - Pauses the decliner's registration (``pause_registration``). The User and
@@ -789,9 +789,7 @@ def expire_lapsed_matches() -> int:
                 else:
                     pause_registration(referee_reg)
                     transaction.on_commit(
-                        functools.partial(
-                            send_window_expired_notification, referee_reg
-                        )
+                        functools.partial(send_window_expired_notification, referee_reg)
                     )
 
                 expired_count += 1

@@ -375,12 +375,11 @@ def _build_preview_match(view_key: str) -> tuple[Match, Registration, Match.Side
         match.declined_by = Match.Side.REFEREE
         match.declined_at = now
     elif view_key == "declined_partner":
-        # The partner declined; their account is deleted in production, so the
-        # FK is NULL and the page falls back to a generic "your partner" label.
+        # VERB-74: the partner declined and is now PAUSED (not deleted); the
+        # FK is retained, so partner_name comes from the registration as usual.
         match.status = Match.Status.DECLINED
         match.declined_by = Match.Side.AMBASSADOR
         match.declined_at = now
-        match.ambassador_registration = None
     elif view_key == "expired":
         match.status = Match.Status.EXPIRED
         match.expires_at = now - timedelta(days=1)

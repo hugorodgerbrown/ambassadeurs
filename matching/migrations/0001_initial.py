@@ -7,7 +7,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -16,48 +15,245 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Registration',
+            name="Registration",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('role', models.CharField(choices=[('AMBASSADOR', 'Ambassador'), ('REFEREE', 'Referee')], max_length=16)),
-                ('phone', models.CharField(blank=True, max_length=32)),
-                ('preferred_language', models.CharField(blank=True, choices=[('en', 'English'), ('fr', 'French')], max_length=8)),
-                ('preferred_location', models.CharField(blank=True, choices=[('VERBIER', 'Verbier'), ('THYON', 'Thyon'), ('NENDAZ', 'Nendaz'), ('VEYSONNAZ', 'Veysonnaz'), ('LA_TZOUMAZ', 'La Tzoumaz'), ('BRUSON', 'Bruson')], help_text='Soft preference; used to rank matches, never to gate them.', max_length=16)),
-                ('nationality', django_countries.fields.CountryField(blank=True, help_text='ISO 3166-1 alpha-2 country code. Optional; collected for analytics.', max_length=2)),
-                ('prior_pass', models.CharField(choices=[('NONE', 'None — I did not hold a prior pass'), ('SEASONAL', 'Seasonal pass (4 Vallées)'), ('ANNUAL', 'Annual pass (4 Vallées)'), ('MONT4', 'Mont 4 Card / special reduction')], default='NONE', help_text='Prior-season pass attestation. Ambassadors must hold SEASONAL, ANNUAL, or MONT4. Referees are genuinely new and hold NONE.', max_length=16)),
-                ('status', models.CharField(choices=[('UNVERIFIED', 'Unverified'), ('VERIFIED', 'Verified'), ('PAUSED', 'Paused'), ('WITHDRAWN', 'Withdrawn'), ('SUSPENDED', 'Suspended')], default='VERIFIED', max_length=16)),
-                ('priority', models.IntegerField(default=0, help_text='Queue priority; higher is nearer the front. Adjusted on rejoin (priority -= 1 each time) and on requeue-to-front (priority += 1).')),
-                ('accepted_terms', models.JSONField(blank=True, default=list, help_text='Ordered list of consent statement texts accepted at registration (eligibility declaration first, then T&C). Stored as displayed under the active language at the time of registration.')),
-                ('terms_accepted_at', models.DateTimeField(blank=True, help_text='Tz-aware timestamp at which the participant accepted the statements.', null=True)),
-                ('registration_country', models.CharField(blank=True, default='', help_text='Country name derived from the client IP at registration time (admin-only, never shown to participants). The raw IP is never stored.', max_length=64)),
-                ('registration_region', models.CharField(blank=True, default='', help_text='Region / subdivision name derived from the client IP at registration time (admin-only, never shown to participants). The raw IP is never stored.', max_length=128)),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='registration', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "role",
+                    models.CharField(
+                        choices=[("AMBASSADOR", "Ambassador"), ("REFEREE", "Referee")],
+                        max_length=16,
+                    ),
+                ),
+                ("phone", models.CharField(blank=True, max_length=32)),
+                (
+                    "preferred_language",
+                    models.CharField(
+                        blank=True,
+                        choices=[("en", "English"), ("fr", "French")],
+                        max_length=8,
+                    ),
+                ),
+                (
+                    "preferred_location",
+                    models.CharField(
+                        blank=True,
+                        choices=[
+                            ("VERBIER", "Verbier"),
+                            ("THYON", "Thyon"),
+                            ("NENDAZ", "Nendaz"),
+                            ("VEYSONNAZ", "Veysonnaz"),
+                            ("LA_TZOUMAZ", "La Tzoumaz"),
+                            ("BRUSON", "Bruson"),
+                        ],
+                        help_text="Soft preference; used to rank matches, never to gate them.",
+                        max_length=16,
+                    ),
+                ),
+                (
+                    "nationality",
+                    django_countries.fields.CountryField(
+                        blank=True,
+                        help_text="ISO 3166-1 alpha-2 country code. Optional; collected for analytics.",
+                        max_length=2,
+                    ),
+                ),
+                (
+                    "prior_pass",
+                    models.CharField(
+                        choices=[
+                            ("NONE", "None — I did not hold a prior pass"),
+                            ("SEASONAL", "Seasonal pass (4 Vallées)"),
+                            ("ANNUAL", "Annual pass (4 Vallées)"),
+                            ("MONT4", "Mont 4 Card / special reduction"),
+                        ],
+                        default="NONE",
+                        help_text="Prior-season pass attestation. Ambassadors must hold SEASONAL, ANNUAL, or MONT4. Referees are genuinely new and hold NONE.",
+                        max_length=16,
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("UNVERIFIED", "Unverified"),
+                            ("VERIFIED", "Verified"),
+                            ("PAUSED", "Paused"),
+                            ("WITHDRAWN", "Withdrawn"),
+                            ("SUSPENDED", "Suspended"),
+                        ],
+                        default="VERIFIED",
+                        max_length=16,
+                    ),
+                ),
+                (
+                    "priority",
+                    models.IntegerField(
+                        default=0,
+                        help_text="Queue priority; higher is nearer the front. Adjusted on rejoin (priority -= 1 each time) and on requeue-to-front (priority += 1).",
+                    ),
+                ),
+                (
+                    "accepted_terms",
+                    models.JSONField(
+                        blank=True,
+                        default=list,
+                        help_text="Ordered list of consent statement texts accepted at registration (eligibility declaration first, then T&C). Stored as displayed under the active language at the time of registration.",
+                    ),
+                ),
+                (
+                    "terms_accepted_at",
+                    models.DateTimeField(
+                        blank=True,
+                        help_text="Tz-aware timestamp at which the participant accepted the statements.",
+                        null=True,
+                    ),
+                ),
+                (
+                    "registration_country",
+                    models.CharField(
+                        blank=True,
+                        default="",
+                        help_text="Country name derived from the client IP at registration time (admin-only, never shown to participants). The raw IP is never stored.",
+                        max_length=64,
+                    ),
+                ),
+                (
+                    "registration_region",
+                    models.CharField(
+                        blank=True,
+                        default="",
+                        help_text="Region / subdivision name derived from the client IP at registration time (admin-only, never shown to participants). The raw IP is never stored.",
+                        max_length=128,
+                    ),
+                ),
+                (
+                    "user",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="registration",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-created_at'],
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='Match',
+            name="Match",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('status', models.CharField(choices=[('PROPOSED', 'Proposed'), ('PENDING', 'Pending'), ('ACCEPTED', 'Accepted'), ('DECLINED', 'Declined'), ('EXPIRED', 'Expired'), ('CANCELLED', 'Cancelled')], default='PROPOSED', max_length=16)),
-                ('expires_at', models.DateTimeField(help_text='When the contact window closes; both re-queue if not mutually accepted by then.')),
-                ('ambassador_accepted_at', models.DateTimeField(blank=True, help_text='Tz-aware instant the ambassador accepted; null until they do.', null=True)),
-                ('referee_accepted_at', models.DateTimeField(blank=True, help_text='Tz-aware instant the referee accepted; null until they do.', null=True)),
-                ('declined_by', models.CharField(blank=True, choices=[('AMBASSADOR', 'Ambassador'), ('REFEREE', 'Referee')], help_text='Which side declined; empty until a decline occurs.', max_length=16)),
-                ('declined_at', models.DateTimeField(blank=True, help_text='Tz-aware instant the decline was recorded; null until then.', null=True)),
-                ('no_show_reported_by', models.CharField(blank=True, choices=[('AMBASSADOR', 'Ambassador'), ('REFEREE', 'Referee')], help_text='Which side filed the post-accept no-show report; empty until then.', max_length=16)),
-                ('no_show_reported_at', models.DateTimeField(blank=True, help_text='Tz-aware instant the no-show report was filed; null until then.', null=True)),
-                ('ambassador_registration', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='matches_as_ambassador', to='matching.registration')),
-                ('referee_registration', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='matches_as_referee', to='matching.registration')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("PROPOSED", "Proposed"),
+                            ("PENDING", "Pending"),
+                            ("ACCEPTED", "Accepted"),
+                            ("DECLINED", "Declined"),
+                            ("EXPIRED", "Expired"),
+                            ("CANCELLED", "Cancelled"),
+                        ],
+                        default="PROPOSED",
+                        max_length=16,
+                    ),
+                ),
+                (
+                    "expires_at",
+                    models.DateTimeField(
+                        help_text="When the contact window closes; both re-queue if not mutually accepted by then."
+                    ),
+                ),
+                (
+                    "ambassador_accepted_at",
+                    models.DateTimeField(
+                        blank=True,
+                        help_text="Tz-aware instant the ambassador accepted; null until they do.",
+                        null=True,
+                    ),
+                ),
+                (
+                    "referee_accepted_at",
+                    models.DateTimeField(
+                        blank=True,
+                        help_text="Tz-aware instant the referee accepted; null until they do.",
+                        null=True,
+                    ),
+                ),
+                (
+                    "declined_by",
+                    models.CharField(
+                        blank=True,
+                        choices=[("AMBASSADOR", "Ambassador"), ("REFEREE", "Referee")],
+                        help_text="Which side declined; empty until a decline occurs.",
+                        max_length=16,
+                    ),
+                ),
+                (
+                    "declined_at",
+                    models.DateTimeField(
+                        blank=True,
+                        help_text="Tz-aware instant the decline was recorded; null until then.",
+                        null=True,
+                    ),
+                ),
+                (
+                    "no_show_reported_by",
+                    models.CharField(
+                        blank=True,
+                        choices=[("AMBASSADOR", "Ambassador"), ("REFEREE", "Referee")],
+                        help_text="Which side filed the post-accept no-show report; empty until then.",
+                        max_length=16,
+                    ),
+                ),
+                (
+                    "no_show_reported_at",
+                    models.DateTimeField(
+                        blank=True,
+                        help_text="Tz-aware instant the no-show report was filed; null until then.",
+                        null=True,
+                    ),
+                ),
+                (
+                    "ambassador_registration",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="matches_as_ambassador",
+                        to="matching.registration",
+                    ),
+                ),
+                (
+                    "referee_registration",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="matches_as_referee",
+                        to="matching.registration",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-created_at'],
+                "ordering": ["-created_at"],
             },
         ),
     ]

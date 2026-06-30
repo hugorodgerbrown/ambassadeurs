@@ -52,7 +52,8 @@
                 {% endif %}
             {% elif match_state == 'accepted' %}
                 {% blocktranslate trimmed with name=partner_first_name %}
-                    You have been matched with <strong>{{ name }}</strong> — view the match to see their contact details.
+                    You have been matched with <strong>{{ name }}</strong> — view the match to see their contact
+                    details.
                 {% endblocktranslate %}
             {% elif registration.status == 'UNVERIFIED' %}
                 {% blocktranslate trimmed %}
@@ -70,7 +71,8 @@
                 {% endif %}
             {% elif registration.status == 'PAUSED' %}
                 {% blocktranslate trimmed %}
-                    Your registration is paused — you are not currently in the matching queue. Rejoin whenever you are ready.
+                    Your registration is paused — you are not currently in the matching queue. Rejoin whenever you are
+                    ready.
                 {% endblocktranslate %}
                 {% if can_rejoin %}
                     <form

@@ -297,6 +297,7 @@ class MatchQuerySet(BaseQuerySet):
             ]
         )
 
+
 class Match(BaseModel):
     """A system-proposed pairing of one ambassador and one referee.
 

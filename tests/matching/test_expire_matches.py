@@ -261,7 +261,7 @@ def test_expiry_email_sent_to_non_responders() -> None:
 
 
 def test_no_expiry_email_for_faithful_party() -> None:
-    """No expiry email is sent to the faithful party (they are re-queued, not paused)."""
+    """No expiry email is sent to the faithful party (re-queued, not paused)."""
     from django.core import mail
 
     ambassador_reg = RegistrationFactory.create(priority=0)

@@ -56,8 +56,8 @@ Context:
         <p class="mb-3.5 text-small text-body">
             {% blocktranslate trimmed with partner=partner %}
                 Once you accept your contact details will be shared with your partner. If you choose not to accept (by
-                declining, or not responding in time), your registration will be paused — you can rejoin the queue from
-                your account page whenever you are ready.
+                declining, or not responding in time), your registration will be paused — you can rejoin the queue
+                from your account page whenever you are ready.
             {% endblocktranslate %}
         </p>
         {% if show_deadline %}
@@ -566,8 +566,8 @@ Context:
         </h2>
         <p class="mb-4 text-small text-body">
             {% blocktranslate trimmed %}
-                The window closed before you both accepted, so this match has expired. Your registration is now paused —
-                rejoin the queue from your account page whenever you are ready.
+                The window closed before you both accepted, so this match has expired. Your registration is now paused
+                — rejoin the queue from your account page whenever you are ready.
             {% endblocktranslate %}
         </p>
         <a href="{% url 'accounts:detail' %}" class="btn btn--primary">

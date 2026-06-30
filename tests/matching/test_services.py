@@ -2172,7 +2172,7 @@ def test_expire_lapsed_matches_sends_notification_to_non_responders(
 def test_expire_lapsed_matches_no_email_for_faithful_party(
     mailoutbox: list,
 ) -> None:
-    """No expiry email is sent to the faithful party (they are re-queued, not paused)."""
+    """No expiry email is sent to the faithful party (re-queued, not paused)."""
     from django.test import TestCase as DjangoTestCase
 
     past = datetime(2020, 1, 1, tzinfo=UTC)
@@ -2219,7 +2219,7 @@ def test_send_window_expired_notification_includes_account_url() -> None:
 
 
 def test_send_window_expired_notification_respects_preferred_language() -> None:
-    """send_window_expired_notification renders under the recipient's preferred_language."""
+    """send_window_expired_notification uses the recipient's preferred_language."""
     reg = RegistrationFactory.create(preferred_language="fr")
     send_window_expired_notification(reg)
     # Assert delivery — test env has no compiled catalogues, so only check To:.

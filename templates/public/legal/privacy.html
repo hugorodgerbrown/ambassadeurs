@@ -5,11 +5,10 @@
 
 {% block meta %}
     {% blocktranslate trimmed asvar page_description %}
-        Privacy Policy for the 4 Vallées Ambassadors partner-matching service. We collect only what matchmaking
-        requires and never share your contact details before you have both accepted a match.
+        Privacy Policy for the Ski Parrainage partner-matching service.
     {% endblocktranslate %}
     {% blocktranslate trimmed asvar page_title %}
-        Privacy Policy — 4 Vallées Ambassadors
+        Privacy Policy — Ski Parrainage
     {% endblocktranslate %}
     {% with meta_title=page_title meta_description=page_description %}
         {% include "includes/_meta.html" %}
@@ -24,48 +23,43 @@
         <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "Who we are" %}</h2>
         <p>
             {% blocktranslate trimmed %}
-                This service matches partners for the 4 Vallées Ambassadors Program. The data controller for the
-                personal data processed here is Groupe Télé-Thyon SA. For privacy questions, contact
-                caissier@tele-thyon.ch.
+                This is an independent service provided free of charge for the purpose of finding a partner
+                for the 4 Vallées Ambassador season pass program. It has no affiliation with the pass operator.
+                For privacy questions, contact privacy@skiparrainage.com
             {% endblocktranslate %}
         </p>
 
         <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "What we collect" %}</h2>
         <p>
             {% blocktranslate trimmed %}
-                We deliberately collect only what matchmaking and contact require: your name, email address, phone
-                number, your role (Ambassador or Referee), your prior-season eligibility attestation, and your preferred
-                resort. We do not collect the full application details (date of birth, address, photo ID, keycard,
-                insurance) — those are handled off-app when you apply in person.
+                We only require the minimum information that is necessary for matchmaking and post-match contact: your name, email address,
+                and your role (Ambassador or Referee); additional information requested at registration is optional, and is used only to
+                improve the service: your phone number, nationality, preferred language and  resort.
             {% endblocktranslate %}
         </p>
 
-        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "Why we use it" %}</h2>
+        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "How we use your data" %}</h2>
         <p>
             {% blocktranslate trimmed %}
                 We use your data to place you in the matching queue, pair you with a partner, and let you contact each
-                other once you have both accepted a match. Your email and phone are never shown to another participant
+                other once you have both accepted a match. Your email and phone number are never shown to another participant
                 before you have both accepted.
             {% endblocktranslate %}
         </p>
 
-        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "Nationality (optional)" %}</h2>
+        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "Information shared with your match" %}</h2>
         <p>
             {% blocktranslate trimmed %}
-                Providing your nationality is optional — the default is “Prefer not to say”. Where you choose to
-                share it, we use it only to understand the geographic spread of programme participants in aggregate (for
-                example, to report on how widely the programme reaches). Your nationality is never shown to another
-                participant, is never used to match or rank you, and is visible only to programme staff. The legal basis
-                for this processing is our legitimate interest in understanding the reach of the programme; you can
-                decline at any time by leaving “Prefer not to say” selected.
+                During the matching process we show your first name and nationality (if provided) to your prospective match.
+                Only after both parties have confirmed the match will we then share your contact details (full name, email and phone number if provided).
             {% endblocktranslate %}
         </p>
 
-        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "How long we keep it" %}</h2>
+        <h2 class="pt-2 text-lg font-semibold text-ink">{% translate "How long we keep your data" %}</h2>
         <p>
             {% blocktranslate trimmed %}
-                We keep your data for the duration of the season you registered for and a short period afterwards, then
-                delete it. You can delete your account at any time from your account page.
+                We will keep your data for the duration of the season you registered for and a short period afterwards.
+                You can delete your account at any time from your account page.
             {% endblocktranslate %}
         </p>
 
@@ -76,14 +70,8 @@
             {% blocktranslate trimmed %}
                 You have the right to access, correct, export, or delete your personal data, and to object to or
                 restrict its processing. You can exercise most of these directly from your account page, or by
-                contacting us. You also have the right to lodge a complaint with your data protection authority.
-            {% endblocktranslate %}
-        </p>
-
-        <p class="pt-4 text-sm text-meta">
-            {% blocktranslate trimmed %}
-                This policy is a first-draft baseline and should be reviewed by a legal professional before the program
-                launches.
+                contacting us at privacy@skiparrainage.com. You also have the right to lodge a complaint with your
+                data protection authority.
             {% endblocktranslate %}
         </p>
     </article>

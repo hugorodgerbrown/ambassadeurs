@@ -165,7 +165,7 @@ def test_accepted_statements_returns_ambassador_specific_eligibility_label() -> 
     statements = form.accepted_statements()
     assert len(statements) == 2
     assert "2024/25 or 2025/26" in statements[0]
-    assert "seasonal or annual" in statements[0]
+    assert "season or annual" in statements[0]
     # The eligibility statement must not contain the referee negation.
     assert "not held" not in statements[0]
     assert statements[1] == "I have read and agree to the Terms of Use"
@@ -180,7 +180,7 @@ def test_accepted_statements_returns_referee_specific_eligibility_label() -> Non
     assert form.is_valid(), form.errors
     statements = form.accepted_statements()
     assert len(statements) == 2
-    assert "not held" in statements[0]
+    assert "not purchase" in statements[0]
     assert "2024/25 or 2025/26" in statements[0]
     assert statements[1] == "I have read and agree to the Terms of Use"
 

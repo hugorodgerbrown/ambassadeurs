@@ -1,6 +1,7 @@
 # ADR 0007 — Post-match confirmation workflow
 
-**Status:** Accepted
+**Status:** Partially superseded — see ADR 0013 (VERB-74, 2026-06-30) for the
+revised decline / non-response / flaking model.
 **Date:** 2026-06-24
 **Ticket:** VERB-16
 

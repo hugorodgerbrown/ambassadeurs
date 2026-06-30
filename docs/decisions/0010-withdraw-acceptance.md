@@ -44,11 +44,12 @@ match page re-renders the accept/decline buttons.
 
 Withdrawing is a **clean** un-accept:
 
-- **No flake penalty.** It is distinct from a non-response flake (recorded at
-  expiry by `record_flake_and_requeue`) and from a decline. The party is still
-  engaged with the match; they have simply retracted a premature acceptance.
-- **Nothing is re-queued.** Both registrations stay `MATCHED` against the same
-  live match. `withdraw_acceptance` touches only the timestamp column.
+- **No pause penalty.** It is distinct from a non-response (which sets the
+  registration to PAUSED via `pause_registration`, per ADR 0013) and from a
+  decline. The party is still engaged with the match; they have simply retracted
+  a premature acceptance.
+- **Nothing is re-queued.** Both registrations remain against the same live
+  match. `withdraw_acceptance` touches only the timestamp column.
 - **No `StateTransitionLog` row.** The match never leaves `PROPOSED`, so there is
   no status transition to record. This is symmetric with the first accept, which
   also writes no log row (a log row is written only on the `PROPOSED → ACCEPTED`

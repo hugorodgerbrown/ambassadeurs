@@ -1,6 +1,6 @@
 # ADR 0008 — Decline email hash design
 
-**Status:** Accepted
+**Status:** Superseded by ADR 0013 (VERB-74, 2026-06-30)
 **Date:** 2026-06-26
 **Ticket:** VERB-41
 

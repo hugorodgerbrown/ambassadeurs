@@ -1000,8 +1000,8 @@ def report_no_show(match: Match, registration: Registration) -> Match:
     1. Transitions ``match.status`` ACCEPTED → CANCELLED and sets
        ``no_show_reported_by`` / ``no_show_reported_at``.
     2. Writes one ``StateTransitionLog`` row for ``Match.status``.
-    3. Suspends the accused (``SUSPENDED``, ``flake_count += 1``) and logs
-       the accused's ``Registration.status`` transition.
+    3. Suspends the accused (``SUSPENDED``) and logs the accused's
+       ``Registration.status`` transition.
     4. Re-queues the reporter to the front of the pool (``VERIFIED``,
        ``priority += 1``). The reporter's status transition is **not** logged,
        consistent with the decline path.

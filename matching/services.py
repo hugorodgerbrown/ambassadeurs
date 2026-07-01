@@ -7,6 +7,17 @@
 # creating the registration (inside an atomic transaction), propose_match is
 # called to attempt an immediate pairing with a waiting counterpart.
 #
+# The open-date gate (VERB-83): propose_match is a no-op before
+# matching_opens_at() (from matching.pricing_config, VERB-82). The gate lives
+# inside propose_match — the single chokepoint every proposing caller
+# (register_participant, confirm_registration, rejoin_queue, and any future
+# one) passes through — so a pre-open email-confirmation or rejoin can never
+# leak a match. Registrations still verify and enqueue before the open date;
+# they are simply not paired until it. run_matching drains the built-up queue
+# at/after the open date (it reuses propose_match, so the gate is satisfied by
+# the time it runs) and can then run on a schedule to complement the rolling
+# synchronous behaviour for late entrants.
+#
 # record_acceptance and record_decline implement the per-party response step of
 # the post-match confirmation workflow (ADR 0007 / VERB-18). Both are atomic
 # and call core.services.record_transition inline for the audit log.
@@ -62,6 +73,7 @@ from core.emails import normalise_email
 from core.services import record_transition
 
 from .models import Match, Registration
+from .pricing_config import matching_opens_at
 
 logger = logging.getLogger(__name__)
 
@@ -184,7 +196,21 @@ def propose_match(registration: Registration) -> Match | None:
     Registrations no longer flip to MATCHED when a match is proposed (VERB-44).
     Pool availability is managed by RegistrationQuerySet._without_active_match,
     which excludes registrations already holding a non-terminal match.
+
+    The open-date gate (VERB-83): returns None without proposing when
+    ``timezone.now()`` is before ``matching_opens_at()``. This is the single
+    chokepoint that defers matching for every caller, so a pre-open
+    registration, email confirmation, or queue rejoin enqueues without leaking
+    a match. The built-up queue is drained by ``run_matching`` at the open date.
     """
+    if timezone.now() < matching_opens_at():
+        logger.debug(
+            "propose_match: matching not yet open; skipping proposal for "
+            "registration pk=%s.",
+            registration.pk,
+        )
+        return None
+
     if registration.role == Registration.Role.AMBASSADOR:
         # Guard: the calling ambassador must hold a valid prior pass.
         if registration.prior_pass not in (
@@ -806,6 +832,136 @@ def expire_lapsed_matches() -> int:
             logger.exception("Error expiring match pk=%s; skipping", pk)
 
     return expired_count
+
+
+def _rank_referees_for(
+    ambassador: Registration, referees: list[Registration]
+) -> list[Registration]:
+    """Rank ``referees`` for ``ambassador`` using the engine's ordering.
+
+    Mirrors the ranking applied inside ``propose_match``: shared
+    ``preferred_location`` first, then ``priority`` descending, then
+    ``created_at`` ascending (FIFO within an equal priority). Used only by the
+    read-only ``run_matching`` dry-run simulation, which cannot lean on the
+    database ``ORDER BY`` because it pairs greedily in Python without writing.
+
+    Args:
+        ambassador: The ambassador whose location drives the shared-location
+            preference.
+        referees: The candidate referees to rank (already filtered to the
+            eligible, unconsumed pool).
+
+    Returns:
+        A new list of the referees ordered best-first.
+    """
+    return sorted(
+        referees,
+        key=lambda referee: (
+            # Negate so that a shared location (1) sorts before a non-shared
+            # one (0), and higher priority sorts before lower priority.
+            -(1 if referee.preferred_location == ambassador.preferred_location else 0),
+            -referee.priority,
+            referee.created_at,
+        ),
+    )
+
+
+def _simulate_run_matching() -> int:
+    """Return how many matches ``run_matching`` would propose, writing nothing.
+
+    Greedily pairs the eligible ambassador pool (ordered ``-priority,
+    created_at`` — the same order the commit path proposes in) against the
+    eligible referee pool, consuming each referee as it is taken so no
+    registration is paired twice. Reuses ``_rank_referees_for`` for the
+    per-ambassador counterpart ranking, so the dry-run count matches what a
+    real run would create.
+
+    Returns:
+        The number of matches that would be proposed.
+    """
+    ambassadors = list(
+        Registration.objects.eligible_ambassadors().order_by("-priority", "created_at")
+    )
+    referees = list(Registration.objects.eligible_referees())
+    consumed: set[int] = set()
+    would_propose = 0
+
+    for ambassador in ambassadors:
+        available = [ref for ref in referees if ref.pk not in consumed]
+        if not available:
+            break
+        counterpart = _rank_referees_for(ambassador, available)[0]
+        consumed.add(counterpart.pk)
+        would_propose += 1
+
+    return would_propose
+
+
+def run_matching(*, commit: bool) -> tuple[int, int]:
+    """Drain the waiting pool, proposing eligible matches until none remain.
+
+    Walks the eligible ambassador pool in the engine's ``-priority,
+    created_at`` order and proposes a match for each via ``propose_match``,
+    which selects the best eligible counterpart (shared location, then
+    priority, then FIFO) and excludes registrations already holding an active
+    match. Because ``propose_match`` re-queries the pool each call, a single
+    linear pass drains every pairable ambassador — each successful proposal
+    removes both parties from the eligible querysets.
+
+    This is the batch entry point used to clear the queue that builds up before
+    the open date (when the ``propose_match`` gate defers all pairing) and to
+    run on a schedule thereafter. It reuses ``propose_match`` unchanged, so the
+    open-date gate is satisfied only when this runs at/after the open date.
+
+    Read-only unless ``commit`` is True (management-command rules): with
+    ``commit=False`` it reports how many matches it *would* propose without
+    writing anything; with ``commit=True`` it proposes for real. Each real
+    proposal is isolated in its own ``transaction.atomic()`` block so one
+    failure cannot abort the whole drain; failures are counted and surfaced so
+    the caller can exit non-zero on a partial failure.
+
+    Args:
+        commit: When False (default for callers), simulate and count only.
+            When True, create the matches.
+
+    Returns:
+        A ``(proposed, failed)`` tuple. In dry-run mode ``failed`` is always 0
+        and ``proposed`` is the would-propose count.
+    """
+    if not commit:
+        would_propose = _simulate_run_matching()
+        logger.info(
+            "run_matching (dry-run): would propose %s match(es).", would_propose
+        )
+        return would_propose, 0
+
+    ambassador_pks = list(
+        Registration.objects.eligible_ambassadors()
+        .order_by("-priority", "created_at")
+        .values_list("pk", flat=True)
+    )
+    proposed = 0
+    failed = 0
+
+    for pk in ambassador_pks:
+        try:
+            with transaction.atomic():
+                # Re-fetch inside the transaction: an earlier proposal in this
+                # run may have consumed this ambassador as a counterpart, or
+                # left the pool otherwise changed.
+                ambassador = Registration.objects.get(pk=pk)
+                match = propose_match(ambassador)
+                if match is not None:
+                    proposed += 1
+        except Exception:
+            failed += 1
+            logger.exception(
+                "run_matching: error proposing a match for ambassador pk=%s; skipping",
+                pk,
+            )
+
+    logger.info("run_matching: proposed %s match(es), %s failure(s).", proposed, failed)
+    return proposed, failed
 
 
 def withdraw_acceptance(match: Match, registration: Registration) -> Match:

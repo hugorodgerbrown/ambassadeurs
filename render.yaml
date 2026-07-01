@@ -1,4 +1,4 @@
-# Render blueprint: one web service + one cron service + one Postgres database.
+# Render blueprint: one web service + two cron services + one Postgres database.
 # Deploys on merge to main; build.sh migrates on each deploy. Plan names and
 # region are placeholders to confirm against the Render account at deploy time.
 
@@ -36,6 +36,42 @@ services:
     schedule: "0 * * * *"
     buildCommand: ./build.sh
     startCommand: uv run python manage.py expire_matches
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: PYTHON_VERSION
+        value: "3.14"
+      - key: SECRET_KEY
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: SECRET_KEY
+      - key: ALLOWED_HOSTS
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: ALLOWED_HOSTS
+      - key: CSRF_TRUSTED_ORIGINS
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: CSRF_TRUSTED_ORIGINS
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ambassadeurs-db
+          property: connectionString
+
+  # Cron service: drains the waiting pool by proposing eligible matches once
+  # per hour (matching.services.run_matching, --commit to apply). Clears the
+  # queue that builds up while matching is gated before the open date (see
+  # propose_match / VERB-83), then keeps draining any late entrants.
+  - type: cron
+    name: ambassadeurs-run-matching
+    runtime: python
+    plan: starter
+    schedule: "0 * * * *"
+    buildCommand: ./build.sh
+    startCommand: uv run python manage.py run_matching --commit
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings.production

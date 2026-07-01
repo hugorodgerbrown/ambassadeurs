@@ -30,3 +30,7 @@ implement it. Add a row when a term gains a symbol.
 | Email-confirmation signed link | `accounts.tokens.make_registration_confirmation_token` | `accounts/tokens.py` |
 | Magic-link login token | `accounts.tokens.make_login_token` / `read_login_token` | `accounts/tokens.py` |
 | Send a magic-link login email | `accounts.services.send_login_email` | `accounts/services.py` |
+| Deferred matching moment | `settings.MATCHING_OPENS_AT` (env var) | `config/settings/base.py` |
+| Tiered prepaid registration fee schedule | `settings.REGISTRATION_FEE_TIERS` (env var) | `config/settings/base.py` |
+| When does matching open? (deferred-matching gate) | `matching.pricing_config.matching_opens_at` | `matching/pricing_config.py` |
+| Resolve the fee for a registration date | `matching.pricing_config.fee_chf_for` | `matching/pricing_config.py` |

@@ -69,7 +69,7 @@ def test_home_hides_opens_soon_when_registration_open() -> None:
 def test_home_contains_hero_image() -> None:
     """The homepage response includes the hero photograph path."""
     response = Client().get(reverse("public:home"))
-    assert b"images/hero.jpg" in response.content
+    assert b"images/hero-1280.jpg" in response.content
 
 
 # ---------------------------------------------------------------------------
@@ -2183,8 +2183,8 @@ def test_hero_image_has_nonempty_alt() -> None:
 
     response = Client().get(reverse("public:home"))
     content = response.content.decode()
-    assert "images/hero.jpg" in content
-    hero_img = re.search(r"<img[^>]+hero\.jpg[^>]*>", content, re.DOTALL)
+    assert "images/hero-1280.jpg" in content
+    hero_img = re.search(r"<img[^>]+hero-1280\.jpg[^>]*>", content, re.DOTALL)
     assert hero_img is not None, "hero img tag not found"
     alt_match = re.search(r'alt=["\']([^"\']*)["\']', hero_img.group(0))
     assert alt_match is not None, "hero img has no alt attribute"

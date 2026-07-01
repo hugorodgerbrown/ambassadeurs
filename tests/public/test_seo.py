@@ -196,12 +196,12 @@ def test_how_it_works_has_twitter_card() -> None:
 def test_home_og_image_references_hero() -> None:
     """The home page og:image points to the hero photograph."""
     content = _get(reverse("public:home"))
-    assert b"images/hero.jpg" in content
+    assert b"images/hero-1280.jpg" in content
     assert b'property="og:image"' in content
 
 
 def test_how_it_works_og_image_references_hero() -> None:
     """The how-it-works page og:image points to the hero photograph."""
     content = _get(reverse("public:how_it_works"))
-    assert b"images/hero.jpg" in content
+    assert b"images/hero-1280.jpg" in content
     assert b'property="og:image"' in content

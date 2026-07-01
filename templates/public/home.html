@@ -31,19 +31,32 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
     <section class="relative flex min-h-[90svh] flex-col">
         {% comment %}Background photograph{% endcomment %}
         {% comment %}
-        LCP image: fetchpriority high so the browser prioritises it; intrinsic
-        width/height (1920x1071) reserve the box to avoid layout shift on load.
+        LCP image: fetchpriority high so the browser prioritises it; never
+        lazy-loaded. Served as a responsive set (1280/1920/2560 w) in WebP with
+        a JPEG fallback so a phone pulls ~125 KB and a 4K display at most
+        ~350 KB. sizes="100vw" because the hero is always full-bleed. The
+        fallback <img> carries intrinsic width/height (1280x714, the native
+        1.79:1 ratio) to reserve the box and avoid layout shift on load.
         object-position biases right on mobile so the second person stays in
         frame on a portrait crop; centred from sm: up.
         {% endcomment %}
-        <img
-            src="{% static 'images/hero.jpg' %}"
-            alt='{% translate "Two people — one in a red jacket, one in blue — shaking hands on a platform between a red gondola and a blue gondola, both branded 4 Vallées Ambassadors, with alpine peaks behind" %}'
-            width="1600"
-            height="892"
-            fetchpriority="high"
-            class="absolute inset-0 h-full w-full object-cover object-[62%_center] sm:object-center"
-        >
+        <picture>
+            <source
+                type="image/webp"
+                srcset="{% static 'images/hero-1280.webp' %} 1280w, {% static 'images/hero-1920.webp' %} 1920w, {% static 'images/hero-2560.webp' %} 2560w"
+                sizes="100vw"
+            >
+            <img
+                src="{% static 'images/hero-1280.jpg' %}"
+                srcset="{% static 'images/hero-1280.jpg' %} 1280w, {% static 'images/hero-1920.jpg' %} 1920w, {% static 'images/hero-2560.jpg' %} 2560w"
+                sizes="100vw"
+                alt='{% translate "Two people — one in a red jacket, one in blue — shaking hands on a platform between a red gondola and a blue gondola, both branded 4 Vallées Ambassadors, with alpine peaks behind" %}'
+                width="1280"
+                height="714"
+                fetchpriority="high"
+                class="absolute inset-0 h-full w-full object-cover object-[62%_center] sm:object-center"
+            >
+        </picture>
         {% comment %}
         Top-and-bottom gradient scrim. Dark at the top (eyebrow + heading) and
         bottom (lead + CTAs) for legibility; clear through the middle so the

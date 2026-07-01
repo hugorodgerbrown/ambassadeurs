@@ -80,6 +80,44 @@ def send_login_email(request: HttpRequest, user: User) -> str:
     return verify_url
 
 
+def send_already_registered_email(request: HttpRequest, user: User) -> str:
+    """Email an already-enrolled ``user`` a sign-in link instead of registering.
+
+    Sent when someone submits the public registration form with an email that
+    already has a (non-UNVERIFIED) registration. The HTTP response is the same
+    generic "check your email" page shown to a brand-new registrant, so the
+    registration form does not reveal who is enrolled (VERB-72). Only the real
+    mailbox owner sees this mail, which tells them they are already registered
+    and links them straight in.
+
+    Reuses the login token (``accounts.login`` salt, Invariant 6) — no new
+    token type. Returns the absolute verify URL for the DEBUG shortcut link.
+    """
+    token = make_login_token(user.pk)
+    verify_url = request.build_absolute_uri(
+        reverse("accounts:login_verify", args=[token])
+    )
+    expiry_hours = LOGIN_TOKEN_MAX_AGE // 3600
+    context = {
+        "first_name": user.first_name or "",
+        "verify_url": verify_url,
+        "expiry_hours": expiry_hours,
+    }
+    # Do not pass request — email templates do not need context processors.
+    subject = render_to_string("email/already_registered_subject.txt", context).strip()
+    body = render_to_string("email/already_registered_body.txt", context).strip()
+    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user.email])
+
+    if settings.DEBUG:
+        logger.info(
+            "Already-registered sign-in link for user pk=%s: %s",
+            user.pk,
+            verify_url,
+        )
+
+    return verify_url
+
+
 def send_confirmation_email(request: HttpRequest, registration: Registration) -> str:
     """Email a signed confirmation link for ``registration``.
 

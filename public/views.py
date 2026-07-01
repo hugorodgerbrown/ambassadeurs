@@ -47,7 +47,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
-from accounts.services import send_confirmation_email
+from accounts.services import send_already_registered_email, send_confirmation_email
 from accounts.tokens import (
     read_match_access_token,
     read_registration_confirmation_token,
@@ -257,6 +257,23 @@ def register(request: HttpRequest) -> HttpResponse:
 
     data = form.cleaned_data
     email: str = data["email"]
+
+    # Non-enumerating enrolment guard (VERB-72): if this email already has a
+    # non-UNVERIFIED registration, do not reveal that on the form (that would let
+    # an attacker enumerate who is enrolled). Email the owner a sign-in link and
+    # fall through to the same generic "check your email" response shown to a
+    # brand-new registrant.
+    enrolled = (
+        Registration.objects.filter(user__email=email)
+        .exclude(status=Registration.Status.UNVERIFIED)
+        .select_related("user")
+        .first()
+    )
+    if enrolled is not None:
+        login_url = send_already_registered_email(request, enrolled.user)
+        if settings.DEBUG:
+            request.session["debug_verify_url"] = login_url
+        return redirect("public:register_email_sent")
 
     # Check for an existing UNVERIFIED registration for this email. If one
     # exists, resend the confirmation link without creating a second row.

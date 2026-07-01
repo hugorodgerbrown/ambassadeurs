@@ -133,16 +133,21 @@ def test_authenticated_duplicate_registration_rejected() -> None:
     assert form.non_field_errors()
 
 
-def test_duplicate_email_rejected() -> None:
-    """A second registration with the same email is rejected."""
+def test_duplicate_email_not_rejected_at_form_level() -> None:
+    """The anonymous form does not reject an already-enrolled email (VERB-72).
+
+    Rejecting here would let an attacker enumerate who is enrolled. The form
+    stays valid; the view emails a sign-in link and returns the same generic
+    response as a new registration.
+    """
     user = UserFactory.create(email="ada@example.com")
     RegistrationFactory.create(user=user)
     form = RegistrationForm(
         role=Registration.Role.REFEREE,
         data=_valid_referee_data(email="ada@example.com"),
     )
-    assert not form.is_valid()
-    assert form.non_field_errors()
+    assert form.is_valid()
+    assert not form.non_field_errors()
 
 
 def test_ambassador_prior_pass_invalid_choice_rejected() -> None:

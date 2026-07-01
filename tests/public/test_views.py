@@ -885,6 +885,20 @@ def test_how_it_works_link_in_footer() -> None:
     assert how_it_works_url in response.content
 
 
+def test_footer_language_selector_renders_both_languages() -> None:
+    """The footer language selector posts to set_language and offers EN and FR
+    (VERB-48). The current language is marked with aria-current.
+    """
+    response = Client().get(reverse("public:how_it_works"))
+    content = response.content.decode()
+    assert reverse("set_language") in content
+    assert 'name="language"' in content
+    assert 'value="en"' in content
+    assert 'value="fr"' in content
+    # Default language is English, so its button is marked current.
+    assert 'aria-current="true"' in content
+
+
 # ---------------------------------------------------------------------------
 # Application-form download view
 # ---------------------------------------------------------------------------
@@ -1943,7 +1957,11 @@ def test_match_detail_expired_match_shows_expired_outcome() -> None:
     content = response.content.decode()
     assert response.context["view"] == "expired"
     assert "This match expired" in content
-    assert b"<button" not in response.content
+    # No accept/decline action controls on a terminal match. (Assert on the
+    # action labels, not any <button>: the footer language selector added in
+    # VERB-48 has its own submit buttons on every page.)
+    assert "Accept" not in content
+    assert "Decline" not in content
 
 
 # ---------------------------------------------------------------------------

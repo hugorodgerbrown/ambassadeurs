@@ -82,8 +82,43 @@ the nav.
         </div>
     </div>
 
-    <div class="mx-auto flex max-w-3xl flex-wrap justify-between gap-2 border-t border-line px-4 py-5 font-mono text-xs text-meta">
+    <div class="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-2 border-t border-line px-4 py-5 font-mono text-xs text-meta">
         <span>{% translate "Independent project — not affiliated with the 4 Vallées pass operator." %}</span>
+        {% comment %}
+        Language selector (VERB-48). One POST form with a submit button per
+        available language, each showing a country flag and the language code.
+        No inline JS (CSP-safe): each button carries name="language" so the
+        clicked option is the value submitted. The current language is marked
+        with aria-current and rendered in ink.
+        {% endcomment %}
+        <form
+            action="{% url 'set_language' %}"
+            method="post"
+            class="flex items-center gap-1"
+            aria-label="{% translate 'Change language' %}"
+        >
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+            {% get_current_language as current_lang %}
+            {% get_available_languages as languages %}
+            {% for code, name in languages %}
+                <button
+                    type="submit"
+                    name="language"
+                    value="{{ code }}"
+                    aria-label="{{ name }}"
+                    {% if code == current_lang %}
+                        aria-current="true"
+                    {% endif %}
+                    class="flex cursor-pointer items-center gap-1 rounded-control border-0 bg-transparent px-1.5 py-1 {% if code == current_lang %}text-ink{% else %}text-meta hover:text-ink{% endif %}"
+                >
+                    <span aria-hidden="true">
+                        {% if code == 'fr' %}🇫🇷{% else %}🇬🇧{% endif %}
+                    </span>
+                    {{ code|upper }}
+                </button>
+            {% endfor %}
+        </form>
         <span>© {% now "Y" %}</span>
     </div>
 </footer>

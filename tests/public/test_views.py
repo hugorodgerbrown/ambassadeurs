@@ -2078,6 +2078,26 @@ def test_nav_has_aria_label() -> None:
     assert b"Main navigation" in response.content
 
 
+def test_nav_authenticated_shows_account_menu() -> None:
+    """A signed-in user sees the profile-icon account menu with My account and
+    Sign out (VERB-47).
+    """
+    user = UserFactory.create()
+    client = Client()
+    client.force_login(user)
+    content = client.get(reverse("public:how_it_works")).content
+    assert b"Account menu" in content
+    assert b"My account" in content
+    assert b"Sign out" in content
+
+
+def test_nav_anonymous_shows_sign_in() -> None:
+    """An anonymous visitor sees Sign in and no account menu (VERB-47)."""
+    content = Client().get(reverse("public:how_it_works")).content
+    assert b"Sign in" in content
+    assert b"Account menu" not in content
+
+
 def test_register_form_labels_associated_with_inputs() -> None:
     """The registration form renders <label for> matching each input id."""
     response = Client().get(reverse("public:register") + "?role=ambassador")

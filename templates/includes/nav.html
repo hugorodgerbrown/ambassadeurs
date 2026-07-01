@@ -151,15 +151,54 @@ set_language form can be restored from git history when FR is exposed in UI.
             </a>
             <div class="flex items-center gap-4 text-sm">
                 {% if user.is_authenticated %}
-                    <a href="{% url 'accounts:detail' %}" class="font-medium text-ink">
-                        {% translate "My account" %}
-                    </a>
-                    <form method="post" action="{% url 'accounts:logout' %}" class="inline">
-                        {% csrf_token %}
-                        <button type="submit" class="cursor-pointer border-0 bg-transparent p-0 text-body">
-                            {% translate "Sign out" %}
-                        </button>
-                    </form>
+                    {% comment %}
+                    Account menu (no-JS <details> toggle) behind a profile-icon
+                    button — same dropdown pattern as the homepage hamburger.
+                    Collects My account and Sign out.
+                    {% endcomment %}
+                    <details class="relative">
+                        <summary
+                            class="flex cursor-pointer list-none items-center [&::-webkit-details-marker]:hidden"
+                            aria-label="{% translate 'Account menu' %}"
+                        >
+                            <span
+                                class="flex h-9 w-9 items-center justify-center rounded-pill border border-line"
+                                style="color: var(--role)"
+                            >
+                                <svg
+                                    width="20"
+                                    height="20"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.8"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <circle cx="12" cy="8" r="4" />
+                                    <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
+                                </svg>
+                            </span>
+                        </summary>
+                        <div class="absolute right-0 top-full z-30 mt-3 w-56 overflow-hidden rounded-control border border-line bg-surface py-1 shadow-pop">
+                            <a
+                                href="{% url 'accounts:detail' %}"
+                                class="block px-4 py-2.5 text-sm font-medium text-ink hover:bg-surface-2"
+                            >
+                                {% translate "My account" %}
+                            </a>
+                            <form method="post" action="{% url 'accounts:logout' %}">
+                                {% csrf_token %}
+                                <button
+                                    type="submit"
+                                    class="block w-full cursor-pointer border-0 bg-transparent px-4 py-2.5 text-left text-sm font-medium text-ink hover:bg-surface-2"
+                                >
+                                    {% translate "Sign out" %}
+                                </button>
+                            </form>
+                        </div>
+                    </details>
                 {% else %}
                     <a href="{% url 'accounts:login' %}" class="font-medium text-ink">
                         {% translate "Sign in" %}

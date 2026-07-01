@@ -5,6 +5,8 @@
 import dj_database_url
 from decouple import Csv, config
 
+from core.observability import init_error_monitoring
+
 from .base import *  # noqa: F403
 
 DEBUG = False
@@ -45,6 +47,21 @@ CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", cast=Csv(), default="")
 # Enforce the Content-Security-Policy in production (development runs the same
 # directives in report-only mode). See base.CSP_DIRECTIVES.
 CONTENT_SECURITY_POLICY = {"DIRECTIVES": CSP_DIRECTIVES}  # noqa: F405
+
+# --- Error monitoring (PostHog) -------------------------------------------
+
+# Server-side exception capture, production only (VERB-65). init configures the
+# PostHog client from POSTHOG_API_KEY / POSTHOG_HOST and is a no-op without a
+# key, so a deploy that has not set the key simply runs without monitoring.
+init_error_monitoring()
+
+# Report web-request exceptions to PostHog. Prepended (outermost) so its
+# process_exception sees exceptions raised anywhere below it. Crons are covered
+# by enable_exception_autocapture instead (see core.observability).
+MIDDLEWARE = [
+    "core.middleware.PostHogExceptionMiddleware",
+    *MIDDLEWARE,  # noqa: F405
+]
 
 # --- Email ----------------------------------------------------------------
 

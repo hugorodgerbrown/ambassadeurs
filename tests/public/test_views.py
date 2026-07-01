@@ -1012,6 +1012,34 @@ def test_match_detail_no_counterpart_pii_before_accept() -> None:
     assert referee_reg.user.email not in content
 
 
+def test_match_detail_shows_counterpart_nationality_before_accept() -> None:
+    """The roster shows the counterpart's nationality before mutual accept
+    (non-PII), while email and phone stay hidden (VERB-75, Invariant 1).
+    """
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.VERIFIED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        nationality="FR",
+        phone="+41790008888",
+        status=Registration.Status.VERIFIED,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    url = _make_match_url(match, ambassador_reg)
+    content = Client().get(url).content.decode()
+    # Nationality (country name) is revealed before accept ...
+    assert "France" in content
+    # ... but contact PII is still withheld.
+    assert "+41790008888" not in content
+    assert referee_reg.user.email not in content
+
+
 def test_match_detail_accepted_reveals_counterpart_pii() -> None:
     """After mutual accept the counterpart's contact details are shown."""
     ambassador_reg = RegistrationFactory.create(

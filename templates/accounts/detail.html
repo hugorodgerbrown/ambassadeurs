@@ -53,7 +53,7 @@
                     {% if email_verified %}
                         {% comment %}
                             Tick icon shown when the user's email address has been
-                            verified via the confirmation link or social login.
+                            verified via the email confirmation link.
                         {% endcomment %}
                         <svg
                             width="14"
@@ -118,7 +118,7 @@
                 href="{% url 'accounts:delete' %}"
                 class="btn btn--ghost border-danger text-danger hover:border-danger"
             >
-                {% translate "Delete account " %}
+                {% translate "Delete account" %}
             </a>
         </div>
     </section>

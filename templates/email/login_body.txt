@@ -4,6 +4,6 @@
 
 {{ verify_url }}
 
-{% blocktranslate trimmed with expiry_hours=expiry_hours %}This link expires in {{ expiry_hours }} hour. If you did not request this, you can safely ignore this email — your account is not affected.{% endblocktranslate %}
+{% blocktranslate trimmed count expiry_hours=expiry_hours %}This link expires in {{ expiry_hours }} hour. If you did not request this, you can safely ignore this email — your account is not affected.{% plural %}This link expires in {{ expiry_hours }} hours. If you did not request this, you can safely ignore this email — your account is not affected.{% endblocktranslate %}
 
 {% translate "— 4 Vallées Ambassadors Programme" %}

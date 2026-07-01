@@ -6,6 +6,6 @@
 
 {{ confirm_url }}
 
-{% blocktranslate trimmed with expiry_hours=expiry_hours %}This link expires in {{ expiry_hours }} hours. If you did not register for this programme, you can safely ignore this email.{% endblocktranslate %}
+{% blocktranslate trimmed count expiry_hours=expiry_hours %}This link expires in {{ expiry_hours }} hour. If you did not register for this programme, you can safely ignore this email.{% plural %}This link expires in {{ expiry_hours }} hours. If you did not register for this programme, you can safely ignore this email.{% endblocktranslate %}
 
 {% translate "— 4 Vallées Ambassadors Programme" %}

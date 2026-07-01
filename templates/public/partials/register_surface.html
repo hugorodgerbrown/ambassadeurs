@@ -74,7 +74,7 @@ Context:
                         Signed in as <strong>{{ email }}</strong> — you registered as {{ role }} on {{ date }}, so
                         this form is locked.
                     {% endblocktranslate %}
-                    <a href="{% url 'accounts:detail' %}">{% translate "View my status" %}</a>.
+                    <a href="{% url 'accounts:detail' %}">{% translate "View my account" %}</a>.
                 </p>
             </div>
         </div>
@@ -361,7 +361,7 @@ Context:
                 </button>
                 <p class="field__hint mt-3 text-center">
                     {% blocktranslate trimmed %}
-                        You can only register once. To change your details, contact us or check your status.
+                        You can only register once. To change your details, contact us or check your account page.
                     {% endblocktranslate %}
                 </p>
             {% else %}

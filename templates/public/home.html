@@ -114,10 +114,7 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
     </section>
     {% comment %}Quiet independence disclaimer, just below the hero image.{% endcomment %}
     <p class="px-6 pb-3 pt-3 border-b border-line text-center text-xs text-meta sm:px-10 lg:px-16">
-        {% blocktranslate %}
-            This is an independent project — it is not affiliated with the 4 Vallées pass operator, and is
-            responsible for matching only.
-        {% endblocktranslate %}
+        {% translate "Independent project — not affiliated with the 4 Vallées pass operator." %}
     </p>
     {% if not registration_open %}
         {% comment %}Full-width opens-soon band below the hero (notice tone, not a role colour).{% endcomment %}

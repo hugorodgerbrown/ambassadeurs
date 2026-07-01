@@ -59,8 +59,8 @@ the parsing helper.
 
 Registration carries a one-off prepaid fee, escalating by the calendar date on
 which the participant registers. The schedule is env-configured
-(`REGISTRATION_FEE_TIERS`, a comma-separated `YYYY-MM-DD:rappen` list) and
-resolved via `matching.pricing_config.fee_rappen_for(on_date)`, which returns
+(`REGISTRATION_FEE_TIERS`, a comma-separated `YYYY-MM-DD:CHF` list) and
+resolved via `matching.pricing_config.fee_chf_for(on_date)`, which returns
 the amount of the last threshold on or before `on_date` (0/free before the
 first threshold). The amount is **locked in at registration time** — a
 participant's fee does not change retroactively if they register before a
@@ -111,11 +111,10 @@ up front is the only dependable timing. Stripe integration itself
 (`Payment` model, checkout flow) is VERB-85; this ADR only fixes the provider
 and timing decision so VERB-85 has a settled target.
 
-Stripe charges in its minor unit (centimes for CHF); the CHF-to-centimes
-conversion happens at the Stripe API boundary in VERB-85/86 — the config and
-stored values in this ticket and its downstream siblings are rappen (Swiss
-minor-unit) amounts throughout, with no separate major/minor unit split to
-track in this codebase.
+Fees are denominated in **CHF** (whole francs) throughout the config and the
+stored values. Stripe charges in its minor unit (centimes for CHF), so the
+CHF-to-centimes conversion happens once, at the Stripe API boundary in
+VERB-85/86; the domain never stores or reasons about the minor unit.
 
 ---
 
@@ -144,7 +143,7 @@ track in this codebase.
 
 ## Out of scope (later tickets)
 
-The matching gate wired into `propose_match` (VERB-83), `Registration.fee_rappen`
+The matching gate wired into `propose_match` (VERB-83), `Registration.fee_chf`
 and stamping it at signup (VERB-84), the Stripe `Payment` model and checkout
 flow (VERB-85), and all collect/refund/forfeit flows (VERB-86/87/88). This
 ticket ships config, a parsing helper, and this decision record only.

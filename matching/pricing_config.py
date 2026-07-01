@@ -52,8 +52,8 @@ def matching_opens_at() -> datetime:
     return parsed
 
 
-def fee_rappen_for(on_date: date) -> int:
-    """Return the prepaid registration fee, in rappen, for ``on_date``.
+def fee_chf_for(on_date: date) -> int:
+    """Return the prepaid registration fee, in CHF, for ``on_date``.
 
     Parses ``settings.REGISTRATION_FEE_TIERS`` via ``_parse_fee_tiers`` and
     resolves ``on_date`` to the amount of the last threshold whose date is
@@ -64,7 +64,7 @@ def fee_rappen_for(on_date: date) -> int:
         on_date: The date to resolve a fee for (typically the registration date).
 
     Returns:
-        The fee in rappen (0 if free).
+        The fee in whole CHF (0 if free).
 
     Raises:
         ImproperlyConfigured: propagated from ``_parse_fee_tiers`` if
@@ -72,9 +72,9 @@ def fee_rappen_for(on_date: date) -> int:
     """
     tiers = _parse_fee_tiers(settings.REGISTRATION_FEE_TIERS)
     fee = 0
-    for threshold_date, rappen in tiers:
+    for threshold_date, chf in tiers:
         if threshold_date <= on_date:
-            fee = rappen
+            fee = chf
         else:
             break
     return fee
@@ -83,21 +83,21 @@ def fee_rappen_for(on_date: date) -> int:
 def _parse_fee_tiers(raw: str) -> list[tuple[date, int]]:
     """Parse a ``REGISTRATION_FEE_TIERS``-style schedule string.
 
-    The expected format is a comma-separated list of ``YYYY-MM-DD:rappen``
-    entries, e.g. ``"2026-10-01:500,2026-11-01:1000,2026-12-01:2000"``. Each
-    entry means "from this date onward the fee is N rappen".
+    The expected format is a comma-separated list of ``YYYY-MM-DD:CHF``
+    entries, e.g. ``"2026-10-01:5,2026-11-01:10,2026-12-01:20"``. Each
+    entry means "from this date onward the fee is N CHF".
 
     Args:
         raw: The raw schedule string (typically ``settings.REGISTRATION_FEE_TIERS``).
 
     Returns:
-        A list of ``(threshold_date, rappen)`` tuples sorted by date.
+        A list of ``(threshold_date, chf)`` tuples sorted by date.
         Empty or whitespace-only input returns ``[]``.
 
     Raises:
         ImproperlyConfigured: if any entry is malformed — missing the
             ``:`` separator, an invalid date, or a non-integer or negative
-            rappen amount. Pricing misconfiguration must fail loud rather
+            CHF amount. Pricing misconfiguration must fail loud rather
             than silently charge the wrong amount.
     """
     raw = raw.strip()
@@ -110,11 +110,11 @@ def _parse_fee_tiers(raw: str) -> list[tuple[date, int]]:
         if ":" not in entry:
             raise ImproperlyConfigured(
                 f"Malformed REGISTRATION_FEE_TIERS entry {entry!r}: "
-                "expected 'YYYY-MM-DD:rappen'."
+                "expected 'YYYY-MM-DD:CHF'."
             )
-        date_part, _sep, rappen_part = entry.partition(":")
+        date_part, _sep, chf_part = entry.partition(":")
         date_part = date_part.strip()
-        rappen_part = rappen_part.strip()
+        chf_part = chf_part.strip()
 
         try:
             threshold_date = date.fromisoformat(date_part)
@@ -125,19 +125,19 @@ def _parse_fee_tiers(raw: str) -> list[tuple[date, int]]:
             ) from exc
 
         try:
-            rappen = int(rappen_part)
+            chf = int(chf_part)
         except ValueError as exc:
             raise ImproperlyConfigured(
                 f"Malformed REGISTRATION_FEE_TIERS entry {entry!r}: "
-                f"{rappen_part!r} is not a valid integer rappen amount."
+                f"{chf_part!r} is not a valid integer CHF amount."
             ) from exc
-        if rappen < 0:
+        if chf < 0:
             raise ImproperlyConfigured(
                 f"Malformed REGISTRATION_FEE_TIERS entry {entry!r}: "
-                "rappen amount must not be negative."
+                "CHF amount must not be negative."
             )
 
-        tiers.append((threshold_date, rappen))
+        tiers.append((threshold_date, chf))
 
     tiers.sort(key=lambda tier: tier[0])
     return tiers

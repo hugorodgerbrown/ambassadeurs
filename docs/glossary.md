@@ -33,4 +33,4 @@ implement it. Add a row when a term gains a symbol.
 | Deferred matching moment | `settings.MATCHING_OPENS_AT` (env var) | `config/settings/base.py` |
 | Tiered prepaid registration fee schedule | `settings.REGISTRATION_FEE_TIERS` (env var) | `config/settings/base.py` |
 | Is matching open yet? | `matching.pricing_config.matching_opens_at` | `matching/pricing_config.py` |
-| Resolve the fee for a registration date | `matching.pricing_config.fee_rappen_for` | `matching/pricing_config.py` |
+| Resolve the fee for a registration date | `matching.pricing_config.fee_chf_for` | `matching/pricing_config.py` |

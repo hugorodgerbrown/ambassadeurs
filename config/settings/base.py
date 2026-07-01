@@ -102,9 +102,9 @@ MATCHING_OPENS_AT: str = config(
 )
 
 # Tiered prepaid registration fee (VERB-81/82): a comma-separated schedule of
-# "YYYY-MM-DD:rappen" thresholds, each meaning "from this date onward the fee
-# is N rappen". Empty default means always free in dev (matches today's free
-# registration). Parsed by matching.pricing_config.fee_rappen_for.
+# "YYYY-MM-DD:CHF" thresholds, each meaning "from this date onward the fee
+# is N CHF". Empty default means always free in dev (matches today's free
+# registration). Parsed by matching.pricing_config.fee_chf_for.
 REGISTRATION_FEE_TIERS: str = config("REGISTRATION_FEE_TIERS", default="")
 
 # External application-form PDF (hosted off-app by the 4 Vallées). The download

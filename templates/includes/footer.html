@@ -35,7 +35,7 @@ the nav.
 
         <div class="flex flex-wrap gap-14">
             <div>
-                <p class="label mb-3">{% translate "Program" %}</p>
+                <p class="label mb-3">{% translate "Programme" %}</p>
                 <a href="{% url 'public:how_it_works' %}" class="mb-2 block text-sm text-body hover:text-ink">
                     {% translate "How it works" %}
                 </a>
@@ -67,12 +67,12 @@ the nav.
                             type="submit"
                             class="cursor-pointer border-0 bg-transparent p-0 text-sm text-body hover:text-ink"
                         >
-                            {% translate "Log out" %}
+                            {% translate "Sign out" %}
                         </button>
                     </form>
                 {% else %}
                     <a href="{% url 'accounts:login' %}" class="mb-2 block text-sm text-body hover:text-ink">
-                        {% translate "Log in" %}
+                        {% translate "Sign in" %}
                     </a>
                     <a href="{% url 'public:register' %}" class="block text-sm text-body hover:text-ink">
                         {% translate "Register" %}

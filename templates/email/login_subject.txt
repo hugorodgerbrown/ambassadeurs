@@ -1,1 +1,1 @@
-{% load i18n %}{% translate "Sign in to 4 Vallées Ambassadors" %}
+{% load i18n %}{% translate "Sign in to Ski Parrainage" %}

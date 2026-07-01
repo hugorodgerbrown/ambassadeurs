@@ -1,1 +1,1 @@
-{% load i18n %}{% translate "Confirm your email — 4 Vallées Ambassadors" %}
+{% load i18n %}{% translate "Confirm your email — Ski Parrainage" %}

@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "Log out" %}{% endblock %}
+{% block title %}{% translate "Sign out" %}{% endblock %}
 
 {% block content %}
     <section class="mx-auto max-w-md text-center">
-        <h1 class="mb-4 text-ink">{% translate "Log out" %}</h1>
+        <h1 class="mb-4 text-ink">{% translate "Sign out" %}</h1>
         <p class="mb-6 text-body">
-            {% translate "Are you sure you want to log out?" %}
+            {% translate "Are you sure you want to sign out?" %}
         </p>
         <form method="post" action="{% url 'accounts:logout' %}">
             {% csrf_token %}
             <button type="submit" class="btn btn--primary">
-                {% translate "Log out" %}
+                {% translate "Sign out" %}
             </button>
         </form>
     </section>

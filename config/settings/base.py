@@ -6,6 +6,7 @@
 
 from pathlib import Path
 
+from csp.constants import NONCE, NONE, SELF
 from decouple import config
 
 # Repo root: base.py -> settings -> config -> <root>.
@@ -42,6 +43,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "csp.middleware.CSPMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
@@ -209,4 +211,36 @@ LOGGING = {
     "loggers": {
         "django": {"handlers": ["console"], "level": "INFO", "propagate": False},
     },
+}
+
+# --- Content-Security-Policy ----------------------------------------------
+#
+# Defence-in-depth behind Django's template auto-escaping (VERB-71, audit M2).
+# The directives are defined once here; development.py applies them in
+# report-only mode (observe, don't block) and production.py enforces them.
+#
+# Origins in use: same-origin CSS/JS (WhiteNoise; htmx is self-hosted per
+# VERB-70), the Google Fonts stylesheet (fonts.googleapis.com) and font files
+# (fonts.gstatic.com). The only inline script is base.html's font-swap helper,
+# whitelisted with a per-response nonce (NONCE). Inline style= attributes were
+# refactored into CSS classes, so style-src needs no 'unsafe-inline'; the one
+# remaining inline <style> block is templates/500.html, whitelisted by hash.
+#
+# The 500.html hash is over the exact bytes of that <style> block — regenerate
+# it (sha256, base64) if that block ever changes, or the standalone error page
+# loses its critical styling under enforcement.
+CSP_DIRECTIVES = {
+    "default-src": [SELF],
+    "script-src": [SELF, NONCE],
+    "style-src": [
+        SELF,
+        "https://fonts.googleapis.com",
+        "'sha256-qd79DCo1rt0o2NtF54DrHquS28j7g8PpzT0bg89b8f4='",
+    ],
+    "font-src": ["https://fonts.gstatic.com"],
+    "img-src": [SELF, "data:"],
+    "connect-src": [SELF],
+    "base-uri": [SELF],
+    "form-action": [SELF],
+    "frame-ancestors": [NONE],
 }

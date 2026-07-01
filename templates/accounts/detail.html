@@ -11,7 +11,7 @@
 
 {% block content %}
     <section class="role-theme{% if registration and registration.role != 'AMBASSADOR' %} role-theme--referee{% endif %} mx-auto max-w-xl">
-        <p class="eyebrow mb-2" style="color: var(--role)">{% translate "Account details" %}</p>
+        <p class="eyebrow mb-2 text-role">{% translate "Account details" %}</p>
         <h1 class="mb-6 text-ink">{% translate "Your account" %}</h1>
 
         {% comment %}
@@ -40,7 +40,7 @@
         <div class="card mb-6">
             <div class="mb-4 flex items-center justify-between">
                 <h2 class="text-h3 text-ink">{% translate "Your details" %}</h2>
-                <a href="{% url 'accounts:edit' %}" class="text-sm font-medium underline" style="color: var(--role)">
+                <a href="{% url 'accounts:edit' %}" class="text-sm font-medium underline text-role">
                     {% translate "Edit" %}
                 </a>
             </div>

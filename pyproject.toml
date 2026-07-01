@@ -20,6 +20,7 @@ dependencies = [
     "django-countries>=9.0.0",
     "geoip2>=5.2.0",
     "django-ratelimit>=4.1.0",
+    "django-csp>=4.0",
 ]
 
 [dependency-groups]

@@ -42,6 +42,10 @@ SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", cast=Csv(), default="")
 
+# Enforce the Content-Security-Policy in production (development runs the same
+# directives in report-only mode). See base.CSP_DIRECTIVES.
+CONTENT_SECURITY_POLICY = {"DIRECTIVES": CSP_DIRECTIVES}  # noqa: F405
+
 # --- Email ----------------------------------------------------------------
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

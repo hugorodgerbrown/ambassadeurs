@@ -646,4 +646,14 @@
   .steps__num { flex: none; width: 26px; height: 26px; border-radius: var(--radius-pill); background: var(--color-accent-tint); color: var(--color-accent); font-family: var(--font-mono); font-weight: 600; font-size: 12px; display: flex; align-items: center; justify-content: center; }
   .steps__title { font-weight: 600; color: var(--color-ink); font-size: 0.97rem; margin-bottom: 2px; }
   .steps__text { font-size: 0.89rem; color: var(--color-body); line-height: 1.45; }
+
+  /* Role-coloured text. Replaces inline `style="color: var(--role)"` on the
+     peak glyph and section eyebrows so no inline style attribute is needed
+     (CSP, VERB-71). --role is re-pointed by the .role-theme wrapper. */
+  .text-role { color: var(--role); }
+
+  /* Homepage hero scrim. Replaces the inline gradient `style="..."` on the
+     hero overlay (CSP, VERB-71): dark at the top and bottom for legibility,
+     clear through the middle so the central handshake reads through. */
+  .hero-scrim { background: linear-gradient(to bottom, rgb(0 0 0 / 0.68) 0%, rgb(0 0 0 / 0.26) 18%, transparent 36%, transparent 48%, rgb(0 0 0 / 0.50) 66%, rgb(0 0 0 / 0.78) 84%, rgb(0 0 0 / 0.88) 100%); }
 }

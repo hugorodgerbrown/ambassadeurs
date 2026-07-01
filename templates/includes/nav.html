@@ -126,11 +126,12 @@ set_language form can be restored from git history when FR is exposed in UI.
         >
             <a href="{% url 'public:home' %}" class="flex items-center gap-2">
                 {% comment %}
-                Peak glyph follows the runtime role colour. --role is a CSS custom
-                property re-pointed by the .role-theme wrapper, so it cannot be a
-                Tailwind utility — hence the inline style.
+                Peak glyph follows the runtime role colour via the .text-role
+                class (color: var(--role)); --role is re-pointed by the
+                .role-theme wrapper. A class, not an inline style, so it needs no
+                CSP 'unsafe-inline' (VERB-71).
                 {% endcomment %}
-                <span class="shrink-0" style="color: var(--role)">
+                <span class="shrink-0 text-role">
                     <svg width="20" height="20" viewBox="0 0 22 22" fill="none" aria-hidden="true">
                         <path
                             d="M11 3.5 L18.5 18 L3.5 18 Z"
@@ -162,8 +163,7 @@ set_language form can be restored from git history when FR is exposed in UI.
                             aria-label="{% translate 'Account menu' %}"
                         >
                             <span
-                                class="flex h-9 w-9 items-center justify-center rounded-pill border border-line"
-                                style="color: var(--role)"
+                                class="text-role flex h-9 w-9 items-center justify-center rounded-pill border border-line"
                             >
                                 <svg
                                     width="20"

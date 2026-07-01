@@ -590,23 +590,26 @@ def _roster_row(
 ) -> dict[str, object]:
     """Build one roster row's display data.
 
-    Reveals the party's first name and initials (the match redesign shows these
-    from the proposed state; contact PII — email and phone — stays hidden until
-    mutual accept, see Invariant 1). ``registration`` is ``None`` when the party
-    declined and their account was deleted, in which case the template falls back
-    to a generic label.
+    Reveals the party's first name, initials and nationality (the match redesign
+    shows these from the proposed state; contact PII — email and phone — stays
+    hidden until mutual accept, see Invariant 1). ``registration`` is ``None``
+    when the party declined and their account was deleted, in which case the
+    template falls back to a generic label.
     """
     name = ""
     initials = ""
+    nationality: object = ""
     if registration is not None:
         first = registration.user.first_name or ""
         last = registration.user.last_name or ""
         name = first
         initials = (first[:1] + last[:1]).upper()
+        nationality = registration.nationality
     return {
         "side": role_side,
         "name": name,
         "initials": initials,
+        "nationality": nationality,
         "exists": registration is not None,
         "is_you": role_side == viewer_side,
         "status": _side_status_key(match, role_side),

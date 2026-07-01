@@ -76,6 +76,15 @@
                                         {% translate "Referee" %}
                                     {% endif %}
                                 </div>
+                                {% comment %}
+                                Nationality is shown before mutual accept (non-PII);
+                                email and phone stay hidden until both accept (Invariant 1).
+                                {% endcomment %}
+                                {% if row.nationality %}
+                                    <div class="mt-0.5 text-xs text-meta">
+                                        {{ row.nationality.unicode_flag }} {{ row.nationality.name }}
+                                    </div>
+                                {% endif %}
                             </div>
                         </div>
                         {% if row.status == "accepted" %}

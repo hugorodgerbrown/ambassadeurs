@@ -227,8 +227,11 @@ def test_register_post_resends_for_existing_pending() -> None:
     assert "register/confirm/" in mail.outbox[0].body
 
 
-def test_register_post_duplicate_waiting_shows_validation_error() -> None:
-    """Submitting for an email with an existing VERIFIED registration shows an error."""
+def test_register_post_enrolled_email_is_non_enumerating() -> None:
+    """An already-enrolled email gets a sign-in link and the same generic
+    "check your email" redirect as a new registrant — no enrolment disclosure
+    and no second registration row (VERB-72).
+    """
     user = UserFactory.create(username="grace@example.com", email="grace@example.com")
     RegistrationFactory.create(
         user=user,
@@ -236,10 +239,21 @@ def test_register_post_duplicate_waiting_shows_validation_error() -> None:
         prior_pass=Registration.PriorPass.NONE,
         status=Registration.Status.VERIFIED,
     )
+    mail.outbox.clear()
 
     response = Client().post(reverse("public:register"), _valid_referee_post())
-    assert response.status_code == 200
-    assert b"already registered" in response.content
+
+    # Same redirect as a brand-new registration — the response never reveals
+    # that the email is enrolled.
+    assert response.status_code == 302
+    assert response.url == reverse("public:register_email_sent")
+    assert b"already registered" not in response.content
+    # No second registration row was created.
+    assert Registration.objects.filter(user__email="grace@example.com").count() == 1
+    # A sign-in link (not a confirmation link) was emailed to the owner.
+    assert len(mail.outbox) == 1
+    assert "account/login/" in mail.outbox[0].body
+    assert "register/confirm/" not in mail.outbox[0].body
 
 
 def test_register_post_race_integrity_error_does_not_500() -> None:

@@ -198,27 +198,25 @@ class RegistrationForm(forms.Form):
         if self.role != Registration.Role.AMBASSADOR:
             cleaned["prior_pass"] = Registration.PriorPass.NONE
 
-        # Duplicate-registration guard: one non-UNVERIFIED registration per user.
-        # UNVERIFIED rows are excluded so that a re-submit for the same email is
-        # handled by the view (resend the confirmation link) rather than
-        # surfacing a validation error here.
-        already_registered = False
+        # Duplicate-registration guard for the authenticated path only: a
+        # signed-in user may hold one non-UNVERIFIED registration. UNVERIFIED
+        # rows are excluded so a re-submit for the same email is handled by the
+        # view (resend the confirmation link) rather than erroring here.
+        #
+        # The anonymous path deliberately does NOT reject an already-enrolled
+        # email here: surfacing "you are already registered" would let an
+        # attacker enumerate who is enrolled (VERB-72). Instead the view emails a
+        # sign-in link and returns the same "check your email" response as a new
+        # registration, so the form must stay valid.
         if self.user is not None:
             already_registered = (
                 Registration.objects.filter(user=self.user)
                 .exclude(status=Registration.Status.UNVERIFIED)
                 .exists()
             )
-        else:
-            email = cleaned.get("email")
-            already_registered = bool(email) and (
-                Registration.objects.filter(user__email=email)
-                .exclude(status=Registration.Status.UNVERIFIED)
-                .exists()
-            )
-        if already_registered:
-            raise forms.ValidationError(
-                _("You are already registered for the current season.")
-            )
+            if already_registered:
+                raise forms.ValidationError(
+                    _("You are already registered for the current season.")
+                )
 
         return cleaned

@@ -200,6 +200,15 @@ class Registration(BaseModel):
             "(priority -= 1 each time) and on requeue-to-front (priority += 1)."
         ),
     )
+    fee_chf = models.PositiveIntegerField(
+        default=0,
+        help_text=(
+            "Prepaid registration fee in CHF, locked at signup from the "
+            "REGISTRATION_FEE_TIERS schedule (see "
+            "matching.pricing_config.fee_chf_for). Frozen — never recomputed "
+            "against a later tier."
+        ),
+    )
     accepted_terms = models.JSONField(
         default=list,
         blank=True,

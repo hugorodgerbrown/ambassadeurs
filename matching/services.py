@@ -73,6 +73,7 @@ from core.emails import normalise_email
 from core.services import record_transition
 
 from .models import Match, Registration
+from .pricing_config import fee_chf_for
 from .pricing_config import matching_opens_at
 
 logger = logging.getLogger(__name__)
@@ -698,6 +699,9 @@ def register_participant(
             status=status,
             registration_country=registration_country,
             registration_region=registration_region,
+            # Prepaid fee locked at signup from today's tier (VERB-84); frozen
+            # thereafter — never recomputed against a later tier.
+            fee_chf=fee_chf_for(timezone.localdate()),
         )
 
         # Only propose a match for VERIFIED registrations; UNVERIFIED rows must

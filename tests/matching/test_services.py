@@ -511,6 +511,65 @@ def test_register_participant_persists_accepted_terms_and_timestamp() -> None:
     assert before <= registration.terms_accepted_at <= after
 
 
+@override_settings(REGISTRATION_FEE_TIERS="2020-01-01:5")
+def test_register_participant_stamps_locked_fee_for_both_roles() -> None:
+    """register_participant stamps today's tier fee onto fee_chf for both roles."""
+    ambassador = register_participant(
+        role=Registration.Role.AMBASSADOR,
+        first_name="Ada",
+        last_name="Lovelace",
+        email="fee-ambassador@example.com",
+        prior_pass=Registration.PriorPass.SEASONAL,
+    )
+    referee = register_participant(
+        role=Registration.Role.REFEREE,
+        first_name="Grace",
+        last_name="Hopper",
+        email="fee-referee@example.com",
+        prior_pass=Registration.PriorPass.NONE,
+    )
+
+    assert ambassador.fee_chf == 5
+    assert referee.fee_chf == 5
+    # Confirm the value round-trips to the database, not just the in-memory object.
+    ambassador.refresh_from_db()
+    assert ambassador.fee_chf == 5
+
+
+@override_settings(REGISTRATION_FEE_TIERS="")
+def test_register_participant_free_tier_stamps_zero_fee() -> None:
+    """With no fee schedule configured, a registration is stamped at 0 (free)."""
+    registration = register_participant(
+        role=Registration.Role.AMBASSADOR,
+        first_name="Ada",
+        last_name="Lovelace",
+        email="fee-free@example.com",
+        prior_pass=Registration.PriorPass.SEASONAL,
+    )
+
+    assert registration.fee_chf == 0
+
+
+def test_register_participant_fee_is_frozen_against_later_tier_change() -> None:
+    """The stamped fee is locked at signup and not recomputed on a later save."""
+    with override_settings(REGISTRATION_FEE_TIERS="2020-01-01:5"):
+        registration = register_participant(
+            role=Registration.Role.AMBASSADOR,
+            first_name="Ada",
+            last_name="Lovelace",
+            email="fee-frozen@example.com",
+            prior_pass=Registration.PriorPass.SEASONAL,
+        )
+    assert registration.fee_chf == 5
+
+    # A later, higher tier must not retroactively change an existing fee.
+    with override_settings(REGISTRATION_FEE_TIERS="2020-01-01:99"):
+        registration.save()
+        registration.refresh_from_db()
+
+    assert registration.fee_chf == 5
+
+
 def test_register_participant_without_accepted_terms_leaves_fields_empty() -> None:
     """Omitting accepted_terms stores an empty list and None timestamp."""
     registration = register_participant(

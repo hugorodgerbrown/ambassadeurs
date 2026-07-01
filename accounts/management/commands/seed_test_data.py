@@ -29,6 +29,7 @@ from django.utils import timezone
 
 from core.emails import normalise_email
 from matching.models import Match, Registration, Resort
+from matching.pricing_config import fee_chf_for
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +124,7 @@ def _make_registration(
         preferred_language=preferred_language,
         preferred_location=preferred_location,
         priority=0,
+        fee_chf=fee_chf_for(timezone.localdate()),
         accepted_terms=list(_ACCEPTED_TERMS),
         terms_accepted_at=now,
     )

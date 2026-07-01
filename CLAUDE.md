@@ -153,10 +153,20 @@ VERB-16):
   does not otherwise track whether the off-app application happened.
 - **Notifications** — **email + signed links only** for launch; no SMS/push.
 
-Operating entity on the 24/25 form: **Groupe Télé-Thyon SA** (back-office contact
-caissier@tele-thyon.ch). Public branding is **4 Vallées-neutral** (the program spans
-Verbier, Thyon, and the wider 4 Vallées) — keep the operating company out of
-user-facing copy.
+Two distinct contacts, do not conflate them:
+
+- **Back-office operating entity** — **Groupe Télé-Thyon SA**, contact
+  `caissier@tele-thyon.ch`. This is the legal operator behind the scheme (named on
+  the 24/25 form). Users never email it; keep this company name out of user-facing
+  copy — public branding of the *service* stays **4 Vallées-neutral** ("Ski
+  Parrainage", spanning Verbier, Thyon, and the wider 4 Vallées).
+- **User-facing application destination** — **Téléverbier**, contact
+  `customer@televerbier.ch`. This is where a matched pair sends the completed
+  application form for 26/27, so it is deliberately named in user copy
+  (`how_it_works.html`, `partials/match_actions.html`). Naming Téléverbier as the
+  application contact is correct and does **not** violate the 4 Vallées-neutral rule
+  above, which governs the operating *company* behind this service, not the
+  ticket office the application is sent to.
 
 ## Running locally
 

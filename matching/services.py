@@ -73,8 +73,7 @@ from core.emails import normalise_email
 from core.services import record_transition
 
 from .models import Match, Registration
-from .pricing_config import fee_chf_for
-from .pricing_config import matching_opens_at
+from .pricing_config import fee_chf_for, matching_opens_at
 
 logger = logging.getLogger(__name__)
 

@@ -19,6 +19,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Least-privilege GITHUB_TOKEN: this workflow only reads the checked-out code.
+permissions:
+  contents: read
+
 jobs:
   security-audit:
     name: Security audit
@@ -26,15 +30,15 @@ jobs:
 
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
       - name: Set up Python (3.14)
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.14"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
 
       - name: Install pip-audit
         run: pip install pip-audit
@@ -51,3 +55,31 @@ jobs:
 
       - name: Audit dependencies for known CVEs
         run: pip-audit -r /tmp/requirements-audit.txt
+
+      # SAST — semgrep with the community Python ruleset. Fails the build on any
+      # finding (--error). The p/django ruleset is deliberately not used: it
+      # false-positives on our CSRF-protected forms.
+      - name: Install semgrep
+        run: pip install semgrep
+
+      - name: Run semgrep (SAST)
+        run: >-
+          semgrep scan
+          --config p/python
+          --error
+          --quiet
+          --exclude .venv
+          --exclude .tox
+          --exclude staticfiles
+          --exclude node_modules
+
+      # Secret scanning — gitleaks binary (not pip-installable). Scans the
+      # working tree; fails the build if any secret is detected.
+      - name: Install gitleaks
+        run: |
+          VERSION=8.30.1
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+
+      - name: Run gitleaks (secret scan)
+        run: gitleaks dir . --no-banner --redact

@@ -19,17 +19,29 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         {% comment %}
         Non-blocking font load: media="print" defers the stylesheet from the
-        render-blocking critical path; onload switches it to "all" once the
-        sheet is downloaded. The <noscript> fallback covers JS-disabled agents.
-        display=swap is already in the URL so text renders immediately in a
-        system font while the webfont downloads.
+        render-blocking critical path; a nonce'd inline script switches it to
+        "all" once the sheet is downloaded. The onload handler was moved out of
+        the tag into this script so no inline event handler is needed (CSP,
+        VERB-71). The <noscript> fallback covers JS-disabled agents. display=swap
+        is already in the URL so text renders immediately in a system font while
+        the webfont downloads.
         {% endcomment %}
         <link
+            id="deferred-fonts"
             href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
             rel="stylesheet"
             media="print"
-            onload="this.media='all'"
         >
+        <script nonce="{{ request.csp_nonce }}">
+            (function () {
+                var link = document.getElementById("deferred-fonts");
+                if (link) {
+                    link.addEventListener("load", function () {
+                        link.media = "all";
+                    });
+                }
+            })();
+        </script>
         <noscript>
             <link
                 href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"

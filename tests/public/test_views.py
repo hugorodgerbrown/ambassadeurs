@@ -2090,6 +2090,18 @@ def test_base_template_main_has_id() -> None:
     assert b'id="main"' in response.content
 
 
+def test_response_carries_csp_report_only_header() -> None:
+    """Responses carry the report-only CSP header in development/test; the
+    policy locks scripts and styles to self plus the known font origins
+    (VERB-71).
+    """
+    response = Client().get(reverse("public:home"))
+    header = response.headers.get("Content-Security-Policy-Report-Only", "")
+    assert "default-src 'self'" in header
+    assert "script-src 'self'" in header
+    assert "frame-ancestors 'none'" in header
+
+
 def test_nav_has_aria_label() -> None:
     """The <nav> element carries an aria-label for landmark disambiguation."""
     response = Client().get(reverse("public:how_it_works"))

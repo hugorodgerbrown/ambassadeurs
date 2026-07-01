@@ -33,3 +33,8 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 # requests (and the test runner's 200+ hits from 127.0.0.1) are never blocked.
 # The rate-limit tests opt back in via @override_settings(RATELIMIT_ENABLE=True).
 RATELIMIT_ENABLE = False
+
+# Content-Security-Policy in report-only mode locally: violations are logged by
+# the browser but nothing is blocked, so a policy slip surfaces before it can
+# break a page. Production enforces the same directives. See base.CSP_DIRECTIVES.
+CONTENT_SECURITY_POLICY_REPORT_ONLY = {"DIRECTIVES": CSP_DIRECTIVES}  # noqa: F405

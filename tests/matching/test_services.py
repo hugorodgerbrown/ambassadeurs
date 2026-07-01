@@ -27,6 +27,7 @@ from matching.services import (
     rejoin_queue,
     report_no_show,
     requeue_to_front,
+    run_matching,
     send_match_confirmed_email,
     send_match_notification,
     send_no_show_notification,
@@ -644,6 +645,262 @@ def test_propose_match_skips_registration_with_active_match() -> None:
         result = propose_match(new_referee)
     # The ambassador already has an active match; the second referee finds no partner.
     assert result is None
+    assert Match.objects.count() == 1
+
+
+# ---------------------------------------------------------------------------
+# Open-date gate (VERB-83) — propose_match defers before matching_opens_at()
+# ---------------------------------------------------------------------------
+
+# A far-future MATCHING_OPENS_AT string: matching is "not yet open" for tests
+# that exercise the pre-open gate.
+_FUTURE_OPEN = "2099-01-01T00:00:00+00:00"
+
+
+@override_settings(MATCHING_OPENS_AT=_FUTURE_OPEN)
+def test_propose_match_deferred_before_open_date() -> None:
+    """propose_match is a no-op (returns None, writes nothing) before the open date."""
+    referee = RegistrationFactory.create(referee=True)
+    ambassador = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+    )
+    with transaction.atomic():
+        result = propose_match(ambassador)
+
+    assert result is None
+    assert Match.objects.count() == 0
+    # Both parties remain in the eligible pool.
+    assert referee in Registration.objects.eligible_referees()
+    assert ambassador in Registration.objects.eligible_ambassadors()
+
+
+@override_settings(MATCHING_OPENS_AT=_FUTURE_OPEN)
+def test_register_participant_pre_open_enqueues_without_match() -> None:
+    """Pre-open: an eligible counterpart enqueues VERIFIED but no match is proposed."""
+    RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.VERIFIED,
+    )
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        registration = register_participant(
+            role=Registration.Role.REFEREE,
+            first_name="Grace",
+            last_name="Hopper",
+            email="grace-preopen@example.com",
+            prior_pass=Registration.PriorPass.NONE,
+        )
+
+    # The referee is verified and enqueued, but no match exists yet.
+    assert registration.status == Registration.Status.VERIFIED
+    assert Match.objects.count() == 0
+    assert registration in Registration.objects.eligible_referees()
+
+
+@override_settings(MATCHING_OPENS_AT=_FUTURE_OPEN)
+def test_confirm_registration_pre_open_does_not_propose_match() -> None:
+    """Pre-open: confirming an UNVERIFIED registration verifies it but proposes nothing.
+
+    Confirmation is a separate chokepoint from register_participant; the gate
+    lives in propose_match so a pre-open email confirmation cannot leak a match.
+    """
+    RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.VERIFIED,
+    )
+    unverified = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.UNVERIFIED,
+    )
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        confirm_registration(unverified)
+
+    unverified.refresh_from_db()
+    assert unverified.status == Registration.Status.VERIFIED
+    assert Match.objects.count() == 0
+
+
+@override_settings(MATCHING_OPENS_AT=_FUTURE_OPEN)
+def test_rejoin_queue_pre_open_does_not_propose_match() -> None:
+    """Pre-open: rejoining the queue re-verifies but proposes no match.
+
+    A paused participant self-rejoining before the open date must not leak a
+    match — the gate in propose_match covers this caller too.
+    """
+    RegistrationFactory.create(referee=True)
+    ambassador = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.PAUSED,
+    )
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        rejoin_queue(ambassador)
+
+    ambassador.refresh_from_db()
+    assert ambassador.status == Registration.Status.VERIFIED
+    assert Match.objects.count() == 0
+
+
+def test_register_participant_post_open_still_proposes_match() -> None:
+    """Post-open (default past MATCHING_OPENS_AT): rolling synchronous propose fires."""
+    RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.VERIFIED,
+    )
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        register_participant(
+            role=Registration.Role.REFEREE,
+            first_name="Grace",
+            last_name="Hopper",
+            email="grace-postopen@example.com",
+            prior_pass=Registration.PriorPass.NONE,
+        )
+
+    assert Match.objects.count() == 1
+
+
+# ---------------------------------------------------------------------------
+# run_matching service (VERB-83)
+# ---------------------------------------------------------------------------
+
+
+def test_run_matching_dry_run_reports_without_writing() -> None:
+    """run_matching(commit=False) reports the count and creates no matches."""
+    RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+    )
+    RegistrationFactory.create(referee=True)
+
+    proposed, failed = run_matching(commit=False)
+
+    assert (proposed, failed) == (1, 0)
+    assert Match.objects.count() == 0
+
+
+def test_run_matching_commit_drains_the_pool() -> None:
+    """run_matching(commit=True) proposes matches for every pairable ambassador."""
+    for _ in range(3):
+        RegistrationFactory.create(
+            role=Registration.Role.AMBASSADOR,
+            prior_pass=Registration.PriorPass.SEASONAL,
+        )
+        RegistrationFactory.create(referee=True)
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        proposed, failed = run_matching(commit=True)
+
+    assert (proposed, failed) == (3, 0)
+    assert Match.objects.filter(status=Match.Status.PROPOSED).count() == 3
+    # Pool fully drained on both sides.
+    assert not Registration.objects.eligible_ambassadors().exists()
+    assert not Registration.objects.eligible_referees().exists()
+
+
+def test_run_matching_leaves_no_eligible_pair_when_sides_unequal() -> None:
+    """With more ambassadors than referees, only the referee count is proposed."""
+    for _ in range(3):
+        RegistrationFactory.create(
+            role=Registration.Role.AMBASSADOR,
+            prior_pass=Registration.PriorPass.SEASONAL,
+        )
+    RegistrationFactory.create(referee=True)
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        proposed, failed = run_matching(commit=True)
+
+    assert (proposed, failed) == (1, 0)
+    assert Match.objects.count() == 1
+    # Two ambassadors remain waiting; no referees left.
+    assert Registration.objects.eligible_ambassadors().count() == 2
+    assert not Registration.objects.eligible_referees().exists()
+
+
+def test_run_matching_respects_priority_then_fifo_order() -> None:
+    """run_matching pairs the highest-priority ambassador first, then FIFO.
+
+    One referee, two ambassadors: the higher-priority ambassador must be the
+    one paired. This proves the drain honours the engine's ranking.
+    """
+    referee = RegistrationFactory.create(referee=True)
+    low_priority = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        priority=0,
+    )
+    high_priority = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        priority=5,
+    )
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        proposed, failed = run_matching(commit=True)
+
+    assert (proposed, failed) == (1, 0)
+    match = Match.objects.get()
+    assert match.ambassador_registration == high_priority
+    assert match.referee_registration == referee
+    # The low-priority ambassador is left waiting.
+    assert low_priority in Registration.objects.eligible_ambassadors()
+
+
+def test_run_matching_skips_ineligible_pairs() -> None:
+    """run_matching never proposes an ineligible pair (no eligible counterpart)."""
+    RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+    )
+    # A referee who is not genuinely new (holds a prior pass) is ineligible.
+    RegistrationFactory.create(
+        role=Registration.Role.REFEREE,
+        prior_pass=Registration.PriorPass.SEASONAL,
+    )
+
+    proposed, failed = run_matching(commit=True)
+
+    assert (proposed, failed) == (0, 0)
+    assert Match.objects.count() == 0
+
+
+def test_run_matching_commit_counts_and_isolates_failures() -> None:
+    """A failed proposal is counted and isolated; the rest of the batch proceeds.
+
+    Patches propose_match to raise on its first call and delegate afterwards.
+    run_matching must return failed=1 and still propose the remaining pair.
+    """
+    from unittest.mock import patch
+
+    import matching.services as _svc
+
+    for _ in range(2):
+        RegistrationFactory.create(
+            role=Registration.Role.AMBASSADOR,
+            prior_pass=Registration.PriorPass.SEASONAL,
+        )
+        RegistrationFactory.create(referee=True)
+
+    _call_count = {"n": 0}
+    _real = _svc.propose_match
+
+    def _failing_propose(registration: Registration) -> Match | None:
+        """Raise on the first invocation; delegate to the real function after."""
+        _call_count["n"] += 1
+        if _call_count["n"] == 1:
+            raise RuntimeError("simulated proposal failure")
+        return _real(registration)
+
+    with patch.object(_svc, "propose_match", _failing_propose):
+        with TestCase.captureOnCommitCallbacks(execute=True):
+            proposed, failed = run_matching(commit=True)
+
+    assert failed == 1
+    assert proposed == 1
     assert Match.objects.count() == 1
 
 

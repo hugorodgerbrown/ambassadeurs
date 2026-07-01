@@ -67,6 +67,7 @@ class RegistrationAdmin(admin.ModelAdmin):
         "prior_pass",
         "status",
         "priority",
+        "fee_chf",
         "preferred_location",
         "nationality",
         "registration_country",
@@ -85,6 +86,7 @@ class RegistrationAdmin(admin.ModelAdmin):
     readonly_fields = [
         "accepted_terms",
         "terms_accepted_at",
+        "fee_chf",
         "registration_country",
         "registration_region",
         "created_at",

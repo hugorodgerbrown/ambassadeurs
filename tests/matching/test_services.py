@@ -530,6 +530,9 @@ def test_register_participant_stamps_locked_fee_for_both_roles() -> None:
 
     assert ambassador.fee_chf == 5
     assert referee.fee_chf == 5
+    # Confirm the value round-trips to the database, not just the in-memory object.
+    ambassador.refresh_from_db()
+    assert ambassador.fee_chf == 5
 
 
 @override_settings(REGISTRATION_FEE_TIERS="")

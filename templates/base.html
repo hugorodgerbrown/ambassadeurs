@@ -37,7 +37,12 @@
             >
         </noscript>
         <link rel="stylesheet" href="{% static 'css/output.css' %}">
-        <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+        {% comment %}
+        htmx is self-hosted (VERB-70) rather than loaded from a CDN: removes the
+        supply-chain / SRI risk and the extra cross-origin connection. Vendored
+        build is static/js/htmx.min.js (official htmx 2.0.4 minified dist).
+        {% endcomment %}
+        <script src="{% static 'js/htmx.min.js' %}" defer></script>
     </head>
     <body class="min-h-screen bg-page text-body">
         {% comment %}

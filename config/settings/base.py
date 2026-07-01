@@ -97,7 +97,9 @@ REGISTRATION_CLOSES_AT: str = config("REGISTRATION_CLOSES_AT", default="2099-12-
 # begins, so the queue builds on both sides first. Dev default is far-past so
 # matching is always open locally (current synchronous behaviour unchanged).
 # Parsed as a full ISO 8601 datetime by matching.pricing_config.matching_opens_at.
-MATCHING_OPENS_AT: str = config("MATCHING_OPENS_AT", default="2020-01-01T00:00:00+00:00")
+MATCHING_OPENS_AT: str = config(
+    "MATCHING_OPENS_AT", default="2020-01-01T00:00:00+00:00"
+)
 
 # Tiered prepaid registration fee (VERB-81/82): a comma-separated schedule of
 # "YYYY-MM-DD:rappen" thresholds, each meaning "from this date onward the fee

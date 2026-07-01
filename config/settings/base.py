@@ -93,6 +93,18 @@ CONTACT_WINDOW_HOURS: int = config("CONTACT_WINDOW_HOURS", default=72, cast=int)
 REGISTRATION_OPENS_AT: str = config("REGISTRATION_OPENS_AT", default="2020-01-01")
 REGISTRATION_CLOSES_AT: str = config("REGISTRATION_CLOSES_AT", default="2099-12-31")
 
+# Deferred matching (VERB-81/82): registration can open well before matching
+# begins, so the queue builds on both sides first. Dev default is far-past so
+# matching is always open locally (current synchronous behaviour unchanged).
+# Parsed as a full ISO 8601 datetime by matching.pricing_config.matching_opens_at.
+MATCHING_OPENS_AT: str = config("MATCHING_OPENS_AT", default="2020-01-01T00:00:00+00:00")
+
+# Tiered prepaid registration fee (VERB-81/82): a comma-separated schedule of
+# "YYYY-MM-DD:rappen" thresholds, each meaning "from this date onward the fee
+# is N rappen". Empty default means always free in dev (matches today's free
+# registration). Parsed by matching.pricing_config.fee_rappen_for.
+REGISTRATION_FEE_TIERS: str = config("REGISTRATION_FEE_TIERS", default="")
+
 # External application-form PDF (hosted off-app by the 4 Vallées). The download
 # view redirects here; kept in config so the URL can change without a deploy.
 APPLICATION_FORM_URL: str = config(

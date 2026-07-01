@@ -854,7 +854,7 @@ def test_how_it_works_contains_section_markers() -> None:
     """The how-it-works page renders its section headings."""
     response = Client().get(reverse("public:how_it_works"))
     content = response.content
-    assert b"What is the 4 Vall\xc3\xa9es Ambassadors Program?" in content
+    assert b"What is the 4 Vall\xc3\xa9es Ambassadors Programme?" in content
     assert b"Who is an Ambassador and who is a Referee?" in content
     assert b"How do I apply?" in content
     assert b"What is the approval process?" in content

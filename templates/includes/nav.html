@@ -41,7 +41,9 @@ set_language form can be restored from git history when FR is exposed in UI.
                         />
                     </svg>
                 </span>
-                <span class="wordmark whitespace-nowrap text-white">{% translate "Ski Parrainage &middot; 2026/27" %}</span>
+                <span
+                    class="wordmark whitespace-nowrap text-white"
+                >{% translate "Ski Parrainage &middot; 2026/27" %}</span>
             </a>
             {% comment %}
             Hamburger menu (no-JS <details> toggle, same pattern as the role
@@ -95,7 +97,7 @@ set_language form can be restored from git history when FR is exposed in UI.
                                 type="submit"
                                 class="block w-full cursor-pointer border-0 bg-transparent px-4 py-2.5 text-left text-sm font-medium text-ink hover:bg-surface-2"
                             >
-                                {% translate "Log out" %}
+                                {% translate "Sign out" %}
                             </button>
                         </form>
                     {% else %}
@@ -109,7 +111,7 @@ set_language form can be restored from git history when FR is exposed in UI.
                             href="{% url 'accounts:login' %}"
                             class="block px-4 py-2.5 text-sm font-medium text-ink hover:bg-surface-2"
                         >
-                            {% translate "Log in" %}
+                            {% translate "Sign in" %}
                         </a>
                     {% endif %}
                 </div>
@@ -155,12 +157,12 @@ set_language form can be restored from git history when FR is exposed in UI.
                     <form method="post" action="{% url 'accounts:logout' %}" class="inline">
                         {% csrf_token %}
                         <button type="submit" class="cursor-pointer border-0 bg-transparent p-0 text-body">
-                            {% translate "Log out" %}
+                            {% translate "Sign out" %}
                         </button>
                     </form>
                 {% else %}
                     <a href="{% url 'accounts:login' %}" class="font-medium text-ink">
-                        {% translate "Log in" %}
+                        {% translate "Sign in" %}
                     </a>
                 {% endif %}
             </div>

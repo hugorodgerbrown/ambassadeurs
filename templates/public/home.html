@@ -5,7 +5,7 @@
 
 {% block meta %}
     {% blocktranslate trimmed asvar page_description %}
-        Find your season-pass partner for the 4 Vallées Ambassadors Program.
+        Find your season-pass partner for the 4 Vallées Ambassadors Programme.
     {% endblocktranslate %}
     {% with meta_title="Ski Parrainage &middot; 2026/27" meta_description=page_description %}
         {% include "includes/_meta.html" %}
@@ -64,7 +64,7 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
         <div class="relative z-10 flex grow flex-col justify-between gap-10 px-6 pb-4 pt-20 sm:px-10 sm:pb-10 sm:pt-20 lg:px-16">
             <div>
                 <p class="eyebrow mb-4 text-white/80">
-                    {% translate "4 Vallées Ambassadors Program" %}
+                    {% translate "4 Vallées Ambassadors Programme" %}
                 </p>
                 <h1 class="mb-5 text-h1 text-white">
                     {% translate "Find your season-pass match" %}
@@ -73,13 +73,15 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
             <div>
                 <p class="mb-2 max-w-lg text-lead text-white/80">
                     {% blocktranslate trimmed %}
-                        No more last minute search in the Facebook group. We automatically match you with a partner - for free*.
+                        No more last minute search in the Facebook group. We automatically match you with a partner -
+                        for free*.
                     {% endblocktranslate %}
                 </p>
-                <p class="max-w-md mb-6 text-small text-white/80"><em>
-                    {% blocktranslate trimmed %}
-                        * Voluntary donations welcome
-                    {% endblocktranslate %}</em>
+                <p class="max-w-md mb-6 text-small text-white/80">
+                    <em>
+                        {% blocktranslate trimmed %}
+                            * Voluntary donations welcome
+                        {% endblocktranslate %}</em>
                 </p>
                 <div class="mb-2 flex flex-wrap gap-3">
                     <a href="{% url 'public:register' %}" class="btn btn--primary">
@@ -113,8 +115,8 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
     {% comment %}Quiet independence disclaimer, just below the hero image.{% endcomment %}
     <p class="px-6 pb-3 pt-3 border-b border-line text-center text-xs text-meta sm:px-10 lg:px-16">
         {% blocktranslate %}
-        This is an independent project — it is not affiliated with the 4 Vallées pass operator, and is responsible
-        for matching only.
+            This is an independent project — it is not affiliated with the 4 Vallées pass operator, and is
+            responsible for matching only.
         {% endblocktranslate %}
     </p>
     {% if not registration_open %}

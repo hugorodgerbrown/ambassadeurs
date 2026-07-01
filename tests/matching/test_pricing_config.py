@@ -9,9 +9,6 @@ from django.utils import timezone
 
 from matching.pricing_config import fee_chf_for, matching_opens_at
 
-pytestmark = pytest.mark.django_db
-
-
 # ---------------------------------------------------------------------------
 # fee_chf_for
 # ---------------------------------------------------------------------------
@@ -47,6 +44,15 @@ def test_fee_chf_for_single_tier_schedule() -> None:
     assert fee_chf_for(date(2026, 9, 1)) == 0
     assert fee_chf_for(date(2026, 10, 1)) == 5
     assert fee_chf_for(date(2027, 1, 1)) == 5
+
+
+@override_settings(REGISTRATION_FEE_TIERS="2026-12-01:20,2026-10-01:5,2026-11-01:10")
+def test_fee_chf_for_out_of_order_schedule_is_sorted() -> None:
+    """Tiers need not be listed in date order; the parser sorts them."""
+    assert fee_chf_for(date(2026, 9, 30)) == 0
+    assert fee_chf_for(date(2026, 10, 1)) == 5
+    assert fee_chf_for(date(2026, 11, 1)) == 10
+    assert fee_chf_for(date(2026, 12, 1)) == 20
 
 
 @override_settings(REGISTRATION_FEE_TIERS="2026-10-01:5,not-a-date:10")

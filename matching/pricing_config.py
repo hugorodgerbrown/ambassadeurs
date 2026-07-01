@@ -46,6 +46,8 @@ def matching_opens_at() -> datetime:
             "treating matching as not yet open (far-future fallback).",
             settings.MATCHING_OPENS_AT,
         )
+        # 9999-01-01 is a deliberate far-future sentinel (not datetime.max,
+        # which can overflow on some make_aware/DST-fold paths).
         return timezone.make_aware(datetime(9999, 1, 1))
     if timezone.is_naive(parsed):
         parsed = timezone.make_aware(parsed)
@@ -72,6 +74,8 @@ def fee_chf_for(on_date: date) -> int:
     """
     tiers = _parse_fee_tiers(settings.REGISTRATION_FEE_TIERS)
     fee = 0
+    # tiers is sorted ascending by date, so we can break on the first
+    # threshold that falls after on_date.
     for threshold_date, chf in tiers:
         if threshold_date <= on_date:
             fee = chf

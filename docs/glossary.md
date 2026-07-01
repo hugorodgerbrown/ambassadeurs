@@ -32,5 +32,5 @@ implement it. Add a row when a term gains a symbol.
 | Send a magic-link login email | `accounts.services.send_login_email` | `accounts/services.py` |
 | Deferred matching moment | `settings.MATCHING_OPENS_AT` (env var) | `config/settings/base.py` |
 | Tiered prepaid registration fee schedule | `settings.REGISTRATION_FEE_TIERS` (env var) | `config/settings/base.py` |
-| Is matching open yet? | `matching.pricing_config.matching_opens_at` | `matching/pricing_config.py` |
+| When does matching open? (deferred-matching gate) | `matching.pricing_config.matching_opens_at` | `matching/pricing_config.py` |
 | Resolve the fee for a registration date | `matching.pricing_config.fee_chf_for` | `matching/pricing_config.py` |

@@ -129,6 +129,10 @@ APPLICATION_FORM_URL: str = config(
 STRIPE_SECRET_KEY: str = config("STRIPE_SECRET_KEY", default="")
 STRIPE_PUBLISHABLE_KEY: str = config("STRIPE_PUBLISHABLE_KEY", default="")
 STRIPE_CURRENCY: str = config("STRIPE_CURRENCY", default="chf")
+# Signing secret for the checkout.session.completed webhook (VERB-86). Empty
+# default means the webhook always fails signature verification until
+# configured — never accept an unverified event.
+STRIPE_WEBHOOK_SECRET: str = config("STRIPE_WEBHOOK_SECRET", default="")
 
 # --- Authentication -------------------------------------------------------
 # AUTH_USER_MODEL stays the default Django ``auth.User``.

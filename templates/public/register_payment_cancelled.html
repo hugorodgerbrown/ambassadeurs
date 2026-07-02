@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Payment cancelled" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-md text-center">
+        <h1 class="mb-4 text-2xl font-bold text-ink">
+            {% translate "Your payment was cancelled" %}
+        </h1>
+        <p class="text-body">
+            {% blocktranslate trimmed %}
+                No deposit has been taken. Your registration is not yet confirmed — you can pick up where you left off
+                whenever you're ready.
+            {% endblocktranslate %}
+        </p>
+        <p class="mt-6">
+            <a href="{% url 'public:register_payment_start' %}" class="btn btn--role">
+                {% translate "Try payment again" %}
+            </a>
+        </p>
+        <p class="mt-4">
+            <a href="{% url 'accounts:detail' %}" class="font-medium text-accent underline">
+                {% translate "Go to my account" %}
+            </a>
+        </p>
+    </section>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Payment pending" %}{% endblock %}
+
+{% block topband %}
+    <div class="role-theme">
+        <div class="role-band"></div>
+    </div>
+{% endblock %}
+
+{% block content %}
+    <section class="role-theme mx-auto max-w-md text-center">
+        <div class="medallion mx-auto mb-6">
+            <svg
+                width="30"
+                height="30"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            >
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 3" />
+            </svg>
+        </div>
+        <p class="eyebrow mb-3 text-role">{% translate "Almost there" %}</p>
+        <h1 class="mb-4 text-2xl font-bold text-ink">{% translate "We're still confirming your payment" %}</h1>
+        <p class="mx-auto max-w-sm text-lead text-body">
+            {% blocktranslate trimmed %}
+                Stripe hasn't told us your payment succeeded yet. This can take a few seconds — check your account
+                page shortly, or try again below.
+            {% endblocktranslate %}
+        </p>
+
+        <p class="mt-8">
+            <a href="{% url 'public:register_payment_start' %}" class="btn btn--role">
+                {% translate "Try payment again" %}
+            </a>
+        </p>
+        <p class="mt-4">
+            <a href="{% url 'accounts:detail' %}" class="font-medium text-accent underline">
+                {% translate "Go to my account" %}
+            </a>
+        </p>
+    </section>
+{% endblock %}

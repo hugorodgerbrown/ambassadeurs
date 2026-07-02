@@ -31,19 +31,34 @@
 # non-participant → 403 with match_forbidden.html. The shared
 # _render_match_page helper is importable by accounts.views so that the
 # tokenless accounts:match route can render the identical match.html.
+#
+# Paid-tier deposit flow (VERB-86, ADR 0014): register_confirm branches on
+# Registration.fee_chf — free (0) confirms immediately as before; paid (>0)
+# logs the user in but leaves the registration UNVERIFIED and redirects to
+# register_payment_start, which creates a Stripe hosted Checkout session and
+# redirects the browser to it. register_payment_return is Stripe's
+# success_url target (fast UX); stripe_webhook (mounted un-prefixed in
+# config/urls.py) is the source of truth. Both funnel through
+# billing.services.checkout.finalize_paid_registration, which is idempotent,
+# so whichever of the two fires first "wins" and the other is a safe no-op.
+# An UNVERIFIED paid-tier registration is never matched — pool entry is
+# gated on both email confirmation AND payment (Invariant 2's spirit).
 
 from __future__ import annotations
 
 import logging
 
+import stripe
 from django.conf import settings
 from django.contrib.auth import login
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
@@ -52,11 +67,18 @@ from accounts.tokens import (
     read_match_access_token,
     read_registration_confirmation_token,
 )
+from billing.services.checkout import (
+    create_checkout_session,
+    finalize_paid_registration,
+    retrieve_checkout_session,
+    verify_webhook,
+)
 from core.decorators import require_htmx
 from core.geo import geolocate, get_client_ip
 from core.ratelimit import rate_limited_response
 from matching.forms import RegistrationForm
 from matching.models import Match, Registration
+from matching.pricing_config import fee_chf_for
 from matching.services import (
     accept_match,
     confirm_registration,
@@ -242,12 +264,16 @@ def register(request: HttpRequest) -> HttpResponse:
 
     if request.user.is_authenticated:
         # Defensive authenticated path (not reachable from the standard UI but
-        # handled for completeness). Create a VERIFIED registration immediately.
+        # handled for completeness). Free tier: create a VERIFIED registration
+        # immediately, as before. Paid tier (VERB-86): create UNVERIFIED and
+        # divert to the payment funnel — this path must not put an unpaid
+        # registration in the pool either.
         # Django stubs narrow request.user to User after is_authenticated.
         auth_user: User = request.user
         form = RegistrationForm(role=role_value, data=request.POST, user=auth_user)
         if form.is_valid():
             data = form.cleaned_data
+            is_paid_tier = fee_chf_for(timezone.localdate()) > 0
             register_participant(
                 role=role_value,
                 user=auth_user,
@@ -261,7 +287,14 @@ def register(request: HttpRequest) -> HttpResponse:
                 accepted_terms=form.accepted_statements(),
                 registration_country=_geo_country,
                 registration_region=_geo_region,
+                status=(
+                    Registration.Status.UNVERIFIED
+                    if is_paid_tier
+                    else Registration.Status.VERIFIED
+                ),
             )
+            if is_paid_tier:
+                return redirect("public:register_payment_start")
             return redirect("public:register_done", role=role_slug)
         return render(
             request,
@@ -374,9 +407,14 @@ def register_email_sent(request: HttpRequest) -> HttpResponse:
 def register_confirm(request: HttpRequest, token: str) -> HttpResponse:
     """Consume the registration confirmation token.
 
-    Reads the token, loads the Registration, transitions UNVERIFIED → VERIFIED
-    via ``confirm_registration``, logs the user in with Django's ModelBackend,
-    and redirects to ``register_done`` for the appropriate role.
+    Reads the token, loads the Registration, and logs the user in with
+    Django's ModelBackend. Free tier (``fee_chf == 0``) then transitions
+    UNVERIFIED → VERIFIED via ``confirm_registration`` and redirects to
+    ``register_done``, unchanged from before VERB-86. Paid tier
+    (``fee_chf > 0``) does **not** confirm here — email confirmation is only
+    the first of two gates — and instead redirects to
+    ``register_payment_start`` to collect the deposit; the registration stays
+    UNVERIFIED (out of the pool) until payment completes.
 
     Returns 400 on a bad/expired token or a non-UNVERIFIED registration (used
     or invalid link).
@@ -394,12 +432,17 @@ def register_confirm(request: HttpRequest, token: str) -> HttpResponse:
         # Already confirmed or in an unexpected state — treat as invalid link.
         return render(request, "public/register_invalid.html", status=400)
 
-    registration = confirm_registration(registration)
     login(
         request,
         registration.user,
         backend="django.contrib.auth.backends.ModelBackend",
     )
+
+    if registration.fee_chf > 0:
+        # Paid tier (VERB-86): payment is the second gate. Do not confirm yet.
+        return redirect("public:register_payment_start")
+
+    registration = confirm_registration(registration)
 
     # Derive the slug from the registration role. SLUG_BY_ROLE keys are
     # Role enum values; cast the stored str through the enum for lookup.
@@ -436,6 +479,193 @@ def register_done(request: HttpRequest, role: str) -> HttpResponse:
             "total_accepted_matches": accepted_count,
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Paid-tier deposit flow — Stripe hosted Checkout (VERB-86, ADR 0014)
+# ---------------------------------------------------------------------------
+
+
+def _stripe_metadata_get(obj: object, key: str) -> str | None:
+    """Return the string metadata value ``obj.metadata[key]``, or None.
+
+    Stripe's ``StripeObject`` deliberately has no ``.get()`` method (calling
+    it raises ``AttributeError``) — read defensively via ``getattr`` (which
+    tolerates a missing ``metadata`` attribute) plus membership and subscript
+    access instead of assuming metadata, or the key within it, is present.
+    """
+    metadata = getattr(obj, "metadata", None)
+    if metadata is None or key not in metadata:
+        return None
+    return str(metadata[key])
+
+
+@login_required
+def register_payment_start(request: HttpRequest) -> HttpResponse:
+    """Create a Stripe Checkout session for the caller's deposit and redirect.
+
+    Requires the caller's own registration to be UNVERIFIED with
+    ``fee_chf > 0`` — anything else (already paid, free tier, no
+    registration) is a 404. Also reused as the retry entry point from the
+    account-page CTA and the cancel page.
+    """
+    registration = _authenticated_registration(request)
+    if (
+        registration is None
+        or registration.status != Registration.Status.UNVERIFIED
+        or registration.fee_chf <= 0
+    ):
+        raise Http404("No pending paid registration for this account.")
+
+    return_url = request.build_absolute_uri(reverse("public:register_payment_return"))
+    # Stripe substitutes this literal placeholder with the real session id —
+    # it must not be URL-encoded, so it is not built via urlencode.
+    success_url = f"{return_url}?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = request.build_absolute_uri(
+        reverse("public:register_payment_cancelled")
+    )
+
+    session = create_checkout_session(
+        registration,
+        success_url=success_url,
+        cancel_url=cancel_url,
+    )
+    if not session.url:
+        # Defensive: Stripe only omits `.url` for a non-hosted-page session,
+        # which this flow never creates. Log and treat as a cancelled attempt
+        # rather than crashing the redirect.
+        logger.error(
+            "register_payment_start: Checkout session id=%s for registration "
+            "pk=%s has no url",
+            session.id,
+            registration.pk,
+        )
+        return render(request, "public/register_payment_cancelled.html")
+    return redirect(session.url)
+
+
+@login_required
+def register_payment_return(request: HttpRequest) -> HttpResponse:
+    """Stripe's ``success_url`` target: verify payment and finalise, or wait.
+
+    Retrieves the Checkout session named by ``?session_id=`` and, if Stripe
+    reports it as paid, calls ``finalize_paid_registration`` (idempotent —
+    safe even if the webhook already finalised it) and redirects to
+    ``register_done``. Otherwise renders a "payment pending" page — the
+    webhook is the source of truth and may complete the registration shortly
+    after this request.
+    """
+    registration = _authenticated_registration(request)
+    if registration is None:
+        raise Http404("No registration for this account.")
+
+    session_id = request.GET.get("session_id", "")
+    if not session_id:
+        return render(request, "public/register_payment_pending.html")
+
+    session = retrieve_checkout_session(session_id)
+
+    # Defence in depth: confirm this session was created for this caller's
+    # own registration before ever finalising anything from it.
+    metadata_pk = _stripe_metadata_get(session, "registration_pk")
+    if metadata_pk != str(registration.pk):
+        logger.warning(
+            "register_payment_return: session id=%s metadata registration_pk=%r "
+            "does not match caller's registration pk=%s",
+            session_id,
+            metadata_pk,
+            registration.pk,
+        )
+        return render(request, "public/register_payment_pending.html")
+
+    if session.payment_status != "paid":
+        return render(request, "public/register_payment_pending.html")
+
+    customer_id = session.customer if isinstance(session.customer, str) else ""
+    payment_intent_id = (
+        session.payment_intent if isinstance(session.payment_intent, str) else ""
+    )
+    if not payment_intent_id:
+        logger.error(
+            "register_payment_return: session id=%s is paid but has no "
+            "payment_intent id",
+            session_id,
+        )
+        return render(request, "public/register_payment_pending.html")
+
+    registration = finalize_paid_registration(
+        registration,
+        stripe_customer_id=customer_id,
+        stripe_payment_intent_id=payment_intent_id,
+    )
+
+    role_slug = SLUG_BY_ROLE.get(Registration.Role(registration.role), "ambassador")
+    return redirect("public:register_done", role=role_slug)
+
+
+def register_payment_cancelled(request: HttpRequest) -> HttpResponse:
+    """Stripe's ``cancel_url`` target: friendly page with a retry link."""
+    return render(request, "public/register_payment_cancelled.html")
+
+
+@csrf_exempt
+@require_POST
+def stripe_webhook(request: HttpRequest) -> HttpResponse:
+    """Stripe webhook endpoint — the source of truth for a completed deposit.
+
+    Mounted un-prefixed in ``config/urls.py`` (outside the app's own URLconf)
+    so Stripe always hits a stable path. No authentication other than the
+    signature check: ``@csrf_exempt`` because Stripe cannot supply a Django
+    CSRF token, ``@require_POST`` because Stripe only ever POSTs here.
+
+    On ``checkout.session.completed`` with a resolvable
+    ``metadata.registration_pk``, calls ``finalize_paid_registration``
+    (idempotent — safe even if ``register_payment_return`` already finalised
+    it). Any other event type is accepted and ignored. Returns 400 on a bad
+    signature so Stripe's retry logic kicks in only for genuine delivery
+    failures, never for a forged payload.
+    """
+    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE", "")
+    try:
+        event = verify_webhook(request.body, sig_header)
+    except ValueError, stripe.error.SignatureVerificationError:
+        logger.warning("stripe_webhook: signature verification failed")
+        return HttpResponse(status=400)
+
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        registration_pk = _stripe_metadata_get(session, "registration_pk")
+        # Stripe does not create a Customer for payment-mode sessions by
+        # default (and never for TWINT), so session.customer is often absent.
+        # customer_id is optional (Payment.stripe_customer_id is blank); only
+        # the payment_intent is required to finalise — mirrors the return view.
+        customer_id = session.customer if isinstance(session.customer, str) else ""
+        payment_intent_id = (
+            session.payment_intent if isinstance(session.payment_intent, str) else None
+        )
+        if registration_pk and payment_intent_id:
+            try:
+                registration = Registration.objects.get(pk=registration_pk)
+            except Registration.DoesNotExist, ValueError:
+                logger.error(
+                    "stripe_webhook: checkout.session.completed for unknown "
+                    "registration pk=%r",
+                    registration_pk,
+                )
+                return HttpResponse(status=200)
+            finalize_paid_registration(
+                registration,
+                stripe_customer_id=customer_id,
+                stripe_payment_intent_id=payment_intent_id,
+            )
+        else:
+            logger.warning(
+                "stripe_webhook: checkout.session.completed missing usable "
+                "metadata/payment_intent (session id=%s)",
+                getattr(session, "id", "?"),
+            )
+
+    return HttpResponse(status=200)
 
 
 @require_htmx

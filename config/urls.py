@@ -4,6 +4,10 @@ Mounts the Django admin, the account login/logout flow, the language switcher,
 the sitemap, and the public site. HTMX fragment routes live under each app's
 ``partials/`` prefix. allauth has been removed (VERB-46); login is now
 first-party magic-link under ``accounts/``.
+
+``webhooks/stripe/`` (VERB-86) is mounted here rather than under
+``public.urls`` so it is never nested under a locale prefix or any future
+app-level routing change — Stripe needs one stable, permanent path.
 """
 
 from django.contrib import admin
@@ -12,6 +16,7 @@ from django.urls import include, path
 
 from core.views import healthz, robots_txt
 from public.sitemaps import StaticViewSitemap
+from public.views import stripe_webhook
 
 _sitemaps = {"static": StaticViewSitemap}
 
@@ -34,5 +39,7 @@ urlpatterns = [
     path("debug/", include("debug.urls")),
     # Search-engine control (VERB-63). Must come before the public catch-all.
     path("robots.txt", robots_txt, name="robots_txt"),
+    # Stripe checkout.session.completed webhook (VERB-86) — un-prefixed.
+    path("webhooks/stripe/", stripe_webhook, name="stripe_webhook"),
     path("", include("public.urls")),
 ]

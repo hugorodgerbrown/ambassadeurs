@@ -11,9 +11,11 @@
 
 import re
 from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import patch
 
 import pytest
+import stripe
 from django.conf import settings
 from django.core import mail
 from django.test import Client, TestCase, override_settings
@@ -23,6 +25,7 @@ from accounts.tokens import (
     make_match_access_token,
     make_registration_confirmation_token,
 )
+from billing.models import Payment
 from matching.models import Match, Registration
 from matching.services import accept_match, register_participant
 from public.models import FormDownload
@@ -525,6 +528,459 @@ def test_register_confirm_nonexistent_pk_returns_400() -> None:
     token = make_registration_confirmation_token(99999)
     response = Client().get(reverse("public:register_confirm", args=[token]))
     assert response.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Paid-tier deposit flow — Stripe hosted Checkout (VERB-86)
+#
+# Stripe is always mocked (monkeypatch stripe.checkout.Session.create/
+# .retrieve and stripe.Webhook.construct_event) — no test here makes a real
+# network call.
+# ---------------------------------------------------------------------------
+
+
+class _FakeCheckoutSession:
+    """Minimal stand-in for a stripe.checkout.Session object."""
+
+    def __init__(
+        self,
+        session_id: str = "cs_test0001",
+        url: str = "https://checkout.stripe.com/pay/cs_test0001",
+        payment_status: str = "unpaid",
+        customer: str | None = "cus_test0001",
+        payment_intent: str | None = "pi_test0001",
+        metadata: dict[str, str] | None = None,
+    ) -> None:
+        self.id = session_id
+        self.url = url
+        self.payment_status = payment_status
+        self.customer = customer
+        self.payment_intent = payment_intent
+        self.metadata = metadata if metadata is not None else {}
+
+
+def test_register_confirm_free_tier_creates_no_checkout_session(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Free-tier register_confirm confirms directly: no Stripe call, no Payment."""
+    calls: list[dict] = []
+    monkeypatch.setattr(
+        stripe.checkout.Session,
+        "create",
+        lambda **kw: calls.append(kw) or _FakeCheckoutSession(),
+    )
+
+    user = UserFactory.create(username="free@example.com", email="free@example.com")
+    reg = RegistrationFactory.create(
+        user=user, status=Registration.Status.UNVERIFIED, fee_chf=0
+    )
+    token = make_registration_confirmation_token(reg.pk)
+
+    response = Client().get(reverse("public:register_confirm", args=[token]))
+
+    assert response.status_code == 302
+    assert response.url == reverse("public:register_done", args=["ambassador"])
+    assert calls == []
+    assert Payment.objects.count() == 0
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.VERIFIED
+
+
+def test_register_confirm_paid_tier_redirects_to_payment_start() -> None:
+    """Paid-tier register_confirm logs in and redirects to the payment funnel,
+    leaving the registration UNVERIFIED and out of the eligible pool."""
+    user = UserFactory.create(username="paid@example.com", email="paid@example.com")
+    reg = RegistrationFactory.create(
+        user=user, status=Registration.Status.UNVERIFIED, fee_chf=5
+    )
+    token = make_registration_confirmation_token(reg.pk)
+    client = Client()
+
+    response = client.get(reverse("public:register_confirm", args=[token]))
+
+    assert response.status_code == 302
+    assert response.url == reverse("public:register_payment_start")
+    assert "_auth_user_id" in client.session
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.UNVERIFIED
+    assert not Registration.objects.eligible_ambassadors().filter(pk=reg.pk).exists()
+
+
+def test_register_payment_start_requires_login() -> None:
+    """An anonymous request to register_payment_start is redirected to login."""
+    response = Client().get(reverse("public:register_payment_start"))
+    assert response.status_code == 302
+    assert reverse("accounts:login") in response.url
+
+
+def test_register_payment_start_creates_session_and_redirects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """register_payment_start creates a Checkout session and redirects to it."""
+    monkeypatch.setattr(
+        stripe.checkout.Session,
+        "create",
+        lambda **kw: _FakeCheckoutSession(
+            url="https://checkout.stripe.com/pay/cs_test0001"
+        ),
+    )
+    reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=5)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:register_payment_start"))
+
+    assert response.status_code == 302
+    assert response.url == "https://checkout.stripe.com/pay/cs_test0001"
+
+
+def test_register_payment_start_404s_for_free_tier() -> None:
+    """register_payment_start 404s when the caller's registration is free-tier."""
+    reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:register_payment_start"))
+
+    assert response.status_code == 404
+
+
+def test_register_payment_start_404s_for_already_verified() -> None:
+    """register_payment_start 404s once the registration is already VERIFIED."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=5)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:register_payment_start"))
+
+    assert response.status_code == 404
+
+
+def test_register_payment_return_requires_login() -> None:
+    """An anonymous request to register_payment_return is redirected to login."""
+    response = Client().get(reverse("public:register_payment_return"))
+    assert response.status_code == 302
+    assert reverse("accounts:login") in response.url
+
+
+def test_register_payment_return_paid_session_finalizes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A paid session finalizes: one HELD Payment, registration VERIFIED + in
+    pool, redirect to register_done."""
+    reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=5)
+    session = _FakeCheckoutSession(
+        payment_status="paid",
+        customer="cus_abc",
+        payment_intent="pi_abc",
+        metadata={"registration_pk": str(reg.pk)},
+    )
+    monkeypatch.setattr(stripe.checkout.Session, "retrieve", lambda session_id: session)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(
+        reverse("public:register_payment_return"), {"session_id": "cs_test0001"}
+    )
+
+    assert response.status_code == 302
+    assert response.url == reverse("public:register_done", args=["ambassador"])
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.VERIFIED
+    assert Registration.objects.eligible_ambassadors().filter(pk=reg.pk).exists()
+    assert Payment.objects.count() == 1
+    payment = Payment.objects.get()
+    assert payment.status == Payment.Status.HELD
+    assert payment.stripe_payment_intent_id == "pi_abc"
+
+
+def test_register_payment_return_unpaid_session_shows_pending(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unpaid session renders the pending page and does not confirm."""
+    reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=5)
+    session = _FakeCheckoutSession(
+        payment_status="unpaid", metadata={"registration_pk": str(reg.pk)}
+    )
+    monkeypatch.setattr(stripe.checkout.Session, "retrieve", lambda session_id: session)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(
+        reverse("public:register_payment_return"), {"session_id": "cs_test0001"}
+    )
+
+    assert response.status_code == 200
+    assert "public/register_payment_pending.html" in [
+        t.name for t in response.templates
+    ]
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.UNVERIFIED
+    assert Payment.objects.count() == 0
+
+
+def test_register_payment_return_missing_session_id_shows_pending() -> None:
+    """No ?session_id= at all also renders the pending page (no Stripe call)."""
+    reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=5)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:register_payment_return"))
+
+    assert response.status_code == 200
+    assert "public/register_payment_pending.html" in [
+        t.name for t in response.templates
+    ]
+
+
+def test_register_payment_return_mismatched_metadata_shows_pending(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A session whose metadata points at a different registration is rejected."""
+    reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=5)
+    other_pk = reg.pk + 1
+    session = _FakeCheckoutSession(
+        payment_status="paid", metadata={"registration_pk": str(other_pk)}
+    )
+    monkeypatch.setattr(stripe.checkout.Session, "retrieve", lambda session_id: session)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(
+        reverse("public:register_payment_return"), {"session_id": "cs_test0001"}
+    )
+
+    assert response.status_code == 200
+    assert "public/register_payment_pending.html" in [
+        t.name for t in response.templates
+    ]
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.UNVERIFIED
+    assert Payment.objects.count() == 0
+
+
+def test_register_payment_cancelled_renders() -> None:
+    """register_payment_cancelled renders the friendly cancel page."""
+    response = Client().get(reverse("public:register_payment_cancelled"))
+    assert response.status_code == 200
+    assert "public/register_payment_cancelled.html" in [
+        t.name for t in response.templates
+    ]
+
+
+def test_stripe_webhook_completed_finalizes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """checkout.session.completed finalises the registration via the webhook."""
+    reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=5)
+    fake_event = {
+        "type": "checkout.session.completed",
+        "data": {
+            "object": _FakeCheckoutSession(
+                payment_status="paid",
+                customer="cus_wh",
+                payment_intent="pi_wh",
+                metadata={"registration_pk": str(reg.pk)},
+            )
+        },
+    }
+    monkeypatch.setattr(stripe.Webhook, "construct_event", lambda *a, **kw: fake_event)
+
+    response = Client().post(
+        reverse("stripe_webhook"),
+        data=b"{}",
+        content_type="application/json",
+        headers={"stripe-signature": "sig"},
+    )
+
+    assert response.status_code == 200
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.VERIFIED
+    assert Payment.objects.count() == 1
+    payment = Payment.objects.get()
+    assert payment.stripe_payment_intent_id == "pi_wh"
+
+
+def test_stripe_webhook_completed_without_customer_finalizes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A completed session with no Stripe Customer (e.g. TWINT) still finalises.
+
+    Payment-mode sessions do not create a Customer by default, so the webhook
+    must not require ``session.customer`` — only the payment_intent.
+    """
+    reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=5)
+    fake_event = {
+        "type": "checkout.session.completed",
+        "data": {
+            "object": _FakeCheckoutSession(
+                payment_status="paid",
+                customer=None,
+                payment_intent="pi_twint",
+                metadata={"registration_pk": str(reg.pk)},
+            )
+        },
+    }
+    monkeypatch.setattr(stripe.Webhook, "construct_event", lambda *a, **kw: fake_event)
+
+    response = Client().post(
+        reverse("stripe_webhook"),
+        data=b"{}",
+        content_type="application/json",
+        headers={"stripe-signature": "sig"},
+    )
+
+    assert response.status_code == 200
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.VERIFIED
+    assert Payment.objects.count() == 1
+    payment = Payment.objects.get()
+    assert payment.stripe_payment_intent_id == "pi_twint"
+    assert payment.stripe_customer_id == ""
+
+
+def test_stripe_webhook_unknown_registration_returns_200(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A completed event for a non-existent registration is accepted, not crashed."""
+    fake_event = {
+        "type": "checkout.session.completed",
+        "data": {
+            "object": _FakeCheckoutSession(
+                payment_status="paid",
+                customer="cus_x",
+                payment_intent="pi_x",
+                metadata={"registration_pk": "9999999"},
+            )
+        },
+    }
+    monkeypatch.setattr(stripe.Webhook, "construct_event", lambda *a, **kw: fake_event)
+
+    response = Client().post(
+        reverse("stripe_webhook"),
+        data=b"{}",
+        content_type="application/json",
+        headers={"stripe-signature": "sig"},
+    )
+
+    assert response.status_code == 200
+    assert Payment.objects.count() == 0
+
+
+def test_stripe_webhook_idempotent_with_return_view(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The webhook and the return view finalising the same payment intent
+    produce exactly one Payment and no double-confirm error."""
+    reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=5)
+    session = _FakeCheckoutSession(
+        payment_status="paid",
+        customer="cus_shared",
+        payment_intent="pi_shared",
+        metadata={"registration_pk": str(reg.pk)},
+    )
+    monkeypatch.setattr(stripe.checkout.Session, "retrieve", lambda session_id: session)
+    fake_event = {
+        "type": "checkout.session.completed",
+        "data": {"object": session},
+    }
+    monkeypatch.setattr(stripe.Webhook, "construct_event", lambda *a, **kw: fake_event)
+
+    client = Client()
+    client.force_login(reg.user)
+    return_response = client.get(
+        reverse("public:register_payment_return"), {"session_id": "cs_test0001"}
+    )
+    webhook_response = Client().post(
+        reverse("stripe_webhook"),
+        data=b"{}",
+        content_type="application/json",
+        headers={"stripe-signature": "sig"},
+    )
+
+    assert return_response.status_code == 302
+    assert webhook_response.status_code == 200
+    assert Payment.objects.count() == 1
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.VERIFIED
+
+
+def test_stripe_webhook_bad_signature_returns_400(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A webhook request with a bad signature is rejected with 400."""
+
+    def _raise(*args: object, **kwargs: object) -> None:
+        raise stripe.error.SignatureVerificationError("bad signature", "sig")
+
+    monkeypatch.setattr(stripe.Webhook, "construct_event", _raise)
+
+    response = Client().post(
+        reverse("stripe_webhook"),
+        data=b"{}",
+        content_type="application/json",
+        headers={"stripe-signature": "bad"},
+    )
+
+    assert response.status_code == 400
+
+
+def test_stripe_webhook_rejects_get() -> None:
+    """A GET request to the webhook endpoint is rejected (POST-only)."""
+    response = Client().get(reverse("stripe_webhook"))
+    assert response.status_code == 405
+
+
+def test_authenticated_register_post_paid_tier_diverts_to_payment(
+    settings: Any,
+) -> None:
+    """The authenticated defensive register() path creates an UNVERIFIED
+    registration and redirects to payment when the tier is paid."""
+    settings.REGISTRATION_FEE_TIERS = "2020-01-01:5"
+    user = UserFactory.create(username="auth@example.com", email="auth@example.com")
+    client = Client()
+    client.force_login(user)
+
+    response = client.post(
+        reverse("public:register"),
+        {
+            "role": "ambassador",
+            "first_name": "Ada",
+            "last_name": "Lovelace",
+            "prior_pass": Registration.PriorPass.SEASONAL,
+            "prior_pass_attestation": "on",
+            "terms_accepted": "on",
+        },
+    )
+
+    assert response.status_code == 302
+    assert response.url == reverse("public:register_payment_start")
+    reg = Registration.objects.get(user=user)
+    assert reg.status == Registration.Status.UNVERIFIED
+    assert reg.fee_chf == 5
+
+
+def test_account_cta_shown_for_unverified_paid_registration() -> None:
+    """The account page shows the "Complete payment" CTA for an UNVERIFIED,
+    fee_chf > 0 registration."""
+    reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=5)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("accounts:detail"))
+
+    assert response.status_code == 200
+    assert b"Complete payment" in response.content
+
+
+def test_account_cta_hidden_for_unverified_free_registration() -> None:
+    """The "Complete payment" CTA is absent for a free-tier UNVERIFIED registration."""
+    reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("accounts:detail"))
+
+    assert response.status_code == 200
+    assert b"Complete payment" not in response.content
 
 
 # ---------------------------------------------------------------------------

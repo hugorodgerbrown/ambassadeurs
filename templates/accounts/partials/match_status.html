@@ -45,6 +45,16 @@
                     You have been matched with <strong>{{ name }}</strong> — view the match to see their contact
                     details.
                 {% endblocktranslate %}
+            {% elif registration.status == 'UNVERIFIED' and registration.fee_chf > 0 %}
+                {% blocktranslate trimmed with amount=registration.fee_chf %}
+                    Your registration deposit ({{ amount }} CHF) is still outstanding. Complete payment to enter the
+                    pool.
+                {% endblocktranslate %}
+                <div class="mt-4">
+                    <a href="{% url 'public:register_payment_start' %}" class="btn btn--role">
+                        {% translate "Complete payment" %}
+                    </a>
+                </div>
             {% elif registration.status == 'UNVERIFIED' %}
                 {% blocktranslate trimmed %}
                     Please confirm your email address to enter the pool.

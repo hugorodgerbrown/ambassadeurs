@@ -2019,6 +2019,50 @@ msgstr ""
 msgid "Start again"
 msgstr "Recommencer"
 
+msgid "4 Vallées Ambassadors — registration deposit"
+msgstr "Ambassadeurs des 4 Vallées — acompte d'inscription"
+
+#, python-format
+msgid ""
+"Your registration deposit (%(amount)s CHF) is still outstanding. Complete "
+"payment to enter the pool."
+msgstr ""
+"Votre acompte d'inscription (%(amount)s CHF) reste dû. Effectuez le "
+"paiement pour rejoindre la file d'attente."
+
+msgid "Complete payment"
+msgstr "Effectuer le paiement"
+
+msgid "Payment cancelled"
+msgstr "Paiement annulé"
+
+msgid "Your payment was cancelled"
+msgstr "Votre paiement a été annulé"
+
+msgid ""
+"No deposit has been taken. Your registration is not yet confirmed — you can "
+"pick up where you left off whenever you're ready."
+msgstr ""
+"Aucun acompte n'a été prélevé. Votre inscription n'est pas encore "
+"confirmée — vous pouvez reprendre où vous en étiez dès que vous êtes prêt."
+
+msgid "Try payment again"
+msgstr "Réessayer le paiement"
+
+msgid "Payment pending"
+msgstr "Paiement en attente"
+
+msgid "We're still confirming your payment"
+msgstr "Nous confirmons encore votre paiement"
+
+msgid ""
+"Stripe hasn't told us your payment succeeded yet. This can take a few "
+"seconds — check your account page shortly, or try again below."
+msgstr ""
+"Stripe ne nous a pas encore confirmé la réussite de votre paiement. Cela "
+"peut prendre quelques secondes — consultez votre page de compte "
+"prochainement, ou réessayez ci-dessous."
+
 #~ msgid "has flakes"
 #~ msgstr "a des désistements"
 

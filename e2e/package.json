@@ -1,0 +1,25 @@
+{
+  "name": "ambassadeurs-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Playwright end-to-end suite for the Ambassadeurs app. Mirrors docs/manual-tests/manual-test-script.md.",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:local": "bash run-local.sh",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "typecheck": "tsc --noEmit",
+    "services:up": "docker compose -f compose.yaml up -d --wait",
+    "services:down": "docker compose -f compose.yaml down",
+    "report": "playwright show-report",
+    "codegen": "playwright codegen $BASE_URL"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
+    "pg": "^8.13.1",
+    "typescript": "^5.7.0"
+  }
+}

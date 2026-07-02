@@ -10,11 +10,12 @@
 #   1. Homepage renders with both role CTAs.
 #   2. Ambassador registration flow: form → email confirmation → account page.
 #   3. Referee registration creates a proposed match; the match page is accessible.
-#   4. Happy path: both parties accept → ACCEPTED and contact PII is revealed.
-#   5. One party declines → decliner PAUSED, partner requeued, no one notified.
-#   6. Contact window lapses (non-response) → non-responder PAUSED and notified,
-#      the faithful party requeued.
-#   7. Post-accept no-show → accused SUSPENDED and notified, reporter requeued.
+#   4. Happy path: both accept → ACCEPTED, contact PII revealed; the first
+#      accept nudges the waiting partner (VERB-92).
+#   5. One party declines → decliner PAUSED, partner requeued and notified.
+#   6. Contact window lapses (non-response) → non-responder PAUSED, faithful
+#      party requeued; both notified (VERB-92).
+#   7. Post-accept no-show → accused SUSPENDED, reporter requeued; both notified.
 #   8. A paused party rejoins the queue and is re-matched.
 #   9. A paused party deletes their account.
 #  10. A verified (unmatched) party deletes their account.
@@ -307,11 +308,18 @@ def test_match_happy_path_both_accept_reveals_contact() -> None:
     assert _AMBASSADOR_PHONE.encode() not in proposed_page.content
 
     # Ambassador accepts first: PROPOSED → PENDING, still no PII revealed.
+    mail.outbox.clear()
     first = _post_match_action("public:match_accept", amb_token)
     assert first.status_code == 200
     match.refresh_from_db()
     assert match.status == Match.Status.PENDING
     assert referee_email.encode() not in first.content
+
+    # VERB-92: the waiting referee is nudged that the ambassador accepted; the
+    # nudge carries no counterpart contact PII (only revealed on mutual accept).
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == [referee_email]
+    assert _AMBASSADOR_PHONE not in mail.outbox[0].body
 
     # Referee accepts second: PENDING → ACCEPTED, PII revealed.
     mail.outbox.clear()
@@ -342,15 +350,15 @@ def test_match_happy_path_both_accept_reveals_contact() -> None:
 
 @override_settings(DEBUG=True)
 def test_match_decline_pauses_decliner_and_requeues_partner() -> None:
-    """One party declines → decliner PAUSED, partner requeued, no one emailed.
+    """One party declines → decliner PAUSED, partner requeued and notified.
 
     Covers VERB-91 journey 3 (one party declines):
       - The ambassador declines a proposed match.
       - The match becomes DECLINED and the decliner's registration is PAUSED.
       - The partner (left hanging) stays VERIFIED and is requeued to the front
         (priority += 1).
-      - The decline path sends *no* notification to either party — only expiry
-        and no-show notify (see the expiry and no-show journeys below).
+      - VERB-92: the requeued partner is notified (the decliner is not); the
+        notice carries no counterpart contact PII.
       - The paused decliner's account page offers both a rejoin and a delete
         control, so they can choose to requeue or delete (journeys 6 and 9).
     """
@@ -371,8 +379,11 @@ def test_match_decline_pauses_decliner_and_requeues_partner() -> None:
     assert ref_reg.status == Registration.Status.VERIFIED
     assert ref_reg.priority == 1  # requeued to the front
 
-    # Decline notifies no one.
-    assert mail.outbox == []
+    # VERB-92: only the requeued partner is notified; the decliner is not, and
+    # the notice discloses no counterpart contact PII.
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == [ref_reg.user.email]
+    assert _AMBASSADOR_PHONE not in mail.outbox[0].body
 
     # The paused decliner can requeue or delete from their account page.
     detail = amb_client.get(reverse("accounts:detail"))
@@ -388,17 +399,17 @@ def test_match_decline_pauses_decliner_and_requeues_partner() -> None:
 
 @override_settings(DEBUG=True)
 def test_match_expiry_pauses_non_responder_and_requeues_faithful_party() -> None:
-    """Window lapses → non-responder PAUSED and notified, faithful party requeued.
+    """Window lapses → non-responder PAUSED, faithful party requeued; both notified.
 
     Covers VERB-91 journey 4 (one party does not respond before the window
-    closes). Note who is notified: the *paused non-responder* receives the
-    window-expired email; the faithful party is requeued silently.
+    closes):
       - The ambassador accepts; the referee never responds.
       - The contact window is forced closed and the ``expire_matches`` command
         sweeps the match to EXPIRED.
       - The non-responding referee is PAUSED (removed from the pool, may
         self-rejoin) and receives the window-expired notification.
       - The ambassador (kept faith) stays VERIFIED and is requeued to the front.
+      - VERB-92: both parties are notified (previously only the non-responder).
     """
     ambassador_email = "ada@example.com"
     referee_email = "grace@example.com"
@@ -430,9 +441,11 @@ def test_match_expiry_pauses_non_responder_and_requeues_faithful_party() -> None
     ref_reg.refresh_from_db()
     assert ref_reg.status == Registration.Status.PAUSED
 
-    # The paused non-responder is the party that is notified.
-    assert len(mail.outbox) == 1
-    assert mail.outbox[0].to == [referee_email]
+    # VERB-92: both the faithful ambassador (re-queued) and the paused referee
+    # (window-expired) are notified.
+    assert len(mail.outbox) == 2
+    recipients = {addr for message in mail.outbox for addr in message.to}
+    assert recipients == {ambassador_email, referee_email}
 
 
 # ---------------------------------------------------------------------------
@@ -442,7 +455,7 @@ def test_match_expiry_pauses_non_responder_and_requeues_faithful_party() -> None
 
 @override_settings(DEBUG=True)
 def test_post_accept_no_show_suspends_accused_and_requeues_reporter() -> None:
-    """A post-accept no-show report suspends the accused and notifies them.
+    """A post-accept no-show report suspends the accused; both parties notified.
 
     Covers the post-accept no-show path — the ``SUSPENDED`` outcome, distinct
     from the recoverable ``PAUSED`` outcomes above:
@@ -451,6 +464,8 @@ def test_post_accept_no_show_suspends_accused_and_requeues_reporter() -> None:
       - The match becomes CANCELLED; the accused referee is SUSPENDED (removed
         from the pool, not self-recoverable) and is notified.
       - The reporting ambassador stays VERIFIED and is requeued to the front.
+      - VERB-92: both are notified — the accused of the report, the reporter of
+        the re-queue (previously only the accused).
     """
     ambassador_email = "ada@example.com"
     referee_email = "grace@example.com"
@@ -482,9 +497,11 @@ def test_post_accept_no_show_suspends_accused_and_requeues_reporter() -> None:
     assert amb_reg.status == Registration.Status.VERIFIED
     assert amb_reg.priority == 1  # reporter requeued to the front
 
-    # The suspended accused is notified.
-    assert len(mail.outbox) == 1
-    assert mail.outbox[0].to == [referee_email]
+    # VERB-92: both parties are notified — the accused (referee) and the
+    # re-queued reporter (ambassador).
+    assert len(mail.outbox) == 2
+    recipients = {addr for message in mail.outbox for addr in message.to}
+    assert recipients == {ambassador_email, referee_email}
 
 
 # ---------------------------------------------------------------------------

@@ -154,7 +154,9 @@ def service_worker(request: HttpRequest) -> HttpResponse:
 def register(request: HttpRequest) -> HttpResponse:
     """Combined registration form — no login required.
 
-    GET: render the form themed for ``?role=`` (default ambassador).
+    GET: render the form themed for ``?role=``. Absent or unrecognised
+        ``?role=`` renders a neutral state — muted palette, closed role
+        selector, disabled form — prompting the visitor to choose a role.
     POST (anonymous): validate, create an UNVERIFIED registration (or resend if
         one already exists for the email), send a confirmation email, redirect
         to ``register_email_sent``.
@@ -170,8 +172,8 @@ def register(request: HttpRequest) -> HttpResponse:
     if not is_registration_open():
         return render(request, "public/register_closed.html")
 
-    role_slug = request.GET.get("role", "ambassador")
-    role_value = ROLE_BY_SLUG.get(role_slug, Registration.Role.AMBASSADOR)
+    role_slug = request.GET.get("role")
+    role_value = ROLE_BY_SLUG.get(role_slug) if role_slug is not None else None
 
     if request.method == "GET":
         # After is_authenticated, Django stubs narrow request.user to User.
@@ -183,8 +185,27 @@ def register(request: HttpRequest) -> HttpResponse:
             # clicking "I'm a Referee" on the homepage). The form is read-only,
             # so it must reflect their record, not the link they followed.
             role_value = Registration.Role(already_registered.role)
-        # Derive the display slug from the validated role value so an unknown
-        # ?role= param falls back gracefully to ambassador.
+
+        if already_registered is None and role_value is None:
+            # Neutral state: no valid role chosen yet. Build the form for field
+            # shape only (role choice is arbitrary here) and disable it so
+            # nothing can be submitted before a role is picked.
+            form = RegistrationForm(role=Registration.Role.AMBASSADOR, user=anon_user)
+            for field in form.fields.values():
+                field.disabled = True
+            return render(
+                request,
+                "public/register_details.html",
+                {
+                    "form": form,
+                    "role": "",
+                    "role_value": None,
+                    "already_registered": already_registered,
+                },
+            )
+
+        # Derive the display slug from the validated role value so a locked
+        # already-registered role always renders correctly.
         role_slug = SLUG_BY_ROLE[role_value]
         form = RegistrationForm(role=role_value, user=anon_user)
         if already_registered is not None:

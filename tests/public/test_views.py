@@ -799,6 +799,72 @@ def test_stripe_webhook_completed_finalizes(monkeypatch: pytest.MonkeyPatch) -> 
     assert payment.stripe_payment_intent_id == "pi_wh"
 
 
+def test_stripe_webhook_completed_without_customer_finalizes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A completed session with no Stripe Customer (e.g. TWINT) still finalises.
+
+    Payment-mode sessions do not create a Customer by default, so the webhook
+    must not require ``session.customer`` — only the payment_intent.
+    """
+    reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=5)
+    fake_event = {
+        "type": "checkout.session.completed",
+        "data": {
+            "object": _FakeCheckoutSession(
+                payment_status="paid",
+                customer=None,
+                payment_intent="pi_twint",
+                metadata={"registration_pk": str(reg.pk)},
+            )
+        },
+    }
+    monkeypatch.setattr(stripe.Webhook, "construct_event", lambda *a, **kw: fake_event)
+
+    response = Client().post(
+        reverse("stripe_webhook"),
+        data=b"{}",
+        content_type="application/json",
+        headers={"stripe-signature": "sig"},
+    )
+
+    assert response.status_code == 200
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.VERIFIED
+    assert Payment.objects.count() == 1
+    payment = Payment.objects.get()
+    assert payment.stripe_payment_intent_id == "pi_twint"
+    assert payment.stripe_customer_id == ""
+
+
+def test_stripe_webhook_unknown_registration_returns_200(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A completed event for a non-existent registration is accepted, not crashed."""
+    fake_event = {
+        "type": "checkout.session.completed",
+        "data": {
+            "object": _FakeCheckoutSession(
+                payment_status="paid",
+                customer="cus_x",
+                payment_intent="pi_x",
+                metadata={"registration_pk": "9999999"},
+            )
+        },
+    }
+    monkeypatch.setattr(stripe.Webhook, "construct_event", lambda *a, **kw: fake_event)
+
+    response = Client().post(
+        reverse("stripe_webhook"),
+        data=b"{}",
+        content_type="application/json",
+        headers={"stripe-signature": "sig"},
+    )
+
+    assert response.status_code == 200
+    assert Payment.objects.count() == 0
+
+
 def test_stripe_webhook_idempotent_with_return_view(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

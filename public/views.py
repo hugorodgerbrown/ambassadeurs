@@ -635,11 +635,15 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
         registration_pk = _stripe_metadata_get(session, "registration_pk")
-        customer_id = session.customer if isinstance(session.customer, str) else None
+        # Stripe does not create a Customer for payment-mode sessions by
+        # default (and never for TWINT), so session.customer is often absent.
+        # customer_id is optional (Payment.stripe_customer_id is blank); only
+        # the payment_intent is required to finalise — mirrors the return view.
+        customer_id = session.customer if isinstance(session.customer, str) else ""
         payment_intent_id = (
             session.payment_intent if isinstance(session.payment_intent, str) else None
         )
-        if registration_pk and customer_id and payment_intent_id:
+        if registration_pk and payment_intent_id:
             try:
                 registration = Registration.objects.get(pk=registration_pk)
             except Registration.DoesNotExist, ValueError:
@@ -657,7 +661,7 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
         else:
             logger.warning(
                 "stripe_webhook: checkout.session.completed missing usable "
-                "metadata/customer/payment_intent (session id=%s)",
+                "metadata/payment_intent (session id=%s)",
                 getattr(session, "id", "?"),
             )
 

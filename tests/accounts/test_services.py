@@ -22,6 +22,7 @@ from accounts.services import (
     update_account,
 )
 from billing.models import Payment
+from billing.services.payments import InvalidPaymentTransition
 from matching.models import Registration
 from tests.accounts.factories import UserFactory
 from tests.billing.factories import PaymentFactory
@@ -362,16 +363,17 @@ def test_delete_account_admin_user_with_no_registration_deletes_cleanly(
     assert not User.objects.filter(pk=user_pk).exists()
 
 
-def test_delete_account_double_submit_refunds_once(
+def test_delete_account_refunds_exactly_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A double-submitted delete request cannot double-refund the same payment.
+    """A sequential retry of the delete cannot double-refund the same payment.
 
-    ``refund()`` is guarded on ``status == HELD``; once ``delete_account`` has
-    refunded and moved the payment to REFUNDED, a second attempt against the
-    same (now-terminal) payment is a no-op from ``delete_account``'s point of
-    view — the ``.held().first()`` lookup returns None, so no second Stripe
-    call is issued. This mirrors a retried POST to ``accounts:delete``.
+    ``refund()`` is guarded on ``status == HELD``. After ``delete_account``
+    refunds and deletes the account, the Payment survives via ``SET_NULL`` but
+    its registration is gone, so a subsequent ``delete_account`` for the (now
+    absent) user finds no HELD deposit and issues no second Stripe call. A
+    truly *concurrent* double-POST is covered by the InvalidPaymentTransition
+    race test below (the loser catches the benign exception).
     """
     calls = _mock_refund_create(monkeypatch)
     registration = RegistrationFactory.create()
@@ -393,3 +395,31 @@ def test_delete_account_double_submit_refunds_once(
     assert payment.status == Payment.Status.REFUNDED
     assert not Registration.objects.filter(user_id=user_pk).exists()
     assert len(calls) == 1
+
+
+def test_delete_account_proceeds_if_deposit_refunded_concurrently(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If close_season refunds the deposit first, deletion still succeeds.
+
+    ``refund()`` raises ``InvalidPaymentTransition`` when the payment is no
+    longer HELD (a concurrent ``close_season`` win). ``delete_account`` treats
+    that as benign — the money is already on its way back — and proceeds to
+    delete the account rather than 500 the mid-logout user.
+    """
+
+    def _raise(*args: object, **kwargs: object) -> None:
+        raise InvalidPaymentTransition("deposit already left HELD")
+
+    monkeypatch.setattr("accounts.services.refund", _raise)
+    registration = RegistrationFactory.create()
+    PaymentFactory.create(
+        registration=registration,
+        status=Payment.Status.HELD,
+        stripe_payment_intent_id="pi_test0002",
+    )
+    user_pk = registration.user.pk
+
+    delete_account(registration.user)
+
+    assert not User.objects.filter(pk=user_pk).exists()

@@ -106,6 +106,7 @@
                 {% blocktranslate trimmed %}
                     Your registration has been suspended. Contact support if you think this is an error.
                 {% endblocktranslate %}
+                {# SUSPENDED implies no active match — no guard #}
                 <div class="mt-4">
                     <a
                         href="{% url 'accounts:delete' %}"

@@ -39,7 +39,7 @@ from accounts.tokens import (
     make_registration_confirmation_token,
 )
 from billing.models import Payment
-from billing.services.payments import refund
+from billing.services.payments import InvalidPaymentTransition, refund
 from matching.models import Registration
 
 logger = logging.getLogger(__name__)
@@ -212,14 +212,26 @@ def delete_account(user: User) -> None:
     deletion (``Payment.registration`` is ``SET_NULL``, VERB-85). A CAPTURED
     (accepted match) or FORFEITED (suspended) deposit is not HELD, so no
     refund is issued for those; ``refund()`` is idempotent per payment, so a
-    double-submit of this view can never double-refund.
+    double-submit of this view can never double-refund. If the season-end
+    ``close_season`` sweep refunds the same deposit concurrently (it wins the
+    row lock first), ``refund()`` raises ``InvalidPaymentTransition`` — a
+    benign race, since the money is already on its way back; we log it and
+    proceed with deletion rather than 500 the user (who is mid-logout).
     """
     user_pk = user.pk
     registration = Registration.objects.filter(user=user).first()
     if registration is not None:
         deposit = Payment.objects.for_registration(registration).held().first()
         if deposit is not None:
-            refund(deposit, reason=Payment.Reason.USER_CANCELLED)
+            try:
+                refund(deposit, reason=Payment.Reason.USER_CANCELLED)
+            except InvalidPaymentTransition:
+                logger.warning(
+                    "delete_account: deposit pk=%s left HELD before refund "
+                    "(concurrent close_season?); proceeding to delete user pk=%s",
+                    deposit.pk,
+                    user_pk,
+                )
     with transaction.atomic():
         user.delete()
     logger.info("Deleted account for user pk=%s", user_pk)

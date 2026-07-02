@@ -117,6 +117,50 @@ services:
           name: ambassadeurs-db
           property: connectionString
 
+  # Cron service: the season-end deposit refund sweep. Runs once daily and
+  # refunds every still-HELD deposit whose registration never reached an
+  # ACCEPTED match and is not suspended (matching.services.close_season,
+  # --commit to apply). A no-op outside the season-end window (nothing left
+  # HELD once the season has wound down); safe to leave scheduled daily.
+  - type: cron
+    name: ambassadeurs-close-season
+    runtime: python
+    plan: starter
+    schedule: "0 3 * * *"
+    buildCommand: ./build.sh
+    startCommand: uv run python manage.py close_season --commit
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: PYTHON_VERSION
+        value: "3.14"
+      - key: SECRET_KEY
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: SECRET_KEY
+      - key: ALLOWED_HOSTS
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: ALLOWED_HOSTS
+      - key: CSRF_TRUSTED_ORIGINS
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: CSRF_TRUSTED_ORIGINS
+      - key: POSTHOG_API_KEY
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: POSTHOG_API_KEY
+      - key: POSTHOG_HOST
+        value: https://eu.i.posthog.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ambassadeurs-db
+          property: connectionString
+
 databases:
   - name: ambassadeurs-db
     plan: basic-256mb

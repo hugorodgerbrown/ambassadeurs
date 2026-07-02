@@ -267,12 +267,14 @@ class Registration(BaseModel):
     class Meta:
         ordering = ["-created_at"]
 
+    @property
     def is_ambassador(self) -> bool:
-        """Return True if role is AMBASSADOR."""
+        """True if role is AMBASSADOR (derived from own state — a property)."""
         return self.role == self.Role.AMBASSADOR
 
+    @property
     def is_referee(self) -> bool:
-        """Return True if role is REFEREE."""
+        """True if role is REFEREE (derived from own state — a property)."""
         return self.role == self.Role.REFEREE
 
     def pause(self) -> Registration:
@@ -573,9 +575,9 @@ class Match(BaseModel):
             )
 
         now = timezone.now()
-        if accepted_by.is_ambassador() and self.ambassador_accepted_at is None:
+        if accepted_by.is_ambassador and self.ambassador_accepted_at is None:
             self.ambassador_accepted_at = now
-        if accepted_by.is_referee() and self.referee_accepted_at is None:
+        if accepted_by.is_referee and self.referee_accepted_at is None:
             self.referee_accepted_at = now
 
         self.set_status()

@@ -111,7 +111,9 @@ guide.
   `src/css/main.css` (`@theme`) rather than raw palette utilities, where a
   token exists? Reuse the existing tokens; don't introduce ad-hoc colours.
 - Are all user-facing strings wrapped in `{% translate %}` /
-  `{% blocktranslate %}` so French stays in sync?
+  `{% blocktranslate %}`? (Wrapping only — do **not** run `makemessages` or edit
+  `locale/*.po`/`.mo` on a feature branch; catalogue rebuild is a separate
+  single-purpose task, see ADR 0016.)
 
 Run `pre-commit run djangofmt --files <paths>` after editing templates so the
 hook doesn't reformat on commit.

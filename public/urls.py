@@ -24,6 +24,23 @@ urlpatterns = [
         name="register_details_form",
     ),
     path("register/done/<slug:role>/", views.register_done, name="register_done"),
+    # Paid-tier deposit flow — Stripe hosted Checkout (VERB-86). The webhook
+    # itself is mounted un-prefixed in config/urls.py, not here.
+    path(
+        "register/pay/",
+        views.register_payment_start,
+        name="register_payment_start",
+    ),
+    path(
+        "register/pay/return/",
+        views.register_payment_return,
+        name="register_payment_return",
+    ),
+    path(
+        "register/pay/cancelled/",
+        views.register_payment_cancelled,
+        name="register_payment_cancelled",
+    ),
     path("legal/<slug:page>/", views.legal_page, name="legal"),
     path("how-it-works/", views.how_it_works, name="how_it_works"),
     path("faq/", views.faq, name="faq"),

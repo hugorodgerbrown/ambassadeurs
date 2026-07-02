@@ -186,10 +186,12 @@ def register(request: HttpRequest) -> HttpResponse:
             # so it must reflect their record, not the link they followed.
             role_value = Registration.Role(already_registered.role)
 
-        if already_registered is None and role_value is None:
-            # Neutral state: no valid role chosen yet. Build the form for field
-            # shape only (role choice is arbitrary here) and disable it so
-            # nothing can be submitted before a role is picked.
+        if role_value is None:
+            # Neutral state: no valid role chosen yet (already_registered is
+            # necessarily None too — their real role would have been assigned
+            # above). Build the form for field shape only (role choice is
+            # arbitrary here) and disable it so nothing can be submitted
+            # before a role is picked.
             form = RegistrationForm(role=Registration.Role.AMBASSADOR, user=anon_user)
             for field in form.fields.values():
                 field.disabled = True

@@ -141,3 +141,45 @@ avoid two competing dispatch patterns mid-flight). That ticket owns:
 - defining the transition-label constants and decorating the six sites;
 - confirming the existing `captureOnCommitCallbacks` tests still pass and adding
   `disable_side_effects()` label assertions where they add value.
+
+## Amendment (VERB-107) — realised shape
+
+VERB-107 implemented the follow-up in one pass. The realised shape refines two
+points beyond what this ADR anticipated:
+
+- **Labels sit on the transition function, not an intermediate marker.** Each of
+  the five real transition functions in `matching/services.py` —
+  `propose_match`, `record_acceptance`, `record_decline`, `expire_match`,
+  `report_no_show` — is decorated directly with `@has_side_effects("<label>")`.
+  The label constants (`MATCH_PROPOSED`, `MATCH_ACCEPTED`, `MATCH_DECLINED`,
+  `MATCH_EXPIRED`, `MATCH_NO_SHOW`) live in the new `matching/side_effects.py`,
+  imported into `services.py` — the "one declarative registry" from the
+  Decision section is this module, not a separate mapping table.
+- **One handler notifies one recipient, and every handler derives its
+  recipient by walking the mutated `Match`** (`ambassador_registration` /
+  `referee_registration`, `declined_by`, `no_show_reported_by`,
+  `*_accepted_at`) rather than being passed a loose registration. A transition
+  that emails two people therefore binds two `@is_side_effect_of` handlers to
+  its label (e.g. `notify_ambassador_of_proposal` /
+  `notify_referee_of_proposal`; `notify_ambassador_of_confirmation` /
+  `notify_referee_of_confirmation`), each calling a small shared `_email_*`
+  render helper carved from the pre-VERB-107 `send_*` bodies. `match_accepted`
+  binds three handlers to one label — the waiting-partner nudge and both
+  confirmation handlers all fire on every `record_acceptance` call and each
+  guards on `match.status` (PENDING vs ACCEPTED) rather than being invoked
+  conditionally by the caller.
+- **`propose_match` is the sanctioned exception to "walk the argument, not
+  `return_value`."** It creates the match rather than receiving it, so its two
+  handlers (`notify_ambassador_of_proposal`, `notify_referee_of_proposal`) read
+  the created `Match` from `return_value`. The no-match `None` case is gated by
+  the library's own `run_on_exit=lambda match: match is not None`, so the
+  handlers never fire when no counterpart was waiting — no defensive check is
+  needed inside the handlers themselves.
+- Every handler's signature ends `**kwargs`, mirroring the origin's positional
+  parameters — required because the registry's `try_bind` raises
+  `SignatureMismatch` (a hard error, not a silent skip) if a handler's
+  signature cannot bind the origin's `*args`/`**kwargs`/`return_value`.
+- `django-side-effects` ships no `py.typed` marker; `pyproject.toml` scopes
+  `ignore_missing_imports` and `disallow_untyped_decorators` to the two
+  modules that use the decorators (`matching.services`,
+  `matching.side_effects`) rather than relaxing either setting project-wide.

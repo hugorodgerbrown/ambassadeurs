@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-02 10:59+0200\n"
+"POT-Creation-Date: 2026-06-30 15:36+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -248,7 +248,7 @@ msgstr ""
 msgid "You don't have permission to view this page."
 msgstr ""
 
-msgid "Back to home"
+msgid "Return to homepage"
 msgstr ""
 
 msgid "Page not found"
@@ -269,6 +269,9 @@ msgstr ""
 msgid ""
 "You have made too many requests in a short period. Please wait approximately "
 "one hour and try again."
+msgstr ""
+
+msgid "Return to home"
 msgstr ""
 
 msgid "Delete my account"
@@ -325,6 +328,9 @@ msgid "Delete account"
 msgstr ""
 
 msgid "Permanently delete your account. This cannot be undone."
+msgstr ""
+
+msgid "Delete account "
 msgstr ""
 
 msgid "Edit your details"
@@ -395,10 +401,10 @@ msgid ""
 "Not you? You can safely close this page — the link will expire in one hour."
 msgstr ""
 
-msgid "Sign out"
+msgid "Log out"
 msgstr ""
 
-msgid "Are you sure you want to sign out?"
+msgid "Are you sure you want to log out?"
 msgstr ""
 
 msgid "Match status"
@@ -406,14 +412,19 @@ msgstr ""
 
 #, python-format
 msgid ""
-"You have been matched with <strong>%(name)s</strong>. They are waiting for "
-"you to respond."
+"You have been matched with %(name)s. They are waiting for you to respond."
 msgstr ""
 
 #, python-format
 msgid ""
 "You have been matched with <strong>%(name)s</strong>. They have not yet "
 "responded."
+msgstr ""
+
+#, python-format
+msgid ""
+"You have been matched with <strong>%(name)s</strong>. They are waiting for "
+"you to respond."
 msgstr ""
 
 #, python-format
@@ -473,27 +484,6 @@ msgid "Hi,"
 msgstr ""
 
 msgid ""
-"You're already registered for the 4 Vallées Ambassadors Programme — there is "
-"no need to register again. Use the link below to sign in and see your status:"
-msgstr ""
-
-#, python-format
-msgid ""
-"This link expires in %(expiry_hours)s hour. If you did not request this, you "
-"can safely ignore this email — your account is not affected."
-msgid_plural ""
-"This link expires in %(expiry_hours)s hours. If you did not request this, "
-"you can safely ignore this email — your account is not affected."
-msgstr[0] ""
-msgstr[1] ""
-
-msgid "— 4 Vallées Ambassadors Programme"
-msgstr ""
-
-msgid "You're already registered — Ski Parrainage"
-msgstr ""
-
-msgid ""
 "Thanks for registering as an Ambassador for the 4 Vallées Ambassadors "
 "Programme. Please confirm your email address to enter the matching queue — "
 "we'll pair you with a Referee as soon as one is available."
@@ -510,15 +500,14 @@ msgstr ""
 
 #, python-format
 msgid ""
-"This link expires in %(expiry_hours)s hour. If you did not register for this "
-"programme, you can safely ignore this email."
-msgid_plural ""
 "This link expires in %(expiry_hours)s hours. If you did not register for "
 "this programme, you can safely ignore this email."
-msgstr[0] ""
-msgstr[1] ""
+msgstr ""
 
-msgid "Confirm your email — Ski Parrainage"
+msgid "— 4 Vallées Ambassadors Programme"
+msgstr ""
+
+msgid "Confirm your email — 4 Vallées Ambassadors"
 msgstr ""
 
 msgid ""
@@ -526,19 +515,25 @@ msgid ""
 "Programme. Click the link below to confirm your sign-in:"
 msgstr ""
 
-msgid "Sign in to Ski Parrainage"
+#, python-format
+msgid ""
+"This link expires in %(expiry_hours)s hour. If you did not request this, you "
+"can safely ignore this email — your account is not affected."
+msgstr ""
+
+msgid "Sign in to 4 Vallées Ambassadors"
 msgstr ""
 
 msgid "Ski Parrainage"
 msgstr ""
 
-msgid "Find your season-pass partner for the 4 Vallées Ambassadors Programme."
+msgid "Find your season-pass partner for the 4 Vallées Ambassadors Program."
 msgstr ""
 
 msgid "The easy way to find your season-pass partner."
 msgstr ""
 
-msgid "Programme"
+msgid "Program"
 msgstr ""
 
 msgid "How it works"
@@ -565,22 +560,21 @@ msgstr ""
 msgid "My account"
 msgstr ""
 
+msgid "Log in"
+msgstr ""
+
 msgid "Register"
 msgstr ""
 
-msgid "Independent project — not affiliated with the 4 Vallées pass operator."
-msgstr ""
-
-msgid "Change language"
+msgid ""
+"Independent project — not affiliated with the official 4 Vallées pass "
+"operator."
 msgstr ""
 
 msgid "Main navigation"
 msgstr ""
 
 msgid "Menu"
-msgstr ""
-
-msgid "Account menu"
 msgstr ""
 
 msgid ""
@@ -672,11 +666,11 @@ msgid "What is the contact window?"
 msgstr ""
 
 msgid ""
-"Once a match is proposed, both parties have a limited window — its length is "
-"shown in the match email — to accept. Neither side can see the other's "
-"contact details (email or phone) during this window; only your partner's "
-"first name is shown so the pairing feels human. Contact details are revealed "
-"only after both parties accept."
+"Once a match is proposed, both parties have a fixed window — 72 hours by "
+"default — to accept. Neither side can see the other's contact details (email "
+"or phone) during this window; only your partner's first name is shown so the "
+"pairing feels human. Contact details are revealed only after both parties "
+"accept."
 msgstr ""
 
 msgid "Why can't I see my partner's contact details before accepting?"
@@ -749,7 +743,7 @@ msgid ""
 "Ambassadors, with alpine peaks behind"
 msgstr ""
 
-msgid "4 Vallées Ambassadors Programme"
+msgid "4 Vallées Ambassadors Program"
 msgstr ""
 
 msgid "Find your season-pass match"
@@ -764,6 +758,14 @@ msgid "* Voluntary donations welcome"
 msgstr ""
 
 msgid "Get started"
+msgstr ""
+
+msgid ""
+"\n"
+"        This is an independent project — it is not affiliated with the 4 "
+"Vallées pass operator, and is responsible\n"
+"        for matching only.\n"
+"        "
 msgstr ""
 
 msgid "Registration opens soon — check back closer to the start of the season."
@@ -784,9 +786,7 @@ msgstr ""
 msgid "We email you when matched"
 msgstr ""
 
-msgid ""
-"You'll have a limited time to accept the match — the current window is shown "
-"in the match email."
+msgid "You'll have 72 hours to accept the match."
 msgstr ""
 
 msgid "Meet and apply together"
@@ -833,17 +833,17 @@ msgid ""
 "then apply together at the ticket office."
 msgstr ""
 
-msgid "How it works — Ski Parrainage"
+msgid "How it works — 4 Vallées Ambassadors"
 msgstr ""
 
-msgid "What is the 4 Vallées Ambassadors Programme?"
+msgid "What is the 4 Vallées Ambassadors Program?"
 msgstr ""
 
 msgid ""
-"The 4 Vallées Ambassadors Programme is a referral scheme that lets a "
-"returning season-pass holder (an Ambassador) bring a new person (a Referee) "
-"into the programme. Both apply together and, if eligible, both receive a "
-"discount on their seasonal pass."
+"The 4 Vallées Ambassadors Program is a referral scheme that lets a returning "
+"season-pass holder (an Ambassador) bring a new person (a Referee) into the "
+"programme. Both apply together and, if eligible, both receive a discount on "
+"their seasonal pass."
 msgstr ""
 
 msgid "Who is an Ambassador and who is a Referee?"
@@ -853,7 +853,9 @@ msgid ""
 "An Ambassador is someone who held a 4 Vallées seasonal or annual pass in "
 "either of the last two seasons (2024/25 or 2025/26). A Referee is someone "
 "who did not hold a season pass in either of the last two seasons. Each "
-"Ambassador can sponsor exactly one Referee."
+"Ambassador can sponsor exactly one Referee; the Referee must be applying for "
+"a pass in an equal or higher price category than the Ambassador (e.g. an "
+"adult can't support a child, but the reverse is possible)."
 msgstr ""
 
 msgid "How do I apply?"
@@ -935,7 +937,7 @@ msgid ""
 "typically outnumber Referees, so if you register as a Referee you may be "
 "matched instantly. If you register as an Ambassador you may have to wait "
 "until you reach the front of the queue. The queue is chronological, and you "
-"can see where you are in the queue from your account page."
+"can see where you are in the queue from your status page."
 msgstr ""
 
 msgid "What happens then?"
@@ -987,7 +989,7 @@ msgid ""
 "tracking."
 msgstr ""
 
-msgid "Cookie Policy — Ski Parrainage"
+msgid "Cookie Policy — 4 Vallées Ambassadors"
 msgstr ""
 
 msgid "Last updated"
@@ -1033,8 +1035,8 @@ msgstr ""
 #, python-format
 msgid ""
 "This is an independent service provided free of charge for the purpose of "
-"finding a partner for the 4 Vallées Ambassadors season pass Programme. It "
-"has no affiliation with the pass operator. For privacy questions, contact "
+"finding a partner for the 4 Vallées Ambassador season pass program. It has "
+"no affiliation with the pass operator. For privacy questions, contact "
 "%(email)s"
 msgstr ""
 
@@ -1103,7 +1105,7 @@ msgstr ""
 
 msgid ""
 "This service exists to help you find a partner for the 4 Vallées Ambassadors "
-"Programme. It is matchmaking only: the ski pass application process (and "
+"Program. It is matchmaking only: the ski pass application process (and "
 "payment) are done directly by you with the pass operator."
 msgstr ""
 
@@ -1132,9 +1134,7 @@ msgid ""
 "Give accurate information, including your honest prior-season eligibility."
 msgstr ""
 
-msgid ""
-"Respond to a match within the window shown in the match email — accept or "
-"decline."
+msgid "Respond to a match within 72 hours — accept or decline."
 msgstr ""
 
 msgid ""
@@ -1178,7 +1178,7 @@ msgstr ""
 msgid "Your turn"
 msgstr ""
 
-msgid "Back to my account"
+msgid "Back to my status"
 msgstr ""
 
 msgid "This match does not include you."
@@ -1187,6 +1187,9 @@ msgstr ""
 msgid ""
 "You are logged in as a different participant. Match pages are only "
 "accessible to the two participants named on the match."
+msgstr ""
+
+msgid "Go to the homepage"
 msgstr ""
 
 msgid "Link invalid"
@@ -1298,8 +1301,8 @@ msgid "Fill in the application form together"
 msgstr ""
 
 msgid ""
-"Download and complete the official Ambassador Programme application form. "
-"Both partners must sign it."
+"Download and complete the official Ambassador Program application form. Both "
+"partners must sign it."
 msgstr ""
 
 msgid "Email it to Téléverbier"
@@ -1388,7 +1391,12 @@ msgstr ""
 
 msgid ""
 "You must have purchased a seasonal or annual pass from one of the 4 Vallées "
-"companies in 2024/25 or 2025/26."
+"companies in 2024/2025 or 2025/2026."
+msgstr ""
+
+msgid ""
+"You must support a person in an equal or higher price category than your own "
+"(e.g. an adult can’t support a child, but the reverse is possible)."
 msgstr ""
 
 msgid "You must purchase a 2026/2027 4 Vallées annual pass."
@@ -1396,7 +1404,7 @@ msgstr ""
 
 msgid ""
 "You must not have purchased a mid-season, seasonal or annual pass from any "
-"of the 4 Vallées companies in 2024/25 or 2025/26."
+"of the 4 Vallées companies in 2024/2025 or 2025/2026."
 msgstr ""
 
 msgid "Registration"
@@ -1407,12 +1415,12 @@ msgid ""
 "can't be changed here."
 msgstr ""
 
-msgid "Choose your role below to start your registration."
-msgstr ""
-
 msgid ""
 "Once you have completed registration and verified your email we'll start the "
 "matching process."
+msgstr ""
+
+msgid "Choose your role below to start your registration."
 msgstr ""
 
 msgid "You're already registered"
@@ -1424,7 +1432,7 @@ msgid ""
 "%(date)s, so this form is locked."
 msgstr ""
 
-msgid "View my account"
+msgid "View my status"
 msgstr ""
 
 msgid "Choose your role"
@@ -1477,7 +1485,7 @@ msgstr ""
 
 msgid ""
 "You can only register once. To change your details, contact us or check your "
-"account page."
+"status."
 msgstr ""
 
 msgid "Select a role to continue"
@@ -1487,6 +1495,9 @@ msgid "Register as Ambassador"
 msgstr ""
 
 msgid "Register as Referee"
+msgstr ""
+
+msgid "Independent project — not affiliated with the 4 Vallées pass operator."
 msgstr ""
 
 msgid "Registration closed"
@@ -1500,6 +1511,9 @@ msgid ""
 "to the start of the season."
 msgstr ""
 
+msgid "Back to home"
+msgstr ""
+
 msgid "Register &middot; Ski Parrainage &middot; 2026/27"
 msgstr ""
 
@@ -1508,7 +1522,7 @@ msgid ""
 "service."
 msgstr ""
 
-msgid "Register — Ski Parrainage"
+msgid "Ski Parrainage - 2026/27"
 msgstr ""
 
 msgid "You're in the queue"
@@ -1546,8 +1560,7 @@ msgstr[1] ""
 msgid "Watch your inbox — we contact you by email."
 msgstr ""
 
-msgid ""
-"When matched, accept (or decline) within the window shown in the match email."
+msgid "When matched, accept (or decline) within 72 hours."
 msgstr ""
 
 msgid ""

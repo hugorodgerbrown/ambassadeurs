@@ -26,7 +26,8 @@
 # the match from PROPOSED → PENDING (a real transition, logged). The second
 # acceptance moves PENDING → ACCEPTED. record_acceptance (VERB-101) delegates
 # the source-state guard and the timestamp/status mutation to the
-# Match.accept_side model method — see the model/service split note below.
+# Match.accept model method (which derives the accepting side from the
+# registration's role) — see the model/service split note below.
 #
 # withdraw_acceptance (VERB-43 / ADR 0010) is the inverse of the first accept:
 # while a match is PENDING and the other side has not accepted, the viewing
@@ -45,7 +46,7 @@
 # and sent a window-expired notification — both emails queued via
 # transaction.on_commit. This is the model/service boundary established for
 # the expiry transition (docs/decisions/0017): model methods (Match.expire,
-# Registration.pause, Registration.requeue, Match.accept_side) validate their
+# Registration.pause, Registration.requeue, Match.accept) validate their
 # own source state and raise core.exceptions.StateTransitionError on an
 # illegal transition (fail hard, low in the stack) rather than saving; they
 # never save, touch another object, or fire a side effect. Service functions
@@ -1278,10 +1279,10 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
     Re-accepting an already-accepted side is a no-op for that timestamp (the
     existing value is kept) so callers can safely retry without double-counting.
 
-    ``Match.accept_side()`` is the single guard on the source state — it
-    validates ``match.status`` itself and raises ``StateTransitionError``
-    (fail hard, low in the stack) if the match is not PROPOSED or PENDING.
-    This function does not re-check the condition (ADR 0017).
+    ``Match.accept()`` is the single guard on the source state — it validates
+    ``match.status`` itself and raises ``StateTransitionError`` (fail hard, low
+    in the stack) if the match is not PROPOSED or PENDING. This function does
+    not re-check the condition (ADR 0017).
 
     Args:
         match: The match to accept.
@@ -1291,7 +1292,7 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
         The updated ``Match`` instance.
 
     Raises:
-        StateTransitionError: propagated from ``Match.accept_side`` if
+        StateTransitionError: propagated from ``Match.accept`` if
             ``match.status`` is not ``PROPOSED`` or ``PENDING``.
     """
     with transaction.atomic():
@@ -1302,23 +1303,15 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
         )
 
         status_before = match.status
-        amb_before = match.ambassador_accepted_at
-        ref_before = match.referee_accepted_at
-
-        side = match.side_of(registration)
-        match.accept_side(side, timezone.now())
-
-        update_fields = [
-            field
-            for field, before in (
-                ("ambassador_accepted_at", amb_before),
-                ("referee_accepted_at", ref_before),
-                ("status", status_before),
-            )
-            if getattr(match, field) != before
-        ]
-        if update_fields:
-            match.save(update_fields=update_fields + ["updated_at"])
+        match.accept(registration)
+        match.save(
+            update_fields=[
+                "ambassador_accepted_at",
+                "referee_accepted_at",
+                "status",
+                "updated_at",
+            ]
+        )
 
         if match.status != status_before:
             record_transition(
@@ -1327,12 +1320,13 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
                 before=status_before,
                 after=match.status,
             )
-            if match.status == Match.Status.PENDING:
-                logger.info(
-                    "Match pk=%s first accept by %s: PROPOSED → PENDING",
-                    match.pk,
-                    side,
-                )
+            logger.info(
+                "Match pk=%s accepted by registration pk=%s: %s → %s",
+                match.pk,
+                registration.pk,
+                status_before,
+                match.status,
+            )
 
         if match.status == Match.Status.ACCEPTED:
             logger.info(

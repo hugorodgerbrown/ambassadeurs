@@ -205,7 +205,7 @@ tests possible without monkeypatching `django.utils.timezone`.
   (decline), `withdraw_acceptance`, and `report_no_show` — will be refactored
   to the same model/service shape in follow-up tickets. Each currently mutates
   `Match` fields directly inside its own `transaction.atomic()` block; each
-  should grow a corresponding pure `Match` model method (e.g. `Match.accept_side`,
+  should grow a corresponding pure `Match` model method (e.g. `Match.accept`,
   `Match.decline`, `Match.withdraw_acceptance`, `Match.cancel_for_no_show`),
   guarding its own source state and raising `StateTransitionError` (fail hard,
   low in the stack) exactly as `Match.expire()` and `Registration.pause()` now

@@ -1,8 +1,8 @@
 # Tests for the Registration and Match models.
 #
-# Match.accept_side (VERB-101 / ADR 0017) covers the pure, in-memory
-# model-logic half of the accept transition; Match.expire, Registration.pause
-# and Registration.requeue are covered separately in
+# Match.accept / Match.set_status (VERB-101 / ADR 0017) cover the pure,
+# in-memory model-logic half of the accept transition; Match.expire,
+# Registration.pause and Registration.requeue are covered separately in
 # tests/matching/test_expire_match.py (VERB-100) and are not duplicated here.
 
 from datetime import UTC, datetime
@@ -230,30 +230,28 @@ def test_match_to_string_includes_status() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Match.accept_side() — pure, in-memory model method (VERB-101 / ADR 0017)
+# Match.accept() / Match.set_status() — pure, in-memory model methods
+# (VERB-101 / ADR 0017)
 # ---------------------------------------------------------------------------
 
-# A tz-aware instant suitable for acceptance timestamps.
-_WHEN = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
 
-
-def test_accept_side_first_accept_by_ambassador_goes_pending() -> None:
+def test_accept_first_accept_by_ambassador_goes_pending() -> None:
     """First accept by the ambassador sets the timestamp and PROPOSED → PENDING."""
     match = MatchFactory.create()
 
-    result = match.accept_side(Match.Side.AMBASSADOR, _WHEN)
+    result = match.accept(match.ambassador_registration)
 
     assert result is match
-    assert match.ambassador_accepted_at == _WHEN
+    assert match.ambassador_accepted_at is not None
     assert match.referee_accepted_at is None
     assert match.status == Match.Status.PENDING
 
 
-def test_accept_side_first_accept_by_ambassador_does_not_persist() -> None:
-    """accept_side mutates only the in-memory instance; it never saves."""
+def test_accept_does_not_persist() -> None:
+    """accept mutates only the in-memory instance; it never saves."""
     match = MatchFactory.create()
 
-    match.accept_side(Match.Side.AMBASSADOR, _WHEN)
+    match.accept(match.ambassador_registration)
 
     # Not saved: the DB row is unchanged.
     fresh = Match.objects.get(pk=match.pk)
@@ -261,43 +259,43 @@ def test_accept_side_first_accept_by_ambassador_does_not_persist() -> None:
     assert fresh.ambassador_accepted_at is None
 
 
-def test_accept_side_first_accept_by_referee_goes_pending() -> None:
+def test_accept_first_accept_by_referee_goes_pending() -> None:
     """First accept by the referee sets the timestamp and PROPOSED → PENDING."""
     match = MatchFactory.create()
 
-    result = match.accept_side(Match.Side.REFEREE, _WHEN)
+    result = match.accept(match.referee_registration)
 
     assert result is match
-    assert match.referee_accepted_at == _WHEN
+    assert match.referee_accepted_at is not None
     assert match.ambassador_accepted_at is None
     assert match.status == Match.Status.PENDING
 
 
-def test_accept_side_second_accept_transitions_to_accepted() -> None:
+def test_accept_second_accept_transitions_to_accepted() -> None:
     """Second accept (match PENDING) sets the timestamp and status → ACCEPTED."""
     match = MatchFactory.create(pending=True)
     assert match.referee_accepted_at is None
 
-    result = match.accept_side(Match.Side.REFEREE, _WHEN)
+    result = match.accept(match.referee_registration)
 
     assert result is match
-    assert match.referee_accepted_at == _WHEN
+    assert match.referee_accepted_at is not None
     assert match.ambassador_accepted_at is not None
     assert match.status == Match.Status.ACCEPTED
 
 
-def test_accept_side_idempotent_re_accept_keeps_timestamp_and_status() -> None:
+def test_accept_idempotent_re_accept_keeps_timestamp_and_status() -> None:
     """Re-accepting an already-accepted side is a no-op for that side's timestamp."""
     match = MatchFactory.create()
-    match.accept_side(Match.Side.AMBASSADOR, _WHEN)
+    match.accept(match.ambassador_registration)
+    first = match.ambassador_accepted_at
     assert match.status == Match.Status.PENDING
 
-    later = datetime(2026, 1, 2, 12, 0, 0, tzinfo=UTC)
-    result = match.accept_side(Match.Side.AMBASSADOR, later)
+    result = match.accept(match.ambassador_registration)
 
     assert result is match
-    # Timestamp is unchanged — still the first-accept value, not `later`.
-    assert match.ambassador_accepted_at == _WHEN
+    # Timestamp is unchanged — still the first-accept value.
+    assert match.ambassador_accepted_at == first
     # Status is unchanged — still PENDING (referee has not accepted).
     assert match.status == Match.Status.PENDING
 
@@ -306,28 +304,49 @@ def test_accept_side_idempotent_re_accept_keeps_timestamp_and_status() -> None:
     "trait",
     ["accepted", "declined", "cancelled"],
 )
-def test_accept_side_raises_for_terminal_statuses(trait: str) -> None:
-    """accept_side raises StateTransitionError for ACCEPTED, DECLINED, CANCELLED."""
+def test_accept_raises_for_terminal_statuses(trait: str) -> None:
+    """accept raises StateTransitionError for ACCEPTED, DECLINED, CANCELLED."""
     match = MatchFactory.create(**{trait: True})
     status_before = match.status
 
     with pytest.raises(StateTransitionError) as exc_info:
-        match.accept_side(Match.Side.AMBASSADOR, _WHEN)
+        match.accept(match.ambassador_registration)
 
     assert exc_info.value.current == status_before
     assert exc_info.value.proposed == Match.Status.ACCEPTED
     assert exc_info.value.obj is match
 
 
-def test_accept_side_raises_for_expired() -> None:
-    """accept_side raises StateTransitionError when the match is already EXPIRED."""
+def test_accept_raises_for_expired() -> None:
+    """accept raises StateTransitionError when the match is already EXPIRED."""
     match = MatchFactory.create()
     match.status = Match.Status.EXPIRED
     match.save(update_fields=["status"])
 
     with pytest.raises(StateTransitionError) as exc_info:
-        match.accept_side(Match.Side.AMBASSADOR, _WHEN)
+        match.accept(match.ambassador_registration)
 
     assert exc_info.value.current == Match.Status.EXPIRED
     assert exc_info.value.proposed == Match.Status.ACCEPTED
     assert exc_info.value.obj is match
+
+
+def test_set_status_both_accepted_is_accepted() -> None:
+    """set_status maps two acceptance timestamps → ACCEPTED."""
+    match = MatchFactory.create(pending=True)
+    match.referee_accepted_at = match.ambassador_accepted_at
+
+    match.set_status()
+
+    assert match.status == Match.Status.ACCEPTED
+
+
+def test_set_status_no_acceptances_is_proposed() -> None:
+    """set_status with neither timestamp set → PROPOSED."""
+    match = MatchFactory.create(pending=True)
+    match.ambassador_accepted_at = None
+    match.referee_accepted_at = None
+
+    match.set_status()
+
+    assert match.status == Match.Status.PROPOSED

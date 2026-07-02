@@ -23,6 +23,7 @@ from datetime import datetime
 from django.conf import settings
 from django.db import models
 from django.db.models import Exists, OuterRef, Q
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django_countries.fields import CountryField
 
@@ -537,31 +538,23 @@ class Match(BaseModel):
         self.status = Match.Status.EXPIRED
         return self
 
-    def accept_side(self, side: Match.Side, when: datetime) -> Match:
-        """Mutate this match's own state to record one side's acceptance, in memory.
+    def accept(self, accepted_by: Registration) -> Match:
+        """Record that ``accepted_by`` has accepted this match, in memory only.
 
         Model-logic layer (VERB-101 / ADR 0017): mutates only this instance's
-        own fields (the accepting side's ``*_accepted_at`` timestamp and
-        ``status``), never saves, never touches another object (e.g. the
-        related registrations or a Payment), and never fires a side effect
-        (e.g. an email). Callers are responsible for persisting the change
-        and for any cross-object coordination — see
-        ``matching.services.record_acceptance``.
+        own fields — the accepting side's ``*_accepted_at`` timestamp and, via
+        ``set_status``, ``status``. Never saves, never touches another object
+        (e.g. a Payment), and never fires a side effect (e.g. an email). The
+        accepting side is derived from the registration's own role
+        (``is_ambassador`` / ``is_referee``): the caller passes the participant,
+        not a side. Persisting the change and any cross-object coordination
+        belong to ``matching.services.record_acceptance``.
 
-        Setting the timestamp is idempotent: if the given ``side`` has already
-        accepted (its timestamp is not ``None``), re-accepting is a no-op for
-        that timestamp so callers can safely retry without double-counting.
-
-        Once the timestamp is set, the status advances: if both sides now
-        have a timestamp, the match becomes ``ACCEPTED``; otherwise, if this
-        was the first accept (``self.status`` was ``PROPOSED``), the match
-        becomes ``PENDING``. A second accept when already ``PENDING`` — the
-        only remaining case reaching this point — is left unchanged
-        (``both`` is handled above).
+        Idempotent: re-accepting by a side that has already accepted leaves its
+        timestamp — and therefore the status — unchanged.
 
         Args:
-            side: Which side (``AMBASSADOR`` or ``REFEREE``) is accepting.
-            when: The tz-aware instant to record as the acceptance timestamp.
+            accepted_by: The registration (ambassador or referee) accepting.
 
         Returns:
             self, so calls can be chained.
@@ -579,23 +572,29 @@ class Match(BaseModel):
                 obj=self,
             )
 
-        if side == Match.Side.AMBASSADOR and self.ambassador_accepted_at is None:
-            self.ambassador_accepted_at = when
-        elif side == Match.Side.REFEREE and self.referee_accepted_at is None:
-            self.referee_accepted_at = when
-        # If this side has already accepted (re-accept), no timestamp changes.
+        now = timezone.now()
+        if accepted_by.is_ambassador() and self.ambassador_accepted_at is None:
+            self.ambassador_accepted_at = now
+        if accepted_by.is_referee() and self.referee_accepted_at is None:
+            self.referee_accepted_at = now
 
-        both = (
-            self.ambassador_accepted_at is not None
-            and self.referee_accepted_at is not None
-        )
-        if both:
-            self.status = Match.Status.ACCEPTED
-        elif self.status == Match.Status.PROPOSED:
-            self.status = Match.Status.PENDING
-        # Else: already PENDING with only one side accepted — unchanged.
-
+        self.set_status()
         return self
+
+    def set_status(self) -> None:
+        """Derive ``status`` from the two acceptance timestamps, in memory.
+
+        Both sides accepted → ``ACCEPTED``; exactly one → ``PENDING``; neither →
+        ``PROPOSED``. A pure own-state computation that maps the accept state
+        onto the status; it never saves. Callers must first establish that the
+        match is in an accept-eligible state (see ``accept``).
+        """
+        if self.ambassador_accepted_at and self.referee_accepted_at:
+            self.status = Match.Status.ACCEPTED
+        elif self.ambassador_accepted_at or self.referee_accepted_at:
+            self.status = Match.Status.PENDING
+        else:
+            self.status = Match.Status.PROPOSED
 
     def side_of(self, registration: Registration) -> Match.Side:
         """Return which side of this match ``registration`` is on.

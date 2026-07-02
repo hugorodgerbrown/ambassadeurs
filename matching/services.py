@@ -405,7 +405,8 @@ def send_window_expired_notification(registration: Registration) -> None:
 
     Informs the participant that the match window closed because they did not
     respond, that their registration is now paused, and that they may rejoin
-    the queue from their account page.
+    the queue from their account page — or, if they would rather stop
+    waiting, cancel from the same page and get any deposit refunded (VERB-88).
 
     Each email is rendered under the participant's ``preferred_language``.
 
@@ -427,6 +428,8 @@ def send_window_expired_notification(registration: Registration) -> None:
             "Your registration is now paused. When you are ready to be matched "
             'again, visit your account page and click "Rejoin the queue":\n\n'
             "%(url)s\n\n"
+            "If you'd rather not wait, you can cancel from the same page and "
+            "get any deposit you paid refunded.\n\n"
             "If you did not register for this programme, please ignore this email."
         ) % {"url": account_url}
     recipient_email = registration.user.email

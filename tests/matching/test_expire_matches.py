@@ -14,6 +14,7 @@ import pytest
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
 from django.test import TestCase
+from django.utils import timezone
 
 from core.models import StateTransitionLog
 from matching.models import Match, Registration
@@ -56,7 +57,7 @@ def test_lapsed_both_sides_no_accept_pauses_both_and_expires() -> None:
         referee_accepted_at=None,
     )
 
-    count = expire_lapsed_matches()
+    count = expire_lapsed_matches(cutoff=timezone.now())
 
     assert count == 1
 
@@ -92,7 +93,7 @@ def test_lapsed_ambassador_accepted_gets_front_referee_paused() -> None:
         status=Match.Status.PENDING,
     )
 
-    count = expire_lapsed_matches()
+    count = expire_lapsed_matches(cutoff=timezone.now())
 
     assert count == 1
 
@@ -128,7 +129,7 @@ def test_lapsed_referee_accepted_gets_front_ambassador_paused() -> None:
         status=Match.Status.PENDING,
     )
 
-    count = expire_lapsed_matches()
+    count = expire_lapsed_matches(cutoff=timezone.now())
 
     assert count == 1
 
@@ -148,7 +149,7 @@ def test_non_lapsed_match_untouched() -> None:
     """Non-lapsed PROPOSED match (default far-future expires_at) is not touched."""
     match = MatchFactory.create(expires_at=_FUTURE)
 
-    count = expire_lapsed_matches()
+    count = expire_lapsed_matches(cutoff=timezone.now())
 
     assert count == 0
     match.refresh_from_db()
@@ -161,7 +162,7 @@ def test_already_terminal_match_not_reprocessed() -> None:
     ambassador_reg = match.ambassador_registration
     referee_reg = match.referee_registration
 
-    count = expire_lapsed_matches()
+    count = expire_lapsed_matches(cutoff=timezone.now())
 
     assert count == 0
 
@@ -197,7 +198,7 @@ def test_idempotency_second_run_returns_zero() -> None:
     )
 
     with TestCase.captureOnCommitCallbacks(execute=True):
-        first_count = expire_lapsed_matches()
+        first_count = expire_lapsed_matches(cutoff=timezone.now())
     assert first_count == 1
     assert len(mail.outbox) == 2  # both non-responders notified
 
@@ -210,7 +211,7 @@ def test_idempotency_second_run_returns_zero() -> None:
     mail.outbox.clear()
 
     with TestCase.captureOnCommitCallbacks(execute=True):
-        second_count = expire_lapsed_matches()
+        second_count = expire_lapsed_matches(cutoff=timezone.now())
     assert second_count == 0
 
     # No additional emails on second run.
@@ -231,7 +232,7 @@ def test_state_transition_log_written_for_proposed_to_expired() -> None:
         referee_accepted_at=None,
     )
 
-    expire_lapsed_matches()
+    expire_lapsed_matches(cutoff=timezone.now())
 
     match_ct = ContentType.objects.get_for_model(Match)
     log = StateTransitionLog.objects.filter(
@@ -261,7 +262,7 @@ def test_expiry_email_sent_to_non_responders() -> None:
     )
 
     with TestCase.captureOnCommitCallbacks(execute=True):
-        expire_lapsed_matches()
+        expire_lapsed_matches(cutoff=timezone.now())
 
     # Both parties are non-responders — each receives a notification.
     assert len(mail.outbox) == 2
@@ -290,7 +291,7 @@ def test_expiry_notifies_faithful_and_non_responder() -> None:
     )
 
     with TestCase.captureOnCommitCallbacks(execute=True):
-        expire_lapsed_matches()
+        expire_lapsed_matches(cutoff=timezone.now())
 
     # Both sides receive one email each: the faithful ambassador (re-queued) and
     # the non-responding referee (paused).
@@ -324,7 +325,7 @@ def test_concurrency_skip_when_match_no_longer_proposed() -> None:
     log_count_before = StateTransitionLog.objects.count()
 
     with patch.object(Match.objects.__class__, "lapsed", return_value=fake_qs):
-        count = expire_lapsed_matches()
+        count = expire_lapsed_matches(cutoff=timezone.now())
 
     assert count == 0
 
@@ -389,7 +390,7 @@ def test_per_match_exception_isolation_continues_sweep(
 
     with patch.object(_svc, "pause_registration", _failing_pause):
         with caplog.at_level("ERROR", logger="matching.services"):
-            count = expire_lapsed_matches()
+            count = expire_lapsed_matches(cutoff=timezone.now())
 
     # Only one match successfully expired (the second one).
     assert count == 1
@@ -431,7 +432,7 @@ def test_already_terminal_declined_match_not_reprocessed() -> None:
         expires_at=_PAST,
     )
 
-    count = expire_lapsed_matches()
+    count = expire_lapsed_matches(cutoff=timezone.now())
 
     assert count == 0
 

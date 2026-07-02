@@ -18,10 +18,11 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from django.conf import settings
 from django.db import models
 from django.db.models import Exists, OuterRef, Q
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django_countries.fields import CountryField
 
@@ -272,6 +273,37 @@ class Registration(BaseModel):
         """Return True if role is REFEREE."""
         return self.role == self.Role.REFEREE
 
+    def pause(self) -> Registration:
+        """Mutate this registration's own state to PAUSED, in memory only.
+
+        Model-logic layer (VERB-100): mutates only this instance's own field,
+        never saves, never touches another object, and never fires a side
+        effect. Callers are responsible for persisting the change (e.g.
+        ``registration.pause().save(update_fields=["status"])``) and for any
+        cross-object coordination (see ``matching.services.pause_registration``).
+
+        Returns:
+            self, so calls can be chained.
+        """
+        self.status = Registration.Status.PAUSED
+        return self
+
+    def requeue_to_front(self) -> Registration:
+        """Mutate this registration's own state to re-join at the front, in memory only.
+
+        Model-logic layer (VERB-100): mutates only this instance's own fields
+        (status and priority), never saves, never touches another object, and
+        never fires a side effect. Callers are responsible for persisting the
+        change and for any cross-object coordination (see
+        ``matching.services.requeue_to_front``).
+
+        Returns:
+            self, so calls can be chained.
+        """
+        self.status = Registration.Status.VERIFIED
+        self.priority += 1
+        return self
+
     def to_string(self) -> str:
         """Return a human-readable label for the registration."""
         return f"{self.user} · {self.get_role_display()}"
@@ -288,16 +320,25 @@ class MatchQuerySet(BaseQuerySet):
         """Return matches currently in the PROPOSED state."""
         return self.filter(status=Match.Status.PROPOSED)
 
-    def lapsed(self) -> MatchQuerySet:
+    def lapsed(self, cutoff: datetime) -> MatchQuerySet:
         """Return PROPOSED or PENDING matches whose contact window has expired.
 
         Shorthand for the expiry-sweep candidate set: non-terminal active matches
-        filtered to those whose expires_at is at or before the current instant.
-        Both PROPOSED and PENDING are eligible for expiry.
+        filtered to those whose expires_at is at or before ``cutoff``. Both
+        PROPOSED and PENDING are eligible for expiry.
+
+        ``cutoff`` is a required, tz-aware "now" passed in by the caller
+        (inversion of control, VERB-100) rather than read internally via
+        ``timezone.now()`` — this keeps the queryset a pure function of its
+        arguments and lets the caller control "now" for testing / sweep
+        consistency.
+
+        Args:
+            cutoff: The tz-aware instant to compare ``expires_at`` against.
         """
         return self.filter(
             status__in=[Match.Status.PROPOSED, Match.Status.PENDING],
-            expires_at__lte=timezone.now(),
+            expires_at__lte=cutoff,
         )
 
     def active(self) -> MatchQuerySet:
@@ -445,6 +486,31 @@ class Match(BaseModel):
     def __str__(self) -> str:
         """Delegate to to_string."""
         return self.to_string()
+
+    def expire(self) -> Match:
+        """Mutate this match's own state to EXPIRED, in memory only.
+
+        Model-logic layer (VERB-100): mutates only this instance's own
+        ``status`` field, never saves, never touches another object (e.g. the
+        related registrations), and never fires a side effect (e.g. an email).
+        Callers are responsible for persisting the change (e.g.
+        ``match.expire().save(update_fields=["status", "updated_at"])``) and
+        for any cross-object coordination — see
+        ``matching.services.expire_match``.
+
+        Returns:
+            self, so calls can be chained.
+
+        Raises:
+            ValueError: if ``self.status`` is not ``PROPOSED`` or ``PENDING``.
+        """
+        if self.status not in (Match.Status.PROPOSED, Match.Status.PENDING):
+            raise ValueError(
+                f"Cannot expire match pk={self.pk}: status is {self.status!r}, "
+                f"expected PROPOSED or PENDING."
+            )
+        self.status = Match.Status.EXPIRED
+        return self
 
     def side_of(self, registration: Registration) -> Match.Side:
         """Return which side of this match ``registration`` is on.

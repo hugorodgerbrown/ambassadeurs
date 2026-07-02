@@ -5,6 +5,7 @@
 # matching.services.expire_lapsed_matches.
 
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 
 from matching.services import expire_lapsed_matches
 
@@ -20,6 +21,11 @@ class Command(BaseCommand):
     help = "Expire contact-window-lapsed PROPOSED matches and re-queue registrations."
 
     def handle(self, *args: object, **options: object) -> None:
-        """Run the expiry sweep and write a summary to stdout."""
-        count = expire_lapsed_matches()
+        """Run the expiry sweep and write a summary to stdout.
+
+        Reads "now" here (inversion of control, VERB-100) and passes it as the
+        sweep's cutoff, keeping ``expire_lapsed_matches`` a pure function of
+        its arguments.
+        """
+        count = expire_lapsed_matches(cutoff=timezone.now())
         self.stdout.write(f"Expired {count} matches.")

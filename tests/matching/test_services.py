@@ -2518,7 +2518,7 @@ def test_expire_lapsed_matches_transitions_proposed_to_expired() -> None:
     """expire_lapsed_matches transitions a lapsed PROPOSED match to EXPIRED."""
     past = datetime(2020, 1, 1, tzinfo=UTC)
     match = MatchFactory.create(expires_at=past)
-    count = expire_lapsed_matches()
+    count = expire_lapsed_matches(cutoff=timezone.now())
     match.refresh_from_db()
     assert match.status == Match.Status.EXPIRED
     assert count == 1
@@ -2535,7 +2535,7 @@ def test_expire_lapsed_matches_non_responder_gets_paused() -> None:
         expires_at=past,
     )
 
-    expire_lapsed_matches()
+    expire_lapsed_matches(cutoff=timezone.now())
 
     ambassador_reg.refresh_from_db()
     referee_reg.refresh_from_db()
@@ -2556,7 +2556,7 @@ def test_expire_lapsed_matches_faithful_party_requeued_to_front() -> None:
         ambassador_accepted_at=accepted_at,  # ambassador accepted; referee did not
     )
 
-    expire_lapsed_matches()
+    expire_lapsed_matches(cutoff=timezone.now())
 
     ambassador_reg.refresh_from_db()
     referee_reg.refresh_from_db()
@@ -2570,8 +2570,8 @@ def test_expire_lapsed_matches_idempotent_on_second_run() -> None:
     past = datetime(2020, 1, 1, tzinfo=UTC)
     MatchFactory.create(expires_at=past)
 
-    first_count = expire_lapsed_matches()
-    second_count = expire_lapsed_matches()
+    first_count = expire_lapsed_matches(cutoff=timezone.now())
+    second_count = expire_lapsed_matches(cutoff=timezone.now())
 
     assert first_count == 1
     assert second_count == 0
@@ -2593,7 +2593,7 @@ def test_expire_lapsed_matches_sends_notification_to_non_responders(
     )
 
     with DjangoTestCase.captureOnCommitCallbacks(execute=True):
-        expire_lapsed_matches()
+        expire_lapsed_matches(cutoff=timezone.now())
 
     # Both parties are non-responders — each receives a notification.
     assert len(mailoutbox) == 2
@@ -2624,7 +2624,7 @@ def test_expire_lapsed_matches_notifies_both_faithful_and_non_responder(
     )
 
     with DjangoTestCase.captureOnCommitCallbacks(execute=True):
-        expire_lapsed_matches()
+        expire_lapsed_matches(cutoff=timezone.now())
 
     # Both the faithful ambassador and the non-responding referee are notified.
     assert len(mailoutbox) == 2

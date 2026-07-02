@@ -76,6 +76,7 @@ class Payment(BaseModel):
         Registration,
         on_delete=models.SET_NULL,
         null=True,
+        blank=True,
         related_name="payments",
         help_text=(
             "The registration this deposit belongs to. SET_NULL so the audit "

@@ -184,6 +184,15 @@ def refund(payment: Payment, *, reason: Payment.Reason) -> Payment:
             )
 
         _configure_stripe()
+        # No amount= — this refunds the full payment intent (the whole deposit
+        # is always returned; there is no partial-refund path).
+        #
+        # NOTE (VERB-87): this Stripe HTTP call runs inside the atomic block
+        # while holding the select_for_update row lock, which is fine for a
+        # single user-triggered refund. The close_season batch sweep must NOT
+        # call refund() in a tight loop that holds a DB connection across each
+        # Stripe round-trip (connection-pool exhaustion) — it should refund
+        # outside a long-held transaction / throttle. See VERB-87 scope.
         stripe_refund = stripe.Refund.create(
             payment_intent=locked.stripe_payment_intent_id,
             idempotency_key=_idempotency_key(locked, "refund"),

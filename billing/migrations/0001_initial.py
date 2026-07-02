@@ -68,6 +68,7 @@ class Migration(migrations.Migration):
                 (
                     "registration",
                     models.ForeignKey(
+                        blank=True,
                         help_text="The registration this deposit belongs to. SET_NULL so the audit row survives account deletion (VERB-88).",
                         null=True,
                         on_delete=django.db.models.deletion.SET_NULL,

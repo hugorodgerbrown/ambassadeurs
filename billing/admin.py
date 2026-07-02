@@ -30,6 +30,16 @@ class PaymentAdmin(admin.ModelAdmin):
         "stripe_refund_id",
     ]
     raw_id_fields = ["registration"]
+
+    def has_add_permission(self, request: object) -> bool:
+        """Disallow creating Payment rows by hand.
+
+        A Payment must correspond to a real Stripe charge created through the
+        registration flow (VERB-86); an admin-created row would have no Stripe
+        payment intent and confuse the refund/reconciliation paths.
+        """
+        return False
+
     readonly_fields = [
         "amount_chf",
         "status",

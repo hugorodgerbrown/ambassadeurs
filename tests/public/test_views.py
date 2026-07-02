@@ -136,7 +136,10 @@ def test_register_get_neutral_submit_button_disabled() -> None:
     """The neutral-state submit button is disabled and prompts a role choice."""
     response = Client().get(reverse("public:register"))
     assert response.status_code == 200
-    assert b"Select a role to continue" in response.content
+    content = response.content.decode()
+    assert "Select a role to continue" in content
+    # The submit button element itself must be disabled.
+    assert re.search(r'<button[^>]*type="submit"[^>]*\bdisabled\b', content)
 
 
 @override_settings(

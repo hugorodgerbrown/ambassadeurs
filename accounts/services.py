@@ -11,6 +11,14 @@
 #
 # allauth has been removed (VERB-46). Email-verified state is now derived from
 # Registration.status (not the allauth EmailAddress model).
+#
+# delete_account is the single deletion chokepoint (VERB-88): every delete
+# path (the self-service "Delete account" button and the new "Cancel &
+# refund" entry from the PAUSED account page) goes through here, so a HELD
+# deposit is always refunded before the user — and their registration — is
+# deleted. A CAPTURED (accepted match) or FORFEITED (suspended) deposit is not
+# HELD, so ``.held().first()`` returns None and no refund happens; that one
+# guard naturally gives the "no refund for accepted/suspended" behaviour.
 
 from __future__ import annotations
 
@@ -30,6 +38,8 @@ from accounts.tokens import (
     make_login_token,
     make_registration_confirmation_token,
 )
+from billing.models import Payment
+from billing.services.payments import refund
 from matching.models import Registration
 
 logger = logging.getLogger(__name__)
@@ -195,8 +205,21 @@ def update_account(
 
 
 def delete_account(user: User) -> None:
-    """Delete the user, cascading their registration and matches."""
+    """Refund any HELD deposit, then delete the user, cascading their registration.
+
+    The refund happens *before* deletion — it needs the Registration to still
+    exist to find the deposit — while the Payment audit row itself survives
+    deletion (``Payment.registration`` is ``SET_NULL``, VERB-85). A CAPTURED
+    (accepted match) or FORFEITED (suspended) deposit is not HELD, so no
+    refund is issued for those; ``refund()`` is idempotent per payment, so a
+    double-submit of this view can never double-refund.
+    """
     user_pk = user.pk
+    registration = Registration.objects.filter(user=user).first()
+    if registration is not None:
+        deposit = Payment.objects.for_registration(registration).held().first()
+        if deposit is not None:
+            refund(deposit, reason=Payment.Reason.USER_CANCELLED)
     with transaction.atomic():
         user.delete()
     logger.info("Deleted account for user pk=%s", user_pk)

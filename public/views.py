@@ -74,6 +74,7 @@ from billing.services.checkout import (
     verify_webhook,
 )
 from core.decorators import require_htmx
+from core.exceptions import StateTransitionError
 from core.geo import geolocate, get_client_ip
 from core.ratelimit import rate_limited_response
 from matching.forms import RegistrationForm
@@ -1014,9 +1015,10 @@ def match_detail(request: HttpRequest, token: str) -> HttpResponse:
                     # removed page directly instead (no PRG for this terminal
                     # path).
                     return render(request, "public/match_removed.html")
-            except ValueError:
-                # Match status changed between read and action; fall through
-                # to PRG redirect so the updated state is displayed.
+            except StateTransitionError, ValueError:
+                # Match status changed between read and action (accept raises
+                # StateTransitionError, decline raises ValueError); fall
+                # through to PRG redirect so the updated state is displayed.
                 pass
         elif (
             action == "report_no_show"
@@ -1075,7 +1077,7 @@ def match_accept(request: HttpRequest, token: str) -> HttpResponse:
     if display_state == _STATE_ACTIONABLE:
         try:
             match = accept_match(match, registration)
-        except ValueError:
+        except StateTransitionError:
             # Status changed between resolution and action; re-render current state.
             pass
 

@@ -35,3 +35,8 @@ implement it. Add a row when a term gains a symbol.
 | When does matching open? (deferred-matching gate) | `matching.pricing_config.matching_opens_at` | `matching/pricing_config.py` |
 | Resolve the fee for a registration date | `matching.pricing_config.fee_chf_for` | `matching/pricing_config.py` |
 | Locked prepaid registration fee (CHF) on a registration | `matching.models.Registration.fee_chf` | `matching/models.py` |
+| Prepaid registration deposit (audit row) | `billing.models.Payment` | `billing/models.py` |
+| Deposit lifecycle (held → captured / refunded / forfeited) | `billing.models.Payment.Status` | `billing/models.py` |
+| Keep a deposit (successful match) | `billing.services.payments.capture` | `billing/services/payments.py` |
+| Refund a deposit (via Stripe) | `billing.services.payments.refund` | `billing/services/payments.py` |
+| Forfeit a deposit (post-accept no-show) | `billing.services.payments.forfeit` | `billing/services/payments.py` |

@@ -1,0 +1,120 @@
+# The Payment model: an audit row for the prepaid registration deposit
+# collected via Stripe (ADR 0014, VERB-85).
+#
+# Because the deposit is charged synchronously at registration time (SCA/TWINT
+# constraints make charging a saved method weeks later unreliable — ADR 0014),
+# HELD means "funds already collected, outcome pending" rather than
+# "authorised but not captured". CAPTURED (successful match) and FORFEITED
+# (post-accept no-show) are therefore pure state transitions with no further
+# Stripe call; only REFUNDED calls Stripe (see billing/services/payments.py).
+#
+# Fixed choice values are TextChoices with UPPER_CASE values (CLAUDE.md).
+
+from __future__ import annotations
+
+from django.db import models
+from django.utils.translation import gettext_lazy as _
+
+from core.models import BaseModel, BaseQuerySet
+from matching.models import Registration
+
+
+class PaymentQuerySet(BaseQuerySet):
+    """Queryset for Payment."""
+
+    def held(self) -> PaymentQuerySet:
+        """Return payments still in the HELD state (outcome pending)."""
+        return self.filter(status=Payment.Status.HELD)
+
+    def for_registration(self, registration: Registration) -> PaymentQuerySet:
+        """Return payments belonging to ``registration``."""
+        return self.filter(registration=registration)
+
+
+class Payment(BaseModel):
+    """An audit row for one prepaid registration deposit.
+
+    ``registration`` uses ``on_delete=SET_NULL`` (rather than ``CASCADE``) so
+    the payment row — and its Stripe identifiers — survive account deletion
+    (VERB-88); there is no unique constraint, mirroring ``Match``: terminal
+    rows accumulate as history rather than being reused.
+
+    Only Stripe identifiers are stored (``stripe_customer_id``,
+    ``stripe_payment_intent_id``, ``stripe_refund_id``) — never raw card data.
+    """
+
+    class Status(models.TextChoices):
+        """Deposit lifecycle. UPPER_CASE values (CLAUDE.md).
+
+        HELD: funds collected at registration time; outcome pending.
+        CAPTURED: the match succeeded (mutual accept) — deposit is kept. No
+            Stripe call; the money was already collected into HELD.
+        REFUNDED: the season ended without a match, or a good-faith cancel —
+            the only transition that calls Stripe (a Refund).
+        FORFEITED: a post-accept no-show — deposit is kept, no refund. No
+            Stripe call.
+        """
+
+        HELD = "HELD", _("Held")
+        CAPTURED = "CAPTURED", _("Captured")
+        REFUNDED = "REFUNDED", _("Refunded")
+        FORFEITED = "FORFEITED", _("Forfeited")
+
+    class Reason(models.TextChoices):
+        """Why a payment reached its terminal state. UPPER_CASE values.
+
+        Set only on the terminal transition (capture/refund/forfeit); blank
+        while the payment is HELD.
+        """
+
+        SUCCESSFUL_MATCH = "SUCCESSFUL_MATCH", _("Successful match")
+        USER_CANCELLED = "USER_CANCELLED", _("User cancelled")
+        SEASON_END_NO_MATCH = "SEASON_END_NO_MATCH", _("Season end, no match")
+        POST_ACCEPT_NOSHOW = "POST_ACCEPT_NOSHOW", _("Post-accept no-show")
+
+    registration = models.ForeignKey(
+        Registration,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="payments",
+        help_text=(
+            "The registration this deposit belongs to. SET_NULL so the audit "
+            "row survives account deletion (VERB-88)."
+        ),
+    )
+    amount_chf = models.PositiveIntegerField(
+        help_text="Whole-CHF deposit amount (mirrors Registration.fee_chf).",
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.HELD,
+    )
+    reason = models.CharField(
+        max_length=32,
+        choices=Reason.choices,
+        blank=True,
+        help_text="Set only on the terminal transition; blank while HELD.",
+    )
+    stripe_customer_id = models.CharField(max_length=255, blank=True)
+    stripe_payment_intent_id = models.CharField(max_length=255, blank=True)
+    stripe_refund_id = models.CharField(max_length=255, blank=True)
+
+    objects = PaymentQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    @property
+    def is_terminal(self) -> bool:
+        """Return True if this payment has left the HELD state."""
+        return self.status != Payment.Status.HELD
+
+    def to_string(self) -> str:
+        """Return a human-readable label for the payment."""
+        return f"Payment {self.pk}: {self.amount_chf} CHF [{self.get_status_display()}]"
+
+    def __str__(self) -> str:
+        """Delegate to to_string."""
+        return self.to_string()

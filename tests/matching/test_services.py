@@ -1618,12 +1618,15 @@ def test_record_decline_does_not_change_registration_statuses() -> None:
 
 
 def test_record_decline_raises_for_non_active_match() -> None:
-    """record_decline raises ValueError if match.status is terminal."""
+    """record_decline raises StateTransitionError if match.status is terminal."""
     match = MatchFactory.create(status=Match.Status.ACCEPTED)
     referee_reg = match.referee_registration
 
-    with pytest.raises(ValueError, match="PROPOSED or PENDING"):
+    with pytest.raises(StateTransitionError) as exc_info:
         record_decline(match, referee_reg)
+
+    assert exc_info.value.current == Match.Status.ACCEPTED
+    assert exc_info.value.proposed == Match.Status.DECLINED
 
 
 # ---------------------------------------------------------------------------
@@ -1836,7 +1839,7 @@ def test_withdraw_acceptance_applies_no_penalty_and_writes_one_log() -> None:
 
 
 def test_withdraw_acceptance_raises_for_non_pending_match() -> None:
-    """withdraw_acceptance raises ValueError if match.status != PENDING."""
+    """withdraw_acceptance raises StateTransitionError if match.status != PENDING."""
     ambassador_reg = RegistrationFactory.create()
     referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
@@ -1844,12 +1847,15 @@ def test_withdraw_acceptance_raises_for_non_pending_match() -> None:
         referee_registration=referee_reg,
         status=Match.Status.ACCEPTED,
     )
-    with pytest.raises(ValueError, match="expected"):
+    with pytest.raises(StateTransitionError) as exc_info:
         withdraw_acceptance(match, ambassador_reg)
+
+    assert exc_info.value.current == Match.Status.ACCEPTED
+    assert exc_info.value.proposed == Match.Status.PROPOSED
 
 
 def test_withdraw_acceptance_raises_when_side_has_not_accepted() -> None:
-    """withdraw_acceptance raises ValueError if the calling side never accepted."""
+    """withdraw_acceptance raises StateTransitionError if the caller never accepted."""
     ambassador_reg = RegistrationFactory.create()
     referee_reg = RegistrationFactory.create(referee=True)
     # Create a PENDING match where only the referee has accepted.
@@ -1860,8 +1866,11 @@ def test_withdraw_acceptance_raises_when_side_has_not_accepted() -> None:
         referee_accepted_at=datetime(2026, 9, 2, 10, 0, 0, tzinfo=UTC),
     )
     # Ambassador has not accepted; nothing to withdraw.
-    with pytest.raises(ValueError, match="has not accepted"):
+    with pytest.raises(StateTransitionError) as exc_info:
         withdraw_acceptance(match, ambassador_reg)
+
+    assert exc_info.value.current == Match.Status.PENDING
+    assert exc_info.value.proposed == Match.Status.PROPOSED
 
 
 # ---------------------------------------------------------------------------
@@ -2219,15 +2228,18 @@ def test_report_no_show_email_respects_accused_preferred_language() -> None:
 
 
 def test_report_no_show_raises_on_non_accepted_match() -> None:
-    """report_no_show raises ValueError if match.status != ACCEPTED."""
+    """report_no_show raises StateTransitionError if match.status != ACCEPTED."""
     match = MatchFactory.create(status=Match.Status.PROPOSED)
 
-    with pytest.raises(ValueError, match="ACCEPTED"):
+    with pytest.raises(StateTransitionError) as exc_info:
         report_no_show(match, match.ambassador_registration)
+
+    assert exc_info.value.current == Match.Status.PROPOSED
+    assert exc_info.value.proposed == Match.Status.CANCELLED
 
 
 def test_report_no_show_raises_if_already_reported() -> None:
-    """report_no_show raises ValueError if no_show_reported_by is already set.
+    """report_no_show raises StateTransitionError if already reported.
 
     Build an ACCEPTED match that already has no_show_reported_by set directly
     so the status guard passes but the already-reported guard fires.
@@ -2237,16 +2249,22 @@ def test_report_no_show_raises_if_already_reported() -> None:
         no_show_reported_by=Match.Side.AMBASSADOR,
     )
 
-    with pytest.raises(ValueError, match="already"):
+    with pytest.raises(StateTransitionError) as exc_info:
         report_no_show(match, match.referee_registration)
+
+    assert exc_info.value.current == Match.Status.ACCEPTED
+    assert exc_info.value.proposed == Match.Status.CANCELLED
 
 
 def test_report_no_show_raises_on_declined_match() -> None:
-    """report_no_show raises ValueError on a DECLINED match (not ACCEPTED)."""
+    """report_no_show raises StateTransitionError on a DECLINED match."""
     match = MatchFactory.create(declined=True)
 
-    with pytest.raises(ValueError, match="ACCEPTED"):
+    with pytest.raises(StateTransitionError) as exc_info:
         report_no_show(match, match.ambassador_registration)
+
+    assert exc_info.value.current == Match.Status.DECLINED
+    assert exc_info.value.proposed == Match.Status.CANCELLED
 
 
 def test_report_no_show_returns_updated_match() -> None:

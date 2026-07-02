@@ -199,19 +199,22 @@ tests possible without monkeypatching `django.utils.timezone`.
   Documented here and in the `expire_match/expire_lapsed_matches` docstrings
   to keep that link visible.
 
-## Follow-up work (not in this ticket)
+## Follow-up work
 
-- The other four transitions — `record_acceptance` (accept), `record_decline`
-  (decline), `withdraw_acceptance`, and `report_no_show` — will be refactored
-  to the same model/service shape in follow-up tickets. Each currently mutates
-  `Match` fields directly inside its own `transaction.atomic()` block; each
-  should grow a corresponding pure `Match` model method (e.g. `Match.accept`,
-  `Match.decline`, `Match.withdraw_acceptance`, `Match.cancel_for_no_show`),
-  guarding its own source state and raising `StateTransitionError` (fail hard,
-  low in the stack) exactly as `Match.expire()` and `Registration.pause()` now
-  do, with the service function retaining the
+- **Done.** The other four transitions have since been migrated to this
+  model/service shape, each growing a pure `Match` (and, where needed,
+  `Registration`) model method that guards its own source state and raises
+  `StateTransitionError`, with the service function retaining the
   lock/save/`record_transition`/notification responsibilities and not
-  re-checking the state condition the model method already guards.
+  re-checking the guarded condition:
+  - `record_acceptance` (accept) → `Match.accept` — VERB-101.
+  - `record_decline` (decline) → `Match.decline` — VERB-102.
+  - `withdraw_acceptance` → `Match.withdraw_acceptance` — VERB-103.
+  - `report_no_show` (no-show/cancel) → `Match.cancel` plus
+    `Registration.suspend` — VERB-104.
+
+  All five match transitions (expire, accept, decline, withdraw-acceptance,
+  no-show/cancel) now follow the boundary rule end-to-end.
 - Adopting a package such as `django-side-effects` to formalise the
   `transaction.on_commit` notification-dispatch pattern is deferred to a
   separate ticket and its own ADR — it is a larger, cross-cutting change

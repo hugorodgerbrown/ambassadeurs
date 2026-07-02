@@ -22,6 +22,7 @@ dependencies = [
     "django-ratelimit>=4.1.0",
     "django-csp>=4.0",
     "posthog>=7.21.2",
+    "stripe>=15.3.0",
 ]
 
 [dependency-groups]

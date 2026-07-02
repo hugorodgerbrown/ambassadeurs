@@ -33,6 +33,7 @@ LOCAL_APPS = [
     "core",
     "accounts",
     "matching",
+    "billing",
     "public",
     "debug",
 ]
@@ -118,6 +119,16 @@ APPLICATION_FORM_URL: str = config(
         "AMBASSADOR_V4V_26_27.pdf"
     ),
 )
+
+# --- Stripe (billing) ------------------------------------------------------
+# The prepaid registration deposit (VERB-81/82, ADR 0014) is collected via
+# Stripe. Empty defaults (Invariant 9: no secrets in source) mean the billing
+# app degrades safely in development — no live keys required to run the
+# suite; billing.services.payments reads these lazily so @override_settings
+# works in tests.
+STRIPE_SECRET_KEY: str = config("STRIPE_SECRET_KEY", default="")
+STRIPE_PUBLISHABLE_KEY: str = config("STRIPE_PUBLISHABLE_KEY", default="")
+STRIPE_CURRENCY: str = config("STRIPE_CURRENCY", default="chf")
 
 # --- Authentication -------------------------------------------------------
 # AUTH_USER_MODEL stays the default Django ``auth.User``.

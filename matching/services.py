@@ -51,6 +51,17 @@
 # queue_position and total_accepted_matches (VERB-40) are read-only query helpers
 # that return a participant's ordinal position in the eligible same-role pool and
 # the season-wide count of mutually-accepted matches respectively.
+#
+# Deposit transitions (VERB-87) are driven inline from the match lifecycle (no
+# signals — CLAUDE.md). On mutual accept, record_acceptance captures both
+# parties' held deposits (HELD → CAPTURED). On a post-accept no-show,
+# report_no_show forfeits only the accused's held deposit (HELD → FORFEITED) —
+# the reporter's stays HELD. close_season is the season-end sweep that refunds
+# every still-HELD deposit whose registration never reached an ACCEPTED match
+# and is not suspended (HELD → REFUNDED). Expiry/decline-induced PAUSE leaves the
+# deposit HELD and refundable (lenient model, ADR 0013). All three reuse the
+# billing.services.payments transitions; free-tier registrations (fee_chf=0) have
+# no Payment row and are skipped gracefully.
 
 from __future__ import annotations
 
@@ -69,6 +80,13 @@ from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 
 from accounts.tokens import make_match_access_token
+from billing.models import Payment
+from billing.services.payments import (
+    InvalidPaymentTransition,
+    capture,
+    forfeit,
+    refund,
+)
 from core.emails import normalise_email
 from core.services import record_transition
 
@@ -1061,6 +1079,9 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
     The match transitions ``PENDING → ACCEPTED`` and one ``StateTransitionLog``
     row is written for ``Match.status``. Registration statuses are no longer
     transitioned here (VERB-44: pool standing is independent of match progress).
+    Both parties' held deposits are captured inline (HELD → CAPTURED, reason
+    SUCCESSFUL_MATCH) via ``billing.services.payments.capture`` — VERB-87. A
+    free-tier registration (``fee_chf=0``) has no Payment and is skipped.
 
     Re-accepting an already-accepted side is a no-op for that timestamp (the
     existing value is kept) so callers can safely retry without double-counting.
@@ -1128,6 +1149,18 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
                 match.ambassador_registration_id,
                 match.referee_registration_id,
             )
+
+            # Capture both parties' deposits inline (VERB-87). A free-tier
+            # registration (fee_chf=0) has no HELD Payment — held().first()
+            # returns None and it is skipped gracefully. capture() opens its own
+            # atomic block, which nests here as a savepoint.
+            for reg in (
+                match.ambassador_registration,
+                match.referee_registration,
+            ):
+                deposit = Payment.objects.for_registration(reg).held().first()
+                if deposit is not None:
+                    capture(deposit, reason=Payment.Reason.SUCCESSFUL_MATCH)
         elif update_fields:
             # First accept: PROPOSED → PENDING (only when a timestamp was actually set).
             if match.status == Match.Status.PROPOSED:
@@ -1161,10 +1194,14 @@ def report_no_show(match: Match, registration: Registration) -> Match:
     2. Writes one ``StateTransitionLog`` row for ``Match.status``.
     3. Suspends the accused (``SUSPENDED``) and logs the accused's
        ``Registration.status`` transition.
-    4. Re-queues the reporter to the front of the pool (``VERIFIED``,
+    4. Forfeits only the accused's held deposit (HELD → FORFEITED, reason
+       POST_ACCEPT_NOSHOW) via ``billing.services.payments.forfeit`` — VERB-87.
+       The reporter's deposit stays HELD; a free-tier accused (no Payment) is
+       skipped.
+    5. Re-queues the reporter to the front of the pool (``VERIFIED``,
        ``priority += 1``). The reporter's status transition is **not** logged,
        consistent with the decline path.
-    5. Queues ``send_no_show_notification`` to fire after the transaction
+    6. Queues ``send_no_show_notification`` to fire after the transaction
        commits.
 
     Args:
@@ -1239,6 +1276,14 @@ def report_no_show(match: Match, registration: Registration) -> Match:
             before=accused_status_before,
             after=accused.status,
         )
+
+        # Forfeit only the accused's held deposit inline (HELD → FORFEITED) —
+        # VERB-87. The reporter's deposit stays HELD (they kept faith). A
+        # free-tier accused (no Payment) is skipped gracefully. forfeit() opens
+        # its own atomic block, which nests here as a savepoint.
+        accused_deposit = Payment.objects.for_registration(accused).held().first()
+        if accused_deposit is not None:
+            forfeit(accused_deposit, reason=Payment.Reason.POST_ACCEPT_NOSHOW)
 
         # Re-queue the reporter to the front (no transition log — consistent
         # with the decline path which does not log reporter re-queue either).
@@ -1358,3 +1403,98 @@ def record_decline(match: Match, registration: Registration) -> Match:
         )
 
     return match
+
+
+def close_season(*, commit: bool) -> tuple[int, int]:
+    """Refund every still-HELD deposit with no ACCEPTED match and not suspended.
+
+    The season-end sweep (VERB-87). A deposit is refunded (HELD → REFUNDED,
+    reason SEASON_END_NO_MATCH) when its registration:
+      - still holds a HELD Payment (a captured / forfeited / already-refunded
+        deposit is left untouched — those are terminal);
+      - never reached an ``ACCEPTED`` match (a registration currently in an
+        accepted match has already had its deposit captured, so this is belt-
+        and-braces on top of the HELD filter);
+      - is not ``SUSPENDED`` (a post-accept no-show already forfeited theirs).
+
+    Expiry/decline-induced PAUSE deliberately leaves the deposit HELD and
+    refundable (lenient model, ADR 0013) — a PAUSED registration is therefore
+    swept here.
+
+    Read-only unless ``commit`` is True (management-command rules): with
+    ``commit=False`` it reports how many deposits it *would* refund without
+    writing anything; with ``commit=True`` it refunds for real.
+
+    Each refund is issued serially by a self-contained ``refund()`` call — the
+    loop is deliberately **not** wrapped in one ``transaction.atomic()``. Each
+    ``refund()`` opens and commits its own short transaction around a single
+    Stripe round-trip, so the sweep never holds a DB connection across the whole
+    batch (connection-pool exhaustion — see VERB-85 review note). A per-payment
+    HELD re-check makes a retried / concurrent run idempotent, on top of the
+    stable Stripe idempotency key. If a payment still races out of HELD between
+    the re-check and ``refund()``'s own lock, the resulting
+    ``InvalidPaymentTransition`` is caught and skipped — a benign race, not
+    counted as a batch failure; only genuine errors bump ``failed``.
+
+    Args:
+        commit: When False, simulate and count only. When True, issue refunds.
+
+    Returns:
+        A ``(refunded, failed)`` tuple. In dry-run mode ``failed`` is always 0
+        and ``refunded`` is the would-refund count.
+    """
+    candidates = (
+        Payment.objects.held()
+        .filter(registration__isnull=False)
+        .exclude(registration__status=Registration.Status.SUSPENDED)
+        .exclude(
+            Q(registration__matches_as_ambassador__status=Match.Status.ACCEPTED)
+            | Q(registration__matches_as_referee__status=Match.Status.ACCEPTED)
+        )
+        .distinct()
+    )
+    candidate_pks = list(candidates.values_list("pk", flat=True))
+
+    if not commit:
+        logger.info(
+            "close_season (dry-run): would refund %s deposit(s).",
+            len(candidate_pks),
+        )
+        return len(candidate_pks), 0
+
+    refunded = 0
+    failed = 0
+
+    for pk in candidate_pks:
+        try:
+            payment = Payment.objects.get(pk=pk)
+            # Concurrency / idempotency guard: another run may have already
+            # transitioned this payment out of HELD since the PK list was built.
+            if payment.status != Payment.Status.HELD:
+                logger.debug(
+                    "close_season: skipping payment pk=%s (status=%r, no longer HELD)",
+                    pk,
+                    payment.status,
+                )
+                continue
+            refund(payment, reason=Payment.Reason.SEASON_END_NO_MATCH)
+            refunded += 1
+        except InvalidPaymentTransition:
+            # A benign race: the payment left HELD between the re-check above and
+            # refund()'s own select_for_update. Skip it — this is not a batch
+            # failure, so do not increment the failure counter (a spurious
+            # non-zero exit would false-alarm the cron).
+            logger.warning(
+                "close_season: payment pk=%s left HELD before refund; skipping", pk
+            )
+            continue
+        except Exception:
+            failed += 1
+            logger.exception(
+                "close_season: error refunding payment pk=%s; skipping", pk
+            )
+
+    logger.info(
+        "close_season: refunded %s deposit(s), %s failure(s).", refunded, failed
+    )
+    return refunded, failed

@@ -20,11 +20,12 @@
 # whose product *is* its return value (it creates the match), so its two
 # handlers read the match from `return_value` — see the label table below.
 #
-# Every handler takes **kwargs: the registry passes the origin function's
-# *args/**kwargs plus `return_value`, and a handler whose signature cannot
-# bind is a hard SignatureMismatch (django_side_effects.registry._run_func),
-# not a silent skip — so **kwargs is mandatory on every handler, mirroring
-# the origin's positional parameters.
+# Every handler takes **kwargs: the registry (side_effects.registry._run_func)
+# tries to bind the origin function's *args/**kwargs plus `return_value` to
+# each handler's signature first, then retries without `return_value` if that
+# fails — and only raises SignatureMismatch (a hard error, not a silent skip)
+# if *both* attempts fail. **kwargs on every handler guarantees the first
+# attempt always binds, mirroring the origin's positional parameters.
 #
 # This module imports models, accounts.tokens, and mail helpers only — never
 # matching.services — to avoid an import cycle (services imports the label

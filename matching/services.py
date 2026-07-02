@@ -338,6 +338,22 @@ def propose_match(registration: Registration) -> Match | None:
         expires_at=expires_at,
     )
 
+    # Reload with both sides' users prefetched: the match_proposed handlers
+    # (matching.side_effects) read match.ambassador_registration.user.email /
+    # match.referee_registration.user.email straight off the returned match
+    # (accessed via return_value), which is a fresh FK descriptor lookup
+    # regardless of what `registration`/`counterpart` happened to have
+    # cached — without this each proposal fires an N+1 lazy-load per side.
+    # propose_match is decorated with @has_side_effects, an untyped decorator
+    # (django-side-effects ships no py.typed marker), so mypy widens the
+    # inferred type of every name reassigned inside this function to Any —
+    # hence the explicit re-typed local rather than a bare reassignment.
+    reloaded: Match = Match.objects.select_related(
+        "ambassador_registration__user",
+        "referee_registration__user",
+    ).get(pk=match.pk)
+    match = reloaded
+
     # Registrations are NOT flipped to MATCHED (VERB-44). Pool availability is
     # enforced by RegistrationQuerySet._without_active_match instead.
     logger.info(
@@ -808,8 +824,13 @@ def expire_lapsed_matches(cutoff: datetime) -> int:
     for pk in candidate_pks:
         try:
             with transaction.atomic():
+                # select_related the registrations' users too: the
+                # match_expired handlers (matching.side_effects) read
+                # registration.user.email directly, so without this each
+                # expiry fires an N+1 lazy-load per match in the sweep.
                 match = Match.objects.select_related(
-                    "ambassador_registration", "referee_registration"
+                    "ambassador_registration__user",
+                    "referee_registration__user",
                 ).get(pk=pk)
                 expire_match(match)
                 expired_count += 1

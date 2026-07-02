@@ -18,4 +18,7 @@ class MatchingConfig(AppConfig):
         here, at app-ready time, guarantees every label is bound before the
         `side_effects.checks.check_function_signatures` system check runs.
         """
+        # Neither name is used directly here — importing them is the point,
+        # so the @has_side_effects/@is_side_effect_of decorators run and
+        # register their label bindings.
         from . import services, side_effects  # noqa: F401

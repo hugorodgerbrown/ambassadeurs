@@ -11,10 +11,14 @@
 from datetime import UTC, datetime
 
 import pytest
+from django.core import mail
+from django.test import TestCase
+from pytest_django.fixtures import DjangoAssertNumQueries
 from side_effects import registry
 
 from matching.models import Registration
 from matching.services import (
+    expire_lapsed_matches,
     expire_match,
     propose_match,
     record_acceptance,
@@ -115,9 +119,6 @@ def test_expire_match_referee_kept_faith_sends_requeued_not_window_expired() -> 
     ambassador-kept-faith case is covered in tests/matching/test_expire_match.py);
     exercised via captureOnCommitCallbacks so the actual handler body runs.
     """
-    from django.core import mail
-    from django.test import TestCase
-
     ambassador_reg = RegistrationFactory.create(priority=0)
     referee_reg = RegistrationFactory.create(referee=True, priority=0)
     match = MatchFactory.create(
@@ -154,9 +155,6 @@ def test_disable_side_effects_suppresses_email_dispatch() -> None:
     just an events log, using a transition whose handler would otherwise
     queue mail on commit.
     """
-    from django.core import mail
-    from django.test import TestCase
-
     match = MatchFactory.create()
 
     with registry.disable_side_effects() as events:
@@ -165,3 +163,84 @@ def test_disable_side_effects_suppresses_email_dispatch() -> None:
 
     assert events == [MATCH_DECLINED]
     assert len(mail.outbox) == 0
+
+
+# ---------------------------------------------------------------------------
+# N+1 regression guards — the match_proposed / match_expired handlers read
+# registration.user.email straight off the match's FK accessors, so the
+# query that produces (or reloads) the match must select_related the users.
+#
+# Asserted via a query-count ceiling (django_assert_max_num_queries) around
+# the whole call, rather than a post-hoc cache-presence check: both
+# transitions dispatch their handlers (which read `.user.email`, themselves
+# caching it as a side effect) inside the same call under test, so a
+# cache-presence assertion taken *after* the call already reflects whatever
+# the handlers triggered — it cannot distinguish "prefetched" from "lazily
+# loaded during dispatch". A missing select_related shows up here as two
+# extra `auth_user` SELECTs (one per side); the budget below is the measured
+# query count *with* the fix applied, so it fails (num_performed > num) the
+# moment either extra query reappears.
+# ---------------------------------------------------------------------------
+
+
+def test_propose_match_does_not_lazy_load_either_sides_user(
+    django_assert_max_num_queries: DjangoAssertNumQueries,
+) -> None:
+    """propose_match + its match_proposed handlers cost no extra per-side query.
+
+    Regression guard: the handlers access
+    match.ambassador_registration.user.email / ...referee_registration.user.email
+    off the created match (via return_value); a missing select_related on
+    propose_match's post-create reload fires one extra `auth_user` SELECT per
+    side when the handlers run (measured: 5 queries without the fix, 4 with).
+    """
+    RegistrationFactory.create(referee=True)
+    ambassador = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+    )
+    # Re-fetch bare (mirroring run_matching's per-ambassador re-fetch) so the
+    # ambassador's `user` starts uncached — the passed-in factory instance
+    # would otherwise carry its own cached `user` into propose_match.
+    ambassador_fresh = Registration.objects.get(pk=ambassador.pk)
+
+    # django_assert_max_num_queries must be the OUTER context manager: the
+    # handlers' queries run when captureOnCommitCallbacks(execute=True)
+    # fires its deferred callbacks at __exit__, which happens after an inner
+    # block would already have closed and stopped counting.
+    with django_assert_max_num_queries(4):
+        with TestCase.captureOnCommitCallbacks(execute=True):
+            match = propose_match(ambassador_fresh)
+
+    assert match is not None
+    assert len(mail.outbox) == 2
+
+
+def test_expire_lapsed_matches_does_not_lazy_load_either_sides_user(
+    django_assert_max_num_queries: DjangoAssertNumQueries,
+) -> None:
+    """The sweep + its match_expired handlers cost no extra per-side query.
+
+    Regression guard: the handlers access
+    match.ambassador_registration.user.email / ...referee_registration.user.email;
+    a missing select_related on the sweep's per-match fetch fires one extra
+    `auth_user` SELECT per side when the handlers run (measured: 11 queries
+    without the fix, 9 with, for this single-match sweep).
+    """
+    past = datetime(2020, 1, 1, tzinfo=UTC)
+    ambassador_reg = RegistrationFactory.create(priority=0)
+    referee_reg = RegistrationFactory.create(referee=True, priority=0)
+    MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+        expires_at=past,
+    )
+
+    # django_assert_max_num_queries must be the OUTER context manager — see
+    # the comment in test_propose_match_does_not_lazy_load_either_sides_user.
+    with django_assert_max_num_queries(9):
+        with TestCase.captureOnCommitCallbacks(execute=True):
+            count = expire_lapsed_matches(cutoff=datetime.now(UTC))
+
+    assert count == 1
+    assert len(mail.outbox) == 2

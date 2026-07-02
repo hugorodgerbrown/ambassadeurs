@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from django.conf import settings
 from django.db import models
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django_countries.fields import CountryField
@@ -63,17 +63,25 @@ class RegistrationQuerySet(BaseQuerySet):
 
         A registration with a PROPOSED, PENDING, or ACCEPTED match is already
         committed to that match and must not enter the pool as a counterpart.
-        Uses .distinct() to avoid row multiplication from the reverse-FK join.
+
+        Exclusion is expressed as an ``Exists`` subquery rather than a reverse-FK
+        join so the outer query stays one-row-per-registration. A join would
+        multiply rows and force a ``.distinct()`` — but Postgres forbids
+        ``SELECT ... FOR UPDATE`` on a ``DISTINCT`` query, and this queryset is
+        chained with ``select_for_update()`` in ``propose_match``. The subquery
+        keeps both constraints satisfied.
         """
         _active = [
             Match.Status.PROPOSED,
             Match.Status.PENDING,
             Match.Status.ACCEPTED,
         ]
-        return self.exclude(
-            Q(matches_as_ambassador__status__in=_active)
-            | Q(matches_as_referee__status__in=_active)
-        ).distinct()
+        active_matches = Match.objects.filter(
+            Q(ambassador_registration=OuterRef("pk"))
+            | Q(referee_registration=OuterRef("pk")),
+            status__in=_active,
+        )
+        return self.filter(~Exists(active_matches))
 
     def eligible_ambassadors(self) -> RegistrationQuerySet:
         """Return VERIFIED ambassadors in the pool with a valid prior pass."""

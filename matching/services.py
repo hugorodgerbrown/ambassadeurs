@@ -32,11 +32,27 @@
 # party clears their own *_accepted_at timestamp — a clean, no-penalty un-accept
 # (PENDING → PROPOSED) — and a transition log row is written.
 #
-# expire_lapsed_matches is the periodic sweep entry point: it transitions all
-# PROPOSED or PENDING matches past their contact window to EXPIRED. Non-
-# responders are paused (pause_registration); the faithful party re-queues to
-# the front (requeue_to_front). A window-expired notification email is queued
-# via transaction.on_commit for each paused non-responder.
+# expire_lapsed_matches is the periodic sweep entry point (VERB-100): given a
+# cutoff, it fetches the lapsed candidate pks and, per match, locks the row and
+# delegates to expire_match for the actual transition. expire_match transitions
+# the match to EXPIRED (via the Match.expire model method) and records the
+# transition, then calls handle_lapsed_participants, which fans out to
+# handle_lapsed_participant for each side. A kept-faith party (already
+# accepted) re-queues to the front (requeue_to_front, delegating to the
+# Registration.requeue model method) and is sent a re-queued notification; a
+# non-responder is paused (pause_registration, delegating to Registration.pause)
+# and sent a window-expired notification — both emails queued via
+# transaction.on_commit. This is the model/service boundary established for
+# the expiry transition (docs/decisions/0017): model methods (Match.expire,
+# Registration.pause, Registration.requeue) validate their own source state
+# and raise core.exceptions.StateTransitionError on an illegal transition
+# (fail hard, low in the stack) rather than saving; they never save, touch
+# another object, or fire a side effect. Service functions own the lock, save,
+# record_transition, cross-object coordination, and email dispatch, and do not
+# re-check the state conditions the model methods already guard (catch high,
+# not double-check). The other four transitions (accept, decline,
+# withdraw-acceptance, report-no-show) will be refactored to the same shape in
+# follow-up tickets.
 #
 # pause_registration (VERB-74 / ADR 0013) replaces requeue_to_back and
 # record_flake_and_requeue. Decline or non-response → PAUSED; the two-strike
@@ -67,7 +83,7 @@ from __future__ import annotations
 
 import functools
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -88,6 +104,7 @@ from billing.services.payments import (
     refund,
 )
 from core.emails import normalise_email
+from core.exceptions import StateTransitionError
 from core.services import record_transition
 
 from .models import Match, Registration
@@ -314,13 +331,13 @@ def requeue_to_front(registration: Registration) -> None:
     Not a penalty — priority is only adjusted here, never on pause.
 
     Runs inside a transaction with a SELECT FOR UPDATE to prevent lost updates.
-    Syncs the passed-in instance's in-memory fields after the DB write.
+    The pure mutation is delegated to ``Registration.requeue`` (model logic,
+    VERB-100); this function owns the lock, save, and in-memory sync of the
+    passed-in instance. ``priority=1`` is the front-of-queue amount.
     """
     with transaction.atomic():
         locked = Registration.objects.select_for_update().get(pk=registration.pk)
-        locked.status = Registration.Status.VERIFIED
-        locked.priority += 1
-        locked.save(update_fields=["status", "priority"])
+        locked.requeue(priority=1).save(update_fields=["status", "priority"])
         registration.status = locked.status
         registration.priority = locked.priority
     logger.info(
@@ -344,12 +361,13 @@ def pause_registration(registration: Registration) -> None:
     model is retired.
 
     Runs inside a transaction with a SELECT FOR UPDATE to prevent lost updates.
-    Syncs the passed-in instance's in-memory fields after the DB write.
+    The pure mutation is delegated to ``Registration.pause`` (model logic,
+    VERB-100); this function owns the lock, save, and in-memory sync of the
+    passed-in instance.
     """
     with transaction.atomic():
         locked = Registration.objects.select_for_update().get(pk=registration.pk)
-        locked.status = Registration.Status.PAUSED
-        locked.save(update_fields=["status"])
+        locked.pause().save(update_fields=["status"])
         registration.status = locked.status
     logger.info(
         "Paused registration pk=%s (out of pool; may self-rejoin)",
@@ -872,26 +890,141 @@ def confirm_registration(registration: Registration) -> Registration:
     return registration
 
 
-def expire_lapsed_matches() -> int:
-    """Expire all PROPOSED or PENDING matches past their contact window.
-
-    Selects candidate PKs up front, then processes each match in its own
-    ``transaction.atomic()`` block so that one bad match does not abort the
-    whole sweep.
+def handle_lapsed_participant(registration: Registration, kept_faith: bool) -> None:
+    """Apply the per-side outcome of a lapsed match to one participant.
 
     Per-side outcome logic (VERB-74 / ADR 0013):
-    - If a side had already accepted (``*_accepted_at`` is not None), they kept
-      faith → ``requeue_to_front``, and a re-queued notification is queued via
-      ``transaction.on_commit`` (``send_requeued_notification``, VERB-92).
-    - If a side had not responded by expiry, they are the non-responder →
+    - ``kept_faith=True`` (the side had already accepted, i.e. ``*_accepted_at``
+      is not None) → ``requeue_to_front``, and a re-queued notification is
+      queued via ``transaction.on_commit`` (``send_requeued_notification``,
+      VERB-92).
+    - ``kept_faith=False`` (the side had not responded by expiry) →
       ``pause_registration`` (removed from pool; may self-rejoin). A window-
-      expired notification email is queued via ``transaction.on_commit`` for
-      each paused non-responder.
+      expired notification email is queued via ``transaction.on_commit``.
+
+    Role-agnostic: works identically for an ambassador or a referee
+    registration.
+
+    Args:
+        registration: The participant's registration.
+        kept_faith: Whether this side had already accepted the match.
+    """
+    if kept_faith:
+        requeue_to_front(registration)
+        transaction.on_commit(
+            functools.partial(send_requeued_notification, registration)
+        )
+    else:
+        pause_registration(registration)
+        transaction.on_commit(
+            functools.partial(send_window_expired_notification, registration)
+        )
+
+
+def handle_lapsed_participants(match: Match) -> None:
+    """Apply the lapsed-match outcome to both parties on ``match``.
+
+    Delegates to ``handle_lapsed_participant`` once per side, passing whether
+    that side had already accepted (kept faith) at the point of expiry.
+
+    Args:
+        match: The match that has just been transitioned to EXPIRED.
+    """
+    # Both FKs are non-null; assertions satisfy mypy.
+    assert match.ambassador_registration is not None
+    assert match.referee_registration is not None
+
+    handle_lapsed_participant(
+        match.ambassador_registration,
+        kept_faith=match.ambassador_accepted_at is not None,
+    )
+    handle_lapsed_participant(
+        match.referee_registration,
+        kept_faith=match.referee_accepted_at is not None,
+    )
+
+
+def expire_match(match: Match) -> None:
+    """Transition one already-locked, lapsed match to EXPIRED and re-queue.
+
+    Orchestration for a single match: must be called with ``match`` already
+    fetched under ``select_for_update()`` inside an outer ``transaction.atomic()``
+    block (see ``expire_lapsed_matches``, which owns the lock and per-match
+    exception isolation).
+
+    Transitions the match to EXPIRED via the ``Match.expire`` model method,
+    persists it, records the transition, and calls
+    ``handle_lapsed_participants`` to apply the per-side re-queue/pause outcome.
+
+    ``Match.expire()`` is the single guard on the source state — it validates
+    ``match.status`` itself and raises ``StateTransitionError`` (fail hard,
+    low in the stack) if the match is not PROPOSED or PENDING. This function
+    does not re-check the condition; the caller (``expire_lapsed_matches``)
+    catches ``StateTransitionError`` to treat an already-transitioned match
+    (a benign concurrency race) as a skip.
+
+    Args:
+        match: The locked, candidate match to expire.
+
+    Raises:
+        StateTransitionError: propagated from ``Match.expire`` if the match is
+            not PROPOSED or PENDING.
+    """
+    status_before = match.status
+    match.expire().save(update_fields=["status", "updated_at"])
+    record_transition(
+        match,
+        "status",
+        before=status_before,
+        after=match.status,
+    )
+
+    handle_lapsed_participants(match)
+
+    # Both FKs are non-null; assertions satisfy mypy.
+    assert match.ambassador_registration is not None
+    assert match.referee_registration is not None
+    logger.info(
+        "Expired match pk=%s (ambassador reg pk=%s accepted=%s, "
+        "referee reg pk=%s accepted=%s)",
+        match.pk,
+        match.ambassador_registration.pk,
+        match.ambassador_accepted_at is not None,
+        match.referee_registration.pk,
+        match.referee_accepted_at is not None,
+    )
+
+
+def expire_lapsed_matches(cutoff: datetime) -> int:
+    """Expire all PROPOSED or PENDING matches past their contact window.
+
+    Selects candidate PKs up front (``Match.objects.lapsed(cutoff=cutoff)``),
+    then processes each match in its own ``transaction.atomic()`` block with a
+    ``select_for_update()`` lock so that one bad match does not abort the whole
+    sweep. The per-match orchestration (the EXPIRED transition and the
+    per-side re-queue/pause outcome) is delegated to ``expire_match``.
+
+    ``cutoff`` is the tz-aware "now" the caller has read (inversion of
+    control, VERB-100) — see ``matching.management.commands.expire_matches``,
+    which passes ``timezone.now()``.
+
+    Two exception paths, fail-hard-low / catch-high (ADR 0017):
+    - ``StateTransitionError`` is the benign, expected race — another worker
+      or an accept/decline changed the match's status between the candidate
+      PK query and this loop's lock. Logged at debug and skipped without
+      counting as a failure.
+    - Any other exception is a real failure: logged at error level (with
+      traceback) and skipped, so one bad match does not abort the sweep.
+
+    Args:
+        cutoff: The tz-aware instant to treat as "now" for the lapsed-match query.
 
     Returns:
         The number of matches that were transitioned to EXPIRED in this run.
     """
-    candidate_pks = list(Match.objects.lapsed().values_list("pk", flat=True))
+    candidate_pks = list(
+        Match.objects.lapsed(cutoff=cutoff).values_list("pk", flat=True)
+    )
     expired_count = 0
 
     for pk in candidate_pks:
@@ -902,69 +1035,10 @@ def expire_lapsed_matches() -> int:
                     .select_related("ambassador_registration", "referee_registration")
                     .get(pk=pk)
                 )
-
-                # Concurrency / idempotency guard: another worker or an
-                # accept/decline may have already changed the status.
-                if match.status not in (Match.Status.PROPOSED, Match.Status.PENDING):
-                    logger.debug(
-                        "Skipping match pk=%s: status=%r (expected PROPOSED/PENDING)",
-                        pk,
-                        match.status,
-                    )
-                    continue
-
-                status_before = match.status
-                match.status = Match.Status.EXPIRED
-                match.save(update_fields=["status", "updated_at"])
-                record_transition(
-                    match,
-                    "status",
-                    before=status_before,
-                    after=match.status,
-                )
-
-                # Both FKs are non-null; assertions satisfy mypy.
-                assert match.ambassador_registration is not None
-                assert match.referee_registration is not None
-                ambassador_reg = match.ambassador_registration
-                referee_reg = match.referee_registration
-
-                if match.ambassador_accepted_at is not None:
-                    requeue_to_front(ambassador_reg)
-                    # Kept faith → notify they are re-queued (VERB-92).
-                    transaction.on_commit(
-                        functools.partial(send_requeued_notification, ambassador_reg)
-                    )
-                else:
-                    pause_registration(ambassador_reg)
-                    transaction.on_commit(
-                        functools.partial(
-                            send_window_expired_notification, ambassador_reg
-                        )
-                    )
-
-                if match.referee_accepted_at is not None:
-                    requeue_to_front(referee_reg)
-                    # Kept faith → notify they are re-queued (VERB-92).
-                    transaction.on_commit(
-                        functools.partial(send_requeued_notification, referee_reg)
-                    )
-                else:
-                    pause_registration(referee_reg)
-                    transaction.on_commit(
-                        functools.partial(send_window_expired_notification, referee_reg)
-                    )
-
+                expire_match(match)
                 expired_count += 1
-                logger.info(
-                    "Expired match pk=%s (ambassador reg pk=%s accepted=%s, "
-                    "referee reg pk=%s accepted=%s)",
-                    match.pk,
-                    ambassador_reg.pk,
-                    match.ambassador_accepted_at is not None,
-                    referee_reg.pk,
-                    match.referee_accepted_at is not None,
-                )
+        except StateTransitionError as exc:
+            logger.debug("Skipping match pk=%s: no longer expirable (%s)", pk, exc)
         except Exception:
             logger.exception("Error expiring match pk=%s; skipping", pk)
 

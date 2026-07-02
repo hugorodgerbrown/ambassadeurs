@@ -1,10 +1,16 @@
 # Tests for the Registration and Match models.
+#
+# Match.accept / Match.set_status (VERB-101 / ADR 0017) cover the pure,
+# in-memory model-logic half of the accept transition; Match.expire,
+# Registration.pause and Registration.requeue are covered separately in
+# tests/matching/test_expire_match.py (VERB-100) and are not duplicated here.
 
 from datetime import UTC, datetime
 
 import pytest
 from django.db import IntegrityError
 
+from core.exceptions import StateTransitionError
 from matching.models import Match, Registration
 from tests.accounts.factories import UserFactory
 from tests.matching.factories import MatchFactory, RegistrationFactory
@@ -221,3 +227,126 @@ def test_match_to_string_includes_status() -> None:
     match = MatchFactory.create(declined=True)
     s = str(match)
     assert "Declined" in s
+
+
+# ---------------------------------------------------------------------------
+# Match.accept() / Match.set_status() — pure, in-memory model methods
+# (VERB-101 / ADR 0017)
+# ---------------------------------------------------------------------------
+
+
+def test_accept_first_accept_by_ambassador_goes_pending() -> None:
+    """First accept by the ambassador sets the timestamp and PROPOSED → PENDING."""
+    match = MatchFactory.create()
+
+    result = match.accept(match.ambassador_registration)
+
+    assert result is match
+    assert match.ambassador_accepted_at is not None
+    assert match.referee_accepted_at is None
+    assert match.status == Match.Status.PENDING
+
+
+def test_accept_does_not_persist() -> None:
+    """accept mutates only the in-memory instance; it never saves."""
+    match = MatchFactory.create()
+
+    match.accept(match.ambassador_registration)
+
+    # Not saved: the DB row is unchanged.
+    fresh = Match.objects.get(pk=match.pk)
+    assert fresh.status == Match.Status.PROPOSED
+    assert fresh.ambassador_accepted_at is None
+
+
+def test_accept_first_accept_by_referee_goes_pending() -> None:
+    """First accept by the referee sets the timestamp and PROPOSED → PENDING."""
+    match = MatchFactory.create()
+
+    result = match.accept(match.referee_registration)
+
+    assert result is match
+    assert match.referee_accepted_at is not None
+    assert match.ambassador_accepted_at is None
+    assert match.status == Match.Status.PENDING
+
+
+def test_accept_second_accept_transitions_to_accepted() -> None:
+    """Second accept (match PENDING) sets the timestamp and status → ACCEPTED."""
+    match = MatchFactory.create(pending=True)
+    assert match.referee_accepted_at is None
+
+    result = match.accept(match.referee_registration)
+
+    assert result is match
+    assert match.referee_accepted_at is not None
+    assert match.ambassador_accepted_at is not None
+    assert match.status == Match.Status.ACCEPTED
+
+
+def test_accept_idempotent_re_accept_keeps_timestamp_and_status() -> None:
+    """Re-accepting an already-accepted side is a no-op for that side's timestamp."""
+    match = MatchFactory.create()
+    match.accept(match.ambassador_registration)
+    first = match.ambassador_accepted_at
+    assert match.status == Match.Status.PENDING
+
+    result = match.accept(match.ambassador_registration)
+
+    assert result is match
+    # Timestamp is unchanged — still the first-accept value.
+    assert match.ambassador_accepted_at == first
+    # Status is unchanged — still PENDING (referee has not accepted).
+    assert match.status == Match.Status.PENDING
+
+
+@pytest.mark.parametrize(
+    "trait",
+    ["accepted", "declined", "cancelled"],
+)
+def test_accept_raises_for_terminal_statuses(trait: str) -> None:
+    """accept raises StateTransitionError for ACCEPTED, DECLINED, CANCELLED."""
+    match = MatchFactory.create(**{trait: True})
+    status_before = match.status
+
+    with pytest.raises(StateTransitionError) as exc_info:
+        match.accept(match.ambassador_registration)
+
+    assert exc_info.value.current == status_before
+    assert exc_info.value.proposed == Match.Status.ACCEPTED
+    assert exc_info.value.obj is match
+
+
+def test_accept_raises_for_expired() -> None:
+    """accept raises StateTransitionError when the match is already EXPIRED."""
+    match = MatchFactory.create()
+    match.status = Match.Status.EXPIRED
+    match.save(update_fields=["status"])
+
+    with pytest.raises(StateTransitionError) as exc_info:
+        match.accept(match.ambassador_registration)
+
+    assert exc_info.value.current == Match.Status.EXPIRED
+    assert exc_info.value.proposed == Match.Status.ACCEPTED
+    assert exc_info.value.obj is match
+
+
+def test_set_status_both_accepted_is_accepted() -> None:
+    """set_status maps two acceptance timestamps → ACCEPTED."""
+    match = MatchFactory.create(pending=True)
+    match.referee_accepted_at = match.ambassador_accepted_at
+
+    match.set_status()
+
+    assert match.status == Match.Status.ACCEPTED
+
+
+def test_set_status_no_acceptances_is_proposed() -> None:
+    """set_status with neither timestamp set → PROPOSED."""
+    match = MatchFactory.create(pending=True)
+    match.ambassador_accepted_at = None
+    match.referee_accepted_at = None
+
+    match.set_status()
+
+    assert match.status == Match.Status.PROPOSED

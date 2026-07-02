@@ -23,6 +23,7 @@ from datetime import datetime
 from django.conf import settings
 from django.db import models
 from django.db.models import Exists, OuterRef, Q
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django_countries.fields import CountryField
 
@@ -266,12 +267,14 @@ class Registration(BaseModel):
     class Meta:
         ordering = ["-created_at"]
 
+    @property
     def is_ambassador(self) -> bool:
-        """Return True if role is AMBASSADOR."""
+        """True if role is AMBASSADOR (derived from own state — a property)."""
         return self.role == self.Role.AMBASSADOR
 
+    @property
     def is_referee(self) -> bool:
-        """Return True if role is REFEREE."""
+        """True if role is REFEREE (derived from own state — a property)."""
         return self.role == self.Role.REFEREE
 
     def pause(self) -> Registration:
@@ -536,6 +539,64 @@ class Match(BaseModel):
             )
         self.status = Match.Status.EXPIRED
         return self
+
+    def accept(self, accepted_by: Registration) -> Match:
+        """Record that ``accepted_by`` has accepted this match, in memory only.
+
+        Model-logic layer (VERB-101 / ADR 0017): mutates only this instance's
+        own fields — the accepting side's ``*_accepted_at`` timestamp and, via
+        ``set_status``, ``status``. Never saves, never touches another object
+        (e.g. a Payment), and never fires a side effect (e.g. an email). The
+        accepting side is derived from the registration's own role
+        (``is_ambassador`` / ``is_referee``): the caller passes the participant,
+        not a side. Persisting the change and any cross-object coordination
+        belong to ``matching.services.record_acceptance``.
+
+        Idempotent: re-accepting by a side that has already accepted leaves its
+        timestamp — and therefore the status — unchanged.
+
+        Args:
+            accepted_by: The registration (ambassador or referee) accepting.
+
+        Returns:
+            self, so calls can be chained.
+
+        Raises:
+            StateTransitionError: if ``self.status`` is not ``PROPOSED`` or
+                ``PENDING``. This is the fail-hard-low guard: accepting is
+                only legal from those two states, and an illegal source state
+                raises immediately rather than being silently applied.
+        """
+        if self.status not in (Match.Status.PROPOSED, Match.Status.PENDING):
+            raise StateTransitionError(
+                current=self.status,
+                proposed=Match.Status.ACCEPTED,
+                obj=self,
+            )
+
+        now = timezone.now()
+        if accepted_by.is_ambassador and self.ambassador_accepted_at is None:
+            self.ambassador_accepted_at = now
+        if accepted_by.is_referee and self.referee_accepted_at is None:
+            self.referee_accepted_at = now
+
+        self.set_status()
+        return self
+
+    def set_status(self) -> None:
+        """Derive ``status`` from the two acceptance timestamps, in memory.
+
+        Both sides accepted → ``ACCEPTED``; exactly one → ``PENDING``; neither →
+        ``PROPOSED``. A pure own-state computation that maps the accept state
+        onto the status; it never saves. Callers must first establish that the
+        match is in an accept-eligible state (see ``accept``).
+        """
+        if self.ambassador_accepted_at and self.referee_accepted_at:
+            self.status = Match.Status.ACCEPTED
+        elif self.ambassador_accepted_at or self.referee_accepted_at:
+            self.status = Match.Status.PENDING
+        else:
+            self.status = Match.Status.PROPOSED
 
     def side_of(self, registration: Registration) -> Match.Side:
         """Return which side of this match ``registration`` is on.

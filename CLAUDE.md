@@ -219,6 +219,16 @@ don't) — tox does not read `pyproject.toml` dependencies automatically.
   inline from the relevant service function, never via `post_save`.
 - **TextChoices** - fixed choice values must be modelled as `TextChoices` within
   the relevant model class, and the choice values must be UPPER_CASE.
+- **Derived values are `@property`, not methods** — a model attribute that
+  returns a value derived from the instance's own fields (no arguments, no
+  mutation, no DB access) must be a `@property`, e.g. `Registration.is_ambassador`.
+  Callers read it as an attribute (`reg.is_ambassador`), never `reg.is_ambassador()`.
+  Reserve plain methods for *actions* — mutations, side effects, or queries — and
+  for anything taking arguments or hitting the database. The mandated `to_string()`
+  stays a method by convention (see Models). Writing such a predicate as a method
+  is an active trap: a bare reference (`reg.is_ambassador`) is a truthy bound
+  method, so `if reg.is_ambassador:` is always true — mypy's `truthy-function`
+  check catches it, but the `@property` removes the footgun entirely.
 
 ### Models
 

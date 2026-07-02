@@ -11,6 +11,7 @@ from django.db import transaction
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
+from core.exceptions import StateTransitionError
 from core.models import StateTransitionLog
 from matching.models import Match, Registration
 from matching.services import (
@@ -1534,11 +1535,11 @@ def test_record_acceptance_re_accept_is_idempotent_for_timestamp() -> None:
 
 
 def test_record_acceptance_raises_for_non_active_match() -> None:
-    """record_acceptance raises ValueError if match.status is terminal."""
+    """record_acceptance raises StateTransitionError if match.status is terminal."""
     match = MatchFactory.create(status=Match.Status.DECLINED)
     ambassador_reg = match.ambassador_registration
 
-    with pytest.raises(ValueError, match="PROPOSED or PENDING"):
+    with pytest.raises(StateTransitionError):
         record_acceptance(match, ambassador_reg)
 
 

@@ -24,8 +24,10 @@
 #
 # The PENDING Match state (VERB-44 / ADR 0011): the first acceptance moves
 # the match from PROPOSED → PENDING (a real transition, logged). The second
-# acceptance moves PENDING → ACCEPTED. Both guards in record_acceptance accept
-# "PROPOSED or PENDING" rather than "PROPOSED only".
+# acceptance moves PENDING → ACCEPTED. record_acceptance (VERB-101) delegates
+# the source-state guard and the timestamp/status mutation to the
+# Match.accept model method (which derives the accepting side from the
+# registration's role) — see the model/service split note below.
 #
 # withdraw_acceptance (VERB-43 / ADR 0010) is the inverse of the first accept:
 # while a match is PENDING and the other side has not accepted, the viewing
@@ -44,13 +46,14 @@
 # and sent a window-expired notification — both emails queued via
 # transaction.on_commit. This is the model/service boundary established for
 # the expiry transition (docs/decisions/0017): model methods (Match.expire,
-# Registration.pause, Registration.requeue) validate their own source state
-# and raise core.exceptions.StateTransitionError on an illegal transition
-# (fail hard, low in the stack) rather than saving; they never save, touch
-# another object, or fire a side effect. Service functions own the lock, save,
-# record_transition, cross-object coordination, and email dispatch, and do not
-# re-check the state conditions the model methods already guard (catch high,
-# not double-check). The other four transitions (accept, decline,
+# Registration.pause, Registration.requeue, Match.accept) validate their
+# own source state and raise core.exceptions.StateTransitionError on an
+# illegal transition (fail hard, low in the stack) rather than saving; they
+# never save, touch another object, or fire a side effect. Service functions
+# own the lock, save, record_transition, cross-object coordination, and email
+# dispatch, and do not re-check the state conditions the model methods
+# already guard (catch high, not double-check). record_acceptance (VERB-101)
+# follows the same shape. The remaining three transitions (decline,
 # withdraw-acceptance, report-no-show) will be refactored to the same shape in
 # follow-up tickets.
 #
@@ -682,8 +685,8 @@ def accept_match(match: Match, registration: Registration) -> Match:
         The updated ``Match`` instance.
 
     Raises:
-        ValueError: propagated from ``record_acceptance`` if match is not
-            PROPOSED or PENDING.
+        StateTransitionError: propagated from ``record_acceptance`` if match
+            is not PROPOSED or PENDING.
     """
     match = record_acceptance(match, registration)
     if match.status == Match.Status.ACCEPTED:
@@ -1276,6 +1279,11 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
     Re-accepting an already-accepted side is a no-op for that timestamp (the
     existing value is kept) so callers can safely retry without double-counting.
 
+    ``Match.accept()`` is the single guard on the source state — it validates
+    ``match.status`` itself and raises ``StateTransitionError`` (fail hard, low
+    in the stack) if the match is not PROPOSED or PENDING. This function does
+    not re-check the condition (ADR 0017).
+
     Args:
         match: The match to accept.
         registration: The registration (ambassador or referee) accepting.
@@ -1284,7 +1292,8 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
         The updated ``Match`` instance.
 
     Raises:
-        ValueError: if ``match.status`` is not ``PROPOSED`` or ``PENDING``.
+        StateTransitionError: propagated from ``Match.accept`` if
+            ``match.status`` is not ``PROPOSED`` or ``PENDING``.
     """
     with transaction.atomic():
         match = (
@@ -1293,45 +1302,33 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
             .get(pk=match.pk)
         )
 
-        if match.status not in (Match.Status.PROPOSED, Match.Status.PENDING):
-            raise ValueError(
-                f"Cannot accept match pk={match.pk}: status is {match.status!r}, "
-                f"expected PROPOSED or PENDING."
-            )
-
-        side = match.side_of(registration)
-        now = timezone.now()
-
-        update_fields: list[str] = []
-
-        if side == Match.Side.AMBASSADOR and match.ambassador_accepted_at is None:
-            match.ambassador_accepted_at = now
-            update_fields.append("ambassador_accepted_at")
-        elif side == Match.Side.REFEREE and match.referee_accepted_at is None:
-            match.referee_accepted_at = now
-            update_fields.append("referee_accepted_at")
-        # If the side has already accepted (re-accept), no timestamp is changed.
-
-        if update_fields:
-            match.save(update_fields=update_fields + ["updated_at"])
-
-        # After setting the timestamp, determine the next state.
-        both_accepted = (
-            match.ambassador_accepted_at is not None
-            and match.referee_accepted_at is not None
+        status_before = match.status
+        match.accept(registration)
+        match.save(
+            update_fields=[
+                "ambassador_accepted_at",
+                "referee_accepted_at",
+                "status",
+                "updated_at",
+            ]
         )
 
-        if both_accepted:
-            # Second accept: PENDING → ACCEPTED.
-            status_before = match.status
-            match.status = Match.Status.ACCEPTED
-            match.save(update_fields=["status", "updated_at"])
+        if match.status != status_before:
             record_transition(
                 match,
                 "status",
                 before=status_before,
                 after=match.status,
             )
+            logger.info(
+                "Match pk=%s accepted by registration pk=%s: %s → %s",
+                match.pk,
+                registration.pk,
+                status_before,
+                match.status,
+            )
+
+        if match.status == Match.Status.ACCEPTED:
             logger.info(
                 "Match pk=%s ACCEPTED: both parties accepted "
                 "(ambassador reg pk=%s, referee reg pk=%s)",
@@ -1351,23 +1348,6 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
                 deposit = Payment.objects.for_registration(reg).held().first()
                 if deposit is not None:
                     capture(deposit, reason=Payment.Reason.SUCCESSFUL_MATCH)
-        elif update_fields:
-            # First accept: PROPOSED → PENDING (only when a timestamp was actually set).
-            if match.status == Match.Status.PROPOSED:
-                status_before = match.status
-                match.status = Match.Status.PENDING
-                match.save(update_fields=["status", "updated_at"])
-                record_transition(
-                    match,
-                    "status",
-                    before=status_before,
-                    after=match.status,
-                )
-                logger.info(
-                    "Match pk=%s first accept by %s: PROPOSED → PENDING",
-                    match.pk,
-                    side,
-                )
 
     return match
 

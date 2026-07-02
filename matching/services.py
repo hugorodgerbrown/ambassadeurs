@@ -477,7 +477,12 @@ def accept_match(match: Match, registration: Registration) -> Match:
         StateTransitionError: propagated from ``record_acceptance`` if match
             is not PROPOSED or PENDING.
     """
-    return record_acceptance(match, registration)
+    # record_acceptance is decorated with @has_side_effects, an untyped
+    # decorator (django-side-effects ships no py.typed marker), so mypy
+    # widens its inferred return type to Any — hence the explicit re-typed
+    # local rather than `return record_acceptance(...)` directly.
+    result: Match = record_acceptance(match, registration)
+    return result
 
 
 def decline_match(match: Match, registration: Registration) -> Match:

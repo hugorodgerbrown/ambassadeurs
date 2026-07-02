@@ -39,9 +39,9 @@ from django.core.mail import send_mail
 from django.urls import reverse
 from django.utils import translation
 from django.utils.translation import gettext as _
+from side_effects.decorators import is_side_effect_of
 
 from accounts.tokens import make_match_access_token
-from side_effects.decorators import is_side_effect_of
 
 from .models import Match, Registration
 
@@ -249,9 +249,7 @@ def _email_no_show(accused_registration: Registration) -> None:
 
 
 @is_side_effect_of(MATCH_PROPOSED)
-def notify_ambassador_of_proposal(
-    registration: Registration, **kwargs: object
-) -> None:
+def notify_ambassador_of_proposal(registration: Registration, **kwargs: object) -> None:
     """Email the ambassador side that a match has been proposed.
 
     Args:

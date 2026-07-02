@@ -10,7 +10,6 @@ from django.core import mail
 from django.db import transaction
 from django.test import TestCase, override_settings
 from django.utils import timezone
-from side_effects import registry
 
 from core.exceptions import StateTransitionError
 from core.models import StateTransitionLog
@@ -37,11 +36,6 @@ from matching.services import (
     withdraw_acceptance,
 )
 from matching.side_effects import (
-    MATCH_ACCEPTED,
-    MATCH_DECLINED,
-    MATCH_EXPIRED,
-    MATCH_NO_SHOW,
-    MATCH_PROPOSED,
     _email_confirmation,
     _email_no_show,
     _email_partner_accepted,
@@ -391,7 +385,7 @@ def test_propose_match_skips_ineligible_ambassador() -> None:
 
 
 def test_email_proposal_sends_one_email_per_call() -> None:
-    """_email_proposal sends one email to the given recipient; both sides is two calls."""
+    """_email_proposal sends one email per recipient; both sides is two calls."""
     match = MatchFactory.create()
     assert match.ambassador_registration is not None
     assert match.referee_registration is not None
@@ -2231,7 +2225,7 @@ def test_report_no_show_email_contains_no_reporter_pii() -> None:
 
 
 def test_report_no_show_email_respects_accused_preferred_language() -> None:
-    """The no-show handler renders the accused's email under their preferred_language."""
+    """The no-show handler renders the accused's email under their own language."""
     accused_reg = RegistrationFactory.create(referee=True, preferred_language="fr")
     ambassador_reg = RegistrationFactory.create(preferred_language="en")
     match = MatchFactory.create(

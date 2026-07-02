@@ -10,6 +10,7 @@ from django.core import mail
 from django.db import transaction
 from django.test import TestCase, override_settings
 from django.utils import timezone
+from side_effects import registry
 
 from core.exceptions import StateTransitionError
 from core.models import StateTransitionLog
@@ -31,15 +32,22 @@ from matching.services import (
     report_no_show,
     requeue_to_front,
     run_matching,
-    send_match_confirmed_email,
-    send_match_notification,
-    send_no_show_notification,
-    send_partner_accepted_notification,
-    send_requeued_notification,
-    send_window_expired_notification,
     suspend_for_no_show,
     total_accepted_matches,
     withdraw_acceptance,
+)
+from matching.side_effects import (
+    MATCH_ACCEPTED,
+    MATCH_DECLINED,
+    MATCH_EXPIRED,
+    MATCH_NO_SHOW,
+    MATCH_PROPOSED,
+    _email_confirmation,
+    _email_no_show,
+    _email_partner_accepted,
+    _email_proposal,
+    _email_requeued,
+    _email_window_expired,
 )
 from tests.accounts.factories import UserFactory
 from tests.matching.factories import MatchFactory, RegistrationFactory
@@ -377,18 +385,22 @@ def test_propose_match_skips_ineligible_ambassador() -> None:
 
 
 # ---------------------------------------------------------------------------
-# send_match_notification
+# _email_proposal (matching.side_effects) — the match_proposed handlers'
+# shared render helper, one recipient per call.
 # ---------------------------------------------------------------------------
 
 
-def test_send_match_notification_sends_two_emails() -> None:
-    """send_match_notification sends one email to each party."""
+def test_email_proposal_sends_one_email_per_call() -> None:
+    """_email_proposal sends one email to the given recipient; both sides is two calls."""
     match = MatchFactory.create()
-    send_match_notification(match)
+    assert match.ambassador_registration is not None
+    assert match.referee_registration is not None
+    _email_proposal(match.ambassador_registration, match)
+    _email_proposal(match.referee_registration, match)
     assert len(mail.outbox) == 2
 
 
-def test_send_match_notification_contains_no_pii() -> None:
+def test_email_proposal_contains_no_pii() -> None:
     """Notification emails must not contain any contact PII (Invariant 1).
 
     The email includes a signed /match/<token>/ link so the recipient can open
@@ -408,7 +420,8 @@ def test_send_match_notification_contains_no_pii() -> None:
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
     )
-    send_match_notification(match)
+    _email_proposal(ambassador_reg, match)
+    _email_proposal(referee_reg, match)
 
     for message in mail.outbox:
         body = message.body
@@ -430,16 +443,19 @@ def test_send_match_notification_contains_no_pii() -> None:
         assert "/match/" in body
 
 
-def test_send_match_notification_includes_match_link() -> None:
+def test_email_proposal_includes_match_link() -> None:
     """Each notification email body contains the /match/ path."""
     match = MatchFactory.create()
-    send_match_notification(match)
+    assert match.ambassador_registration is not None
+    assert match.referee_registration is not None
+    _email_proposal(match.ambassador_registration, match)
+    _email_proposal(match.referee_registration, match)
     assert len(mail.outbox) == 2
     for message in mail.outbox:
         assert "/match/" in message.body
 
 
-def test_send_match_notification_respects_preferred_language() -> None:
+def test_email_proposal_respects_preferred_language() -> None:
     """Each recipient's email is rendered in their preferred_language.
 
     The French-language recipient must still receive the match link: the
@@ -466,7 +482,8 @@ def test_send_match_notification_respects_preferred_language() -> None:
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
     )
-    send_match_notification(match)
+    _email_proposal(ambassador_reg, match)
+    _email_proposal(referee_reg, match)
     assert len(mail.outbox) == 2
     fr_message = next(
         message for message in mail.outbox if ambassador_reg.user.email in message.to
@@ -1632,18 +1649,22 @@ def test_record_decline_raises_for_non_active_match() -> None:
 
 
 # ---------------------------------------------------------------------------
-# send_match_confirmed_email
+# _email_confirmation (matching.side_effects) — the match_accepted
+# confirmation handlers' shared render helper, one recipient per call.
 # ---------------------------------------------------------------------------
 
 
-def test_send_match_confirmed_email_sends_two_emails() -> None:
-    """send_match_confirmed_email sends exactly one email to each party."""
+def test_email_confirmation_sends_one_email_per_call() -> None:
+    """_email_confirmation sends one email; both sides is two calls."""
     match = MatchFactory.create(accepted=True)
-    send_match_confirmed_email(match)
+    assert match.ambassador_registration is not None
+    assert match.referee_registration is not None
+    _email_confirmation(match.ambassador_registration, match.referee_registration)
+    _email_confirmation(match.referee_registration, match.ambassador_registration)
     assert len(mail.outbox) == 2
 
 
-def test_send_match_confirmed_email_contains_counterpart_details() -> None:
+def test_email_confirmation_contains_counterpart_details() -> None:
     """Each confirmed email contains the counterpart's name, email, and phone."""
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
@@ -1654,12 +1675,13 @@ def test_send_match_confirmed_email_contains_counterpart_details() -> None:
         referee=True,
         phone="+41790002222",
     )
-    match = MatchFactory.create(
+    MatchFactory.create(
         accepted=True,
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
     )
-    send_match_confirmed_email(match)
+    _email_confirmation(ambassador_reg, referee_reg)
+    _email_confirmation(referee_reg, ambassador_reg)
     assert len(mail.outbox) == 2
 
     # Map To: addresses to message bodies.
@@ -1680,8 +1702,8 @@ def test_send_match_confirmed_email_contains_counterpart_details() -> None:
     )
 
 
-def test_send_match_confirmed_email_respects_preferred_language() -> None:
-    """send_match_confirmed_email renders each email under the recipient's language."""
+def test_email_confirmation_respects_preferred_language() -> None:
+    """_email_confirmation renders each email under the recipient's language."""
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
@@ -1691,12 +1713,13 @@ def test_send_match_confirmed_email_respects_preferred_language() -> None:
         referee=True,
         preferred_language="en",
     )
-    match = MatchFactory.create(
+    MatchFactory.create(
         accepted=True,
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
     )
-    send_match_confirmed_email(match)
+    _email_confirmation(ambassador_reg, referee_reg)
+    _email_confirmation(referee_reg, ambassador_reg)
     assert len(mail.outbox) == 2
 
 
@@ -2208,7 +2231,7 @@ def test_report_no_show_email_contains_no_reporter_pii() -> None:
 
 
 def test_report_no_show_email_respects_accused_preferred_language() -> None:
-    """send_no_show_notification renders under the accused's preferred_language."""
+    """The no-show handler renders the accused's email under their preferred_language."""
     accused_reg = RegistrationFactory.create(referee=True, preferred_language="fr")
     ambassador_reg = RegistrationFactory.create(preferred_language="en")
     match = MatchFactory.create(
@@ -2280,33 +2303,34 @@ def test_report_no_show_returns_updated_match() -> None:
 
 
 # ---------------------------------------------------------------------------
-# send_no_show_notification (VERB-21)
+# _email_no_show (matching.side_effects) — the match_no_show accused-side
+# handler's render helper (VERB-21).
 # ---------------------------------------------------------------------------
 
 
-def test_send_no_show_notification_sends_one_email() -> None:
-    """send_no_show_notification sends exactly one email to the accused."""
+def test_email_no_show_sends_one_email() -> None:
+    """_email_no_show sends exactly one email to the accused."""
     match = MatchFactory.create(accepted=True)
     accused = match.referee_registration
 
-    send_no_show_notification(match, accused)
+    _email_no_show(accused)
 
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == [accused.user.email]
 
 
-def test_send_no_show_notification_contains_no_reporter_pii() -> None:
-    """send_no_show_notification must not contain any reporter PII (Invariant 1)."""
+def test_email_no_show_contains_no_reporter_pii() -> None:
+    """_email_no_show must not contain any reporter PII (Invariant 1)."""
     ambassador_reg = RegistrationFactory.create(phone="+41790003333")
     referee_reg = RegistrationFactory.create(referee=True, phone="+41790004444")
-    match = MatchFactory.create(
+    MatchFactory.create(
         accepted=True,
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
     )
 
     # Reporter is ambassador; accused is referee.
-    send_no_show_notification(match, referee_reg)
+    _email_no_show(referee_reg)
 
     body = mail.outbox[0].body
     # Reporter's PII must not appear in the accused's email.
@@ -2314,15 +2338,15 @@ def test_send_no_show_notification_contains_no_reporter_pii() -> None:
     assert ambassador_reg.user.email not in body
 
 
-def test_send_no_show_notification_respects_preferred_language() -> None:
-    """send_no_show_notification renders under the accused's preferred_language."""
+def test_email_no_show_respects_preferred_language() -> None:
+    """_email_no_show renders under the accused's preferred_language."""
     accused_reg = RegistrationFactory.create(referee=True, preferred_language="fr")
-    match = MatchFactory.create(
+    MatchFactory.create(
         accepted=True,
         referee_registration=accused_reg,
     )
 
-    send_no_show_notification(match, accused_reg)
+    _email_no_show(accused_reg)
 
     # Assert delivery to the accused rather than translated copy: the test env
     # does not compile message catalogues, so gettext returns the source string.
@@ -2654,60 +2678,60 @@ def test_expire_lapsed_matches_notifies_both_faithful_and_non_responder(
 
 
 # ---------------------------------------------------------------------------
-# send_window_expired_notification (VERB-74)
+# _email_window_expired (matching.side_effects) — VERB-74
 # ---------------------------------------------------------------------------
 
 
-def test_send_window_expired_notification_sends_one_email() -> None:
-    """send_window_expired_notification sends one email to the non-responder."""
+def test_email_window_expired_sends_one_email() -> None:
+    """_email_window_expired sends one email to the non-responder."""
     reg = RegistrationFactory.create()
-    send_window_expired_notification(reg)
+    _email_window_expired(reg)
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == [reg.user.email]
 
 
-def test_send_window_expired_notification_includes_account_url() -> None:
+def test_email_window_expired_includes_account_url() -> None:
     """The expiry email body includes the account detail URL so the user can rejoin."""
 
     reg = RegistrationFactory.create()
-    send_window_expired_notification(reg)
+    _email_window_expired(reg)
     body = mail.outbox[0].body
     assert settings.BASE_URL in body
     assert "/account/" in body
 
 
-def test_send_window_expired_notification_respects_preferred_language() -> None:
-    """send_window_expired_notification uses the recipient's preferred_language."""
+def test_email_window_expired_respects_preferred_language() -> None:
+    """_email_window_expired uses the recipient's preferred_language."""
     reg = RegistrationFactory.create(preferred_language="fr")
-    send_window_expired_notification(reg)
+    _email_window_expired(reg)
     # Assert delivery — test env has no compiled catalogues, so only check To:.
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == [reg.user.email]
 
 
-def test_send_window_expired_notification_offers_cancel_and_refund() -> None:
+def test_email_window_expired_offers_cancel_and_refund() -> None:
     """The expiry email mentions cancelling for a refund (VERB-88)."""
     reg = RegistrationFactory.create()
-    send_window_expired_notification(reg)
+    _email_window_expired(reg)
     body = mail.outbox[0].body
     assert "cancel" in body
     assert "refund" in body
 
 
 # ---------------------------------------------------------------------------
-# send_requeued_notification (VERB-92)
+# _email_requeued (matching.side_effects) — VERB-92
 # ---------------------------------------------------------------------------
 
 
-def test_send_requeued_notification_sends_one_email() -> None:
-    """send_requeued_notification sends one email to the re-queued party."""
+def test_email_requeued_sends_one_email() -> None:
+    """_email_requeued sends one email to the re-queued party."""
     reg = RegistrationFactory.create()
-    send_requeued_notification(reg)
+    _email_requeued(reg)
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == [reg.user.email]
 
 
-def test_send_requeued_notification_contains_no_counterpart_pii() -> None:
+def test_email_requeued_contains_no_counterpart_pii() -> None:
     """The re-queued notice must reveal no counterpart PII or reason (Invariant 1).
 
     The email is addressed to the faithful party; it must not carry any contact
@@ -2716,29 +2740,29 @@ def test_send_requeued_notification_contains_no_counterpart_pii() -> None:
     markers rather than a specific person's PII.
     """
     reg = RegistrationFactory.create(preferred_language="en")
-    send_requeued_notification(reg)
+    _email_requeued(reg)
     body = mail.outbox[0].body
     # Neutral reassurance copy — no address markers that would imply PII.
     assert "@" not in body
     assert "+41" not in body
 
 
-def test_send_requeued_notification_respects_preferred_language() -> None:
-    """send_requeued_notification renders under the recipient's preferred_language."""
+def test_email_requeued_respects_preferred_language() -> None:
+    """_email_requeued renders under the recipient's preferred_language."""
     reg = RegistrationFactory.create(preferred_language="fr")
-    send_requeued_notification(reg)
+    _email_requeued(reg)
     # Assert delivery — test env has no compiled catalogues, so only check To:.
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == [reg.user.email]
 
 
 # ---------------------------------------------------------------------------
-# send_partner_accepted_notification (VERB-92)
+# _email_partner_accepted (matching.side_effects) — VERB-92
 # ---------------------------------------------------------------------------
 
 
-def test_send_partner_accepted_notification_sends_one_email_to_waiting_party() -> None:
-    """send_partner_accepted_notification emails only the waiting party."""
+def test_email_partner_accepted_sends_one_email_to_waiting_party() -> None:
+    """_email_partner_accepted emails only the waiting party."""
     ambassador_reg = RegistrationFactory.create()
     referee_reg = RegistrationFactory.create(referee=True)
     match = MatchFactory.create(
@@ -2746,12 +2770,12 @@ def test_send_partner_accepted_notification_sends_one_email_to_waiting_party() -
         referee_registration=referee_reg,
         status=Match.Status.PENDING,
     )
-    send_partner_accepted_notification(match, referee_reg)
+    _email_partner_accepted(referee_reg, match)
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == [referee_reg.user.email]
 
 
-def test_send_partner_accepted_notification_includes_match_link_no_pii() -> None:
+def test_email_partner_accepted_includes_match_link_no_pii() -> None:
     """The nudge carries the recipient's signed match link but no counterpart PII."""
     from accounts.tokens import read_match_access_token
 
@@ -2762,7 +2786,7 @@ def test_send_partner_accepted_notification_includes_match_link_no_pii() -> None
         referee_registration=referee_reg,
         status=Match.Status.PENDING,
     )
-    send_partner_accepted_notification(match, referee_reg)
+    _email_partner_accepted(referee_reg, match)
     body = mail.outbox[0].body
 
     # The link is scoped to the recipient (the referee), not the counterpart.

@@ -337,76 +337,62 @@ def test_expire_match_pending_transitions_and_handles_participants() -> None:
 
 # ---------------------------------------------------------------------------
 # handle_lapsed_participant — service coordination, role-agnostic
+#
+# VERB-107: the re-queued / window-expired notification is no longer sent
+# from here — it is dispatched by the matching.side_effects handlers bound to
+# expire_match's @has_side_effects label (covered in the expire_match and
+# expire_lapsed_matches tests below). This function now only applies the pure
+# re-queue/pause mutation.
 # ---------------------------------------------------------------------------
 
 
 def test_handle_lapsed_participant_kept_faith_requeues_ambassador() -> None:
-    """kept_faith=True re-queues an ambassador to the front and emails them."""
+    """kept_faith=True re-queues an ambassador to the front."""
     registration = RegistrationFactory.create(
         status=Registration.Status.VERIFIED, priority=0
     )
 
-    with TestCase.captureOnCommitCallbacks(execute=True):
-        handle_lapsed_participant(registration, kept_faith=True)
+    handle_lapsed_participant(registration, kept_faith=True)
 
     registration.refresh_from_db()
     assert registration.status == Registration.Status.VERIFIED
     assert registration.priority == 1
-
-    assert len(mail.outbox) == 1
-    assert mail.outbox[0].to == [registration.user.email]
-    assert "front of the queue" in mail.outbox[0].body
 
 
 def test_handle_lapsed_participant_kept_faith_requeues_referee() -> None:
-    """kept_faith=True re-queues a referee to the front and emails them."""
+    """kept_faith=True re-queues a referee to the front."""
     registration = RegistrationFactory.create(
         referee=True, status=Registration.Status.VERIFIED, priority=0
     )
 
-    with TestCase.captureOnCommitCallbacks(execute=True):
-        handle_lapsed_participant(registration, kept_faith=True)
+    handle_lapsed_participant(registration, kept_faith=True)
 
     registration.refresh_from_db()
     assert registration.status == Registration.Status.VERIFIED
     assert registration.priority == 1
 
-    assert len(mail.outbox) == 1
-    assert mail.outbox[0].to == [registration.user.email]
-    assert "front of the queue" in mail.outbox[0].body
-
 
 def test_handle_lapsed_participant_non_responder_pauses_ambassador() -> None:
-    """kept_faith=False pauses an ambassador and sends the window-expired email."""
+    """kept_faith=False pauses an ambassador."""
     registration = RegistrationFactory.create(
         status=Registration.Status.VERIFIED, priority=0
     )
 
-    with TestCase.captureOnCommitCallbacks(execute=True):
-        handle_lapsed_participant(registration, kept_faith=False)
+    handle_lapsed_participant(registration, kept_faith=False)
 
     registration.refresh_from_db()
     assert registration.status == Registration.Status.PAUSED
     assert registration.priority == 0  # unchanged on pause
 
-    assert len(mail.outbox) == 1
-    assert mail.outbox[0].to == [registration.user.email]
-    assert "rejoin the queue" in mail.outbox[0].subject
-
 
 def test_handle_lapsed_participant_non_responder_pauses_referee() -> None:
-    """kept_faith=False pauses a referee and sends the window-expired email."""
+    """kept_faith=False pauses a referee."""
     registration = RegistrationFactory.create(
         referee=True, status=Registration.Status.VERIFIED, priority=0
     )
 
-    with TestCase.captureOnCommitCallbacks(execute=True):
-        handle_lapsed_participant(registration, kept_faith=False)
+    handle_lapsed_participant(registration, kept_faith=False)
 
     registration.refresh_from_db()
     assert registration.status == Registration.Status.PAUSED
     assert registration.priority == 0  # unchanged on pause
-
-    assert len(mail.outbox) == 1
-    assert mail.outbox[0].to == [registration.user.email]
-    assert "rejoin the queue" in mail.outbox[0].subject

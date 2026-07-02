@@ -41,11 +41,10 @@
 # transition, then calls handle_lapsed_participants, which fans out to
 # handle_lapsed_participant for each side. A kept-faith party (already
 # accepted) re-queues to the front (requeue_to_front, delegating to the
-# Registration.requeue model method) and is sent a re-queued notification; a
-# non-responder is paused (pause_registration, delegating to Registration.pause)
-# and sent a window-expired notification — both emails queued via
-# transaction.on_commit. This is the model/service boundary established for
-# the expiry transition (docs/decisions/0017): model methods (Match.expire,
+# Registration.requeue model method); a non-responder is paused
+# (pause_registration, delegating to Registration.pause). This is the
+# model/service boundary established for the expiry transition (docs/decisions/0017):
+# model methods (Match.expire,
 # Registration.pause, Registration.requeue, Match.accept) validate their
 # own source state and raise core.exceptions.StateTransitionError on an
 # illegal transition (fail hard, low in the stack) rather than saving; they
@@ -73,8 +72,21 @@
 #
 # report_no_show (VERB-21) implements the post-accept no-show path (ADR 0007):
 # the reporter's registration is re-queued to the front; the accused is
-# suspended and emailed (no reporter PII in the email — Invariant 1).
-# The match is transitioned ACCEPTED → CANCELLED (renamed from ABANDONED).
+# suspended (no reporter PII in the notification — Invariant 1). The match is
+# transitioned ACCEPTED → CANCELLED (renamed from ABANDONED).
+#
+# Notification dispatch (VERB-107 / ADR 0018): the five real transition
+# functions (propose_match, record_acceptance, record_decline, expire_match,
+# report_no_show) are each decorated with @has_side_effects(LABEL) — see
+# matching/side_effects.py for the label constants, the per-recipient
+# @is_side_effect_of handlers (one recipient each, deriving who to notify by
+# walking the mutated Match rather than a loose registration argument), and
+# the DRY email-render helpers. Dispatch is deferred to transaction.on_commit
+# by the library itself, so a rolled-back transition never emails anyone —
+# this replaces the previous hand-written
+# transaction.on_commit(functools.partial(send_x, ...)) call sites.
+# MatchingConfig.ready() imports both modules so the decorators register at
+# startup (the library does not autodiscover).
 #
 # queue_position and total_accepted_matches (VERB-40) are read-only query helpers
 # that return a participant's ordinal position in the eligible same-role pool and
@@ -93,21 +105,17 @@
 
 from __future__ import annotations
 
-import functools
 import logging
 from datetime import datetime, timedelta
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import Case, IntegerField, Q, Value, When
-from django.urls import reverse
-from django.utils import timezone, translation
+from django.utils import timezone
 from django.utils.dateparse import parse_date
-from django.utils.translation import gettext as _
+from side_effects.decorators import has_side_effects
 
-from accounts.tokens import make_match_access_token
 from billing.models import Payment
 from billing.services.payments import (
     InvalidPaymentTransition,
@@ -121,6 +129,13 @@ from core.services import record_transition
 
 from .models import Match, Registration
 from .pricing_config import fee_chf_for, matching_opens_at
+from .side_effects import (
+    MATCH_ACCEPTED,
+    MATCH_DECLINED,
+    MATCH_EXPIRED,
+    MATCH_NO_SHOW,
+    MATCH_PROPOSED,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -227,6 +242,7 @@ def total_accepted_matches() -> int:
     return Match.objects.filter(status=Match.Status.ACCEPTED).count()
 
 
+@has_side_effects(MATCH_PROPOSED, run_on_exit=lambda match: match is not None)
 def propose_match(registration: Registration) -> Match | None:
     """Attempt to pair ``registration`` with an eligible counterpart.
 
@@ -331,7 +347,6 @@ def propose_match(registration: Registration) -> Match | None:
         referee_reg.pk,
     )
 
-    transaction.on_commit(lambda: send_match_notification(match))
     return match
 
 
@@ -422,85 +437,6 @@ def rejoin_queue(registration: Registration) -> None:
     )
 
 
-def send_window_expired_notification(registration: Registration) -> None:
-    """Send a contact-window expiry notification to a non-responding party.
-
-    Informs the participant that the match window closed because they did not
-    respond, that their registration is now paused, and that they may rejoin
-    the queue from their account page — or, if they would rather stop
-    waiting, cancel from the same page and get any deposit refunded (VERB-88).
-
-    Each email is rendered under the participant's ``preferred_language``.
-
-    No reporter or partner PII is included (Invariant 1).
-
-    Args:
-        registration: The non-responding party's registration.
-    """
-    # Reload to ensure we have the latest related user.
-    registration = Registration.objects.select_related("user").get(pk=registration.pk)
-    lang = registration.preferred_language or settings.LANGUAGE_CODE
-    account_url = settings.BASE_URL + reverse("accounts:detail")
-    with translation.override(lang):
-        subject = _("Your match has expired — rejoin the queue when you're ready")
-        body = _(
-            "The contact window for your recent match in the 4 Vallées "
-            "Ambassadors Program has closed because the match was not confirmed "
-            "in time.\n\n"
-            "Your registration is now paused. When you are ready to be matched "
-            'again, visit your account page and click "Rejoin the queue":\n\n'
-            "%(url)s\n\n"
-            "If you'd rather not wait, you can cancel from the same page and "
-            "get any deposit you paid refunded.\n\n"
-            "If you did not register for this programme, please ignore this email."
-        ) % {"url": account_url}
-    recipient_email = registration.user.email
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [recipient_email])
-    logger.info(
-        "Sent window-expired notification to registration pk=%s",
-        registration.pk,
-    )
-
-
-def send_requeued_notification(registration: Registration) -> None:
-    """Notify a kept-faith party that their match ended and they are re-queued.
-
-    Sent to the faithful party whenever a match does not proceed through no
-    fault of theirs — the counterpart declined, the contact window lapsed after
-    they had accepted, or they reported a post-accept no-show. The copy is
-    deliberately neutral: it reveals neither the counterpart's contact PII
-    (Invariant 1) nor the reason the match ended, and asks nothing of the
-    recipient (re-queuing is automatic).
-
-    Each email is rendered under the participant's ``preferred_language``.
-
-    Args:
-        registration: The registration re-queued to the front of the pool.
-    """
-    # Reload to ensure we have the latest related user.
-    registration = Registration.objects.select_related("user").get(pk=registration.pk)
-    lang = registration.preferred_language or settings.LANGUAGE_CODE
-    with translation.override(lang):
-        subject = _(
-            "Your match didn't go ahead — you're back at the front of the queue"
-        )
-        body = _(
-            "Your recent match in the 4 Vallées Ambassadors Program did not go "
-            "ahead.\n\n"
-            "This is not a reflection on you — you have been returned to the "
-            "front of the queue, and the matching system will pair you with a "
-            "new partner as soon as one is available. There is nothing you need "
-            "to do.\n\n"
-            "If you did not register for this programme, please ignore this email."
-        )
-    recipient_email = registration.user.email
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [recipient_email])
-    logger.info(
-        "Sent requeued notification to registration pk=%s",
-        registration.pk,
-    )
-
-
 def suspend_for_no_show(registration: Registration) -> None:
     """Suspend a registration following a post-accept no-show report.
 
@@ -519,162 +455,16 @@ def suspend_for_no_show(registration: Registration) -> None:
     )
 
 
-def send_match_notification(match: Match) -> None:
-    """Send a "you've been matched" notification to both parties.
-
-    Each recipient's email is rendered under their own preferred_language via
-    ``translation.override``. The body contains a per-recipient, signed match-
-    access link so they can view, accept, or decline the match. The link carries
-    no contact PII (Invariant 1) — contact details are only revealed after
-    mutual accept.
-    """
-    # Both FKs are non-null on PROPOSED matches (the only state this is called
-    # from); assertions make the nullability explicit for the type checker.
-    assert match.ambassador_registration is not None
-    assert match.referee_registration is not None
-    for registration in (
-        match.ambassador_registration,
-        match.referee_registration,
-    ):
-        lang = registration.preferred_language or settings.LANGUAGE_CODE
-        # Mint a per-recipient token that scopes the link to this registration
-        # only. The token carries no PII — only the match and registration PKs.
-        token = make_match_access_token(match.pk, registration.pk)
-        match_path = reverse("public:match", args=[token])
-        match_url = settings.BASE_URL + match_path
-        with translation.override(lang):
-            subject = _("You have been matched — 4 Vallées Ambassadors Program")
-            body = _(
-                "Good news — the matching system has found you a partner for the "
-                "4 Vallées Ambassadors Program.\n\n"
-                "Open the link below to view your match and accept or decline "
-                "within the contact window:\n\n"
-                "%(url)s\n\n"
-                "If you did not register for this programme, please ignore this email."
-            ) % {"url": match_url}
-        recipient_email = registration.user.email
-        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [recipient_email])
-        logger.info(
-            "Sent match notification for match pk=%s to registration pk=%s",
-            match.pk,
-            registration.pk,
-        )
-
-
-def send_match_confirmed_email(match: Match) -> None:
-    """Send a confirmation email to both parties when a match is mutually accepted.
-
-    Each recipient's email is rendered under their own preferred_language. This
-    is the first and only point at which contact PII (the counterpart's name,
-    email, and phone) is revealed (Invariant 1). Must only be called after the
-    match has reached ``ACCEPTED`` status.
-
-    Args:
-        match: A Match whose ``status`` is ``ACCEPTED``.
-    """
-    # Reload to ensure we have the latest related objects.
-    match = Match.objects.select_related(
-        "ambassador_registration__user",
-        "referee_registration__user",
-    ).get(pk=match.pk)
-
-    # Both FKs are non-null on ACCEPTED matches (the only state this is called
-    # from); assertions make the nullability explicit for the type checker.
-    assert match.ambassador_registration is not None
-    assert match.referee_registration is not None
-
-    registrations = (
-        match.ambassador_registration,
-        match.referee_registration,
-    )
-    counterparts = {
-        match.ambassador_registration.pk: match.referee_registration,
-        match.referee_registration.pk: match.ambassador_registration,
-    }
-
-    for registration in registrations:
-        counterpart = counterparts[registration.pk]
-        lang = registration.preferred_language or settings.LANGUAGE_CODE
-        full_name = (
-            f"{counterpart.user.first_name} {counterpart.user.last_name}".strip()
-        )
-        with translation.override(lang):
-            subject = _("Match confirmed — contact your partner")
-            body = _(
-                "Great news — your match has been confirmed!\n\n"
-                "Here are your partner's contact details:\n\n"
-                "Name: %(name)s\n"
-                "Email: %(email)s\n"
-                "Phone: %(phone)s\n\n"
-                "Please get in touch to arrange buying your passes together at "
-                "the ticket office.\n\n"
-                "Good luck!"
-            ) % {
-                "name": full_name,
-                "email": counterpart.user.email,
-                "phone": counterpart.phone,
-            }
-        recipient_email = registration.user.email
-        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [recipient_email])
-        logger.info(
-            "Sent match confirmed email for match pk=%s to registration pk=%s",
-            match.pk,
-            registration.pk,
-        )
-
-
-def send_partner_accepted_notification(
-    match: Match, waiting_registration: Registration
-) -> None:
-    """Notify the waiting party that their counterpart has accepted the match.
-
-    Sent on the first accept (PROPOSED → PENDING) to the party who has not yet
-    responded, nudging them to accept or decline before the contact window
-    closes. The body carries a per-recipient signed match-access link but no
-    contact PII (Invariant 1) — details are only revealed on mutual accept.
-
-    Each email is rendered under the recipient's ``preferred_language``.
-
-    Args:
-        match: The match now in PENDING status.
-        waiting_registration: The registration of the party yet to respond.
-    """
-    # Reload to ensure we have the latest related user.
-    waiting_registration = Registration.objects.select_related("user").get(
-        pk=waiting_registration.pk
-    )
-    lang = waiting_registration.preferred_language or settings.LANGUAGE_CODE
-    # Mint a per-recipient token scoping the link to this registration only.
-    token = make_match_access_token(match.pk, waiting_registration.pk)
-    match_url = settings.BASE_URL + reverse("public:match", args=[token])
-    with translation.override(lang):
-        subject = _("Your partner has accepted — it's your turn")
-        body = _(
-            "Good news — your match partner for the 4 Vallées Ambassadors "
-            "Program has accepted.\n\n"
-            "Open the link below to accept or decline before the contact window "
-            "closes:\n\n"
-            "%(url)s\n\n"
-            "If you did not register for this programme, please ignore this email."
-        ) % {"url": match_url}
-    recipient_email = waiting_registration.user.email
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [recipient_email])
-    logger.info(
-        "Sent partner-accepted notification for match pk=%s to registration pk=%s",
-        match.pk,
-        waiting_registration.pk,
-    )
-
-
 def accept_match(match: Match, registration: Registration) -> Match:
-    """Record an acceptance and notify the counterpart (VERB-92).
+    """Record an acceptance (VERB-92).
 
-    Calls ``record_acceptance``; then, via ``transaction.on_commit`` (so the
-    email is only sent after the DB commit succeeds):
-    - on mutual accept (``ACCEPTED``), queues ``send_match_confirmed_email`` —
-      the PII-reveal email to both parties;
-    - on the first accept (``PENDING``), queues
-      ``send_partner_accepted_notification`` to the party yet to respond.
+    Calls ``record_acceptance``, which is decorated with
+    ``@has_side_effects(MATCH_ACCEPTED)`` (VERB-107): on mutual accept
+    (``ACCEPTED``), the PII-reveal confirmation email is sent to both parties;
+    on the first accept (``PENDING``), the party yet to respond is nudged.
+    Both are handled by the ``matching.side_effects`` handlers bound to that
+    label, deferred to ``transaction.on_commit`` so a rolled-back accept never
+    emails anyone.
 
     Args:
         match: The match being accepted.
@@ -687,42 +477,21 @@ def accept_match(match: Match, registration: Registration) -> Match:
         StateTransitionError: propagated from ``record_acceptance`` if match
             is not PROPOSED or PENDING.
     """
-    match = record_acceptance(match, registration)
-    if match.status == Match.Status.ACCEPTED:
-        transaction.on_commit(lambda: send_match_confirmed_email(match))
-        logger.info(
-            "Match pk=%s accepted by both parties; confirmed email queued.",
-            match.pk,
-        )
-    elif match.status == Match.Status.PENDING:
-        # First accept: nudge the party who has not yet responded.
-        waiting = (
-            match.referee_registration
-            if match.side_of(registration) == Match.Side.AMBASSADOR
-            else match.ambassador_registration
-        )
-        transaction.on_commit(
-            functools.partial(send_partner_accepted_notification, match, waiting)
-        )
-        logger.info(
-            "Match pk=%s accepted by one party; partner-accepted email queued "
-            "for registration pk=%s.",
-            match.pk,
-            waiting.pk,
-        )
-    return match
+    return record_acceptance(match, registration)
 
 
 def decline_match(match: Match, registration: Registration) -> Match:
     """Record a decline, pause the decliner, and re-queue the other party.
 
-    Calls ``record_decline``, then:
+    Calls ``record_decline`` — decorated with
+    ``@has_side_effects(MATCH_DECLINED)`` (VERB-107), so the kept-faith party
+    is notified via the ``matching.side_effects`` handler bound to that label,
+    deferred to ``transaction.on_commit`` — then:
     - Pauses the decliner's registration (``pause_registration``). The User and
       Registration rows are retained; the participant can rejoin from their
       account page (VERB-74 / ADR 0013).
-    - Re-queues the other party to the front of the pool (``requeue_to_front``)
-      and notifies them via ``send_requeued_notification`` (VERB-92), queued on
-      commit. No PII and no reason are disclosed (Invariant 1).
+    - Re-queues the other party to the front of the pool (``requeue_to_front``).
+      No PII and no reason are disclosed in the notification (Invariant 1).
 
     All three steps run inside a single outer ``transaction.atomic()`` block so
     that a crash between steps cannot leave a partial state (e.g. match DECLINED
@@ -756,8 +525,6 @@ def decline_match(match: Match, registration: Registration) -> Match:
 
         pause_registration(registration)
         requeue_to_front(other)
-        # Notify the requeued (kept-faith) party that the match ended (VERB-92).
-        transaction.on_commit(functools.partial(send_requeued_notification, other))
 
     logger.info(
         "decline_match: match pk=%s DECLINED by registration pk=%s "
@@ -897,12 +664,15 @@ def handle_lapsed_participant(registration: Registration, kept_faith: bool) -> N
 
     Per-side outcome logic (VERB-74 / ADR 0013):
     - ``kept_faith=True`` (the side had already accepted, i.e. ``*_accepted_at``
-      is not None) → ``requeue_to_front``, and a re-queued notification is
-      queued via ``transaction.on_commit`` (``send_requeued_notification``,
-      VERB-92).
+      is not None) → ``requeue_to_front``.
     - ``kept_faith=False`` (the side had not responded by expiry) →
-      ``pause_registration`` (removed from pool; may self-rejoin). A window-
-      expired notification email is queued via ``transaction.on_commit``.
+      ``pause_registration`` (removed from pool; may self-rejoin).
+
+    The re-queued / window-expired notification email is no longer sent from
+    here (VERB-107): it is dispatched by the ``matching.side_effects``
+    handlers bound to ``expire_match``'s ``@has_side_effects`` label, which
+    derive the per-side copy from the match's own ``*_accepted_at`` fields
+    rather than from this function's ``kept_faith`` argument.
 
     Role-agnostic: works identically for an ambassador or a referee
     registration.
@@ -913,14 +683,8 @@ def handle_lapsed_participant(registration: Registration, kept_faith: bool) -> N
     """
     if kept_faith:
         requeue_to_front(registration)
-        transaction.on_commit(
-            functools.partial(send_requeued_notification, registration)
-        )
     else:
         pause_registration(registration)
-        transaction.on_commit(
-            functools.partial(send_window_expired_notification, registration)
-        )
 
 
 def handle_lapsed_participants(match: Match) -> None:
@@ -946,6 +710,7 @@ def handle_lapsed_participants(match: Match) -> None:
     )
 
 
+@has_side_effects(MATCH_EXPIRED)
 def expire_match(match: Match) -> None:
     """Transition one already-locked, lapsed match to EXPIRED and re-queue.
 
@@ -957,6 +722,10 @@ def expire_match(match: Match) -> None:
     Transitions the match to EXPIRED via the ``Match.expire`` model method,
     persists it, records the transition, and calls
     ``handle_lapsed_participants`` to apply the per-side re-queue/pause outcome.
+    Decorated with ``@has_side_effects(MATCH_EXPIRED)`` (VERB-107): the
+    ``matching.side_effects`` handlers bound to that label notify each side,
+    picking requeued-vs-window-expired copy from that side's own
+    ``*_accepted_at`` on the mutated ``match``.
 
     ``Match.expire()`` is the single guard on the source state — it validates
     ``match.status`` itself and raises ``StateTransitionError`` (fail hard,
@@ -1245,6 +1014,7 @@ def withdraw_acceptance(match: Match, registration: Registration) -> Match:
     return match
 
 
+@has_side_effects(MATCH_ACCEPTED)
 def record_acceptance(match: Match, registration: Registration) -> Match:
     """Record that ``registration`` has accepted ``match``.
 
@@ -1267,6 +1037,11 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
     ``match.status`` itself and raises ``StateTransitionError`` (fail hard, low
     in the stack) if the match is not PROPOSED or PENDING. This function does
     not re-check the condition (ADR 0017).
+
+    Decorated with ``@has_side_effects(MATCH_ACCEPTED)`` (VERB-107): all three
+    ``matching.side_effects`` handlers bound to that label fire on every call
+    and each guards on the mutated ``match.status`` — the waiting-partner nudge
+    on PENDING, the PII-reveal confirmation (to both sides) on ACCEPTED.
 
     Args:
         match: The match to accept.
@@ -1330,6 +1105,7 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
     return match
 
 
+@has_side_effects(MATCH_NO_SHOW)
 def report_no_show(match: Match, registration: Registration) -> Match:
     """Record a post-accept no-show report and apply the asymmetric re-queue.
 
@@ -1349,9 +1125,10 @@ def report_no_show(match: Match, registration: Registration) -> Match:
     5. Re-queues the reporter to the front of the pool (``VERIFIED``,
        ``priority += 1``). The reporter's status transition is **not** logged,
        consistent with the decline path.
-    6. Queues ``send_no_show_notification`` (to the accused) and
-       ``send_requeued_notification`` (to the reporter, VERB-92) to fire after
-       the transaction commits.
+
+    Decorated with ``@has_side_effects(MATCH_NO_SHOW)`` (VERB-107): the
+    ``matching.side_effects`` handlers bound to that label notify the accused
+    (no-show notice) and the reporter (re-queued notice) after commit.
 
     Args:
         match: The match being reported. Must be in ``ACCEPTED`` status with
@@ -1428,53 +1205,10 @@ def report_no_show(match: Match, registration: Registration) -> Match:
             accused.pk,
         )
 
-        transaction.on_commit(
-            functools.partial(send_no_show_notification, match, accused)
-        )
-        # Notify the reporter (kept-faith, re-queued to the front) too (VERB-92).
-        transaction.on_commit(
-            functools.partial(send_requeued_notification, registration)
-        )
-
     return match
 
 
-def send_no_show_notification(match: Match, accused_registration: Registration) -> None:
-    """Send a no-show suspension notification to the accused party.
-
-    Informs the accused that a partner reported them as a no-show and that
-    their registration has been removed from the pool. No reporter PII is
-    included (Invariant 1).
-
-    Each email is rendered under the accused's ``preferred_language``.
-
-    Args:
-        match: The match that was cancelled.
-        accused_registration: The registration of the party being notified.
-    """
-    # Reload to ensure we have the latest related user.
-    accused_registration = Registration.objects.select_related("user").get(
-        pk=accused_registration.pk
-    )
-    lang = accused_registration.preferred_language or settings.LANGUAGE_CODE
-    with translation.override(lang):
-        subject = _("Your match has been reported as a no-show")
-        body = _(
-            "We have received a no-show report from your match partner for the "
-            "4 Vallées Ambassadors Program.\n\n"
-            "Your registration has been removed from the pool. If you believe "
-            "this report was made in error, please contact us for help.\n\n"
-            "If you did not register for this programme, please ignore this email."
-        )
-    recipient_email = accused_registration.user.email
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [recipient_email])
-    logger.info(
-        "Sent no-show notification for match pk=%s to registration pk=%s",
-        match.pk,
-        accused_registration.pk,
-    )
-
-
+@has_side_effects(MATCH_DECLINED)
 def record_decline(match: Match, registration: Registration) -> Match:
     """Record that ``registration`` has declined ``match``.
 
@@ -1494,6 +1228,10 @@ def record_decline(match: Match, registration: Registration) -> Match:
     deliberately leaves both ``Registration.status`` values untouched so it is
     not mistaken for a bug. The email-hash field was removed in VERB-74 (see
     ADR 0008 — superseded).
+
+    Decorated with ``@has_side_effects(MATCH_DECLINED)`` (VERB-107): the
+    ``matching.side_effects`` handler bound to that label notifies the
+    kept-faith (non-declining) party after commit.
 
     Args:
         match: The match to decline.

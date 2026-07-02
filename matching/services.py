@@ -81,7 +81,12 @@ from django.utils.translation import gettext as _
 
 from accounts.tokens import make_match_access_token
 from billing.models import Payment
-from billing.services.payments import capture, forfeit, refund
+from billing.services.payments import (
+    InvalidPaymentTransition,
+    capture,
+    forfeit,
+    refund,
+)
 from core.emails import normalise_email
 from core.services import record_transition
 
@@ -1426,7 +1431,10 @@ def close_season(*, commit: bool) -> tuple[int, int]:
     Stripe round-trip, so the sweep never holds a DB connection across the whole
     batch (connection-pool exhaustion — see VERB-85 review note). A per-payment
     HELD re-check makes a retried / concurrent run idempotent, on top of the
-    stable Stripe idempotency key.
+    stable Stripe idempotency key. If a payment still races out of HELD between
+    the re-check and ``refund()``'s own lock, the resulting
+    ``InvalidPaymentTransition`` is caught and skipped — a benign race, not
+    counted as a batch failure; only genuine errors bump ``failed``.
 
     Args:
         commit: When False, simulate and count only. When True, issue refunds.
@@ -1471,6 +1479,15 @@ def close_season(*, commit: bool) -> tuple[int, int]:
                 continue
             refund(payment, reason=Payment.Reason.SEASON_END_NO_MATCH)
             refunded += 1
+        except InvalidPaymentTransition:
+            # A benign race: the payment left HELD between the re-check above and
+            # refund()'s own select_for_update. Skip it — this is not a batch
+            # failure, so do not increment the failure counter (a spurious
+            # non-zero exit would false-alarm the cron).
+            logger.warning(
+                "close_season: payment pk=%s left HELD before refund; skipping", pk
+            )
+            continue
         except Exception:
             failed += 1
             logger.exception(

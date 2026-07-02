@@ -24,6 +24,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 
 from billing.models import Payment
+from billing.services.payments import InvalidPaymentTransition
 from matching.models import Match, Registration
 from matching.services import close_season, record_acceptance, report_no_show
 from tests.billing.factories import PaymentFactory
@@ -297,6 +298,41 @@ def test_close_season_skips_payment_no_longer_held(
 
     # Only the first deposit is refunded; the second is skipped (no longer HELD)
     # and is not counted as a failure.
+    assert (refunded, failed) == (1, 0)
+
+
+def test_close_season_skips_invalid_transition_race_without_failing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A payment that races out of HELD after the re-check is skipped, not failed.
+
+    Simulates the tighter race the per-payment re-check cannot close: the
+    payment is still HELD when re-checked, but has left HELD by the time
+    ``refund()`` takes its own row lock, so ``refund()`` raises
+    ``InvalidPaymentTransition``. That must be caught and skipped — treated as a
+    benign race, not a batch failure (no non-zero exit).
+    """
+    _mock_refund_create(monkeypatch)
+    _held_payment()
+    _held_payment()
+
+    import matching.services as svc
+
+    _real_refund = svc.refund
+    _call_count = {"n": 0}
+
+    def _refund_first_raises_invalid(payment: Payment, **kwargs: Any) -> Payment:
+        """Raise InvalidPaymentTransition on the first refund; delegate after."""
+        _call_count["n"] += 1
+        if _call_count["n"] == 1:
+            raise InvalidPaymentTransition("raced out of HELD before lock")
+        return _real_refund(payment, **kwargs)
+
+    monkeypatch.setattr(svc, "refund", _refund_first_raises_invalid)
+
+    refunded, failed = close_season(commit=True)
+
+    # The raced payment is skipped (not a failure); the other still refunds.
     assert (refunded, failed) == (1, 0)
 
 

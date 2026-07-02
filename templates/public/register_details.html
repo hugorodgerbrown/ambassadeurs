@@ -18,7 +18,7 @@
 {% block topband %}
     <div
         id="topband"
-        class="role-theme{% if role_value != 'AMBASSADOR' %} role-theme--referee{% endif %}"
+        class="role-theme{% if not role_value %} role-theme--neutral{% elif role_value == 'REFEREE' %} role-theme--referee{% endif %}"
     >
         <div class="role-band"></div>
     </div>

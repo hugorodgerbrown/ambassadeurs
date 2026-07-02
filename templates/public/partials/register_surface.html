@@ -3,14 +3,18 @@
 Themed registration surface (VERB role-theming handoff).
 
 The whole surface is wrapped in .role-theme; .role-theme--referee flips the
-palette when the chosen role is the Referee. The "Your role" dropdown swaps this
-entire #reg-surface via HTMX, so the eyebrow, lead copy, role zone, eligibility
-callout, form heading and submit button all re-tone in one move.
+palette when the chosen role is the Referee, and .role-theme--neutral applies
+a muted palette with the whole form disabled when no valid role is chosen
+(VERB-90). The "Your role" dropdown swaps this entire #reg-surface via HTMX,
+so the eyebrow, lead copy, role zone, eligibility callout, form heading and
+submit button all re-tone in one move.
 
 Context:
-  form               — RegistrationForm bound to the role
-  role               — public slug ("ambassador" / "referee"), used in URLs / hidden input
-  role_value         — stored Role value ("AMBASSADOR" / "REFEREE"), used for branching
+  form               — RegistrationForm bound to the role (all fields disabled in neutral)
+  role               — public slug ("ambassador" / "referee"), used in URLs / hidden input;
+                       "" in the neutral state
+  role_value         — stored Role value ("AMBASSADOR" / "REFEREE"), used for branching;
+                       None in the neutral state (no valid role chosen)
   is_htmx            — truthy only on the HTMX swap response (drives the out-of-band
                        update of the above-nav tone band)
   already_registered — Registration instance if the user is already registered, else None;
@@ -20,7 +24,7 @@ Context:
     {% comment %}Keep the above-nav tone band in sync with the role on an HTMX swap.{% endcomment %}
     <div
         id="topband"
-        class="role-theme{% if role_value != 'AMBASSADOR' %} role-theme--referee{% endif %}"
+        class="role-theme{% if not role_value %} role-theme--neutral{% elif role_value == 'REFEREE' %} role-theme--referee{% endif %}"
         hx-swap-oob="true"
     >
         <div class="role-band"></div>
@@ -28,7 +32,7 @@ Context:
 {% endif %}
 <div
     id="reg-surface"
-    class="role-theme{% if role_value != 'AMBASSADOR' %} role-theme--referee{% endif %}"
+    class="role-theme{% if not role_value %} role-theme--neutral{% elif role_value == 'REFEREE' %} role-theme--referee{% endif %}"
 >
     <p class="eyebrow mb-3 text-role">{% translate "Registration" %}</p>
     <h1 class="mb-2 text-ink">{% translate "Register" %}</h1>
@@ -36,6 +40,10 @@ Context:
         {% if already_registered %}
             {% blocktranslate trimmed %}
                 Your registration is complete — these are the details we have on file. They can't be changed here.
+            {% endblocktranslate %}
+        {% elif not role_value %}
+            {% blocktranslate trimmed %}
+                Select your role below to start your registration.
             {% endblocktranslate %}
         {% else %}
             {% blocktranslate trimmed %}
@@ -82,7 +90,7 @@ Context:
 
     {% comment %}── Role zone — the dropdown that drives the whole surface's palette. ──{% endcomment %}
     <div class="role-zone mb-6">
-        <p class="label mb-2">{% translate "Choose your role" %}</p>
+        <p class="label mb-2">{% translate "Your role" %}</p>
 
         <details
             class="role-select{% if already_registered %} role-select--locked pointer-events-none{% endif %}"
@@ -107,7 +115,7 @@ Context:
                                 <circle cx="12" cy="12" r="9" />
                                 <path d="m8.5 12 2.5 2.5 4.5-5" />
                             </svg>
-                        {% else %}
+                        {% elif role_value == 'REFEREE' %}
                             <svg
                                 width="18"
                                 height="18"
@@ -121,21 +129,38 @@ Context:
                                 <circle cx="12" cy="12" r="9" />
                                 <path d="M12 8v8M8 12h8" />
                             </svg>
+                        {% else %}
+                            <svg
+                                width="18"
+                                height="18"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <circle cx="12" cy="12" r="9" />
+                            </svg>
                         {% endif %}
                     </span>
                     <span class="role-select__text">
                         <span class="role-select__name">
                             {% if role_value == 'AMBASSADOR' %}
                                 {% translate "Ambassador" %}
-                            {% else %}
+                            {% elif role_value == 'REFEREE' %}
                                 {% translate "Referee" %}
+                            {% else %}
+                                {% translate "Select your role" %}
                             {% endif %}
                         </span>
                         <span class="role-select__role">
                             {% if role_value == 'AMBASSADOR' %}
                                 {% translate "Returning season pass holder" %}
-                            {% else %}
+                            {% elif role_value == 'REFEREE' %}
                                 {% translate "New season pass applicant" %}
+                            {% else %}
+                                {% translate "Ambassador or Referee" %}
                             {% endif %}
                         </span>
                     </span>
@@ -187,7 +212,7 @@ Context:
                     <span class="role-select__option-body">
                         <span class="role-select__option-title">{% translate "Ambassador" %}</span>
                         <span class="role-select__option-desc">
-                            {% translate "Returning holder referring a newcomer." %}
+                            {% translate "Returning season pass holder looking for someone to refer." %}
                         </span>
                     </span>
                     {% if role_value == 'AMBASSADOR' %}
@@ -210,7 +235,7 @@ Context:
                 <button
                     type="button"
                     class="role-select__option"
-                    aria-selected="{% if role_value != 'AMBASSADOR' %}true{% else %}false{% endif %}"
+                    aria-selected="{% if role_value == 'REFEREE' %}true{% else %}false{% endif %}"
                     hx-get="{% url 'public:register_details_form' %}?role=referee"
                     hx-target="#reg-surface"
                     hx-swap="outerHTML"
@@ -237,10 +262,10 @@ Context:
                     <span class="role-select__option-body">
                         <span class="role-select__option-title">{% translate "Referee" %}</span>
                         <span class="role-select__option-desc">
-                            {% translate "New holder who needs an Ambassador." %}
+                            {% translate "New season pass applicant looking for an Ambassador." %}
                         </span>
                     </span>
-                    {% if role_value != 'AMBASSADOR' %}
+                    {% if role_value == 'REFEREE' %}
                         <span class="role-select__check role-select__check--ref">
                             <svg
                                 width="18"
@@ -262,15 +287,24 @@ Context:
 
         <p class="mt-3 px-1 text-small text-meta">
             {% if role_value == 'AMBASSADOR' %}
-                {% translate "You held a 4 Vallées pass in 2024/25 or 2025/26 and are looking for someone to refer this season." %}
+                {% blocktranslate %}
+                You held a 4 Vallées pass in 2024/25 or 2025/26 and are looking for someone to refer this season.
+                {% endblocktranslate %}
+            {% elif role_value == 'REFEREE' %}
+                {% blocktranslate %}
+                You're applying for a 2026/27 season pass and are looking for
+                a previous season pass holder (in 2024/25 or 2025/26) to pair up with.
+                {% endblocktranslate %}
             {% else %}
-                {% translate "You're a new season pass applicant and are looking for an Ambassador to refer you." %}
+                {% translate "Ambassadors had a season pass in 2024/25 or 2025/26; Referees did not." %}
             {% endif %}
         </p>
     </div>
 
-    {% comment %}── Eligibility callout — the official 4 Vallées qualifying rubric. ──{% endcomment %}
-    {% include "public/partials/register_eligibility.html" with role_value=role_value %}
+    {% if role_value %}
+        {% comment %}── Eligibility callout — the official 4 Vallées qualifying rubric. ──{% endcomment %}
+        {% include "public/partials/register_eligibility.html" with role_value=role_value %}
+    {% endif %}
 
     {# ── Form card. ── #}
     <div class="card mt-6">
@@ -364,6 +398,14 @@ Context:
                         You can only register once. To change your details, contact us or check your account page.
                     {% endblocktranslate %}
                 </p>
+            {% elif not role_value %}
+                {% comment %}
+                    Neutral submit — disabled until a role is chosen above; no
+                    arrow icon since there's nowhere to go yet.
+                {% endcomment %}
+                <button type="submit" class="btn btn--role btn--block" disabled>
+                    {% translate "Select a role to continue" %}
+                </button>
             {% else %}
                 <button type="submit" class="btn btn--role btn--block">
                     {% if role_value == 'AMBASSADOR' %}

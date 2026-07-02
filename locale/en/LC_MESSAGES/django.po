@@ -1420,6 +1420,9 @@ msgid ""
 "matching process."
 msgstr ""
 
+msgid "Select your role below to start your registration."
+msgstr ""
+
 msgid "You're already registered"
 msgstr ""
 
@@ -1435,10 +1438,16 @@ msgstr ""
 msgid "Choose your role"
 msgstr ""
 
+msgid "Select your role"
+msgstr ""
+
 msgid "Returning season pass holder"
 msgstr ""
 
 msgid "New season pass applicant"
+msgstr ""
+
+msgid "Ambassador or Referee"
 msgstr ""
 
 msgid "Returning holder referring a newcomer."
@@ -1457,6 +1466,9 @@ msgid ""
 "refer you."
 msgstr ""
 
+msgid "Ambassadors had a season pass in 2024/25 or 2025/26; Referees did not."
+msgstr ""
+
 msgid "Confirmations"
 msgstr ""
 
@@ -1472,6 +1484,9 @@ msgstr ""
 msgid ""
 "You can only register once. To change your details, contact us or check your "
 "status."
+msgstr ""
+
+msgid "Select a role to continue"
 msgstr ""
 
 msgid "Register as Ambassador"

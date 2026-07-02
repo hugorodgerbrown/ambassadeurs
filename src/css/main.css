@@ -377,6 +377,14 @@
     --role-tint: var(--color-secondary-tint);
     --role-ink:  var(--color-secondary-ink);
   }
+  /* No role chosen yet (VERB-90) — muted slate palette, distinct from both
+     the Ambassador and Referee tones, used while the form is disabled. */
+  .role-theme--neutral {
+    --role:      var(--color-meta);
+    --role-deep: var(--color-ink);
+    --role-tint: var(--color-surface-2);
+    --role-ink:  var(--color-body);
+  }
 
   /* 4px role-coloured band — pin to the top of a themed surface as a tone cue. */
   .role-band { height: 4px; background: var(--role); }

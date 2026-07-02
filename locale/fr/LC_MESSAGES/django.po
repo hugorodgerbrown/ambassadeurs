@@ -1804,6 +1804,9 @@ msgstr ""
 "Une fois votre inscription terminée et votre e-mail vérifié, nous lancerons "
 "le processus de mise en relation."
 
+msgid "Select your role below to start your registration."
+msgstr "Sélectionnez votre rôle ci-dessous pour commencer votre inscription."
+
 msgid "You're already registered"
 msgstr "Vous êtes déjà inscrit(e)"
 
@@ -1821,11 +1824,17 @@ msgstr "Voir mon statut"
 msgid "Choose your role"
 msgstr "Choisissez votre rôle"
 
+msgid "Select your role"
+msgstr "Sélectionnez votre rôle"
+
 msgid "Returning season pass holder"
 msgstr "Détenteur d'abonnement de saison de retour"
 
 msgid "New season pass applicant"
 msgstr "Nouveau demandeur d'abonnement de saison"
+
+msgid "Ambassador or Referee"
+msgstr "Ambassadeur ou Filleul"
 
 msgid "Returning holder referring a newcomer."
 msgstr "Détenteur actuel parrainant un nouveau venu."
@@ -1846,6 +1855,11 @@ msgid ""
 msgstr ""
 "Vous êtes un nouveau demandeur d'abonnement de saison et cherchez un "
 "Ambassadeur pour vous parrainer."
+
+msgid "Ambassadors had a season pass in 2024/25 or 2025/26; Referees did not."
+msgstr ""
+"Les Ambassadeurs avaient un abonnement de saison en 2024/25 ou 2025/26 ; les "
+"Filleuls non."
 
 msgid "Confirmations"
 msgstr "Confirmations"
@@ -1868,6 +1882,9 @@ msgid ""
 msgstr ""
 "Vous ne pouvez vous inscrire qu'une seule fois. Pour modifier vos "
 "informations, contactez-nous ou consultez votre statut."
+
+msgid "Select a role to continue"
+msgstr "Sélectionnez un rôle pour continuer"
 
 msgid "Register as Ambassador"
 msgstr "S'inscrire comme Ambassadeur"

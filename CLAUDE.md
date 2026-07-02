@@ -317,12 +317,35 @@ Django's translation functions (`gettext`/`gettext_lazy` in Python, `{% translat
 catalogues live in `locale/en/` and `locale/fr/`. Code, comments, and docs stay
 British English (see Conventions); the i18n rule governs display strings only.
 
-**Always run `makemessages` with `--no-location`** (e.g.
-`uv run python manage.py makemessages -l en -l fr --no-location`). The `#: file:line`
-comments churn on every extraction as code moves, so leaving them in makes `.po`
-merges almost impossible — two branches touch the same line references independently
-and conflict, and the numbers shift again after merge. Omitting them keeps the
-catalogues stable and mergeable.
+**Wrapping is required per PR; rebuilding the catalogues is not.** Wrapping a
+string in a translation function is mandatory and enforced per PR (Invariant 8) —
+that is what makes it translatable, and Django serves the English source string
+until the French `msgstr` exists, so new copy renders correctly in English the
+moment it ships. But **feature branches must not run `makemessages` /
+`compilemessages`, and must not edit `locale/*/LC_MESSAGES/django.po` or `.mo`.**
+Rebuilding the catalogues on every feature branch made the two `.po` files a
+constant source of parallel-branch merge conflicts (each branch rewrites the same
+regions), and `--no-location` reduced but never removed it. See
+[ADR 0016](docs/decisions/0016-decoupled-catalogue-maintenance.md).
+
+**Catalogue rebuild is a single-purpose task, like a dependency bump.** One
+branch, one PR, touching only `locale/`:
+
+```bash
+uv run python manage.py update_messages          # extract (--no-location) + compile + report
+uv run python manage.py update_messages --check   # count untranslated/fuzzy; exit non-zero at threshold
+```
+
+`update_messages` (in `core/`) wraps `makemessages -l en -l fr --no-location`
+then `compilemessages`; the untranslated French `msgstr` entries are filled in
+between the two. It is driven by the `update-messages` skill and a weekly
+scheduled Routine. **Trigger:** untranslated (empty or `fuzzy`) entries reaching
+`settings.I18N_UPDATE_MESSAGES_THRESHOLD` (env `I18N_UPDATE_MESSAGES_THRESHOLD`,
+default **10**). Below the threshold the catalogues are left alone; at/above it,
+the `code-review-pass` audit spins off an "Update translation catalogues" ticket
+into `Ready for dev` and the Routine executes it. Do **not** roll a catalogue
+rebuild into a feature PR to "keep French in sync" — that reintroduces the merge
+churn this policy exists to remove.
 
 ## Local CI — always run tox
 
@@ -410,8 +433,10 @@ against this list on every PR.
    long-lived, multi-purpose token.
 7. **HTMX partial views guarded by `require_htmx`** — every fragment endpoint must
    reject plain HTTP requests with a 400.
-8. **All user-facing copy is translated** — no hard-coded display strings; use the
-   i18n functions so French stays in sync.
+8. **All user-facing copy is wrapped for translation** — no hard-coded display
+   strings; use the i18n functions. This invariant is about *wrapping* the copy,
+   not about the catalogue being current: rebuilding `locale/` is a decoupled
+   single-purpose task, not a per-PR step (see Internationalisation / ADR 0016).
 9. **No secrets in source** — all credentials via `python-decouple`; `.env`
    gitignored.
 
@@ -433,5 +458,6 @@ feature docs are written:
 | Authentication (magic-link login) | [ADR 0012](docs/decisions/0012-magic-link-login.md) |
 | Lighthouse audits (CI, thresholds, baseline) | [`docs/lighthouse.md`](docs/lighthouse.md) |
 | Internationalisation (catalogues compiled at deploy) | [ADR 0015](docs/decisions/0015-compile-message-catalogues-at-deploy.md) |
+| Internationalisation (decoupled catalogue maintenance) | [ADR 0016](docs/decisions/0016-decoupled-catalogue-maintenance.md) |
 | Deployment (Render single-service) | _to be written_ |
 | Linear workflow (full lifecycle) | _to be written_ |

@@ -107,9 +107,16 @@ exercise. Ground every finding with a file path (and line where it helps).
     `.objects.` and other query calls.
 11. **i18n** (invariant 8) — user-facing copy wrapped in translation
     functions (`gettext`/`gettext_lazy`, `{% translate %}`/`{% blocktranslate %}`);
-    grep templates and views for hard-coded display strings. Spot-check that
-    `locale/fr/` has catalogue entries for recent strings (French in sync).
-    Note: code/comments stay British English — that's not an i18n violation.
+    grep templates and views for hard-coded display strings. Do **not** treat a
+    catalogue that lags the source as drift — catalogue maintenance is decoupled
+    (ADR 0016). Instead, measure the backlog: run
+    `uv run python manage.py update_messages --check` and record the
+    untranslated/fuzzy count. When it exits non-zero (count ≥
+    `settings.I18N_UPDATE_MESSAGES_THRESHOLD`, default 10) and no open "update
+    translation catalogues" ticket already exists, classify this as a
+    **spin-off** so the calling skill opens that ticket. Below the threshold,
+    record it as **watching** with the count. Note: code/comments stay British
+    English — that's not an i18n violation.
 12. **Project invariants** (from `CLAUDE.md`, all 9) — contact PII (name,
     email, phone) hidden until *both* parties accept; declines and expiry
     never reveal it (invariant 1); matches only ever proposed between an

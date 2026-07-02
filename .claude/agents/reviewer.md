@@ -64,7 +64,7 @@ You are a senior Django code reviewer specialising in security, performance, and
 
 ### i18n
 - [ ] All user-facing copy wrapped in translation functions (`gettext`/`gettext_lazy`, `{% translate %}`/`{% blocktranslate %}`) — no hard-coded display strings
-- [ ] Any new display string has a matching catalogue entry; French stays in sync (`locale/fr/`)
+- [ ] The branch does **not** run `makemessages`/`compilemessages` or edit `locale/*/LC_MESSAGES/django.po` or `.mo`. Catalogue rebuild is a decoupled single-purpose task (ADR 0016), not part of a feature PR — flag any `locale/` changes here as out of scope. Do **not** require new strings to have catalogue entries; that sync is handled out-of-band by the update-messages task.
 
 ### Design / templates
 This project has no design-system linter. Apply these as judgement, not a mechanical gate:

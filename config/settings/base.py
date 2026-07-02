@@ -165,6 +165,13 @@ TIME_ZONE = "Europe/Zurich"
 USE_I18N = True
 USE_TZ = True
 
+# Untranslated/fuzzy catalogue entries (summed across locales) at which the
+# review machinery opens a dedicated "update translation catalogues" task. Read
+# by `manage.py update_messages --check`. See ADR 0016.
+I18N_UPDATE_MESSAGES_THRESHOLD: int = config(
+    "I18N_UPDATE_MESSAGES_THRESHOLD", default=10, cast=int
+)
+
 # --- Static files ---------------------------------------------------------
 
 STATIC_URL = "static/"

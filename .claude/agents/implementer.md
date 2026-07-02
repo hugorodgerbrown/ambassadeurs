@@ -103,7 +103,10 @@ they don't, fix before reporting. After editing templates, run
   queryset, a factory, and tests.
 - All user-facing copy is translated (EN default + FR). Wrap display strings in
   the i18n functions; never hard-code copy. Code and comments stay British
-  English.
+  English. Do **not** run `makemessages`/`compilemessages` or touch
+  `locale/*.po`/`.mo` in a feature branch — rebuilding the catalogues is a
+  separate single-purpose task (ADR 0016), kept off feature PRs to avoid the
+  parallel-branch `.po` merge conflicts.
 - Linear MCP quirks: `save_issue` uses the internal `id`, not `VERB-NN`. State
   names are `Todo`, `In Progress`, `In Review`, `Done`, `Ready for dev`,
   `Backlog`.

@@ -162,6 +162,23 @@ Otherwise create a child ticket with `save_issue`:
 
 Collect the created/〈matched〉 ticket URLs for the doc.
 
+**Special case — the translation-catalogue backlog (i18n, checklist #11).**
+When the auditor flags i18n as a spin-off (untranslated/fuzzy count ≥
+`settings.I18N_UPDATE_MESSAGES_THRESHOLD` from
+`manage.py update_messages --check`), the ticket is a ready-to-run,
+single-purpose task — not a research finding. Handle it specially:
+
+- **Dedup harder.** Search for any open ticket titled "Update translation
+  catalogues" *and* check for an open update-messages PR / branch. There must be
+  at most one in flight; if one exists, record "tracked by VERB-NN" and skip.
+- **Title:** `Update translation catalogues` (stable, so dedup works next cycle).
+- **State:** `Ready for dev` (not triage/backlog) — it needs no scoping; the
+  update-messages skill can pick it up as-is.
+- **Description:** the current untranslated/fuzzy count per locale, and the
+  runbook: `manage.py update_messages` → fill the French `msgstr` values →
+  `manage.py compilemessages` → single-purpose PR touching only `locale/`.
+  Reference ADR 0016. Do not parent it to the cycle ticket — it is independent.
+
 ## Step 7 — Write the dated doc
 
 Create (or update) `docs/code-reviews/YYYY-MM-DD.md`:

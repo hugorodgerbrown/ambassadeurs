@@ -31,6 +31,8 @@ from matching.services import (
     send_match_confirmed_email,
     send_match_notification,
     send_no_show_notification,
+    send_partner_accepted_notification,
+    send_requeued_notification,
     send_window_expired_notification,
     suspend_for_no_show,
     total_accepted_matches,
@@ -1618,11 +1620,12 @@ def test_send_match_confirmed_email_respects_preferred_language() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_accept_match_first_accept_goes_pending_no_email() -> None:
-    """First accept transitions match to PENDING and sends no confirmed email.
+def test_accept_match_first_accept_goes_pending_notifies_waiting_partner() -> None:
+    """First accept transitions match to PENDING and nudges the waiting partner.
 
-    VERB-44: the first accept now moves the match PROPOSED → PENDING rather than
-    leaving it PROPOSED. No confirmed email is sent until both sides accept.
+    VERB-44: the first accept moves the match PROPOSED → PENDING. VERB-92: the
+    party who has not yet responded receives a partner-accepted notification (no
+    confirmed/PII email — that only fires on mutual accept).
     """
     ambassador_reg = RegistrationFactory.create()
     referee_reg = RegistrationFactory.create(referee=True)
@@ -1634,7 +1637,9 @@ def test_accept_match_first_accept_goes_pending_no_email() -> None:
         result = accept_match(match, ambassador_reg)
 
     assert result.status == Match.Status.PENDING
-    assert len(mail.outbox) == 0
+    # The waiting referee is notified that the ambassador accepted.
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == [referee_reg.user.email]
 
 
 def test_accept_match_second_accept_transitions_accepted_and_sends_email() -> None:
@@ -1649,13 +1654,14 @@ def test_accept_match_second_accept_transitions_accepted_and_sends_email() -> No
         referee_registration=referee_reg,
     )
 
-    # First accept — ambassador goes to PENDING.
+    # First accept — ambassador goes to PENDING; the referee is nudged (VERB-92).
     with TestCase.captureOnCommitCallbacks(execute=True):
         accept_match(match, ambassador_reg)
 
     match.refresh_from_db()
     assert match.status == Match.Status.PENDING
-    assert len(mail.outbox) == 0
+    assert len(mail.outbox) == 1  # partner-accepted nudge to the referee
+    mail.outbox.clear()
 
     # Second accept — referee triggers the full transition.
     with TestCase.captureOnCommitCallbacks(execute=True):
@@ -1890,6 +1896,27 @@ def test_decline_match_from_pending_by_referee_requeues_ambassador_to_front() ->
     assert ambassador_reg.priority == 1
 
 
+def test_decline_match_notifies_requeued_partner_only() -> None:
+    """decline_match emails the re-queued partner and no one else (VERB-92).
+
+    The decliner is not emailed; only the kept-faith party who was returned to
+    the front of the queue receives a (PII-free) re-queued notice.
+    """
+    ambassador_reg = RegistrationFactory.create(priority=0)
+    referee_reg = RegistrationFactory.create(referee=True, priority=0)
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        decline_match(match, ambassador_reg)
+
+    # Only the re-queued referee is notified; the decliner receives nothing.
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == [referee_reg.user.email]
+
+
 # ---------------------------------------------------------------------------
 # report_no_show (VERB-21 / VERB-44: ACCEPTED → CANCELLED)
 # ---------------------------------------------------------------------------
@@ -2026,8 +2053,13 @@ def test_report_no_show_writes_two_transition_log_rows() -> None:
     assert reg_log.state_after == Registration.Status.SUSPENDED
 
 
-def test_report_no_show_sends_one_email_to_accused() -> None:
-    """report_no_show queues one email to the accused party only (no reporter PII)."""
+def test_report_no_show_notifies_both_accused_and_reporter() -> None:
+    """report_no_show emails the accused (no-show notice) and the reporter (re-queued).
+
+    VERB-92: both parties are notified on the CANCELLED transition — the accused
+    that they were reported, the reporter that they have been returned to the
+    front of the queue.
+    """
     ambassador_reg = RegistrationFactory.create(phone="+41790001111")
     referee_reg = RegistrationFactory.create(referee=True, phone="+41790002222")
     match = MatchFactory.create(
@@ -2039,9 +2071,9 @@ def test_report_no_show_sends_one_email_to_accused() -> None:
     with TestCase.captureOnCommitCallbacks(execute=True):
         report_no_show(match, ambassador_reg)
 
-    assert len(mail.outbox) == 1
-    # Email sent to the accused (referee), not the reporter.
-    assert mail.outbox[0].to == [referee_reg.user.email]
+    assert len(mail.outbox) == 2
+    recipients = {message.to[0] for message in mail.outbox}
+    assert recipients == {referee_reg.user.email, ambassador_reg.user.email}
 
 
 def test_report_no_show_email_contains_no_reporter_pii() -> None:
@@ -2071,7 +2103,12 @@ def test_report_no_show_email_contains_no_reporter_pii() -> None:
     with TestCase.captureOnCommitCallbacks(execute=True):
         report_no_show(match, ambassador_reg)
 
-    body = mail.outbox[0].body
+    # Select the accused's (referee's) message; the reporter also gets a
+    # re-queued notice (VERB-92), so index alone is not a safe selector.
+    accused_message = next(
+        message for message in mail.outbox if message.to == [referee_reg.user.email]
+    )
+    body = accused_message.body
     # Each reporter PII value must be absent from the accused's email body.
     assert ambassador_reg.phone not in body
     assert ambassador_reg.user.email not in body
@@ -2092,11 +2129,12 @@ def test_report_no_show_email_respects_accused_preferred_language() -> None:
     with TestCase.captureOnCommitCallbacks(execute=True):
         report_no_show(match, ambassador_reg)
 
-    # The single notification is addressed to the accused (the suspended party),
-    # whose preferred_language drives the render. We assert delivery rather than
-    # translated copy: the test env does not compile message catalogues, so
-    # gettext falls back to the source string.
-    assert len(mail.outbox) == 1
+    # Both parties are notified (VERB-92); the accused's message is rendered
+    # under their preferred_language. We assert delivery rather than translated
+    # copy: the test env does not compile message catalogues, so gettext falls
+    # back to the source string.
+    assert len(mail.outbox) == 2
+    assert any(message.to == [accused_reg.user.email] for message in mail.outbox)
     assert mail.outbox[0].to == [accused_reg.user.email]
 
 
@@ -2485,10 +2523,14 @@ def test_expire_lapsed_matches_sends_notification_to_non_responders(
     assert referee_reg.user.email in recipients
 
 
-def test_expire_lapsed_matches_no_email_for_faithful_party(
+def test_expire_lapsed_matches_notifies_both_faithful_and_non_responder(
     mailoutbox: list,
 ) -> None:
-    """No expiry email is sent to the faithful party (re-queued, not paused)."""
+    """Both parties are notified on expiry (VERB-92).
+
+    The faithful party (re-queued) gets a re-queued notice; the non-responder
+    (paused) gets the window-expired notice.
+    """
     from django.test import TestCase as DjangoTestCase
 
     past = datetime(2020, 1, 1, tzinfo=UTC)
@@ -2505,9 +2547,10 @@ def test_expire_lapsed_matches_no_email_for_faithful_party(
     with DjangoTestCase.captureOnCommitCallbacks(execute=True):
         expire_lapsed_matches()
 
-    # Only the referee (non-responder) gets the email; not the faithful ambassador.
-    assert len(mailoutbox) == 1
-    assert mailoutbox[0].to == [referee_reg.user.email]
+    # Both the faithful ambassador and the non-responding referee are notified.
+    assert len(mailoutbox) == 2
+    recipients = {msg.to[0] for msg in mailoutbox}
+    assert recipients == {ambassador_reg.user.email, referee_reg.user.email}
 
 
 # ---------------------------------------------------------------------------
@@ -2541,6 +2584,89 @@ def test_send_window_expired_notification_respects_preferred_language() -> None:
     # Assert delivery — test env has no compiled catalogues, so only check To:.
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == [reg.user.email]
+
+
+# ---------------------------------------------------------------------------
+# send_requeued_notification (VERB-92)
+# ---------------------------------------------------------------------------
+
+
+def test_send_requeued_notification_sends_one_email() -> None:
+    """send_requeued_notification sends one email to the re-queued party."""
+    reg = RegistrationFactory.create()
+    send_requeued_notification(reg)
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == [reg.user.email]
+
+
+def test_send_requeued_notification_contains_no_counterpart_pii() -> None:
+    """The re-queued notice must reveal no counterpart PII or reason (Invariant 1).
+
+    The email is addressed to the faithful party; it must not carry any contact
+    detail of the (unnamed) counterpart. There is no counterpart on the
+    registration itself, so we assert the neutral copy carries no email/phone
+    markers rather than a specific person's PII.
+    """
+    reg = RegistrationFactory.create(preferred_language="en")
+    send_requeued_notification(reg)
+    body = mail.outbox[0].body
+    # Neutral reassurance copy — no address markers that would imply PII.
+    assert "@" not in body
+    assert "+41" not in body
+
+
+def test_send_requeued_notification_respects_preferred_language() -> None:
+    """send_requeued_notification renders under the recipient's preferred_language."""
+    reg = RegistrationFactory.create(preferred_language="fr")
+    send_requeued_notification(reg)
+    # Assert delivery — test env has no compiled catalogues, so only check To:.
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == [reg.user.email]
+
+
+# ---------------------------------------------------------------------------
+# send_partner_accepted_notification (VERB-92)
+# ---------------------------------------------------------------------------
+
+
+def test_send_partner_accepted_notification_sends_one_email_to_waiting_party() -> None:
+    """send_partner_accepted_notification emails only the waiting party."""
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+        status=Match.Status.PENDING,
+    )
+    send_partner_accepted_notification(match, referee_reg)
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == [referee_reg.user.email]
+
+
+def test_send_partner_accepted_notification_includes_match_link_no_pii() -> None:
+    """The nudge carries the recipient's signed match link but no counterpart PII."""
+    from accounts.tokens import read_match_access_token
+
+    ambassador_reg = RegistrationFactory.create(phone="+41790001111")
+    referee_reg = RegistrationFactory.create(referee=True)
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+        status=Match.Status.PENDING,
+    )
+    send_partner_accepted_notification(match, referee_reg)
+    body = mail.outbox[0].body
+
+    # The link is scoped to the recipient (the referee), not the counterpart.
+    assert "/match/" in body
+    # No counterpart contact PII is disclosed before mutual accept (Invariant 1).
+    assert ambassador_reg.phone not in body
+    assert ambassador_reg.user.email not in body
+
+    # The embedded token decodes to (match, recipient).
+    token = body.split("/match/")[1].split("/")[0]
+    decoded = read_match_access_token(token)
+    assert decoded == (match.pk, referee_reg.pk)
 
 
 # ---------------------------------------------------------------------------

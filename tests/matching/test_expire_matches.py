@@ -270,8 +270,12 @@ def test_expiry_email_sent_to_non_responders() -> None:
     assert referee_reg.user.email in recipients
 
 
-def test_no_expiry_email_for_faithful_party() -> None:
-    """No expiry email is sent to the faithful party (re-queued, not paused)."""
+def test_expiry_notifies_faithful_and_non_responder() -> None:
+    """Both parties are notified on expiry (VERB-92).
+
+    The faithful party (re-queued to the front) receives a re-queued notice; the
+    non-responder (paused) receives the window-expired notice.
+    """
     from django.core import mail
 
     ambassador_reg = RegistrationFactory.create(priority=0)
@@ -288,9 +292,11 @@ def test_no_expiry_email_for_faithful_party() -> None:
     with TestCase.captureOnCommitCallbacks(execute=True):
         expire_lapsed_matches()
 
-    # Only the referee (non-responder) gets the email.
-    assert len(mail.outbox) == 1
-    assert mail.outbox[0].to == [referee_reg.user.email]
+    # Both sides receive one email each: the faithful ambassador (re-queued) and
+    # the non-responding referee (paused).
+    assert len(mail.outbox) == 2
+    recipients = {msg.to[0] for msg in mail.outbox}
+    assert recipients == {ambassador_reg.user.email, referee_reg.user.email}
 
 
 def test_concurrency_skip_when_match_no_longer_proposed() -> None:

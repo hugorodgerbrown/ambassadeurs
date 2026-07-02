@@ -305,8 +305,10 @@ def test_concurrency_skip_when_match_no_longer_proposed() -> None:
 
     Simulates a race: lapsed() returns the PK, but by the time the sweep does
     the locked re-fetch the match has already been transitioned (e.g. accepted
-    just before the sweep locked it). The ``if match.status not in PROPOSED/PENDING:
-    continue`` guard must skip the match without mutating anything.
+    just before the sweep locked it). ``Match.expire()`` (called via
+    ``expire_match``) raises ``StateTransitionError`` for this illegal source
+    state (fail hard, low in the stack); ``expire_lapsed_matches`` catches it
+    (ADR 0017) and skips the match without mutating anything.
     """
     match = MatchFactory.create(
         expires_at=_PAST,

@@ -26,6 +26,7 @@ from django.db.models import Exists, OuterRef, Q
 from django.utils.translation import gettext_lazy as _
 from django_countries.fields import CountryField
 
+from core.exceptions import StateTransitionError
 from core.models import BaseModel, BaseQuerySet
 
 
@@ -282,14 +283,29 @@ class Registration(BaseModel):
         ``registration.pause().save(update_fields=["status"])``) and for any
         cross-object coordination (see ``matching.services.pause_registration``).
 
+        Only VERIFIED is a legal source state — a registration is paused after
+        declining a match or failing to respond within the contact window, and
+        both of those paths act on a VERIFIED registration (VERB-74 / ADR
+        0013). This is the fail-hard-low guard: an illegal source state raises
+        immediately, in the model method, rather than being silently applied.
+
         Returns:
             self, so calls can be chained.
+
+        Raises:
+            StateTransitionError: if ``self.status`` is not ``VERIFIED``.
         """
+        if self.status != Registration.Status.VERIFIED:
+            raise StateTransitionError(
+                current=self.status,
+                proposed=Registration.Status.PAUSED,
+                obj=self,
+            )
         self.status = Registration.Status.PAUSED
         return self
 
-    def requeue_to_front(self) -> Registration:
-        """Mutate this registration's own state to re-join at the front, in memory only.
+    def requeue(self, priority: int = 1) -> Registration:
+        """Mutate this registration's own state to re-join the pool, in memory only.
 
         Model-logic layer (VERB-100): mutates only this instance's own fields
         (status and priority), never saves, never touches another object, and
@@ -297,11 +313,16 @@ class Registration(BaseModel):
         change and for any cross-object coordination (see
         ``matching.services.requeue_to_front``).
 
+        Args:
+            priority: The amount to add to ``self.priority``. Defaults to
+                ``1`` — a kept-faith/wronged party re-joins at the front of
+                the queue (``priority += 1``).
+
         Returns:
             self, so calls can be chained.
         """
         self.status = Registration.Status.VERIFIED
-        self.priority += 1
+        self.priority += priority
         return self
 
     def to_string(self) -> str:
@@ -502,12 +523,16 @@ class Match(BaseModel):
             self, so calls can be chained.
 
         Raises:
-            ValueError: if ``self.status`` is not ``PROPOSED`` or ``PENDING``.
+            StateTransitionError: if ``self.status`` is not ``PROPOSED`` or
+                ``PENDING``. This is the fail-hard-low guard: expiry is only
+                legal from those two states, and an illegal source state
+                raises immediately rather than being silently applied.
         """
         if self.status not in (Match.Status.PROPOSED, Match.Status.PENDING):
-            raise ValueError(
-                f"Cannot expire match pk={self.pk}: status is {self.status!r}, "
-                f"expected PROPOSED or PENDING."
+            raise StateTransitionError(
+                current=self.status,
+                proposed=Match.Status.EXPIRED,
+                obj=self,
             )
         self.status = Match.Status.EXPIRED
         return self

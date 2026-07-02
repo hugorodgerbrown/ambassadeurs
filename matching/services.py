@@ -34,20 +34,25 @@
 #
 # expire_lapsed_matches is the periodic sweep entry point (VERB-100): given a
 # cutoff, it fetches the lapsed candidate pks and, per match, locks the row and
-# delegates to expire_match for the actual transition. expire_match re-checks
-# the idempotency guard, transitions the match to EXPIRED (via the Match.expire
-# model method) and records the transition, then calls
-# handle_lapsed_participants, which fans out to handle_lapsed_participant for
-# each side. A kept-faith party (already accepted) re-queues to the front
-# (requeue_to_front) and is sent a re-queued notification; a non-responder is
-# paused (pause_registration) and sent a window-expired notification — both
-# emails queued via transaction.on_commit. This is the model/service boundary
-# established for the expiry transition (docs/decisions/0017): model methods
-# (Match.expire, Registration.pause, Registration.requeue_to_front) mutate only
-# their own in-memory state and never save; service functions own the lock,
-# save, record_transition, cross-object coordination, and email dispatch. The
-# other four transitions (accept, decline, withdraw-acceptance, report-no-show)
-# will be refactored to the same shape in follow-up tickets.
+# delegates to expire_match for the actual transition. expire_match transitions
+# the match to EXPIRED (via the Match.expire model method) and records the
+# transition, then calls handle_lapsed_participants, which fans out to
+# handle_lapsed_participant for each side. A kept-faith party (already
+# accepted) re-queues to the front (requeue_to_front, delegating to the
+# Registration.requeue model method) and is sent a re-queued notification; a
+# non-responder is paused (pause_registration, delegating to Registration.pause)
+# and sent a window-expired notification — both emails queued via
+# transaction.on_commit. This is the model/service boundary established for
+# the expiry transition (docs/decisions/0017): model methods (Match.expire,
+# Registration.pause, Registration.requeue) validate their own source state
+# and raise core.exceptions.StateTransitionError on an illegal transition
+# (fail hard, low in the stack) rather than saving; they never save, touch
+# another object, or fire a side effect. Service functions own the lock, save,
+# record_transition, cross-object coordination, and email dispatch, and do not
+# re-check the state conditions the model methods already guard (catch high,
+# not double-check). The other four transitions (accept, decline,
+# withdraw-acceptance, report-no-show) will be refactored to the same shape in
+# follow-up tickets.
 #
 # pause_registration (VERB-74 / ADR 0013) replaces requeue_to_back and
 # record_flake_and_requeue. Decline or non-response → PAUSED; the two-strike
@@ -99,6 +104,7 @@ from billing.services.payments import (
     refund,
 )
 from core.emails import normalise_email
+from core.exceptions import StateTransitionError
 from core.services import record_transition
 
 from .models import Match, Registration
@@ -325,13 +331,13 @@ def requeue_to_front(registration: Registration) -> None:
     Not a penalty — priority is only adjusted here, never on pause.
 
     Runs inside a transaction with a SELECT FOR UPDATE to prevent lost updates.
-    The pure mutation is delegated to ``Registration.requeue_to_front`` (model
-    logic, VERB-100); this function owns the lock, save, and in-memory sync of
-    the passed-in instance.
+    The pure mutation is delegated to ``Registration.requeue`` (model logic,
+    VERB-100); this function owns the lock, save, and in-memory sync of the
+    passed-in instance. ``priority=1`` is the front-of-queue amount.
     """
     with transaction.atomic():
         locked = Registration.objects.select_for_update().get(pk=registration.pk)
-        locked.requeue_to_front().save(update_fields=["status", "priority"])
+        locked.requeue(priority=1).save(update_fields=["status", "priority"])
         registration.status = locked.status
         registration.priority = locked.priority
     logger.info(
@@ -938,7 +944,7 @@ def handle_lapsed_participants(match: Match) -> None:
     )
 
 
-def expire_match(match: Match) -> bool:
+def expire_match(match: Match) -> None:
     """Transition one already-locked, lapsed match to EXPIRED and re-queue.
 
     Orchestration for a single match: must be called with ``match`` already
@@ -946,35 +952,25 @@ def expire_match(match: Match) -> bool:
     block (see ``expire_lapsed_matches``, which owns the lock and per-match
     exception isolation).
 
-    Re-checks the idempotency guard (another worker or an accept/decline may
-    have already changed the status since the candidate PK was selected): if
-    ``match.status`` is not PROPOSED or PENDING, logs at debug and returns
-    False without mutating anything.
-
-    Otherwise, transitions the match to EXPIRED via the ``Match.expire`` model
-    method, persists it, records the transition, and calls
+    Transitions the match to EXPIRED via the ``Match.expire`` model method,
+    persists it, records the transition, and calls
     ``handle_lapsed_participants`` to apply the per-side re-queue/pause outcome.
+
+    ``Match.expire()`` is the single guard on the source state — it validates
+    ``match.status`` itself and raises ``StateTransitionError`` (fail hard,
+    low in the stack) if the match is not PROPOSED or PENDING. This function
+    does not re-check the condition; the caller (``expire_lapsed_matches``)
+    catches ``StateTransitionError`` to treat an already-transitioned match
+    (a benign concurrency race) as a skip.
 
     Args:
         match: The locked, candidate match to expire.
 
-    Returns:
-        True if the match was transitioned to EXPIRED; False if it was skipped
-        (already in a terminal or otherwise non-expirable state).
+    Raises:
+        StateTransitionError: propagated from ``Match.expire`` if the match is
+            not PROPOSED or PENDING.
     """
-    if match.status not in (Match.Status.PROPOSED, Match.Status.PENDING):
-        logger.debug(
-            "Skipping match pk=%s: status=%r (expected PROPOSED/PENDING)",
-            match.pk,
-            match.status,
-        )
-        return False
-
     status_before = match.status
-    # The guard above already confirms status is PROPOSED or PENDING, so
-    # Match.expire()'s own ValueError guard is unreachable from this caller —
-    # it exists for callers that invoke the model method directly, without
-    # first checking status themselves.
     match.expire().save(update_fields=["status", "updated_at"])
     record_transition(
         match,
@@ -997,7 +993,6 @@ def expire_match(match: Match) -> bool:
         match.referee_registration.pk,
         match.referee_accepted_at is not None,
     )
-    return True
 
 
 def expire_lapsed_matches(cutoff: datetime) -> int:
@@ -1006,13 +1001,20 @@ def expire_lapsed_matches(cutoff: datetime) -> int:
     Selects candidate PKs up front (``Match.objects.lapsed(cutoff=cutoff)``),
     then processes each match in its own ``transaction.atomic()`` block with a
     ``select_for_update()`` lock so that one bad match does not abort the whole
-    sweep. The per-match orchestration (idempotency re-check, the EXPIRED
-    transition, and the per-side re-queue/pause outcome) is delegated to
-    ``expire_match``.
+    sweep. The per-match orchestration (the EXPIRED transition and the
+    per-side re-queue/pause outcome) is delegated to ``expire_match``.
 
     ``cutoff`` is the tz-aware "now" the caller has read (inversion of
     control, VERB-100) — see ``matching.management.commands.expire_matches``,
     which passes ``timezone.now()``.
+
+    Two exception paths, fail-hard-low / catch-high (ADR 0017):
+    - ``StateTransitionError`` is the benign, expected race — another worker
+      or an accept/decline changed the match's status between the candidate
+      PK query and this loop's lock. Logged at debug and skipped without
+      counting as a failure.
+    - Any other exception is a real failure: logged at error level (with
+      traceback) and skipped, so one bad match does not abort the sweep.
 
     Args:
         cutoff: The tz-aware instant to treat as "now" for the lapsed-match query.
@@ -1033,8 +1035,10 @@ def expire_lapsed_matches(cutoff: datetime) -> int:
                     .select_related("ambassador_registration", "referee_registration")
                     .get(pk=pk)
                 )
-                if expire_match(match):
-                    expired_count += 1
+                expire_match(match)
+                expired_count += 1
+        except StateTransitionError as exc:
+            logger.debug("Skipping match pk=%s: no longer expirable (%s)", pk, exc)
         except Exception:
             logger.exception("Error expiring match pk=%s; skipping", pk)
 

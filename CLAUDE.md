@@ -432,6 +432,6 @@ feature docs are written:
 | Flaking / priority handling | [ADR 0007](docs/decisions/0007-post-match-confirmation-workflow.md) |
 | Authentication (magic-link login) | [ADR 0012](docs/decisions/0012-magic-link-login.md) |
 | Lighthouse audits (CI, thresholds, baseline) | [`docs/lighthouse.md`](docs/lighthouse.md) |
-| Internationalisation | _to be written_ |
+| Internationalisation (catalogues compiled at deploy) | [ADR 0015](docs/decisions/0015-compile-message-catalogues-at-deploy.md) |
 | Deployment (Render single-service) | _to be written_ |
 | Linear workflow (full lifecycle) | _to be written_ |

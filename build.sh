@@ -69,5 +69,13 @@ else
 fi
 # ---------------------------------------------------------------------------
 
+# Compile the gettext catalogues to .mo. Committed sources are .po only (*.mo is
+# gitignored), so without this step no compiled catalogue ships and Django serves
+# the untranslated English source for every locale — French included. Requires
+# the gettext `msgfmt` binary, present in Render's native Python build image.
+# Shared build.sh means the crons compile too, so their notification emails stay
+# translated.
+uv run python manage.py compilemessages -l en -l fr
+
 uv run python manage.py collectstatic --no-input
 uv run python manage.py migrate

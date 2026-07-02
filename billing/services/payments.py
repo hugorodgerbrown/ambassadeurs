@@ -97,7 +97,7 @@ def capture(
         InvalidPaymentTransition: if ``payment.status != HELD``.
     """
     with transaction.atomic():
-        locked = Payment.objects.select_for_update().get(pk=payment.pk)
+        locked: Payment = Payment.objects.select_for_update().get(pk=payment.pk)
         if locked.status != Payment.Status.HELD:
             raise InvalidPaymentTransition(
                 f"Cannot capture payment pk={payment.pk}: status is "
@@ -138,7 +138,7 @@ def forfeit(
         InvalidPaymentTransition: if ``payment.status != HELD``.
     """
     with transaction.atomic():
-        locked = Payment.objects.select_for_update().get(pk=payment.pk)
+        locked: Payment = Payment.objects.select_for_update().get(pk=payment.pk)
         if locked.status != Payment.Status.HELD:
             raise InvalidPaymentTransition(
                 f"Cannot forfeit payment pk={payment.pk}: status is "
@@ -176,7 +176,7 @@ def refund(payment: Payment, *, reason: Payment.Reason) -> Payment:
         InvalidPaymentTransition: if ``payment.status != HELD``.
     """
     with transaction.atomic():
-        locked = Payment.objects.select_for_update().get(pk=payment.pk)
+        locked: Payment = Payment.objects.select_for_update().get(pk=payment.pk)
         if locked.status != Payment.Status.HELD:
             raise InvalidPaymentTransition(
                 f"Cannot refund payment pk={payment.pk}: status is "

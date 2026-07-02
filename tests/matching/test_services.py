@@ -1076,22 +1076,24 @@ def test_requeue_to_front_syncs_in_memory_instance() -> None:
     assert reg.priority == 6
 
 
-def test_requeue_to_front_lost_update_guard() -> None:
-    """requeue_to_front reads the locked DB row, not the stale instance.
+def test_requeue_to_front_uses_in_memory_priority_not_db() -> None:
+    """requeue_to_front increments the in-memory priority; no row lock (VERB-106).
 
-    The DB priority is 5 but the in-memory instance is stale at 0. The
-    increment must be computed from the locked row (5 → 6), not the stale 0.
+    The DB priority is 5 but the passed-in instance carries a diverged 0. With
+    the optimistic lock / re-fetch removed, the increment is computed from the
+    in-memory value (0 → 1) and written straight to the row.
     """
     reg = RegistrationFactory.create(
         status=Registration.Status.VERIFIED,
         priority=5,  # DB value is 5
     )
-    reg.priority = 0  # stale — must NOT be used by the service
+    reg.priority = 0  # in-memory divergence — this is what the service now uses
 
     requeue_to_front(reg)
 
+    assert reg.priority == 1
     reg.refresh_from_db()
-    assert reg.priority == 6
+    assert reg.priority == 1
 
 
 # ---------------------------------------------------------------------------

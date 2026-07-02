@@ -35,8 +35,8 @@
 # (PENDING → PROPOSED) — and a transition log row is written.
 #
 # expire_lapsed_matches is the periodic sweep entry point (VERB-100): given a
-# cutoff, it fetches the lapsed candidate pks and, per match, locks the row and
-# delegates to expire_match for the actual transition. expire_match transitions
+# cutoff, it fetches the lapsed candidate pks and, per match, delegates to
+# expire_match for the actual transition. expire_match transitions
 # the match to EXPIRED (via the Match.expire model method) and records the
 # transition, then calls handle_lapsed_participants, which fans out to
 # handle_lapsed_participant for each side. A kept-faith party (already
@@ -50,9 +50,17 @@
 # own source state and raise core.exceptions.StateTransitionError on an
 # illegal transition (fail hard, low in the stack) rather than saving; they
 # never save, touch another object, or fire a side effect. Service functions
-# own the lock, save, record_transition, cross-object coordination, and email
+# own the save, record_transition, cross-object coordination, and email
 # dispatch, and do not re-check the state conditions the model methods
-# already guard (catch high, not double-check). All five match transitions now
+# already guard (catch high, not double-check). The optimistic row lock
+# (select_for_update) these helpers once took has been dropped (VERB-106):
+# concurrent writers on the same registration/match are rare enough that an
+# occasional lost update is cheaper to reconcile by hand than to serialise
+# against, and the model methods' StateTransitionError guard still rejects an
+# illegal transition. The helpers now mutate the caller's instance directly (no
+# lock, no re-fetch, no sync-back). The matching engine (propose_match) keeps
+# its candidate-pool lock — that guards the 1:1 invariant, not a state
+# transition. See docs/decisions/0018. All five match transitions now
 # follow this shape: expire (Match.expire, VERB-100), accept (Match.accept,
 # VERB-101), decline (Match.decline, VERB-102), withdraw-acceptance
 # (Match.withdraw_acceptance, VERB-103), and no-show/cancel (Match.cancel plus
@@ -334,16 +342,13 @@ def requeue_to_front(registration: Registration) -> None:
     already accepted (or the window lapsed without action from the other side).
     Not a penalty — priority is only adjusted here, never on pause.
 
-    Runs inside a transaction with a SELECT FOR UPDATE to prevent lost updates.
     The pure mutation is delegated to ``Registration.requeue`` (model logic,
-    VERB-100); this function owns the lock, save, and in-memory sync of the
-    passed-in instance. ``priority=1`` is the front-of-queue amount.
+    VERB-100); this function persists it. No row lock is taken (VERB-106): the
+    mutation is applied directly to the passed-in instance, so ``priority += 1``
+    is computed from its in-memory value. ``priority=1`` is the front-of-queue
+    amount.
     """
-    with transaction.atomic():
-        locked = Registration.objects.select_for_update().get(pk=registration.pk)
-        locked.requeue(priority=1).save(update_fields=["status", "priority"])
-        registration.status = locked.status
-        registration.priority = locked.priority
+    registration.requeue(priority=1).save(update_fields=["status", "priority"])
     logger.info(
         "Re-queued registration pk=%s to front (priority=%s)",
         registration.pk,
@@ -364,15 +369,12 @@ def pause_registration(registration: Registration) -> None:
     ``record_flake_and_requeue`` (non-response path). The two-strike flake
     model is retired.
 
-    Runs inside a transaction with a SELECT FOR UPDATE to prevent lost updates.
     The pure mutation is delegated to ``Registration.pause`` (model logic,
-    VERB-100); this function owns the lock, save, and in-memory sync of the
-    passed-in instance.
+    VERB-100), which guards its own source state (VERIFIED only); this function
+    persists it. No row lock is taken (VERB-106): the mutation is applied
+    directly to the passed-in instance.
     """
-    with transaction.atomic():
-        locked = Registration.objects.select_for_update().get(pk=registration.pk)
-        locked.pause().save(update_fields=["status"])
-        registration.status = locked.status
+    registration.pause().save(update_fields=["status"])
     logger.info(
         "Paused registration pk=%s (out of pool; may self-rejoin)",
         registration.pk,
@@ -382,9 +384,11 @@ def pause_registration(registration: Registration) -> None:
 def rejoin_queue(registration: Registration) -> None:
     """Transition a PAUSED registration back to VERIFIED and attempt matching.
 
-    Mirrors ``confirm_registration``: uses ``select_for_update`` inside an
-    atomic block for concurrency safety. If the registration is not PAUSED the
-    function is a no-op (idempotent guard). On success:
+    Mirrors ``confirm_registration``: runs inside ``transaction.atomic()``
+    because ``propose_match`` must (it holds the candidate-pool lock). No lock
+    is taken on the registration row itself (VERB-106): the status guard and
+    mutation act on the passed-in instance directly. If the registration is not
+    PAUSED the function is a no-op (idempotent guard). On success:
       - status → VERIFIED
       - priority -= 1 (one step toward the back each time they re-enter)
       - ``propose_match`` is called to attempt an immediate pairing
@@ -396,22 +400,18 @@ def rejoin_queue(registration: Registration) -> None:
         registration: The registration to re-activate.
     """
     with transaction.atomic():
-        locked = Registration.objects.select_for_update().get(pk=registration.pk)
-        if locked.status != Registration.Status.PAUSED:
+        if registration.status != Registration.Status.PAUSED:
             logger.info(
                 "rejoin_queue called on non-PAUSED registration pk=%s "
                 "(status=%s); no-op.",
                 registration.pk,
-                locked.status,
+                registration.status,
             )
-            registration.status = locked.status
             return
 
-        locked.status = Registration.Status.VERIFIED
-        locked.priority -= 1
-        locked.save(update_fields=["status", "priority"])
-        registration.status = locked.status
-        registration.priority = locked.priority
+        registration.status = Registration.Status.VERIFIED
+        registration.priority -= 1
+        registration.save(update_fields=["status", "priority"])
 
         propose_match(registration)
 
@@ -507,16 +507,12 @@ def suspend_for_no_show(registration: Registration) -> None:
     Sets status=SUSPENDED. The two-strike flake model is retired (VERB-74); a
     no-show report suspends unconditionally with a single step.
 
-    Runs inside a transaction with a SELECT FOR UPDATE to prevent lost updates.
     The pure mutation is delegated to ``Registration.suspend`` (model logic,
     VERB-104 / ADR 0017), which guards its own source state (VERIFIED only);
-    this function owns the lock, save, and in-memory sync of the passed-in
-    instance.
+    this function persists it. No row lock is taken (VERB-106): the mutation is
+    applied directly to the passed-in instance.
     """
-    with transaction.atomic():
-        locked = Registration.objects.select_for_update().get(pk=registration.pk)
-        locked.suspend().save(update_fields=["status"])
-        registration.status = locked.status
+    registration.suspend().save(update_fields=["status"])
     logger.info(
         "Suspended registration pk=%s for post-accept no-show",
         registration.pk,
@@ -730,9 +726,10 @@ def decline_match(match: Match, registration: Registration) -> Match:
 
     All three steps run inside a single outer ``transaction.atomic()`` block so
     that a crash between steps cannot leave a partial state (e.g. match DECLINED
-    but decliner still VERIFIED). The inner atomics in ``record_decline``,
-    ``pause_registration``, and ``requeue_to_front`` nest via savepoints —
-    mirroring the pattern used in ``expire_lapsed_matches``.
+    but decliner still VERIFIED). ``record_decline`` opens its own nested atomic
+    (a savepoint); ``pause_registration`` and ``requeue_to_front`` apply their
+    single-row mutation directly within the outer block (no inner lock —
+    VERB-106).
 
     Args:
         match: The match being declined.
@@ -864,31 +861,30 @@ def register_participant(
 def confirm_registration(registration: Registration) -> Registration:
     """Transition an UNVERIFIED registration to VERIFIED and trigger matching.
 
-    Runs inside ``transaction.atomic()`` with a ``select_for_update()`` to
-    prevent duplicate confirms under concurrency. If the registration is not
-    UNVERIFIED (already confirmed, or an invalid state), the function is a
-    no-op and returns the unchanged row — the caller is responsible for treating
-    a non-UNVERIFIED result as an invalid/used token.
+    Runs inside ``transaction.atomic()`` because ``propose_match`` must (it
+    holds the candidate-pool lock). No lock is taken on the registration row
+    itself (VERB-106): the status guard and mutation act on the passed-in
+    instance directly. If the registration is not UNVERIFIED (already confirmed,
+    or an invalid state), the function is a no-op and returns the unchanged row
+    — the caller is responsible for treating a non-UNVERIFIED result as an
+    invalid/used token.
 
     After the status flip, ``propose_match`` is called to attempt an immediate
-    pairing. The in-memory instance is synced and returned.
+    pairing. The instance is returned.
     """
     with transaction.atomic():
-        locked = Registration.objects.select_for_update().get(pk=registration.pk)
-        if locked.status != Registration.Status.UNVERIFIED:
+        if registration.status != Registration.Status.UNVERIFIED:
             # Already confirmed or in an unexpected state; no-op.
             logger.info(
                 "confirm_registration called on non-UNVERIFIED registration pk=%s "
                 "(status=%s); no-op.",
                 registration.pk,
-                locked.status,
+                registration.status,
             )
-            registration.status = locked.status
             return registration
 
-        locked.status = Registration.Status.VERIFIED
-        locked.save(update_fields=["status", "updated_at"])
-        registration.status = locked.status
+        registration.status = Registration.Status.VERIFIED
+        registration.save(update_fields=["status", "updated_at"])
 
         propose_match(registration)
 
@@ -954,9 +950,9 @@ def expire_match(match: Match) -> None:
     """Transition one already-locked, lapsed match to EXPIRED and re-queue.
 
     Orchestration for a single match: must be called with ``match`` already
-    fetched under ``select_for_update()`` inside an outer ``transaction.atomic()``
-    block (see ``expire_lapsed_matches``, which owns the lock and per-match
-    exception isolation).
+    fetched inside an outer ``transaction.atomic()`` block (see
+    ``expire_lapsed_matches``, which owns the per-match exception isolation). No
+    row lock is taken (VERB-106).
 
     Transitions the match to EXPIRED via the ``Match.expire`` model method,
     persists it, records the transition, and calls
@@ -1005,10 +1001,12 @@ def expire_lapsed_matches(cutoff: datetime) -> int:
     """Expire all PROPOSED or PENDING matches past their contact window.
 
     Selects candidate PKs up front (``Match.objects.lapsed(cutoff=cutoff)``),
-    then processes each match in its own ``transaction.atomic()`` block with a
-    ``select_for_update()`` lock so that one bad match does not abort the whole
-    sweep. The per-match orchestration (the EXPIRED transition and the
-    per-side re-queue/pause outcome) is delegated to ``expire_match``.
+    then processes each match in its own ``transaction.atomic()`` block so that
+    one bad match does not abort the whole sweep. No row lock is taken
+    (VERB-106): a concurrent accept/decline racing the sweep is handled by the
+    ``StateTransitionError`` catch below, not by serialising on the row. The
+    per-match orchestration (the EXPIRED transition and the per-side
+    re-queue/pause outcome) is delegated to ``expire_match``.
 
     ``cutoff`` is the tz-aware "now" the caller has read (inversion of
     control, VERB-100) — see ``matching.management.commands.expire_matches``,
@@ -1017,7 +1015,7 @@ def expire_lapsed_matches(cutoff: datetime) -> int:
     Two exception paths, fail-hard-low / catch-high (ADR 0017):
     - ``StateTransitionError`` is the benign, expected race — another worker
       or an accept/decline changed the match's status between the candidate
-      PK query and this loop's lock. Logged at debug and skipped without
+      PK query and this loop's fetch. Logged at debug and skipped without
       counting as a failure.
     - Any other exception is a real failure: logged at error level (with
       traceback) and skipped, so one bad match does not abort the sweep.
@@ -1036,11 +1034,9 @@ def expire_lapsed_matches(cutoff: datetime) -> int:
     for pk in candidate_pks:
         try:
             with transaction.atomic():
-                match = (
-                    Match.objects.select_for_update()
-                    .select_related("ambassador_registration", "referee_registration")
-                    .get(pk=pk)
-                )
+                match = Match.objects.select_related(
+                    "ambassador_registration", "referee_registration"
+                ).get(pk=pk)
                 expire_match(match)
                 expired_count += 1
         except StateTransitionError as exc:
@@ -1203,8 +1199,9 @@ def withdraw_acceptance(match: Match, registration: Registration) -> Match:
     field mutations are delegated to the ``Match.withdraw_acceptance`` model
     method (model logic, VERB-103 / ADR 0017), which raises
     ``StateTransitionError`` on an illegal source state (fail hard, low in the
-    stack). This function does not re-check those conditions; it owns the lock,
-    save, and audit-log row. Both ``*_accepted_at`` fields are listed in
+    stack). This function does not re-check those conditions; it owns the save
+    and audit-log row. No row lock is taken (VERB-106); it acts on the passed-in
+    match instance directly. Both ``*_accepted_at`` fields are listed in
     ``update_fields`` (only one is ever changed) to keep the persistence
     boundary independent of which side withdrew.
 
@@ -1221,12 +1218,6 @@ def withdraw_acceptance(match: Match, registration: Registration) -> Match:
             accepted (nothing to withdraw).
     """
     with transaction.atomic():
-        match = (
-            Match.objects.select_for_update()
-            .select_related("ambassador_registration", "referee_registration")
-            .get(pk=match.pk)
-        )
-
         status_before = match.status
         match.withdraw_acceptance(registration).save(
             update_fields=[
@@ -1289,12 +1280,6 @@ def record_acceptance(match: Match, registration: Registration) -> Match:
             ``match.status`` is not ``PROPOSED`` or ``PENDING``.
     """
     with transaction.atomic():
-        match = (
-            Match.objects.select_for_update()
-            .select_related("ambassador_registration", "referee_registration")
-            .get(pk=match.pk)
-        )
-
         status_before = match.status
         match.accept(registration)
         match.save(
@@ -1382,15 +1367,6 @@ def report_no_show(match: Match, registration: Registration) -> Match:
             been reported on this match (first-report-wins).
     """
     with transaction.atomic():
-        match = (
-            Match.objects.select_for_update()
-            .select_related(
-                "ambassador_registration__user",
-                "referee_registration__user",
-            )
-            .get(pk=match.pk)
-        )
-
         side = match.side_of(registration)
         # Both FKs are non-null on ACCEPTED matches; assertions satisfy mypy.
         assert match.ambassador_registration is not None
@@ -1510,7 +1486,8 @@ def record_decline(match: Match, registration: Registration) -> Match:
     ``Match.decline`` model method (model logic, VERB-102 / ADR 0017), which
     validates ``match.status`` itself and raises ``StateTransitionError`` on an
     illegal source state (fail hard, low in the stack). This function does not
-    re-check that condition; it owns the lock, save, and audit-log row.
+    re-check that condition; it owns the save and audit-log row. No row lock is
+    taken (VERB-106); it acts on the passed-in match instance directly.
 
     NOTE: pausing the decliner's registration and re-queuing the other party
     are **not** done here; they belong to ``decline_match``. This function
@@ -1530,8 +1507,6 @@ def record_decline(match: Match, registration: Registration) -> Match:
             ``match.status`` is not ``PROPOSED`` or ``PENDING``.
     """
     with transaction.atomic():
-        match = Match.objects.select_for_update().get(pk=match.pk)
-
         status_before = match.status
         match.decline(registration).save(
             update_fields=[

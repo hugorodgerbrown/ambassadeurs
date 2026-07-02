@@ -15,6 +15,8 @@
       queue_position        — 1-based queue ordinal, or None (VERIFIED copy)
       can_rejoin            — True when status is PAUSED and there is no active
                               match; controls the "Rejoin the queue" button
+      can_cancel            — True under the same condition as can_rejoin;
+                              controls the "Cancel & refund" link (VERB-88)
 
     Match progress (proposed/pending/accepted) is derived from match_state, NOT
     from registration.status (VERB-44 / ADR 0011). registration.status reflects
@@ -86,6 +88,16 @@
                         </button>
                     </form>
                 {% endif %}
+                {% if can_cancel %}
+                    <div class="mt-4">
+                        <a
+                            href="{% url 'accounts:delete' %}"
+                            class="btn btn--ghost border-danger text-danger hover:border-danger"
+                        >
+                            {% translate "Cancel & refund" %}
+                        </a>
+                    </div>
+                {% endif %}
             {% elif registration.status == 'WITHDRAWN' %}
                 {% blocktranslate trimmed %}
                     Your registration has been withdrawn.
@@ -94,6 +106,15 @@
                 {% blocktranslate trimmed %}
                     Your registration has been suspended. Contact support if you think this is an error.
                 {% endblocktranslate %}
+                {# SUSPENDED implies no active match — no guard #}
+                <div class="mt-4">
+                    <a
+                        href="{% url 'accounts:delete' %}"
+                        class="btn btn--ghost border-danger text-danger hover:border-danger"
+                    >
+                        {% translate "Close account" %}
+                    </a>
+                </div>
             {% else %}
                 {{ registration.get_status_display }}
             {% endif %}

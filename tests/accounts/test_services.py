@@ -3,17 +3,51 @@
 # Email content assertions check only structural facts (recipient, URL present,
 # non-empty subject) — not translated string literals — because the test env
 # compiles no .mo catalogues and gettext falls back to the English source.
+#
+# delete_account tests (VERB-88) mock stripe.Refund.create — no test in this
+# module makes a real network call.
+
+from typing import Any
 
 import pytest
+import stripe
+from django.contrib.auth.models import User
 from django.core import mail
 from django.test import RequestFactory, override_settings
 
-from accounts.services import send_confirmation_email, send_login_email, update_account
+from accounts.services import (
+    delete_account,
+    send_confirmation_email,
+    send_login_email,
+    update_account,
+)
+from billing.models import Payment
+from billing.services.payments import InvalidPaymentTransition
 from matching.models import Registration
 from tests.accounts.factories import UserFactory
+from tests.billing.factories import PaymentFactory
 from tests.matching.factories import RegistrationFactory
 
 pytestmark = pytest.mark.django_db
+
+
+class _FakeRefund:
+    """Minimal stand-in for a stripe.Refund object."""
+
+    def __init__(self, refund_id: str = "re_test0001") -> None:
+        self.id = refund_id
+
+
+def _mock_refund_create(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    """Monkeypatch stripe.Refund.create and return the list of call kwargs."""
+    calls: list[dict[str, Any]] = []
+
+    def _fake_create(**kwargs: Any) -> _FakeRefund:
+        calls.append(kwargs)
+        return _FakeRefund()
+
+    monkeypatch.setattr(stripe.Refund, "create", _fake_create)
+    return calls
 
 
 def test_update_account_saves_name_on_user() -> None:
@@ -219,3 +253,173 @@ def test_send_confirmation_email_referee_body_mentions_ambassador() -> None:
 
     # The EN source string mentions "Ambassador" in the referee copy.
     assert "Ambassador" in mail.outbox[0].body
+
+
+# ---------------------------------------------------------------------------
+# delete_account (VERB-88 — refund at the deletion chokepoint)
+# ---------------------------------------------------------------------------
+
+
+def test_delete_account_refunds_held_deposit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """delete_account refunds a HELD deposit before deleting the user."""
+    calls = _mock_refund_create(monkeypatch)
+    registration = RegistrationFactory.create()
+    payment = PaymentFactory.create(
+        registration=registration,
+        status=Payment.Status.HELD,
+        stripe_payment_intent_id="pi_test0001",
+    )
+    user = registration.user
+
+    delete_account(user)
+
+    assert len(calls) == 1
+    payment.refresh_from_db()
+    assert payment.status == Payment.Status.REFUNDED
+    assert payment.reason == Payment.Reason.USER_CANCELLED
+
+
+def test_delete_account_deletes_user_and_preserves_payment_audit_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """After delete_account, the User is gone but the Payment row survives (null FK)."""
+    _mock_refund_create(monkeypatch)
+    registration = RegistrationFactory.create()
+    payment = PaymentFactory.create(
+        registration=registration, status=Payment.Status.HELD
+    )
+    user_pk = registration.user.pk
+
+    delete_account(registration.user)
+
+    assert not User.objects.filter(pk=user_pk).exists()
+    payment.refresh_from_db()
+    assert payment.registration_id is None
+
+
+def test_delete_account_captured_deposit_is_not_refunded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A CAPTURED deposit (reached ACCEPTED) is untouched; the account still deletes."""
+    calls = _mock_refund_create(monkeypatch)
+    registration = RegistrationFactory.create()
+    payment = PaymentFactory.create(
+        registration=registration, status=Payment.Status.CAPTURED
+    )
+    user_pk = registration.user.pk
+
+    delete_account(registration.user)
+
+    assert calls == []
+    payment.refresh_from_db()
+    assert payment.status == Payment.Status.CAPTURED
+    assert not User.objects.filter(pk=user_pk).exists()
+
+
+def test_delete_account_forfeited_deposit_is_not_refunded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A FORFEITED deposit (no-show) is left untouched; the account still deletes."""
+    calls = _mock_refund_create(monkeypatch)
+    registration = RegistrationFactory.create()
+    payment = PaymentFactory.create(
+        registration=registration, status=Payment.Status.FORFEITED
+    )
+    user_pk = registration.user.pk
+
+    delete_account(registration.user)
+
+    assert calls == []
+    payment.refresh_from_db()
+    assert payment.status == Payment.Status.FORFEITED
+    assert not User.objects.filter(pk=user_pk).exists()
+
+
+def test_delete_account_free_tier_no_payment_deletes_cleanly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A registration with no Payment row (free tier) deletes with no refund attempt."""
+    calls = _mock_refund_create(monkeypatch)
+    registration = RegistrationFactory.create()
+    user_pk = registration.user.pk
+
+    delete_account(registration.user)
+
+    assert calls == []
+    assert not User.objects.filter(pk=user_pk).exists()
+
+
+def test_delete_account_admin_user_with_no_registration_deletes_cleanly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A User with no Registration (e.g. an admin) deletes with no refund attempt."""
+    calls = _mock_refund_create(monkeypatch)
+    user = UserFactory.create()
+    user_pk = user.pk
+
+    delete_account(user)
+
+    assert calls == []
+    assert not User.objects.filter(pk=user_pk).exists()
+
+
+def test_delete_account_refunds_exactly_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A sequential retry of the delete cannot double-refund the same payment.
+
+    ``refund()`` is guarded on ``status == HELD``. After ``delete_account``
+    refunds and deletes the account, the Payment survives via ``SET_NULL`` but
+    its registration is gone, so a subsequent ``delete_account`` for the (now
+    absent) user finds no HELD deposit and issues no second Stripe call. A
+    truly *concurrent* double-POST is covered by the InvalidPaymentTransition
+    race test below (the loser catches the benign exception).
+    """
+    calls = _mock_refund_create(monkeypatch)
+    registration = RegistrationFactory.create()
+    payment = PaymentFactory.create(
+        registration=registration,
+        status=Payment.Status.HELD,
+        stripe_payment_intent_id="pi_test0001",
+    )
+    user_pk = registration.user.pk
+
+    delete_account(registration.user)
+    assert len(calls) == 1
+    assert calls[0]["idempotency_key"] == f"refund-payment-{payment.pk}"
+
+    # A retried call against the same (now-deleted) user's registration finds
+    # no HELD deposit left to refund — the payment survives via SET_NULL, but
+    # it is no longer associated with any registration to look up from.
+    payment.refresh_from_db()
+    assert payment.status == Payment.Status.REFUNDED
+    assert not Registration.objects.filter(user_id=user_pk).exists()
+    assert len(calls) == 1
+
+
+def test_delete_account_proceeds_if_deposit_refunded_concurrently(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If close_season refunds the deposit first, deletion still succeeds.
+
+    ``refund()`` raises ``InvalidPaymentTransition`` when the payment is no
+    longer HELD (a concurrent ``close_season`` win). ``delete_account`` treats
+    that as benign — the money is already on its way back — and proceeds to
+    delete the account rather than 500 the mid-logout user.
+    """
+
+    def _raise(*args: object, **kwargs: object) -> None:
+        raise InvalidPaymentTransition("deposit already left HELD")
+
+    monkeypatch.setattr("accounts.services.refund", _raise)
+    registration = RegistrationFactory.create()
+    PaymentFactory.create(
+        registration=registration,
+        status=Payment.Status.HELD,
+        stripe_payment_intent_id="pi_test0002",
+    )
+    user_pk = registration.user.pk
+
+    delete_account(registration.user)
+
+    assert not User.objects.filter(pk=user_pk).exists()

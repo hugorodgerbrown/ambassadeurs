@@ -22,7 +22,7 @@
         {% for s in scenarios %}
             <div class="mb-8">
                 <p class="label mb-2">{{ s.label }}</p>
-                {% include "accounts/partials/match_status.html" with registration=s.registration status_pill=s.status_pill match_state=s.match_state partner_first_name=s.partner_first_name partner_accepted=s.partner_accepted queue_position=s.queue_position total_accepted_matches=s.total_accepted_matches %}
+                {% include "accounts/partials/match_status.html" with registration=s.registration status_pill=s.status_pill match_state=s.match_state partner_first_name=s.partner_first_name partner_accepted=s.partner_accepted queue_position=s.queue_position total_accepted_matches=s.total_accepted_matches can_rejoin=s.can_rejoin can_cancel=s.can_cancel %}
             </div>
         {% endfor %}
     </section>

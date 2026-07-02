@@ -2664,6 +2664,15 @@ def test_send_window_expired_notification_respects_preferred_language() -> None:
     assert mail.outbox[0].to == [reg.user.email]
 
 
+def test_send_window_expired_notification_offers_cancel_and_refund() -> None:
+    """The expiry email mentions cancelling for a refund (VERB-88)."""
+    reg = RegistrationFactory.create()
+    send_window_expired_notification(reg)
+    body = mail.outbox[0].body
+    assert "cancel" in body
+    assert "refund" in body
+
+
 # ---------------------------------------------------------------------------
 # send_requeued_notification (VERB-92)
 # ---------------------------------------------------------------------------

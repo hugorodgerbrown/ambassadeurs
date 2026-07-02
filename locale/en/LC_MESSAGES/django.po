@@ -218,6 +218,9 @@ msgid ""
 "\n"
 "%(url)s\n"
 "\n"
+"If you'd rather not wait, you can cancel from the same page and get any "
+"deposit you paid refunded.\n"
+"\n"
 "If you did not register for this programme, please ignore this email."
 msgstr ""
 
@@ -1673,4 +1676,16 @@ msgstr ""
 msgid ""
 "Stripe hasn't told us your payment succeeded yet. This can take a few "
 "seconds — check your account page shortly, or try again below."
+msgstr ""
+
+msgid "Cancel & refund"
+msgstr ""
+
+msgid "Close account"
+msgstr ""
+
+#, python-format
+msgid ""
+"Your registration deposit (%(amount)s CHF) will be refunded to your "
+"original payment method."
 msgstr ""

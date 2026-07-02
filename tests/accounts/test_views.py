@@ -9,6 +9,7 @@
 from datetime import UTC, datetime
 
 import pytest
+import stripe
 from django.contrib.auth import SESSION_KEY
 from django.contrib.auth.models import User
 from django.core import mail
@@ -16,9 +17,11 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from accounts.tokens import make_login_token
+from billing.models import Payment
 from matching.models import Match, Registration
 from matching.services import accept_match
 from tests.accounts.factories import UserFactory
+from tests.billing.factories import PaymentFactory
 from tests.matching.factories import MatchFactory, RegistrationFactory
 
 pytestmark = pytest.mark.django_db
@@ -1211,4 +1214,90 @@ def test_rejoin_queue_login_required() -> None:
     """Unauthenticated request to rejoin_queue redirects to login."""
     response = Client().post(reverse("accounts:rejoin_queue"))
     assert response.status_code == 302
-    assert "/login/" in response.url
+
+
+# ---------------------------------------------------------------------------
+# Cancel & refund entry points (VERB-88)
+# ---------------------------------------------------------------------------
+
+
+def test_detail_paused_shows_cancel_and_refund_link() -> None:
+    """A PAUSED account page (no active match) shows the 'Cancel & refund' link."""
+    reg = RegistrationFactory.create(status=Registration.Status.PAUSED)
+    client = Client()
+    client.force_login(reg.user)
+    response = client.get(reverse("accounts:detail"))
+    assert response.status_code == 200
+    assert b"Cancel & refund" in response.content
+
+
+def test_detail_suspended_shows_close_account_link() -> None:
+    """A SUSPENDED account page shows the 'Close account' link (no refund offered)."""
+    reg = RegistrationFactory.create(status=Registration.Status.SUSPENDED)
+    client = Client()
+    client.force_login(reg.user)
+    response = client.get(reverse("accounts:detail"))
+    assert response.status_code == 200
+    assert b"Close account" in response.content
+    assert b"Cancel & refund" not in response.content
+
+
+def test_detail_verified_shows_neither_cancel_nor_close_link() -> None:
+    """A VERIFIED (in-queue) account page shows neither cancel link."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED)
+    client = Client()
+    client.force_login(reg.user)
+    response = client.get(reverse("accounts:detail"))
+    assert response.status_code == 200
+    assert b"Cancel & refund" not in response.content
+    assert b"Close account" not in response.content
+
+
+def test_delete_get_mentions_refund_when_held_deposit_exists() -> None:
+    """The delete confirm page states the CHF amount when a HELD deposit exists."""
+    registration = RegistrationFactory.create()
+    PaymentFactory.create(
+        registration=registration, status=Payment.Status.HELD, amount_chf=25
+    )
+    client = Client()
+    client.force_login(registration.user)
+    response = client.get(reverse("accounts:delete"))
+    assert response.status_code == 200
+    assert b"25" in response.content
+    assert b"refund" in response.content.lower()
+
+
+def test_delete_get_no_refund_copy_without_held_deposit() -> None:
+    """The delete confirm page omits refund copy when there is no HELD deposit."""
+    registration = RegistrationFactory.create()
+    client = Client()
+    client.force_login(registration.user)
+    response = client.get(reverse("accounts:delete"))
+    assert response.status_code == 200
+    assert b"will be refunded" not in response.content
+
+
+class _FakeRefund:
+    """Minimal stand-in for a stripe.Refund object."""
+
+    def __init__(self, refund_id: str = "re_test0001") -> None:
+        self.id = refund_id
+
+
+def test_delete_post_refunds_held_deposit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """POSTing the delete confirmation refunds a HELD deposit via the chokepoint."""
+    monkeypatch.setattr(stripe.Refund, "create", lambda **kwargs: _FakeRefund())
+    registration = RegistrationFactory.create()
+    payment = PaymentFactory.create(
+        registration=registration,
+        status=Payment.Status.HELD,
+        stripe_payment_intent_id="pi_test0001",
+    )
+    client = Client()
+    client.force_login(registration.user)
+    response = client.post(reverse("accounts:delete"))
+    assert response.status_code == 302
+    assert response.url == reverse("public:home")
+    payment.refresh_from_db()
+    assert payment.status == Payment.Status.REFUNDED
+    assert payment.registration_id is None

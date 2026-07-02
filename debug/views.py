@@ -439,6 +439,7 @@ def _match_status_scenario(
     queue_position: int | None = None,
     total_accepted_matches: int = 0,
     can_rejoin: bool = False,
+    can_cancel: bool = False,
 ) -> dict[str, object]:
     """Build one labelled render-context for the Match status partial.
 
@@ -450,7 +451,8 @@ def _match_status_scenario(
     way the real view derives it (``_match_status_pill``).
 
     ``can_rejoin`` mirrors the context variable injected by ``account_detail``
-    for the PAUSED state (VERB-74).
+    for the PAUSED state (VERB-74). ``can_cancel`` mirrors the equivalent flag
+    for the "Cancel & refund" link (VERB-88).
     """
     registration = (
         None
@@ -467,6 +469,7 @@ def _match_status_scenario(
         "queue_position": queue_position,
         "total_accepted_matches": total_accepted_matches,
         "can_rejoin": can_rejoin,
+        "can_cancel": can_cancel,
     }
 
 
@@ -527,9 +530,10 @@ def components(request: HttpRequest) -> HttpResponse:
             partner_first_name="Bernard",
         ),
         _match_status_scenario(
-            "Paused (can rejoin)",
+            "Paused (can rejoin / cancel)",
             status=Registration.Status.PAUSED,
             can_rejoin=True,
+            can_cancel=True,
         ),
         _match_status_scenario("Withdrawn", status=Registration.Status.WITHDRAWN),
         _match_status_scenario("Suspended", status=Registration.Status.SUSPENDED),

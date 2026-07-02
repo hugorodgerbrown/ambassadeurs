@@ -12,6 +12,13 @@
                 any queues. This cannot be undone.
             {% endblocktranslate %}
         </p>
+        {% if deposit_amount_chf is not None %}
+            <p class="mb-6 text-body">
+                {% blocktranslate trimmed with amount=deposit_amount_chf %}
+                    Your registration deposit ({{ amount }} CHF) will be refunded to your original payment method.
+                {% endblocktranslate %}
+            </p>
+        {% endif %}
 
         <form method="post">
             {% csrf_token %}

@@ -39,6 +39,7 @@ from django.shortcuts import redirect, render
 from django.utils.translation import gettext as _
 from django_ratelimit.decorators import ratelimit
 
+from billing.models import Payment
 from core.emails import normalise_email
 from core.ratelimit import rate_limited_response
 from matching.models import Match, Registration
@@ -223,6 +224,10 @@ def account_detail(request: HttpRequest) -> HttpResponse:
     ``email_verified`` is derived from the Registration status (not from the
     former allauth EmailAddress model, which has been removed in VERB-46).
     An admin user with no Registration is treated as unverified (False).
+
+    ``can_cancel`` (VERB-88) is True under the same condition as
+    ``can_rejoin`` (PAUSED, no active match); it drives the "Cancel & refund"
+    link on the account page.
     """
     user = cast(User, request.user)
     try:
@@ -303,6 +308,15 @@ def account_detail(request: HttpRequest) -> HttpResponse:
         and active_match is None
     )
 
+    # can_cancel — True under the same condition as can_rejoin (PAUSED, no
+    # active match). Drives the "Cancel & refund" link (VERB-88), which sits
+    # alongside "Rejoin the queue" on the account page.
+    can_cancel = (
+        registration is not None
+        and registration.status == Registration.Status.PAUSED
+        and active_match is None
+    )
+
     return render(
         request,
         "accounts/detail.html",
@@ -316,6 +330,7 @@ def account_detail(request: HttpRequest) -> HttpResponse:
             "partner_accepted": partner_accepted,
             "queue_position": position,
             "can_rejoin": can_rejoin,
+            "can_cancel": can_cancel,
         },
     )
 
@@ -392,14 +407,34 @@ def account_edit(request: HttpRequest) -> HttpResponse:
 
 @login_required
 def account_delete(request: HttpRequest) -> HttpResponse:
-    """Confirm (GET) and perform (POST) deletion of the participant's account."""
+    """Confirm (GET) and perform (POST) deletion of the participant's account.
+
+    ``delete_account`` (VERB-88) is the single deletion chokepoint — it
+    refunds any HELD deposit before deleting the user, so this view need not
+    know about billing beyond the confirm-page copy. The GET branch looks up
+    the same HELD deposit (read-only) so ``delete.html`` can tell the user
+    whether confirming will trigger a refund.
+    """
     if request.method == "POST":
         user = cast(User, request.user)
         auth_logout(request)
         delete_account(user)
         messages.success(request, _("Your account has been deleted."))
         return redirect("public:home")
-    return render(request, "accounts/delete.html")
+
+    user = cast(User, request.user)
+    registration = Registration.objects.filter(user=user).first()
+    deposit_amount_chf: int | None = None
+    if registration is not None:
+        deposit = Payment.objects.for_registration(registration).held().first()
+        if deposit is not None:
+            deposit_amount_chf = deposit.amount_chf
+
+    return render(
+        request,
+        "accounts/delete.html",
+        {"deposit_amount_chf": deposit_amount_chf},
+    )
 
 
 @login_required

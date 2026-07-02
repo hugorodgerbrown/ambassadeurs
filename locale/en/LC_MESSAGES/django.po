@@ -1595,3 +1595,40 @@ msgstr ""
 
 msgid "Start again"
 msgstr ""
+
+msgid "4 Vallées Ambassadors — registration deposit"
+msgstr ""
+
+#, python-format
+msgid ""
+"Your registration deposit (%(amount)s CHF) is still outstanding. Complete "
+"payment to enter the pool."
+msgstr ""
+
+msgid "Complete payment"
+msgstr ""
+
+msgid "Payment cancelled"
+msgstr ""
+
+msgid "Your payment was cancelled"
+msgstr ""
+
+msgid ""
+"No deposit has been taken. Your registration is not yet confirmed — you can "
+"pick up where you left off whenever you're ready."
+msgstr ""
+
+msgid "Try payment again"
+msgstr ""
+
+msgid "Payment pending"
+msgstr ""
+
+msgid "We're still confirming your payment"
+msgstr ""
+
+msgid ""
+"Stripe hasn't told us your payment succeeded yet. This can take a few "
+"seconds — check your account page shortly, or try again below."
+msgstr ""

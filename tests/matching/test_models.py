@@ -350,3 +350,250 @@ def test_set_status_no_acceptances_is_proposed() -> None:
     match.set_status()
 
     assert match.status == Match.Status.PROPOSED
+
+
+# ---------------------------------------------------------------------------
+# Match.decline() — pure, in-memory model method (VERB-102 / ADR 0017)
+# ---------------------------------------------------------------------------
+
+
+def test_decline_by_ambassador_sets_fields_and_returns_self() -> None:
+    """decline from PROPOSED sets declined_by/at, status=DECLINED, returns self."""
+    match = MatchFactory.create()
+
+    result = match.decline(match.ambassador_registration)
+
+    assert result is match
+    assert match.status == Match.Status.DECLINED
+    assert match.declined_by == Match.Side.AMBASSADOR
+    assert match.declined_at is not None
+
+
+def test_decline_by_referee_from_pending() -> None:
+    """decline is legal from PENDING and records the referee side."""
+    match = MatchFactory.create(pending=True)
+
+    result = match.decline(match.referee_registration)
+
+    assert result is match
+    assert match.status == Match.Status.DECLINED
+    assert match.declined_by == Match.Side.REFEREE
+
+
+def test_decline_does_not_persist() -> None:
+    """decline mutates only the in-memory instance; it never saves."""
+    match = MatchFactory.create()
+
+    match.decline(match.ambassador_registration)
+
+    fresh = Match.objects.get(pk=match.pk)
+    assert fresh.status == Match.Status.PROPOSED
+    assert fresh.declined_by == ""
+
+
+@pytest.mark.parametrize("trait", ["accepted", "declined", "cancelled"])
+def test_decline_raises_for_terminal_statuses(trait: str) -> None:
+    """decline raises StateTransitionError for ACCEPTED, DECLINED, CANCELLED."""
+    match = MatchFactory.create(**{trait: True})
+    status_before = match.status
+
+    with pytest.raises(StateTransitionError) as exc_info:
+        match.decline(match.ambassador_registration)
+
+    assert exc_info.value.current == status_before
+    assert exc_info.value.proposed == Match.Status.DECLINED
+    assert exc_info.value.obj is match
+
+
+def test_decline_raises_for_expired() -> None:
+    """decline raises StateTransitionError when the match is already EXPIRED."""
+    match = MatchFactory.create()
+    match.status = Match.Status.EXPIRED
+    match.save(update_fields=["status"])
+
+    with pytest.raises(StateTransitionError) as exc_info:
+        match.decline(match.ambassador_registration)
+
+    assert exc_info.value.current == Match.Status.EXPIRED
+    assert exc_info.value.proposed == Match.Status.DECLINED
+
+
+# ---------------------------------------------------------------------------
+# Match.withdraw_acceptance() — pure, in-memory model method
+# (VERB-103 / ADR 0017)
+# ---------------------------------------------------------------------------
+
+
+def test_withdraw_acceptance_by_ambassador_reverts_to_proposed() -> None:
+    """withdraw clears the ambassador timestamp and reverts PENDING → PROPOSED."""
+    # The pending trait populates ambassador_accepted_at only.
+    match = MatchFactory.create(pending=True)
+
+    result = match.withdraw_acceptance(match.ambassador_registration)
+
+    assert result is match
+    assert match.ambassador_accepted_at is None
+    assert match.status == Match.Status.PROPOSED
+
+
+def test_withdraw_acceptance_by_referee_reverts_to_proposed() -> None:
+    """withdraw clears the referee timestamp and reverts PENDING → PROPOSED."""
+    match = MatchFactory.create(
+        status=Match.Status.PENDING,
+        ambassador_accepted_at=None,
+        referee_accepted_at=datetime(2026, 9, 2, 10, 0, 0, tzinfo=UTC),
+    )
+
+    result = match.withdraw_acceptance(match.referee_registration)
+
+    assert result is match
+    assert match.referee_accepted_at is None
+    assert match.status == Match.Status.PROPOSED
+
+
+def test_withdraw_acceptance_does_not_persist() -> None:
+    """withdraw_acceptance mutates only the in-memory instance; it never saves."""
+    match = MatchFactory.create(pending=True)
+
+    match.withdraw_acceptance(match.ambassador_registration)
+
+    fresh = Match.objects.get(pk=match.pk)
+    assert fresh.status == Match.Status.PENDING
+    assert fresh.ambassador_accepted_at is not None
+
+
+@pytest.mark.parametrize("trait", ["accepted", "declined", "cancelled"])
+def test_withdraw_acceptance_raises_for_non_pending(trait: str) -> None:
+    """withdraw_acceptance raises StateTransitionError when not PENDING."""
+    match = MatchFactory.create(**{trait: True})
+    status_before = match.status
+
+    with pytest.raises(StateTransitionError) as exc_info:
+        match.withdraw_acceptance(match.ambassador_registration)
+
+    assert exc_info.value.current == status_before
+    assert exc_info.value.proposed == Match.Status.PROPOSED
+
+
+def test_withdraw_acceptance_raises_when_side_has_not_accepted() -> None:
+    """withdraw_acceptance raises when the calling side never accepted."""
+    # Only the ambassador has accepted; the referee has nothing to withdraw.
+    match = MatchFactory.create(pending=True)
+
+    with pytest.raises(StateTransitionError) as exc_info:
+        match.withdraw_acceptance(match.referee_registration)
+
+    assert exc_info.value.current == Match.Status.PENDING
+    assert exc_info.value.proposed == Match.Status.PROPOSED
+
+
+# ---------------------------------------------------------------------------
+# Match.cancel() — pure, in-memory model method (VERB-104 / ADR 0017)
+# ---------------------------------------------------------------------------
+
+
+def test_cancel_sets_fields_and_returns_self() -> None:
+    """cancel from ACCEPTED records the reporter and sets status=CANCELLED."""
+    match = MatchFactory.create(accepted=True)
+
+    result = match.cancel(match.ambassador_registration)
+
+    assert result is match
+    assert match.status == Match.Status.CANCELLED
+    assert match.no_show_reported_by == Match.Side.AMBASSADOR
+    assert match.no_show_reported_at is not None
+
+
+def test_cancel_does_not_persist() -> None:
+    """cancel mutates only the in-memory instance; it never saves."""
+    match = MatchFactory.create(accepted=True)
+
+    match.cancel(match.ambassador_registration)
+
+    fresh = Match.objects.get(pk=match.pk)
+    assert fresh.status == Match.Status.ACCEPTED
+    assert fresh.no_show_reported_by == ""
+
+
+@pytest.mark.parametrize("trait", ["pending", "declined"])
+def test_cancel_raises_for_non_accepted_statuses(trait: str) -> None:
+    """cancel raises StateTransitionError for non-ACCEPTED source states."""
+    match = MatchFactory.create(**{trait: True})
+    status_before = match.status
+
+    with pytest.raises(StateTransitionError) as exc_info:
+        match.cancel(match.ambassador_registration)
+
+    assert exc_info.value.current == status_before
+    assert exc_info.value.proposed == Match.Status.CANCELLED
+
+
+def test_cancel_raises_for_proposed() -> None:
+    """cancel raises StateTransitionError from the PROPOSED (default) state."""
+    match = MatchFactory.create()
+
+    with pytest.raises(StateTransitionError) as exc_info:
+        match.cancel(match.ambassador_registration)
+
+    assert exc_info.value.current == Match.Status.PROPOSED
+    assert exc_info.value.proposed == Match.Status.CANCELLED
+
+
+def test_cancel_raises_if_already_reported() -> None:
+    """cancel raises StateTransitionError if a no-show is already recorded."""
+    match = MatchFactory.create(
+        accepted=True,
+        no_show_reported_by=Match.Side.REFEREE,
+    )
+
+    with pytest.raises(StateTransitionError) as exc_info:
+        match.cancel(match.ambassador_registration)
+
+    assert exc_info.value.current == Match.Status.ACCEPTED
+    assert exc_info.value.proposed == Match.Status.CANCELLED
+
+
+# ---------------------------------------------------------------------------
+# Registration.suspend() — pure, in-memory model method (VERB-104 / ADR 0017)
+# ---------------------------------------------------------------------------
+
+
+def test_suspend_sets_status_and_returns_self() -> None:
+    """Registration.suspend() from VERIFIED sets status=SUSPENDED, returns self."""
+    registration = RegistrationFactory.create(status=Registration.Status.VERIFIED)
+
+    result = registration.suspend()
+
+    assert result is registration
+    assert registration.status == Registration.Status.SUSPENDED
+
+
+def test_suspend_does_not_persist() -> None:
+    """Registration.suspend() mutates only the in-memory instance; never saves."""
+    registration = RegistrationFactory.create(status=Registration.Status.VERIFIED)
+
+    registration.suspend()
+
+    assert (
+        Registration.objects.get(pk=registration.pk).status
+        == Registration.Status.VERIFIED
+    )
+
+
+@pytest.mark.parametrize("trait", ["paused", "suspended", "unverified"])
+def test_suspend_raises_for_illegal_source_states(trait: str) -> None:
+    """Registration.suspend() raises StateTransitionError from a non-VERIFIED state.
+
+    Only VERIFIED is a legal source for SUSPENDED — the accused in a post-accept
+    no-show is necessarily VERIFIED (ADR 0011). Fail-hard-low guard, mirroring
+    ``pause()``.
+    """
+    registration = RegistrationFactory.create(**{trait: True})
+    status_before = registration.status
+
+    with pytest.raises(StateTransitionError) as exc_info:
+        registration.suspend()
+
+    assert exc_info.value.current == status_before
+    assert exc_info.value.proposed == Registration.Status.SUSPENDED
+    assert registration.status == status_before

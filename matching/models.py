@@ -328,6 +328,38 @@ class Registration(BaseModel):
         self.priority += priority
         return self
 
+    def suspend(self) -> Registration:
+        """Mutate this registration's own state to SUSPENDED, in memory only.
+
+        Model-logic layer (VERB-104 / ADR 0017): mutates only this instance's
+        own ``status`` field, never saves, never touches another object, and
+        never fires a side effect. Callers are responsible for persisting the
+        change (e.g. ``registration.suspend().save(update_fields=["status"])``)
+        and for any cross-object coordination (see
+        ``matching.services.suspend_for_no_show``).
+
+        Only VERIFIED is a legal source state — a registration is suspended
+        when the other party files a post-accept no-show report, and the
+        accused is necessarily VERIFIED at that point: an ACCEPTED match keeps
+        both parties out of the pool while leaving their standing VERIFIED
+        (VERB-44 / ADR 0011). This is the fail-hard-low guard, mirroring
+        ``pause()``: an illegal source state raises immediately.
+
+        Returns:
+            self, so calls can be chained.
+
+        Raises:
+            StateTransitionError: if ``self.status`` is not ``VERIFIED``.
+        """
+        if self.status != Registration.Status.VERIFIED:
+            raise StateTransitionError(
+                current=self.status,
+                proposed=Registration.Status.SUSPENDED,
+                obj=self,
+            )
+        self.status = Registration.Status.SUSPENDED
+        return self
+
     def to_string(self) -> str:
         """Return a human-readable label for the registration."""
         return f"{self.user} · {self.get_role_display()}"
@@ -597,6 +629,138 @@ class Match(BaseModel):
             self.status = Match.Status.PENDING
         else:
             self.status = Match.Status.PROPOSED
+
+    def decline(self, declined_by: Registration) -> Match:
+        """Record that ``declined_by`` has declined this match, in memory only.
+
+        Model-logic layer (VERB-102 / ADR 0017): mutates only this instance's
+        own fields — ``declined_by``, ``declined_at``, and ``status``. Never
+        saves, never touches another object (e.g. the decliner's Registration),
+        and never fires a side effect (e.g. an email). The declining side is
+        derived from the registration's own role via ``side_of``: the caller
+        passes the participant, not a side. Persisting the change and all
+        cross-object coordination — pausing the decliner, re-queuing the other
+        party, emailing — belong to ``matching.services.record_decline`` and
+        ``decline_match``.
+
+        Args:
+            declined_by: The registration (ambassador or referee) declining.
+
+        Returns:
+            self, so calls can be chained.
+
+        Raises:
+            StateTransitionError: if ``self.status`` is not ``PROPOSED`` or
+                ``PENDING``. This is the fail-hard-low guard: declining is only
+                legal from those two states, and an illegal source state raises
+                immediately rather than being silently applied.
+        """
+        if self.status not in (Match.Status.PROPOSED, Match.Status.PENDING):
+            raise StateTransitionError(
+                current=self.status,
+                proposed=Match.Status.DECLINED,
+                obj=self,
+            )
+        self.declined_by = self.side_of(declined_by)
+        self.declined_at = timezone.now()
+        self.status = Match.Status.DECLINED
+        return self
+
+    def withdraw_acceptance(self, withdrawn_by: Registration) -> Match:
+        """Clear ``withdrawn_by``'s acceptance and revert to PROPOSED, in memory.
+
+        Model-logic layer (VERB-103 / ADR 0017): the inverse of the first
+        accept. Mutates only this instance's own fields — the withdrawing
+        side's ``*_accepted_at`` timestamp (cleared to ``None``) and, via
+        ``set_status``, ``status`` (``PENDING → PROPOSED``). Never saves, never
+        touches another object, and never fires a side effect. The withdrawing
+        side is derived from the registration's own role via ``side_of``.
+        Persisting the change and writing the transition log belong to
+        ``matching.services.withdraw_acceptance``.
+
+        A clean, no-penalty un-accept: nothing is re-queued and no flake
+        penalty is applied. The guard that the match is ``PENDING`` (rather
+        than ``ACCEPTED``) is what keeps it safe — a mutually-accepted match is
+        terminal and contact-revealed, so there is no window in which a
+        withdrawal could un-reveal PII (Invariant 1).
+
+        Args:
+            withdrawn_by: The registration (ambassador or referee) withdrawing.
+
+        Returns:
+            self, so calls can be chained.
+
+        Raises:
+            StateTransitionError: if ``self.status`` is not ``PENDING``, or if
+                the withdrawing side has not accepted (nothing to withdraw).
+                Both are fail-hard-low guards: the proposed target is
+                ``PROPOSED``.
+        """
+        if self.status != Match.Status.PENDING:
+            raise StateTransitionError(
+                current=self.status,
+                proposed=Match.Status.PROPOSED,
+                obj=self,
+            )
+
+        side = self.side_of(withdrawn_by)
+        if side == Match.Side.AMBASSADOR:
+            if self.ambassador_accepted_at is None:
+                raise StateTransitionError(
+                    current=self.status,
+                    proposed=Match.Status.PROPOSED,
+                    obj=self,
+                )
+            self.ambassador_accepted_at = None
+        else:
+            if self.referee_accepted_at is None:
+                raise StateTransitionError(
+                    current=self.status,
+                    proposed=Match.Status.PROPOSED,
+                    obj=self,
+                )
+            self.referee_accepted_at = None
+
+        # On a PENDING match exactly one side had accepted; clearing it leaves
+        # neither, so set_status derives PROPOSED.
+        self.set_status()
+        return self
+
+    def cancel(self, reported_by: Registration) -> Match:
+        """Record a post-accept no-show and revert to CANCELLED, in memory only.
+
+        Model-logic layer (VERB-104 / ADR 0017): mutates only this instance's
+        own fields — ``no_show_reported_by``, ``no_show_reported_at``, and
+        ``status`` (``ACCEPTED → CANCELLED``). Never saves, never touches
+        another object (e.g. the accused's Registration or a Payment), and
+        never fires a side effect (e.g. an email). The reporting side is
+        derived from the registration's own role via ``side_of``: the caller
+        passes the reporter, not a side. Suspending the accused, forfeiting
+        their deposit, re-queuing the reporter, and notifying the accused all
+        belong to ``matching.services.report_no_show``.
+
+        Args:
+            reported_by: The reporter's registration (the party who showed up).
+
+        Returns:
+            self, so calls can be chained.
+
+        Raises:
+            StateTransitionError: if ``self.status`` is not ``ACCEPTED``, or if
+                a no-show has already been reported on this match
+                (first-report-wins). Both are fail-hard-low guards: the
+                proposed target is ``CANCELLED``.
+        """
+        if self.status != Match.Status.ACCEPTED or self.no_show_reported_by:
+            raise StateTransitionError(
+                current=self.status,
+                proposed=Match.Status.CANCELLED,
+                obj=self,
+            )
+        self.no_show_reported_by = self.side_of(reported_by)
+        self.no_show_reported_at = timezone.now()
+        self.status = Match.Status.CANCELLED
+        return self
 
     def side_of(self, registration: Registration) -> Match.Side:
         """Return which side of this match ``registration`` is on.

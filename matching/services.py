@@ -52,10 +52,11 @@
 # never save, touch another object, or fire a side effect. Service functions
 # own the lock, save, record_transition, cross-object coordination, and email
 # dispatch, and do not re-check the state conditions the model methods
-# already guard (catch high, not double-check). record_acceptance (VERB-101)
-# follows the same shape. The remaining three transitions (decline,
-# withdraw-acceptance, report-no-show) will be refactored to the same shape in
-# follow-up tickets.
+# already guard (catch high, not double-check). All five match transitions now
+# follow this shape: expire (Match.expire, VERB-100), accept (Match.accept,
+# VERB-101), decline (Match.decline, VERB-102), withdraw-acceptance
+# (Match.withdraw_acceptance, VERB-103), and no-show/cancel (Match.cancel plus
+# Registration.suspend, VERB-104).
 #
 # pause_registration (VERB-74 / ADR 0013) replaces requeue_to_back and
 # record_flake_and_requeue. Decline or non-response → PAUSED; the two-strike
@@ -507,12 +508,14 @@ def suspend_for_no_show(registration: Registration) -> None:
     no-show report suspends unconditionally with a single step.
 
     Runs inside a transaction with a SELECT FOR UPDATE to prevent lost updates.
-    Syncs the passed-in instance's in-memory fields after the DB write.
+    The pure mutation is delegated to ``Registration.suspend`` (model logic,
+    VERB-104 / ADR 0017), which guards its own source state (VERIFIED only);
+    this function owns the lock, save, and in-memory sync of the passed-in
+    instance.
     """
     with transaction.atomic():
         locked = Registration.objects.select_for_update().get(pk=registration.pk)
-        locked.status = Registration.Status.SUSPENDED
-        locked.save(update_fields=["status"])
+        locked.suspend().save(update_fields=["status"])
         registration.status = locked.status
     logger.info(
         "Suspended registration pk=%s for post-accept no-show",
@@ -739,8 +742,8 @@ def decline_match(match: Match, registration: Registration) -> Match:
         The updated ``Match`` instance.
 
     Raises:
-        ValueError: propagated from ``record_decline`` if match is not PROPOSED
-            or PENDING.
+        StateTransitionError: propagated from ``record_decline`` if match is
+            not PROPOSED or PENDING.
     """
     side = match.side_of(registration)
 
@@ -1196,6 +1199,15 @@ def withdraw_acceptance(match: Match, registration: Registration) -> Match:
     terminal, contact-revealed state), so there is no window in which a
     withdrawal could un-reveal PII.
 
+    The source-state guards (match is PENDING; this side has accepted) and the
+    field mutations are delegated to the ``Match.withdraw_acceptance`` model
+    method (model logic, VERB-103 / ADR 0017), which raises
+    ``StateTransitionError`` on an illegal source state (fail hard, low in the
+    stack). This function does not re-check those conditions; it owns the lock,
+    save, and audit-log row. Both ``*_accepted_at`` fields are listed in
+    ``update_fields`` (only one is ever changed) to keep the persistence
+    boundary independent of which side withdrew.
+
     Args:
         match: The match to withdraw acceptance from.
         registration: The registration (ambassador or referee) withdrawing.
@@ -1204,8 +1216,9 @@ def withdraw_acceptance(match: Match, registration: Registration) -> Match:
         The updated ``Match`` instance.
 
     Raises:
-        ValueError: if ``match.status`` is not ``PENDING``, or if this side
-            has not accepted (nothing to withdraw).
+        StateTransitionError: propagated from ``Match.withdraw_acceptance`` if
+            ``match.status`` is not ``PENDING``, or if this side has not
+            accepted (nothing to withdraw).
     """
     with transaction.atomic():
         match = (
@@ -1214,35 +1227,15 @@ def withdraw_acceptance(match: Match, registration: Registration) -> Match:
             .get(pk=match.pk)
         )
 
-        if match.status != Match.Status.PENDING:
-            raise ValueError(
-                f"Cannot withdraw acceptance on match pk={match.pk}: status is "
-                f"{match.status!r}, expected {Match.Status.PENDING!r}."
-            )
-
-        side = match.side_of(registration)
-
-        if side == Match.Side.AMBASSADOR:
-            if match.ambassador_accepted_at is None:
-                raise ValueError(
-                    f"Cannot withdraw acceptance on match pk={match.pk}: the "
-                    f"ambassador side has not accepted."
-                )
-            match.ambassador_accepted_at = None
-            field = "ambassador_accepted_at"
-        else:
-            if match.referee_accepted_at is None:
-                raise ValueError(
-                    f"Cannot withdraw acceptance on match pk={match.pk}: the "
-                    f"referee side has not accepted."
-                )
-            match.referee_accepted_at = None
-            field = "referee_accepted_at"
-
-        # Transition PENDING → PROPOSED (a real status change).
         status_before = match.status
-        match.status = Match.Status.PROPOSED
-        match.save(update_fields=[field, "status", "updated_at"])
+        match.withdraw_acceptance(registration).save(
+            update_fields=[
+                "ambassador_accepted_at",
+                "referee_accepted_at",
+                "status",
+                "updated_at",
+            ]
+        )
         record_transition(
             match,
             "status",
@@ -1254,7 +1247,7 @@ def withdraw_acceptance(match: Match, registration: Registration) -> Match:
             "Match pk=%s acceptance withdrawn by %s (registration pk=%s); "
             "PENDING → PROPOSED",
             match.pk,
-            side,
+            match.side_of(registration),
             registration.pk,
         )
 
@@ -1384,8 +1377,9 @@ def report_no_show(match: Match, registration: Registration) -> Match:
         The updated ``Match`` instance.
 
     Raises:
-        ValueError: if ``match.status != ACCEPTED`` or if
-            ``no_show_reported_by`` is already set (first-report-wins).
+        StateTransitionError: propagated from ``Match.cancel`` if
+            ``match.status`` is not ``ACCEPTED`` or if a no-show has already
+            been reported on this match (first-report-wins).
     """
     with transaction.atomic():
         match = (
@@ -1397,17 +1391,6 @@ def report_no_show(match: Match, registration: Registration) -> Match:
             .get(pk=match.pk)
         )
 
-        if match.status != Match.Status.ACCEPTED:
-            raise ValueError(
-                f"Cannot report no-show on match pk={match.pk}: status is "
-                f"{match.status!r}, expected {Match.Status.ACCEPTED!r}."
-            )
-        if match.no_show_reported_by:
-            raise ValueError(
-                f"Cannot report no-show on match pk={match.pk}: already "
-                f"reported by {match.no_show_reported_by!r}."
-            )
-
         side = match.side_of(registration)
         # Both FKs are non-null on ACCEPTED matches; assertions satisfy mypy.
         assert match.ambassador_registration is not None
@@ -1418,12 +1401,12 @@ def report_no_show(match: Match, registration: Registration) -> Match:
         else:
             accused = match.ambassador_registration
 
-        # Transition the match to CANCELLED.
+        # Transition the match to CANCELLED. Match.cancel is the single guard
+        # on the source state (ACCEPTED, not already reported) and sets the
+        # no_show_reported_* fields (model logic, VERB-104 / ADR 0017); this
+        # function does not re-check those conditions.
         status_before = match.status
-        match.no_show_reported_by = side
-        match.no_show_reported_at = timezone.now()
-        match.status = Match.Status.CANCELLED
-        match.save(
+        match.cancel(registration).save(
             update_fields=[
                 "no_show_reported_by",
                 "no_show_reported_at",
@@ -1523,6 +1506,12 @@ def record_decline(match: Match, registration: Registration) -> Match:
     ``PROPOSED or PENDING → DECLINED``. One ``StateTransitionLog`` row is
     written for the status change.
 
+    The source-state guard and the field mutations are delegated to the
+    ``Match.decline`` model method (model logic, VERB-102 / ADR 0017), which
+    validates ``match.status`` itself and raises ``StateTransitionError`` on an
+    illegal source state (fail hard, low in the stack). This function does not
+    re-check that condition; it owns the lock, save, and audit-log row.
+
     NOTE: pausing the decliner's registration and re-queuing the other party
     are **not** done here; they belong to ``decline_match``. This function
     deliberately leaves both ``Registration.status`` values untouched so it is
@@ -1537,24 +1526,14 @@ def record_decline(match: Match, registration: Registration) -> Match:
         The updated ``Match`` instance.
 
     Raises:
-        ValueError: if ``match.status`` is not ``PROPOSED`` or ``PENDING``.
+        StateTransitionError: propagated from ``Match.decline`` if
+            ``match.status`` is not ``PROPOSED`` or ``PENDING``.
     """
     with transaction.atomic():
         match = Match.objects.select_for_update().get(pk=match.pk)
 
-        if match.status not in (Match.Status.PROPOSED, Match.Status.PENDING):
-            raise ValueError(
-                f"Cannot decline match pk={match.pk}: status is {match.status!r}, "
-                f"expected PROPOSED or PENDING."
-            )
-
-        side = match.side_of(registration)
         status_before = match.status
-
-        match.declined_by = side
-        match.declined_at = timezone.now()
-        match.status = Match.Status.DECLINED
-        match.save(
+        match.decline(registration).save(
             update_fields=[
                 "declined_by",
                 "declined_at",
@@ -1573,7 +1552,7 @@ def record_decline(match: Match, registration: Registration) -> Match:
         logger.info(
             "Match pk=%s DECLINED by %s (registration pk=%s)",
             match.pk,
-            side,
+            match.declined_by,
             registration.pk,
         )
 

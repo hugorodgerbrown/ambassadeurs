@@ -23,6 +23,7 @@ dependencies = [
     "django-csp>=4.0",
     "posthog>=7.21.2",
     "stripe>=15.3.0",
+    "django-side-effects>=3.2.0",
 ]
 
 [dependency-groups]

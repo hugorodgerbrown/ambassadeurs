@@ -96,6 +96,7 @@ dependencies = [
     { name = "django-csp" },
     { name = "django-htmx" },
     { name = "django-ratelimit" },
+    { name = "django-side-effects" },
     { name = "geoip2" },
     { name = "gunicorn" },
     { name = "posthog" },
@@ -130,6 +131,7 @@ requires-dist = [
     { name = "django-csp", specifier = ">=4.0" },
     { name = "django-htmx", specifier = ">=1.21" },
     { name = "django-ratelimit", specifier = ">=4.1.0" },
+    { name = "django-side-effects", specifier = ">=3.2.0" },
     { name = "geoip2", specifier = ">=5.2.0" },
     { name = "gunicorn", specifier = ">=23.0" },
     { name = "posthog", specifier = ">=7.21.2" },
@@ -586,6 +588,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6f/8f/94038fe739b095aca3e4708ecc8a4e77f1fcfd87bed5d6baff43d4c80bc4/django-ratelimit-4.1.0.tar.gz", hash = "sha256:555943b283045b917ad59f196829530d63be2a39adb72788d985b90c81ba808b", size = 11551, upload-time = "2023-07-24T20:34:32.374Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fb/78/2c59b30cd8bc8068d02349acb6aeed5c4e05eb01cdf2107ccd76f2e81487/django_ratelimit-4.1.0-py2.py3-none-any.whl", hash = "sha256:d047a31cf94d83ef1465d7543ca66c6fc16695559b5f8d814d1b51df15110b92", size = 11608, upload-time = "2023-07-24T20:34:31.362Z" },
+]
+
+[[package]]
+name = "django-side-effects"
+version = "3.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8d/9b/685a5a1a28b592a3d2f5498a4315ae6f225c3f8a76e43b571bb481cc6d10/django_side_effects-3.2.0.tar.gz", hash = "sha256:d38d8c58eb931e37ef74d5d77faf47f137a80de59c0b8f3da6eedd4aa01ba56d", size = 14250, upload-time = "2026-01-08T13:58:44.103Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3c/25/e8c90abea6186532e9dcd22d84dc3013b9e2c4ba1e4d9925b86ce1462f3e/django_side_effects-3.2.0-py3-none-any.whl", hash = "sha256:595502c6878ab875628620e2d4d340cb5aca0f179df69ac7b0a26c3e60f89154", size = 14159, upload-time = "2026-01-08T13:58:43.179Z" },
 ]
 
 [[package]]

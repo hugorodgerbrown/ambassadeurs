@@ -537,6 +537,66 @@ class Match(BaseModel):
         self.status = Match.Status.EXPIRED
         return self
 
+    def accept_side(self, side: Match.Side, when: datetime) -> Match:
+        """Mutate this match's own state to record one side's acceptance, in memory.
+
+        Model-logic layer (VERB-101 / ADR 0017): mutates only this instance's
+        own fields (the accepting side's ``*_accepted_at`` timestamp and
+        ``status``), never saves, never touches another object (e.g. the
+        related registrations or a Payment), and never fires a side effect
+        (e.g. an email). Callers are responsible for persisting the change
+        and for any cross-object coordination — see
+        ``matching.services.record_acceptance``.
+
+        Setting the timestamp is idempotent: if the given ``side`` has already
+        accepted (its timestamp is not ``None``), re-accepting is a no-op for
+        that timestamp so callers can safely retry without double-counting.
+
+        Once the timestamp is set, the status advances: if both sides now
+        have a timestamp, the match becomes ``ACCEPTED``; otherwise, if this
+        was the first accept (``self.status`` was ``PROPOSED``), the match
+        becomes ``PENDING``. A second accept when already ``PENDING`` — the
+        only remaining case reaching this point — is left unchanged
+        (``both`` is handled above).
+
+        Args:
+            side: Which side (``AMBASSADOR`` or ``REFEREE``) is accepting.
+            when: The tz-aware instant to record as the acceptance timestamp.
+
+        Returns:
+            self, so calls can be chained.
+
+        Raises:
+            StateTransitionError: if ``self.status`` is not ``PROPOSED`` or
+                ``PENDING``. This is the fail-hard-low guard: accepting is
+                only legal from those two states, and an illegal source state
+                raises immediately rather than being silently applied.
+        """
+        if self.status not in (Match.Status.PROPOSED, Match.Status.PENDING):
+            raise StateTransitionError(
+                current=self.status,
+                proposed=Match.Status.ACCEPTED,
+                obj=self,
+            )
+
+        if side == Match.Side.AMBASSADOR and self.ambassador_accepted_at is None:
+            self.ambassador_accepted_at = when
+        elif side == Match.Side.REFEREE and self.referee_accepted_at is None:
+            self.referee_accepted_at = when
+        # If this side has already accepted (re-accept), no timestamp changes.
+
+        both = (
+            self.ambassador_accepted_at is not None
+            and self.referee_accepted_at is not None
+        )
+        if both:
+            self.status = Match.Status.ACCEPTED
+        elif self.status == Match.Status.PROPOSED:
+            self.status = Match.Status.PENDING
+        # Else: already PENDING with only one side accepted — unchanged.
+
+        return self
+
     def side_of(self, registration: Registration) -> Match.Side:
         """Return which side of this match ``registration`` is on.
 

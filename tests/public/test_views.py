@@ -104,12 +104,39 @@ def test_register_get_with_referee_role_hint() -> None:
     assert b"role-theme--referee" in response.content
 
 
-def test_register_get_defaults_to_ambassador_on_unknown_role() -> None:
-    """GET /register/?role=banana silently falls back to the ambassador form."""
+def test_register_get_with_unknown_role_renders_neutral_state() -> None:
+    """GET /register/?role=banana renders the neutral no-role-chosen state."""
     response = Client().get(reverse("public:register") + "?role=banana")
     assert response.status_code == 200
-    assert b"Eligibility \xc2\xb7 Ambassador" in response.content
+    assert b"role-theme--neutral" in response.content
     assert b"role-theme--referee" not in response.content
+    assert b"Eligibility \xc2\xb7" not in response.content
+
+
+def test_register_get_bare_renders_neutral_state() -> None:
+    """GET /register/ with no ?role= renders the neutral no-role-chosen state."""
+    response = Client().get(reverse("public:register"))
+    assert response.status_code == 200
+    assert b"role-theme--neutral" in response.content
+    assert b"role-theme--referee" not in response.content
+    assert b"Eligibility \xc2\xb7" not in response.content
+
+
+def test_register_get_neutral_form_is_disabled() -> None:
+    """The neutral-state form's fields are disabled — nothing can be submitted."""
+    response = Client().get(reverse("public:register"))
+    assert response.status_code == 200
+    content = response.content
+    assert b'name="email"' in content
+    assert b'name="first_name"' in content
+    assert b"field--disabled" in content
+
+
+def test_register_get_neutral_submit_button_disabled() -> None:
+    """The neutral-state submit button is disabled and prompts a role choice."""
+    response = Client().get(reverse("public:register"))
+    assert response.status_code == 200
+    assert b"Select a role to continue" in response.content
 
 
 @override_settings(
@@ -686,13 +713,14 @@ def test_register_details_form_already_registered_shows_banner() -> None:
 
 
 def test_register_get_authenticated_without_registration_shows_normal_form() -> None:
-    """A logged-in user who has no Registration sees the normal enabled form
-    without any already-registered banner or disabled attributes.
+    """A logged-in user who has no Registration and a valid ?role= sees the
+    normal enabled form without any already-registered banner or disabled
+    attributes.
     """
     user = UserFactory.create()
     client = Client()
     client.force_login(user)
-    response = client.get(reverse("public:register"))
+    response = client.get(reverse("public:register") + "?role=ambassador")
 
     assert response.status_code == 200
     content = response.content.decode()
@@ -703,8 +731,10 @@ def test_register_get_authenticated_without_registration_shows_normal_form() -> 
 
 
 def test_register_get_anonymous_shows_normal_form() -> None:
-    """An anonymous visitor sees the normal enabled form without any banner."""
-    response = Client().get(reverse("public:register"))
+    """An anonymous visitor with a valid ?role= sees the normal enabled form
+    without any banner.
+    """
+    response = Client().get(reverse("public:register") + "?role=ambassador")
 
     assert response.status_code == 200
     content = response.content.decode()

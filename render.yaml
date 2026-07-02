@@ -27,9 +27,14 @@ services:
         sync: false
       - key: POSTHOG_HOST
         value: https://eu.i.posthog.com
-      # Stripe secret key (VERB-85 deposits). Set the live/test key in the Render
-      # dashboard; the close-season cron reads it from this web service.
+      # Stripe (VERB-85/86, ADR 0014). Set both in the Render dashboard — never
+      # in source (Invariant 9). STRIPE_SECRET_KEY drives the hosted-Checkout
+      # deposit flow and is read by the close-season cron from this web service;
+      # STRIPE_WEBHOOK_SECRET signs the checkout.session.completed endpoint
+      # (webhooks/stripe/).
       - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
         sync: false
       - key: DATABASE_URL
         fromDatabase:

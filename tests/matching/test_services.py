@@ -1,8 +1,10 @@
 # Tests for the matching service functions.
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import mail
 from django.db import transaction
@@ -275,7 +277,6 @@ def test_propose_match_uses_priority_as_secondary_rank() -> None:
 
 def test_propose_match_sets_expires_at() -> None:
     """propose_match sets expires_at to now + CONTACT_WINDOW_HOURS."""
-    from django.conf import settings
 
     RegistrationFactory.create(referee=True)
     ambassador = RegistrationFactory.create(
@@ -438,7 +439,19 @@ def test_send_match_notification_includes_match_link() -> None:
 
 
 def test_send_match_notification_respects_preferred_language() -> None:
-    """Each recipient's email is rendered in their preferred_language."""
+    """Each recipient's email is rendered in their preferred_language.
+
+    The French-language recipient must still receive the match link: the
+    match-notification body carries a ``%(url)s`` placeholder and VERB-29
+    tracked a French catalogue entry that dropped it, silently mailing a
+    linkless notification. Assert the ``/match/`` link survives in the
+    French-rendered body (mirrors ``..._includes_match_link`` for English).
+
+    Note: the tox/CI test env compiles no ``.mo`` catalogues, so rendering
+    under ``fr`` falls back to the English source and this assertion cannot
+    by itself catch a re-drop of the French placeholder. The catalogue is
+    guarded directly by ``test_french_match_notification_msgstr_keeps_url``.
+    """
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
         prior_pass=Registration.PriorPass.SEASONAL,
@@ -454,6 +467,72 @@ def test_send_match_notification_respects_preferred_language() -> None:
     )
     send_match_notification(match)
     assert len(mail.outbox) == 2
+    fr_message = next(
+        message for message in mail.outbox if ambassador_reg.user.email in message.to
+    )
+    assert "/match/" in fr_message.body
+
+
+def _read_po_msgstr(po_path: Path, msgid_needle: str) -> str:
+    """Return the ``msgstr`` whose ``msgid`` contains ``msgid_needle``.
+
+    A minimal, dependency-free ``.po`` reader: it concatenates the quoted
+    continuation lines of each ``msgid`` / ``msgstr`` pair into single
+    strings and returns the first ``msgstr`` whose ``msgid`` contains the
+    given needle. Used to assert placeholder parity directly against the
+    catalogue source, independent of ``.mo`` compilation (which the tox
+    test env skips). Raises ``LookupError`` if no entry matches.
+    """
+    msgid_parts: list[str] = []
+    msgstr_parts: list[str] = []
+    target: list[str] | None = None
+    entries: list[tuple[str, str]] = []
+
+    def flush() -> None:
+        """Record the current msgid/msgstr pair, if any was collected."""
+        if msgid_parts or msgstr_parts:
+            entries.append(("".join(msgid_parts), "".join(msgstr_parts)))
+
+    for raw_line in po_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if line.startswith("msgid "):
+            flush()
+            msgid_parts, msgstr_parts = [], []
+            target = msgid_parts
+            line = line[len("msgid ") :]
+        elif line.startswith("msgstr "):
+            target = msgstr_parts
+            line = line[len("msgstr ") :]
+        elif not line.startswith('"'):
+            # A comment or blank line ends the current entry's string block.
+            target = None
+            continue
+        if target is not None and line.startswith('"') and line.endswith('"'):
+            target.append(line[1:-1])
+    flush()
+
+    for msgid, msgstr in entries:
+        if msgid_needle in msgid:
+            return msgstr
+    raise LookupError(f"No .po entry with msgid containing {msgid_needle!r}")
+
+
+def test_french_match_notification_msgstr_keeps_url() -> None:
+    """The French match-notification ``msgstr`` retains the ``%(url)s`` link.
+
+    This is the real regression guard for VERB-29: it asserts against the
+    ``.po`` source, so it catches a re-drop of the placeholder even though
+    the tox test env compiles no catalogues (a rendered-email test falls
+    back to English and would not). The body is interpolated with
+    ``% {"url": match_url}``; a French ``msgstr`` missing ``%(url)s`` mails
+    a linkless notification, leaving the recipient unable to act.
+    """
+    po_path = Path(settings.BASE_DIR) / "locale" / "fr" / "LC_MESSAGES" / "django.po"
+    msgstr = _read_po_msgstr(
+        po_path,
+        "the matching system has found you a partner",
+    )
+    assert "%(url)s" in msgstr
 
 
 # ---------------------------------------------------------------------------
@@ -2568,7 +2647,6 @@ def test_send_window_expired_notification_sends_one_email() -> None:
 
 def test_send_window_expired_notification_includes_account_url() -> None:
     """The expiry email body includes the account detail URL so the user can rejoin."""
-    from django.conf import settings
 
     reg = RegistrationFactory.create()
     send_window_expired_notification(reg)

@@ -971,6 +971,10 @@ def expire_match(match: Match) -> bool:
         return False
 
     status_before = match.status
+    # The guard above already confirms status is PROPOSED or PENDING, so
+    # Match.expire()'s own ValueError guard is unreachable from this caller —
+    # it exists for callers that invoke the model method directly, without
+    # first checking status themselves.
     match.expire().save(update_fields=["status", "updated_at"])
     record_transition(
         match,

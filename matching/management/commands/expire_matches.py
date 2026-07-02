@@ -11,11 +11,12 @@ from matching.services import expire_lapsed_matches
 
 
 class Command(BaseCommand):
-    """Expire all PROPOSED matches whose contact window has lapsed.
+    """Expire all PROPOSED/PENDING matches whose contact window has lapsed.
 
-    Transitions each lapsed match to EXPIRED and re-queues both registrations:
-    the accepting side goes to the front of the queue; the non-responding side
-    has a flake recorded and is sent to the back (or suspended on second flake).
+    Transitions each lapsed match to EXPIRED. The kept-faith side (already
+    accepted) is re-queued to the front of the pool; the non-responding side
+    is PAUSED — out of the pool, but able to self-rejoin from their account
+    page (VERB-74 / ADR 0013). The two-strike flake model is retired.
     """
 
     help = "Expire contact-window-lapsed PROPOSED matches and re-queue registrations."

@@ -1,0 +1,35 @@
+# Local e2e backing services — the SAME images and ports the CI job uses
+# (.github/workflows/e2e.yml), so a local run and a CI run differ only in who
+# starts the containers. Bring them up with `npm run services:up` (or
+# `docker compose -f e2e/compose.yaml up -d --wait`).
+name: ambassadeurs-e2e
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ambassadeurs
+      POSTGRES_PASSWORD: ambassadeurs
+      POSTGRES_DB: ambassadeurs_e2e
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ambassadeurs"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Ephemeral: no named volume, so `down` leaves nothing behind — every run
+    # starts from an empty database, exactly like the CI service container.
+    tmpfs:
+      - /var/lib/postgresql/data
+
+  mailpit:
+    image: axllent/mailpit:v1.30.3
+    ports:
+      - "1025:1025" # SMTP — Django delivers here
+      - "8025:8025" # HTTP UI + API — the suite reads mail here, browse at :8025
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8025/readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10

@@ -116,6 +116,13 @@ stored values. Stripe charges in its minor unit (centimes for CHF), so the
 CHF-to-centimes conversion happens once, at the Stripe API boundary in
 VERB-85/86; the domain never stores or reasons about the minor unit.
 
+**Implementation (VERB-85):** the `Payment` model and its Stripe wiring live
+in the `billing/` app (`billing.models.Payment`,
+`billing.services.payments.{capture,refund,forfeit}`). Because the deposit
+is already collected at registration time, `capture()` and `forfeit()` are
+pure state transitions with no Stripe call; `refund()` is the only one that
+calls the Stripe API.
+
 ---
 
 ## Consequences

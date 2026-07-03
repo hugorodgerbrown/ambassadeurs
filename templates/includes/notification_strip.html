@@ -1,8 +1,9 @@
 {% load i18n %}
 {% comment %}
-Site-wide notifications strip (VERB-109). Rendered by base.html's
-{% block notifications %} on every page, below the nav and above the main
-content block. active_notifications comes from
+Site-wide notifications strip (VERB-109). Included from base.html — below the
+nav on standard pages ({% block notifications %}), or anchored to the very top
+of the page on the homepage ({% block notifications_top %}, above the
+overlay-nav hero). active_notifications comes from
 core.context_processors.notifications — already filtered to the current
 request's audience, enabled kill switch, and display window, and ordered
 highest priority first then newest.

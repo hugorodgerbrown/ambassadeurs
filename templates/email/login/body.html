@@ -7,8 +7,7 @@
                 {{ first_name }},{% endblocktranslate %}{% else %}{% translate "Hi," %}{% endif %}
     </p>
     <p style="margin: 0 0 16px">
-        {% blocktranslate trimmed %}Someone (probably you) asked to sign in to the 4 Vallées Ambassadors Programme.
-            Click the link below to confirm your sign-in:{% endblocktranslate %}
+        {% blocktranslate trimmed %}Someone asked to sign in to Ski Parrainage with this email address. Click the link below to confirm your sign-in:{% endblocktranslate %}
     </p>
     <p style="margin: 0 0 16px">
         <a href="{{ verify_url }}" style="color: #2563eb">{{ verify_url }}</a>

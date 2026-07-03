@@ -1,4 +1,6 @@
-{% load i18n %}{% autoescape off %}{% blocktranslate trimmed %}Good news — the matching system has found you a partner for the 4 Vallées Ambassadors Programme.{% endblocktranslate %}
+{% load i18n %}{% autoescape off %}{% blocktranslate trimmed %}Good news — the
+Ski Parrainage matching system has found you a partner for the 4 Vallées
+Ambassadors Programme.{% endblocktranslate %}
 
 {% blocktranslate trimmed %}Open the link below to view your match and accept or decline within the contact window:{% endblocktranslate %}
 

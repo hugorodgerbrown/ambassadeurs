@@ -1,4 +1,4 @@
-{% load i18n %}{% autoescape off %}{% blocktranslate trimmed %}Your recent match in the 4 Vallées Ambassadors Programme did not go ahead.{% endblocktranslate %}
+{% load i18n %}{% autoescape off %}{% blocktranslate trimmed %}Your recent match in the with Ski Parrainage did not go ahead.{% endblocktranslate %}
 
 {% blocktranslate trimmed %}This is not a reflection on you — you have been returned to the front of the queue, and the matching system will pair you with a new partner as soon as one is available. There is nothing you need to do.{% endblocktranslate %}
 

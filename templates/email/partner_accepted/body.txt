@@ -1,4 +1,4 @@
-{% load i18n %}{% autoescape off %}{% blocktranslate trimmed %}Good news — your match partner for the 4 Vallées Ambassadors Programme has accepted.{% endblocktranslate %}
+{% load i18n %}{% autoescape off %}{% blocktranslate trimmed %}Good news — your match partner with Ski Parrainage has accepted.{% endblocktranslate %}
 
 {% blocktranslate trimmed %}Open the link below to accept or decline before the contact window closes:{% endblocktranslate %}
 

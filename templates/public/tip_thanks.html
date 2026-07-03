@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Thank you" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-md text-center">
+        <h1 class="mb-4 text-2xl font-bold text-ink">
+            {% translate "Thank you for your contribution" %}
+        </h1>
+        <p class="text-body">
+            {% blocktranslate trimmed %}
+                Your payment has been received. It genuinely helps keep Ski Parrainage running.
+            {% endblocktranslate %}
+        </p>
+        <p class="mt-6">
+            <a href="{% url 'accounts:detail' %}" class="font-medium text-accent underline">
+                {% translate "Go to my account" %}
+            </a>
+        </p>
+    </section>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "No problem" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-md text-center">
+        <h1 class="mb-4 text-2xl font-bold text-ink">
+            {% translate "No problem" %}
+        </h1>
+        <p class="text-body">
+            {% blocktranslate trimmed %}
+                No contribution has been taken. You can try again whenever you're ready.
+            {% endblocktranslate %}
+        </p>
+        <p class="mt-6">
+            <a href="{% url 'public:tip_page' %}" class="btn btn--role">
+                {% translate "Try again" %}
+            </a>
+        </p>
+        <p class="mt-4">
+            <a href="{% url 'accounts:detail' %}" class="font-medium text-accent underline">
+                {% translate "Go to my account" %}
+            </a>
+        </p>
+    </section>
+{% endblock %}

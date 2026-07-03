@@ -25,7 +25,7 @@ from accounts.tokens import (
     make_match_access_token,
     make_registration_confirmation_token,
 )
-from billing.models import Payment
+from billing.models import Payment, Tip
 from matching.models import Match, Registration
 from matching.services import accept_match, register_participant
 from public.models import FormDownload
@@ -2701,3 +2701,517 @@ def test_match_actions_container_has_aria_live() -> None:
     assert response.status_code == 200
     assert b'aria-live="polite"' in response.content
     assert b'id="match-actions"' in response.content
+
+
+# ---------------------------------------------------------------------------
+# Tip (voluntary contribution) flow — standalone, unmounted (VERB-110)
+# ---------------------------------------------------------------------------
+
+
+def test_tip_page_requires_login() -> None:
+    """An anonymous request to tip_page is redirected to login."""
+    response = Client().get(reverse("public:tip_page"))
+    assert response.status_code == 302
+    assert reverse("accounts:login") in response.url
+
+
+def test_tip_page_404s_for_paid_tier() -> None:
+    """tip_page 404s when the caller's registration has fee_chf > 0."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=5)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:tip_page"))
+
+    assert response.status_code == 404
+
+
+def test_tip_page_404s_for_authenticated_user_with_no_registration() -> None:
+    """An authenticated user with no Registration (e.g. staff) 404s."""
+    staff = UserFactory.create(username="staff@example.com", email="staff@example.com")
+    client = Client()
+    client.force_login(staff)
+
+    response = client.get(reverse("public:tip_page"))
+
+    assert response.status_code == 404
+
+
+def test_tip_page_renders_for_free_tier() -> None:
+    """tip_page renders the panel for a free-tier registrant."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:tip_page"))
+
+    assert response.status_code == 200
+    assert "public/tip.html" in [t.name for t in response.templates]
+
+
+def test_tip_page_disclaimer_defaults_on() -> None:
+    """?disclaimer= defaults to on: the refund disclaimer copy is rendered."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:tip_page"))
+
+    assert response.status_code == 200
+    assert b"refunded" in response.content
+
+
+def test_tip_page_disclaimer_off_via_query_param() -> None:
+    """?disclaimer=0 turns the refund disclaimer copy off."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:tip_page"), {"disclaimer": "0"})
+
+    assert response.status_code == 200
+    assert b"refunded" not in response.content
+
+
+def test_tip_start_requires_login() -> None:
+    """An anonymous request to tip_start is redirected to login."""
+    response = Client().post(reverse("public:tip_start"), {"amount_chf": 5})
+    assert response.status_code == 302
+    assert reverse("accounts:login") in response.url
+
+
+def test_tip_start_404s_for_paid_tier() -> None:
+    """tip_start 404s when the caller's registration has fee_chf > 0."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=5)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.post(reverse("public:tip_start"), {"amount_chf": 5})
+
+    assert response.status_code == 404
+
+
+def test_tip_start_404s_for_authenticated_user_with_no_registration() -> None:
+    """An authenticated user with no Registration (e.g. staff) 404s."""
+    staff = UserFactory.create(username="staff@example.com", email="staff@example.com")
+    client = Client()
+    client.force_login(staff)
+
+    response = client.post(reverse("public:tip_start"), {"amount_chf": 5})
+
+    assert response.status_code == 404
+
+
+def test_tip_start_creates_session_and_redirects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A valid POST creates a Checkout session and redirects to it."""
+    monkeypatch.setattr(
+        stripe.checkout.Session,
+        "create",
+        lambda **kw: _FakeCheckoutSession(
+            url="https://checkout.stripe.com/pay/cs_tip0001"
+        ),
+    )
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.post(
+        reverse("public:tip_start"), {"amount_chf": 10, "message": "Thanks!"}
+    )
+
+    assert response.status_code == 302
+    assert response.url == "https://checkout.stripe.com/pay/cs_tip0001"
+
+
+def test_tip_start_invalid_amount_rerenders_form(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An out-of-range amount re-renders tip_page with errors, no Stripe call."""
+    calls: list[dict] = []
+    monkeypatch.setattr(
+        stripe.checkout.Session,
+        "create",
+        lambda **kw: calls.append(kw) or _FakeCheckoutSession(),
+    )
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.post(reverse("public:tip_start"), {"amount_chf": 5000})
+
+    assert response.status_code == 200
+    assert "public/tip.html" in [t.name for t in response.templates]
+    assert calls == []
+
+
+def test_tip_start_missing_session_url_renders_cancelled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A Checkout session with no .url renders the cancelled page defensively."""
+    monkeypatch.setattr(
+        stripe.checkout.Session,
+        "create",
+        lambda **kw: _FakeCheckoutSession(url=""),
+    )
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.post(reverse("public:tip_start"), {"amount_chf": 5})
+
+    assert response.status_code == 200
+    assert "public/tip_cancelled.html" in [t.name for t in response.templates]
+
+
+def test_tip_return_requires_login() -> None:
+    """An anonymous request to tip_return is redirected to login."""
+    response = Client().get(reverse("public:tip_return"))
+    assert response.status_code == 302
+    assert reverse("accounts:login") in response.url
+
+
+def test_tip_return_404s_for_authenticated_user_with_no_registration() -> None:
+    """An authenticated user with no Registration (e.g. staff) 404s."""
+    staff = UserFactory.create(username="staff@example.com", email="staff@example.com")
+    client = Client()
+    client.force_login(staff)
+
+    response = client.get(reverse("public:tip_return"), {"session_id": "cs_tip0001"})
+
+    assert response.status_code == 404
+
+
+def test_tip_return_missing_payment_intent_shows_cancelled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A paid session with no payment_intent id renders the cancelled page."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    session = _FakeCheckoutSession(
+        payment_status="paid",
+        payment_intent=None,
+        metadata={"purpose": "tip", "registration_pk": str(reg.pk)},
+    )
+    monkeypatch.setattr(stripe.checkout.Session, "retrieve", lambda session_id: session)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:tip_return"), {"session_id": "cs_tip0001"})
+
+    assert response.status_code == 200
+    assert "public/tip_cancelled.html" in [t.name for t in response.templates]
+    assert Tip.objects.count() == 0
+
+
+def test_tip_return_unpaid_session_shows_cancelled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unpaid tip session renders the cancelled page and records no Tip."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    session = _FakeCheckoutSession(
+        payment_status="unpaid",
+        metadata={"purpose": "tip", "registration_pk": str(reg.pk)},
+    )
+    monkeypatch.setattr(stripe.checkout.Session, "retrieve", lambda session_id: session)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:tip_return"), {"session_id": "cs_tip0001"})
+
+    assert response.status_code == 200
+    assert "public/tip_cancelled.html" in [t.name for t in response.templates]
+    assert Tip.objects.count() == 0
+
+
+def test_tip_return_paid_session_records_tip(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A paid tip session records one PAID Tip and renders the thanks page."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    session = _FakeCheckoutSession(
+        payment_status="paid",
+        customer="cus_tip",
+        payment_intent="pi_tip",
+        metadata={
+            "purpose": "tip",
+            "registration_pk": str(reg.pk),
+            "amount_chf": "10",
+            "message": "Cheers!",
+        },
+    )
+    monkeypatch.setattr(stripe.checkout.Session, "retrieve", lambda session_id: session)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:tip_return"), {"session_id": "cs_tip0001"})
+
+    assert response.status_code == 200
+    assert "public/tip_thanks.html" in [t.name for t in response.templates]
+    assert Tip.objects.count() == 1
+    tip = Tip.objects.get()
+    assert tip.status == Tip.Status.PAID
+    assert tip.amount_chf == 10
+    assert tip.message == "Cheers!"
+    assert tip.stripe_payment_intent_id == "pi_tip"
+    # The deposit flow must be untouched by a tip completion.
+    assert Payment.objects.count() == 0
+
+
+def test_tip_return_mismatched_registration_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A session whose metadata points at a different registration is rejected."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    other_pk = reg.pk + 1
+    session = _FakeCheckoutSession(
+        payment_status="paid",
+        metadata={
+            "purpose": "tip",
+            "registration_pk": str(other_pk),
+            "amount_chf": "10",
+        },
+    )
+    monkeypatch.setattr(stripe.checkout.Session, "retrieve", lambda session_id: session)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:tip_return"), {"session_id": "cs_tip0001"})
+
+    assert response.status_code == 200
+    assert "public/tip_cancelled.html" in [t.name for t in response.templates]
+    assert Tip.objects.count() == 0
+
+
+def test_tip_return_non_numeric_amount_metadata_shows_cancelled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Non-numeric amount_chf metadata renders the cancelled page gracefully
+    instead of a user-facing 500 (ValueError from int())."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    session = _FakeCheckoutSession(
+        payment_status="paid",
+        customer="cus_bad",
+        payment_intent="pi_bad",
+        metadata={
+            "purpose": "tip",
+            "registration_pk": str(reg.pk),
+            "amount_chf": "not-a-number",
+        },
+    )
+    monkeypatch.setattr(stripe.checkout.Session, "retrieve", lambda session_id: session)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:tip_return"), {"session_id": "cs_tip0001"})
+
+    assert response.status_code == 200
+    assert "public/tip_cancelled.html" in [t.name for t in response.templates]
+    assert Tip.objects.count() == 0
+
+
+@pytest.mark.parametrize("bad_amount", ["0", "-1"])
+def test_tip_return_non_positive_amount_metadata_shows_cancelled(
+    monkeypatch: pytest.MonkeyPatch,
+    bad_amount: str,
+) -> None:
+    """A zero or negative amount_chf is rejected by the parser rather than
+    reaching record_tip_paid, where the Postgres CHECK constraint on
+    PositiveIntegerField would surface as a misdiagnosed IntegrityError."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    session = _FakeCheckoutSession(
+        payment_status="paid",
+        customer="cus_bad",
+        payment_intent="pi_bad",
+        metadata={
+            "purpose": "tip",
+            "registration_pk": str(reg.pk),
+            "amount_chf": bad_amount,
+        },
+    )
+    monkeypatch.setattr(stripe.checkout.Session, "retrieve", lambda session_id: session)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:tip_return"), {"session_id": "cs_tip0001"})
+
+    assert response.status_code == 200
+    assert "public/tip_cancelled.html" in [t.name for t in response.templates]
+    assert Tip.objects.count() == 0
+
+
+def test_tip_return_missing_amount_metadata_key_shows_cancelled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A tip session whose metadata has no 'amount_chf' key at all (rather
+    than a non-numeric value) also renders the cancelled page gracefully."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    session = _FakeCheckoutSession(
+        payment_status="paid",
+        customer="cus_noamt",
+        payment_intent="pi_noamt",
+        metadata={"purpose": "tip", "registration_pk": str(reg.pk)},
+    )
+    monkeypatch.setattr(stripe.checkout.Session, "retrieve", lambda session_id: session)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:tip_return"), {"session_id": "cs_tip0001"})
+
+    assert response.status_code == 200
+    assert "public/tip_cancelled.html" in [t.name for t in response.templates]
+    assert Tip.objects.count() == 0
+
+
+def test_tip_return_deposit_session_replayed_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A deposit Checkout session (no 'purpose' metadata key) replayed at the
+    tip return URL is rejected — it must not be recorded as a Tip."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    session = _FakeCheckoutSession(
+        payment_status="paid",
+        customer="cus_dep",
+        payment_intent="pi_dep",
+        # No "purpose" key at all — exactly what create_checkout_session sends.
+        metadata={"registration_pk": str(reg.pk)},
+    )
+    monkeypatch.setattr(stripe.checkout.Session, "retrieve", lambda session_id: session)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:tip_return"), {"session_id": "cs_dep0001"})
+
+    assert response.status_code == 200
+    assert "public/tip_cancelled.html" in [t.name for t in response.templates]
+    assert Tip.objects.count() == 0
+
+
+def test_tip_return_missing_session_id_shows_cancelled() -> None:
+    """No ?session_id= at all renders the cancelled page (no Stripe call)."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:tip_return"))
+
+    assert response.status_code == 200
+    assert "public/tip_cancelled.html" in [t.name for t in response.templates]
+
+
+def test_tip_cancelled_renders() -> None:
+    """tip_cancelled renders the friendly cancel page."""
+    response = Client().get(reverse("public:tip_cancelled"))
+    assert response.status_code == 200
+    assert "public/tip_cancelled.html" in [t.name for t in response.templates]
+
+
+def test_stripe_webhook_tip_purpose_creates_tip_not_payment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A checkout.session.completed event with metadata.purpose=tip creates a
+    Tip, not a Payment."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    fake_event = {
+        "type": "checkout.session.completed",
+        "data": {
+            "object": _FakeCheckoutSession(
+                payment_status="paid",
+                customer="cus_tip_wh",
+                payment_intent="pi_tip_wh",
+                metadata={
+                    "purpose": "tip",
+                    "registration_pk": str(reg.pk),
+                    "amount_chf": "20",
+                    "message": "",
+                },
+            )
+        },
+    }
+    monkeypatch.setattr(stripe.Webhook, "construct_event", lambda *a, **kw: fake_event)
+
+    response = Client().post(
+        reverse("stripe_webhook"),
+        data=b"{}",
+        content_type="application/json",
+        headers={"stripe-signature": "sig"},
+    )
+
+    assert response.status_code == 200
+    assert Tip.objects.count() == 1
+    tip = Tip.objects.get()
+    assert tip.amount_chf == 20
+    assert tip.stripe_payment_intent_id == "pi_tip_wh"
+    # Regression guard: the tip branch must not touch the deposit flow.
+    assert Payment.objects.count() == 0
+
+
+def test_stripe_webhook_tip_purpose_non_numeric_amount_returns_200_no_tip(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Non-numeric amount_chf metadata on a tip session is logged and
+    returns 200 (the always-200 webhook contract), creating no Tip."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    fake_event = {
+        "type": "checkout.session.completed",
+        "data": {
+            "object": _FakeCheckoutSession(
+                payment_status="paid",
+                customer="cus_tip_bad",
+                payment_intent="pi_tip_bad",
+                metadata={
+                    "purpose": "tip",
+                    "registration_pk": str(reg.pk),
+                    "amount_chf": "not-a-number",
+                },
+            )
+        },
+    }
+    monkeypatch.setattr(stripe.Webhook, "construct_event", lambda *a, **kw: fake_event)
+
+    response = Client().post(
+        reverse("stripe_webhook"),
+        data=b"{}",
+        content_type="application/json",
+        headers={"stripe-signature": "sig"},
+    )
+
+    assert response.status_code == 200
+    assert Tip.objects.count() == 0
+    assert Payment.objects.count() == 0
+
+
+def test_stripe_webhook_without_purpose_still_drives_deposit_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A completed event with no 'purpose' metadata key (every existing
+    deposit session) still finalises the deposit flow unchanged — the
+    regression guard for webhook coexistence."""
+    reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=5)
+    fake_event = {
+        "type": "checkout.session.completed",
+        "data": {
+            "object": _FakeCheckoutSession(
+                payment_status="paid",
+                customer="cus_dep_wh",
+                payment_intent="pi_dep_wh",
+                metadata={"registration_pk": str(reg.pk)},
+            )
+        },
+    }
+    monkeypatch.setattr(stripe.Webhook, "construct_event", lambda *a, **kw: fake_event)
+
+    response = Client().post(
+        reverse("stripe_webhook"),
+        data=b"{}",
+        content_type="application/json",
+        headers={"stripe-signature": "sig"},
+    )
+
+    assert response.status_code == 200
+    reg.refresh_from_db()
+    assert reg.status == Registration.Status.VERIFIED
+    assert Payment.objects.count() == 1
+    payment = Payment.objects.get()
+    assert payment.stripe_payment_intent_id == "pi_dep_wh"
+    assert Tip.objects.count() == 0

@@ -25,8 +25,16 @@ logger = logging.getLogger(__name__)
 # Allow-list for staff-authored Notification content. Deliberately small:
 # enough to link and emphasise text, nothing that can execute script or style
 # injection. Tunable later; no ADR needed for launch (VERB-109 scoping).
+#
+# "rel" is deliberately NOT in the allow-list: nh3's default link_rel behaviour
+# force-adds rel="noopener noreferrer" to every <a>, which is what stops a
+# staff-authored `target="_blank"` link from tabnabbing the origin page (the
+# opened page could otherwise use window.opener to navigate this tab
+# elsewhere). Allowing "rel" as an attribute would let staff-authored markup
+# override or strip that protection, so it stays off the list and nh3 is left
+# to manage it.
 _NOTIFICATION_ALLOWED_TAGS = {"a", "b", "strong", "em", "i", "br", "span", "p"}
-_NOTIFICATION_ALLOWED_ATTRIBUTES = {"a": {"href", "title", "target", "rel"}}
+_NOTIFICATION_ALLOWED_ATTRIBUTES = {"a": {"href", "title", "target"}}
 _NOTIFICATION_ALLOWED_URL_SCHEMES = {"http", "https", "mailto"}
 
 
@@ -52,10 +60,6 @@ def sanitise_notification_html(html: str) -> str:
         tags=_NOTIFICATION_ALLOWED_TAGS,
         attributes=_NOTIFICATION_ALLOWED_ATTRIBUTES,
         url_schemes=_NOTIFICATION_ALLOWED_URL_SCHEMES,
-        # nh3 manages the "rel" attribute itself unless link_rel=None; the
-        # allow-list explicitly permits staff to set "rel" on <a>, so hand
-        # control back to the attribute allow-list rather than nh3's default.
-        link_rel=None,
     )
 
 

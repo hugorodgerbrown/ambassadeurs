@@ -50,6 +50,21 @@ def test_sanitise_notification_html_drops_javascript_scheme() -> None:
     assert "javascript:" not in result
 
 
+def test_sanitise_notification_html_adds_noopener_noreferrer_to_blank_target() -> None:
+    """A target="_blank" link is given rel="noopener noreferrer" (anti-tabnabbing).
+
+    "rel" is deliberately absent from the attribute allow-list so staff-authored
+    markup cannot override or strip nh3's automatic protection — a
+    target="_blank" anchor could otherwise use window.opener to navigate this
+    tab (tabnabbing) once the linked page loads.
+    """
+    result = sanitise_notification_html(
+        '<a href="https://example.com" target="_blank">click</a>'
+    )
+    assert 'rel="noopener noreferrer"' in result
+    assert 'target="_blank"' in result
+
+
 def test_sanitise_notification_html_allows_plain_text() -> None:
     """Plain text with no markup passes through unchanged."""
     result = sanitise_notification_html("Registration opens July 31st.")

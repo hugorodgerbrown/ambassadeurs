@@ -639,6 +639,24 @@ def _free_tier_registration_or_404(request: HttpRequest) -> Registration:
     return registration
 
 
+def _parse_tip_amount_chf(raw: str | None) -> int | None:
+    """Parse the ``amount_chf`` session metadata value, or None if unusable.
+
+    Metadata is attacker-influenced-adjacent (round-tripped through Stripe,
+    but ultimately sourced from whatever ``create_tip_checkout_session`` was
+    called with) — never trust it to be a clean integer string. Returns None
+    rather than raising so both callers (``tip_return``, ``stripe_webhook``)
+    can degrade gracefully instead of a user-facing 500 / an unhandled
+    exception in the always-200 webhook.
+    """
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
 @login_required
 def tip_page(request: HttpRequest) -> HttpResponse:
     """Render the standalone tip (voluntary contribution) page.
@@ -756,11 +774,18 @@ def tip_return(request: HttpRequest) -> HttpResponse:
         )
         return render(request, "public/tip_cancelled.html")
 
-    amount_chf_raw = _stripe_metadata_get(session, "amount_chf") or "0"
+    amount_chf = _parse_tip_amount_chf(_stripe_metadata_get(session, "amount_chf"))
+    if amount_chf is None:
+        logger.error(
+            "tip_return: session id=%s has unusable amount_chf metadata",
+            session_id,
+        )
+        return render(request, "public/tip_cancelled.html")
+
     message = _stripe_metadata_get(session, "message") or ""
     record_tip_paid(
         registration=registration,
-        amount_chf=int(amount_chf_raw),
+        amount_chf=amount_chf,
         message=message,
         stripe_customer_id=customer_id,
         stripe_payment_intent_id=payment_intent_id,
@@ -824,11 +849,20 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
                 )
                 return HttpResponse(status=200)
             if _stripe_metadata_get(session, "purpose") == "tip":
-                amount_chf_raw = _stripe_metadata_get(session, "amount_chf") or "0"
+                amount_chf = _parse_tip_amount_chf(
+                    _stripe_metadata_get(session, "amount_chf")
+                )
+                if amount_chf is None:
+                    logger.error(
+                        "stripe_webhook: checkout.session.completed tip session "
+                        "has unusable amount_chf metadata (session id=%s)",
+                        getattr(session, "id", "?"),
+                    )
+                    return HttpResponse(status=200)
                 message = _stripe_metadata_get(session, "message") or ""
                 record_tip_paid(
                     registration=registration,
-                    amount_chf=int(amount_chf_raw),
+                    amount_chf=amount_chf,
                     message=message,
                     stripe_customer_id=customer_id,
                     stripe_payment_intent_id=payment_intent_id,

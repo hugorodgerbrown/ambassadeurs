@@ -20,7 +20,7 @@ import logging
 
 import stripe
 from django.conf import settings
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils.translation import gettext as _
 
 from matching.models import Registration
@@ -113,6 +113,16 @@ def record_tip_paid(
     rather than creating a duplicate. The row is only created on confirmed
     payment — an abandoned checkout leaves no DB trace.
 
+    The check-then-create below is not race-safe on its own — unlike the
+    deposit flow, a Tip has no outer ``select_for_update()`` lock (there is
+    no Registration-level serialisation point to hang one off), so a
+    concurrent webhook retry racing ``tip_return`` could both pass the
+    ``.filter().first()`` check before either commits. The database-level
+    ``unique_tip_stripe_payment_intent_id`` constraint (``Tip.Meta.constraints``)
+    is the actual race guard: a losing concurrent insert raises
+    ``IntegrityError``, caught below and turned into a re-fetch of the
+    winner's row — the race degrades to idempotency, never a duplicate.
+
     Args:
         registration: The registration the tip belongs to.
         amount_chf: The whole-CHF amount charged.
@@ -126,27 +136,41 @@ def record_tip_paid(
         A ``(tip, created)`` tuple, mirroring ``QuerySet.get_or_create``'s
         return shape.
     """
-    with transaction.atomic():
-        existing = Tip.objects.filter(
-            stripe_payment_intent_id=stripe_payment_intent_id
-        ).first()
-        if existing is not None:
-            logger.info(
-                "record_tip_paid: Tip already recorded for "
-                "stripe_payment_intent_id=%s (pk=%s); no-op.",
-                stripe_payment_intent_id,
-                existing.pk,
-            )
-            return existing, False
-
-        tip = Tip.objects.create(
-            registration=registration,
-            amount_chf=amount_chf,
-            message=message,
-            status=Tip.Status.PAID,
-            stripe_customer_id=stripe_customer_id,
-            stripe_payment_intent_id=stripe_payment_intent_id,
+    existing = Tip.objects.filter(
+        stripe_payment_intent_id=stripe_payment_intent_id
+    ).first()
+    if existing is not None:
+        logger.info(
+            "record_tip_paid: Tip already recorded for "
+            "stripe_payment_intent_id=%s (pk=%s); no-op.",
+            stripe_payment_intent_id,
+            existing.pk,
         )
+        return existing, False
+
+    try:
+        with transaction.atomic():
+            tip = Tip.objects.create(
+                registration=registration,
+                amount_chf=amount_chf,
+                message=message,
+                status=Tip.Status.PAID,
+                stripe_customer_id=stripe_customer_id,
+                stripe_payment_intent_id=stripe_payment_intent_id,
+            )
+    except IntegrityError:
+        # Lost the race: a concurrent call (webhook vs. tip_return) committed
+        # its insert first. The unique_tip_stripe_payment_intent_id constraint
+        # guarantees exactly one winner, so this get() cannot raise
+        # DoesNotExist.
+        existing = Tip.objects.get(stripe_payment_intent_id=stripe_payment_intent_id)
+        logger.info(
+            "record_tip_paid: lost the create race for "
+            "stripe_payment_intent_id=%s; returning the winner's Tip pk=%s.",
+            stripe_payment_intent_id,
+            existing.pk,
+        )
+        return existing, False
     logger.info(
         "record_tip_paid: created PAID Tip pk=%s for registration pk=%s "
         "(amount_chf=%s, stripe_payment_intent_id=%s)",

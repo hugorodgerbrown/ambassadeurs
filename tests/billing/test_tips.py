@@ -12,6 +12,7 @@ import stripe
 
 from billing.models import Tip
 from billing.services.tips import create_tip_checkout_session, record_tip_paid
+from tests.billing.factories import TipFactory
 from tests.matching.factories import RegistrationFactory
 
 pytestmark = pytest.mark.django_db
@@ -192,3 +193,48 @@ def test_record_tip_paid_is_idempotent_on_payment_intent_id() -> None:
     assert second_created is False
     assert first.pk == second.pk
     assert Tip.objects.count() == 1
+
+
+def test_record_tip_paid_degrades_to_idempotency_on_create_race(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A concurrent create race (both callers pass the check-then-create's
+    initial .filter().first() before either commits) degrades to idempotency
+    — the loser re-fetches the winner's row rather than raising or creating
+    a duplicate.
+
+    Simulated by pre-creating the "winning" Tip row after
+    record_tip_paid's own check has already run, forcing its .create() call
+    to hit the unique_tip_stripe_payment_intent_id constraint exactly as a
+    real concurrent commit would.
+    """
+    registration = RegistrationFactory.create()
+    winner = TipFactory.create(
+        registration=registration,
+        amount_chf=10,
+        stripe_payment_intent_id="pi_race",
+    )
+
+    real_filter = Tip.objects.filter
+
+    def _filter_then_let_winner_land(*args: Any, **kwargs: Any) -> Any:
+        # Simulate the race: return "not found yet" once, then let the real
+        # queryset take over (the winner row already exists by this point,
+        # planted above — this only fakes the *check*, not the DB state).
+        qs = real_filter(*args, **kwargs)
+        monkeypatch.setattr(Tip.objects, "filter", real_filter)
+        return qs.none()
+
+    monkeypatch.setattr(Tip.objects, "filter", _filter_then_let_winner_land)
+
+    tip, created = record_tip_paid(
+        registration=registration,
+        amount_chf=10,
+        message="",
+        stripe_customer_id="cus_race",
+        stripe_payment_intent_id="pi_race",
+    )
+
+    assert created is False
+    assert tip.pk == winner.pk
+    assert Tip.objects.filter(stripe_payment_intent_id="pi_race").count() == 1

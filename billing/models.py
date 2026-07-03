@@ -191,6 +191,22 @@ class Tip(BaseModel):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            # Enforces record_tip_paid's idempotency at the database level: a
+            # concurrent webhook retry racing tip_return could otherwise both
+            # pass the check-then-create's SELECT and insert two Tip rows for
+            # one payment intent (unlike the deposit flow, a Tip has no outer
+            # select_for_update() lock to serialise on). The condition excludes
+            # the blank default (stripe_payment_intent_id="") so multiple
+            # never-completed rows — which this model never actually creates,
+            # since a Tip is only ever inserted with a real payment intent id
+            # — could never collide on the empty string either way.
+            models.UniqueConstraint(
+                fields=["stripe_payment_intent_id"],
+                condition=~models.Q(stripe_payment_intent_id=""),
+                name="unique_tip_stripe_payment_intent_id",
+            ),
+        ]
 
     def to_string(self) -> str:
         """Return a human-readable label for the tip."""

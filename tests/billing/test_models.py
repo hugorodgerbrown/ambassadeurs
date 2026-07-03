@@ -2,6 +2,7 @@
 # TipQuerySet.
 
 import pytest
+from django.db import IntegrityError, transaction
 
 from billing.models import Payment, Tip
 from tests.billing.factories import PaymentFactory, TipFactory
@@ -147,3 +148,31 @@ def test_tip_queryset_for_registration_filters_by_registration() -> None:
     mine = TipFactory.create(registration=registration)
     TipFactory.create()  # different registration
     assert list(Tip.objects.for_registration(registration)) == [mine]
+
+
+# ---------------------------------------------------------------------------
+# unique_tip_stripe_payment_intent_id constraint
+# ---------------------------------------------------------------------------
+
+
+def test_duplicate_stripe_payment_intent_id_raises_integrity_error() -> None:
+    """Two Tip rows with the same non-blank stripe_payment_intent_id collide.
+
+    This is the database-level guard record_tip_paid relies on to degrade a
+    create race to idempotency rather than a duplicate.
+    """
+    TipFactory.create(stripe_payment_intent_id="pi_dupe")
+    with pytest.raises(IntegrityError), transaction.atomic():
+        TipFactory.create(stripe_payment_intent_id="pi_dupe")
+
+
+def test_blank_stripe_payment_intent_id_does_not_collide() -> None:
+    """Multiple Tip rows with a blank stripe_payment_intent_id do not collide.
+
+    The constraint's condition excludes the empty-string default, so this
+    scenario (which record_tip_paid never actually creates — a Tip is only
+    ever inserted with a real payment intent id) cannot break row creation.
+    """
+    TipFactory.create(stripe_payment_intent_id="")
+    TipFactory.create(stripe_payment_intent_id="")
+    assert Tip.objects.filter(stripe_payment_intent_id="").count() == 2

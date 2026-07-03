@@ -20,6 +20,7 @@ const TABLES = [
   "matching_match",
   "matching_registration",
   "billing_payment",
+  "core_notification",
   "auth_user",
   "django_session",
 ];

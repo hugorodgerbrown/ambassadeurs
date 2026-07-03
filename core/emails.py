@@ -106,4 +106,7 @@ def send_templated_email(
     message = EmailMultiAlternatives(subject, body, settings.DEFAULT_FROM_EMAIL, to)
     message.attach_alternative(html, "text/html")
     message.send()
-    logger.info("Sent templated email name=%s to=%s", name, to)
+    # Log the template name and recipient count only — never the address
+    # itself (email is sensitive, CLAUDE.md "Core domain"; other modules log
+    # pks, not addresses, for the same reason).
+    logger.info("Sent templated email name=%s recipients=%s", name, len(to))

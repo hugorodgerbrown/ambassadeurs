@@ -5,6 +5,8 @@
 # escaping behaviour) — never translated string literals, because the test
 # env compiles no .mo catalogues and gettext falls back to the English source.
 
+import re
+
 import pytest
 from django.core import mail
 
@@ -149,3 +151,27 @@ def test_send_templated_email_accepts_language_argument() -> None:
     send_templated_email("login", _LOGIN_CONTEXT, ["ada@example.com"], language="fr")
 
     assert len(mail.outbox) == 1
+
+
+def test_send_templated_email_html_has_non_empty_lang_attribute() -> None:
+    """The HTML part's <html lang="..."> reflects the active language.
+
+    ``base.html`` resolves it via ``{% get_current_language as LANGUAGE_CODE %}``
+    rather than a ``LANGUAGE_CODE`` context-processor variable, which is never
+    populated here (the helper deliberately renders without a request). This
+    only asserts the attribute is non-empty and matches the requested language
+    code — not any translated string — so it holds in the test env, which
+    compiles no catalogues.
+    """
+    mail.outbox.clear()
+
+    send_templated_email("login", _LOGIN_CONTEXT, ["ada@example.com"], language="en")
+
+    html_body = next(
+        content
+        for content, mimetype in mail.outbox[0].alternatives
+        if mimetype == "text/html"
+    )
+    match = re.search(r'<html lang="([^"]*)"', html_body)
+    assert match is not None
+    assert match.group(1) == "en"

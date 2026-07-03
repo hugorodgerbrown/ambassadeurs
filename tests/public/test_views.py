@@ -3010,6 +3010,36 @@ def test_tip_return_non_numeric_amount_metadata_shows_cancelled(
     assert Tip.objects.count() == 0
 
 
+@pytest.mark.parametrize("bad_amount", ["0", "-1"])
+def test_tip_return_non_positive_amount_metadata_shows_cancelled(
+    monkeypatch: pytest.MonkeyPatch,
+    bad_amount: str,
+) -> None:
+    """A zero or negative amount_chf is rejected by the parser rather than
+    reaching record_tip_paid, where the Postgres CHECK constraint on
+    PositiveIntegerField would surface as a misdiagnosed IntegrityError."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    session = _FakeCheckoutSession(
+        payment_status="paid",
+        customer="cus_bad",
+        payment_intent="pi_bad",
+        metadata={
+            "purpose": "tip",
+            "registration_pk": str(reg.pk),
+            "amount_chf": bad_amount,
+        },
+    )
+    monkeypatch.setattr(stripe.checkout.Session, "retrieve", lambda session_id: session)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:tip_return"), {"session_id": "cs_tip0001"})
+
+    assert response.status_code == 200
+    assert "public/tip_cancelled.html" in [t.name for t in response.templates]
+    assert Tip.objects.count() == 0
+
+
 def test_tip_return_missing_amount_metadata_key_shows_cancelled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

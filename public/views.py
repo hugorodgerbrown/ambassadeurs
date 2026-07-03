@@ -652,9 +652,15 @@ def _parse_tip_amount_chf(raw: str | None) -> int | None:
     if raw is None:
         return None
     try:
-        return int(raw)
+        amount_chf = int(raw)
     except ValueError:
         return None
+    # A non-positive amount would fail Tip.amount_chf's Postgres CHECK
+    # constraint inside record_tip_paid, where the IntegrityError would be
+    # misread as an idempotency race — reject it here instead.
+    if amount_chf < 1:
+        return None
+    return amount_chf
 
 
 @login_required

@@ -1,5 +1,10 @@
 # .github/workflows/ci.yml — Run formatting, linting, type checks, Django
 # checks, and tests via tox on push to main and on pull requests.
+#
+# The test job runs against a Postgres service (VERB-98): DATABASE_URL in .env
+# points config.settings.development at Postgres so backend-specific SQL
+# constraints (e.g. FOR UPDATE + DISTINCT) surface in CI, not just in the
+# Postgres-backed e2e suite.
 
 name: Python / Django
 
@@ -91,6 +96,21 @@ jobs:
     env:
       TOXENV: test
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ambassadeurs
+          POSTGRES_PASSWORD: ambassadeurs
+          POSTGRES_DB: ambassadeurs_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ambassadeurs"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Check out the repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
@@ -104,6 +124,7 @@ jobs:
         run: |
           echo "SECRET_KEY=ci-test-secret-key" > .env
           echo "DJANGO_SETTINGS_MODULE=config.settings.development" >> .env
+          echo "DATABASE_URL=postgres://ambassadeurs:ambassadeurs@127.0.0.1:5432/ambassadeurs_test" >> .env
 
       - name: Install and run tox
         run: |

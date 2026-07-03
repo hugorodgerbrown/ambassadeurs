@@ -82,6 +82,12 @@
             </ul>
         </div>
 
+        {% if survey_form %}
+            <div id="wtp-survey" class="mb-6">
+                {% include "public/partials/wtp_survey.html" %}
+            </div>
+        {% endif %}
+
         <a href="{% url 'accounts:detail' %}" class="btn btn--role btn--block">
             {% translate "Go to my account" %}
             <svg

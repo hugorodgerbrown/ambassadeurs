@@ -81,6 +81,7 @@ TEMPLATES = [
                 "django.template.context_processors.i18n",
                 "django.template.context_processors.debug",
                 "debug.context_processors.debug_panel",
+                "core.context_processors.notifications",
             ],
         },
     },

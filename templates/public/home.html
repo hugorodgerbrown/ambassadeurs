@@ -13,6 +13,17 @@
 {% endblock %}
 
 {% comment %}
+The homepage anchors the notifications strip to the very top of the page,
+above the overlay-nav hero (VERB-109): render it in the top-of-body slot and
+empty base.html's default below-the-nav placement so it never shows twice.
+{% endcomment %}
+{% block notifications_top %}
+    {% include "includes/notification_strip.html" %}
+{% endblock %}
+
+{% block notifications %}{% endblock %}
+
+{% comment %}
 Homepage — Alpine v2 direction. Full-bleed photographic hero: two people (one
 in a red jacket, one in blue) shaking hands on a platform between a red gondola
 and a blue gondola, both branded "4 Vallées Ambassadors", with alpine peaks

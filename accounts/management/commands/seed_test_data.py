@@ -28,6 +28,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from core.emails import normalise_email
+from core.models import Notification
 from matching.models import Match, Registration, Resort
 from matching.pricing_config import fee_chf_for
 
@@ -35,6 +36,12 @@ logger = logging.getLogger(__name__)
 
 # All seeded users share this domain so the wipe step can identify them reliably.
 SEED_EMAIL_DOMAIN = "seed.test"
+
+# Every seeded notification's content starts with this marker so the wipe step
+# can identify and remove exactly the ones this command created (a developer's
+# own hand-authored notifications are left untouched). The marker is visible in
+# the rendered banner, which doubles as a "this is local seed data" cue.
+SEED_NOTIFICATION_MARKER = "[seed]"
 
 # Fixed consent text used for all seeded registrations (avoids translation lookup).
 _ACCEPTED_TERMS = [
@@ -130,6 +137,53 @@ def _make_registration(
     )
 
 
+def _make_notification(
+    content: str,
+    *,
+    audience: str,
+    priority: int = Notification.Priority.NORMAL,
+    enabled: bool = True,
+    is_dismissible: bool = True,
+    starts_at: datetime | None = None,
+    ends_at: datetime | None = None,
+    custom_group_key: str = "",
+) -> Notification:
+    """Create a seeded Notification via the ORM (save() runs the nh3 sanitiser).
+
+    The content is prefixed with ``SEED_NOTIFICATION_MARKER`` by the caller so
+    the wipe step can find it again. ``save()`` populates ``content_sanitised``
+    from ``content``, so a seeded notification exercises the same sanitisation
+    path as one authored in Django admin.
+
+    Args:
+        content: Raw HTML/plain text (already marker-prefixed by the caller).
+        audience: Notification.Audience value.
+        priority: Notification.Priority value (drives the strip colour).
+        enabled: Whether the kill switch is on; a disabled notification never
+            shows regardless of its window.
+        is_dismissible: Whether the banner shows a dismiss control.
+        starts_at: Optional tz-aware window start (None means "always" on that
+            side).
+        ends_at: Optional tz-aware window end (None means "always" on that
+            side).
+        custom_group_key: Key into settings.CUSTOM_NOTIFICATION_GROUPS; only
+            meaningful when audience is CUSTOM.
+
+    Returns:
+        The newly created Notification instance.
+    """
+    return Notification.objects.create(
+        content=content,
+        audience=audience,
+        priority=priority,
+        enabled=enabled,
+        is_dismissible=is_dismissible,
+        starts_at=starts_at,
+        ends_at=ends_at,
+        custom_group_key=custom_group_key,
+    )
+
+
 def _future_expires_at() -> datetime:
     """Return a tz-aware expires_at suitable for an active (non-lapsed) match."""
     return timezone.now() + timedelta(hours=settings.CONTACT_WINDOW_HOURS)
@@ -182,8 +236,10 @@ class Command(BaseCommand):
             if not keep:
                 self._wipe_seed_data()
             rows = self._create_seed_data()
+            notifications = self._create_notifications()
 
         self._print_summary(rows)
+        self._print_notification_summary(notifications)
 
     # ------------------------------------------------------------------
     # Wipe
@@ -205,6 +261,9 @@ class Command(BaseCommand):
         Match.objects.filter(ambassador_registration__in=seed_registrations).delete()
         Match.objects.filter(referee_registration__in=seed_registrations).delete()
         User.objects.filter(email__endswith=f"@{SEED_EMAIL_DOMAIN}").delete()
+        Notification.objects.filter(
+            content__startswith=SEED_NOTIFICATION_MARKER
+        ).delete()
 
     # ------------------------------------------------------------------
     # Create
@@ -693,6 +752,137 @@ class Command(BaseCommand):
         return rows
 
     # ------------------------------------------------------------------
+    # Notifications
+    # ------------------------------------------------------------------
+
+    def _create_notifications(self) -> list[dict[str, str]]:
+        """Create a sentinel set of notifications covering every variant.
+
+        One notification per axis a developer needs to eyeball: audience
+        (everyone / anonymous / authenticated / custom groups), every priority
+        colour (neutral / low / normal / high), dismissible vs permanent, the
+        ``enabled`` kill switch, an HTML/link body, a body carrying a
+        ``<script>`` to show the sanitiser strips it, and future/past display
+        windows (present in admin but not currently rendered). Every content
+        string is prefixed with ``SEED_NOTIFICATION_MARKER`` so the wipe step
+        can reclaim them.
+
+        Returns:
+            List of dicts with keys ``audience``, ``priority``,
+            ``dismissible``, ``state``, ``content`` for printing.
+        """
+        now = timezone.now()
+        m = SEED_NOTIFICATION_MARKER
+        prio = Notification.Priority
+
+        # (notification, human "state" label for the summary table).
+        specs: list[tuple[Notification, str]] = [
+            (
+                _make_notification(
+                    f"{m} Last day to register — closes tonight.",
+                    audience=Notification.Audience.EVERYONE,
+                    priority=prio.HIGH,
+                ),
+                "active",
+            ),
+            (
+                _make_notification(
+                    f"{m} Registration is open — welcome to Ski Parrainage.",
+                    audience=Notification.Audience.EVERYONE,
+                    is_dismissible=False,
+                ),
+                "active",
+            ),
+            (
+                _make_notification(
+                    f"{m} Register before <strong>31 October</strong> for free — "
+                    '<a href="/how-it-works/">read more</a>.',
+                    audience=Notification.Audience.EVERYONE,
+                    priority=prio.LOW,
+                ),
+                "active",
+            ),
+            (
+                _make_notification(
+                    f"{m} Sanitiser check: <em>this stays</em>, "
+                    "<script>alert(1)</script> is stripped.",
+                    audience=Notification.Audience.EVERYONE,
+                    priority=prio.NEUTRAL,
+                ),
+                "active",
+            ),
+            (
+                _make_notification(
+                    f"{m} You are browsing as a guest — sign in to manage your "
+                    "registration.",
+                    audience=Notification.Audience.ANONYMOUS,
+                    priority=prio.LOW,
+                ),
+                "active",
+            ),
+            (
+                _make_notification(
+                    f"{m} Signed in: your account page shows your match status.",
+                    audience=Notification.Audience.AUTHENTICATED,
+                    priority=prio.LOW,
+                ),
+                "active",
+            ),
+            (
+                _make_notification(
+                    f"{m} Ambassadors — thank you for volunteering this season.",
+                    audience=Notification.Audience.CUSTOM,
+                    custom_group_key="ambassadors",
+                ),
+                "active",
+            ),
+            (
+                _make_notification(
+                    f"{m} Referees — your ambassador will be in touch once matched.",
+                    audience=Notification.Audience.CUSTOM,
+                    custom_group_key="referees",
+                ),
+                "active",
+            ),
+            (
+                _make_notification(
+                    f"{m} Scheduled — starts in a week (not yet shown).",
+                    audience=Notification.Audience.EVERYONE,
+                    starts_at=now + timedelta(days=7),
+                ),
+                "scheduled (inactive)",
+            ),
+            (
+                _make_notification(
+                    f"{m} Last season's notice — window closed (not shown).",
+                    audience=Notification.Audience.EVERYONE,
+                    ends_at=now - timedelta(days=1),
+                ),
+                "expired (inactive)",
+            ),
+            (
+                _make_notification(
+                    f"{m} Disabled example — hidden by the kill switch.",
+                    audience=Notification.Audience.EVERYONE,
+                    priority=prio.HIGH,
+                    enabled=False,
+                ),
+                "disabled (kill switch)",
+            ),
+        ]
+
+        return [
+            {
+                "audience": n.audience,
+                "priority": n.get_priority_display(),
+                "dismissible": "yes" if n.is_dismissible else "no",
+                "state": state,
+                "content": n.content,
+            }
+            for n, state in specs
+        ]
+
+    # ------------------------------------------------------------------
     # Output
     # ------------------------------------------------------------------
 
@@ -736,4 +926,52 @@ class Command(BaseCommand):
         self.stdout.write(f"Total: {len(rows)} entries created.")
         self.stdout.write("")
         self.stdout.write("Login via /account/login/ using any email above.")
+        self.stdout.write("")
+
+    def _print_notification_summary(self, rows: list[dict[str, str]]) -> None:
+        """Write a human-readable summary of the seeded notifications.
+
+        Args:
+            rows: List of dicts from _create_notifications with keys
+                  ``audience``, ``priority``, ``dismissible``, ``state``,
+                  ``content``.
+        """
+        self.stdout.write(self.style.SUCCESS("Notifications seeded."))
+        self.stdout.write("")
+
+        preview_width = 44
+        previews = [
+            (r["content"][:preview_width] + "…")
+            if len(r["content"]) > preview_width
+            else r["content"]
+            for r in rows
+        ]
+
+        col_aud = max(len("Audience"), *(len(r["audience"]) for r in rows))
+        col_prio = max(len("Priority"), *(len(r["priority"]) for r in rows))
+        col_dis = len("Dismissible")
+        col_state = max(len("State"), *(len(r["state"]) for r in rows))
+        col_prev = max(len("Content"), *(len(p) for p in previews))
+
+        header = (
+            f"{'Audience':<{col_aud}}  "
+            f"{'Priority':<{col_prio}}  "
+            f"{'Dismissible':<{col_dis}}  "
+            f"{'State':<{col_state}}  "
+            f"{'Content':<{col_prev}}"
+        )
+        divider = "-" * len(header)
+
+        self.stdout.write(header)
+        self.stdout.write(divider)
+        for row, preview in zip(rows, previews, strict=True):
+            self.stdout.write(
+                f"{row['audience']:<{col_aud}}  "
+                f"{row['priority']:<{col_prio}}  "
+                f"{row['dismissible']:<{col_dis}}  "
+                f"{row['state']:<{col_state}}  "
+                f"{preview:<{col_prev}}"
+            )
+        self.stdout.write(divider)
+        self.stdout.write(f"Total: {len(rows)} notifications created.")
         self.stdout.write("")

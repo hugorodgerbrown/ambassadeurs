@@ -65,6 +65,13 @@
         off-screen, then slides it into view on :focus-visible.
         {% endcomment %}
         <a href="#main" class="skip-link">{% translate "Skip to main content" %}</a>
+        {% comment %}
+        Top-of-body notifications slot (VERB-109). Empty by default: standard
+        pages render the strip in the {% block notifications %} slot below the
+        nav (further down). The homepage overrides this block instead, so its
+        strip anchors to the very top of the page, above the overlay-nav hero.
+        {% endcomment %}
+        {% block notifications_top %}{% endblock %}
         {% comment %}Role tone-cue band, pinned above the nav. Role-themed pages fill this block; on public pages it stays empty.{% endcomment %}
         {% block topband %}{% endblock %}
         {% comment %}
@@ -78,6 +85,17 @@
             {% include "includes/nav.html" %}
             {% block hero %}{% endblock %}
         </div>
+        {% comment %}
+        Site-wide notifications strip (VERB-109), below the nav and above the
+        main content block — the placement for every standard page. Cleanly
+        absent (no layout gap) when there are no active notifications for this
+        visitor (see notification_strip.html). The homepage empties this block
+        and uses {% block notifications_top %} above instead, so its strip
+        anchors to the very top over the overlay-nav hero.
+        {% endcomment %}
+        {% block notifications %}
+            {% include "includes/notification_strip.html" %}
+        {% endblock %}
         <main id="main" class="mx-auto max-w-3xl px-4 py-10">
             {% block content %}{% endblock %}
         </main>

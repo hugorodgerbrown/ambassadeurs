@@ -28,6 +28,7 @@ export const SCENARIOS: Scenario[] = [
   { n: 12, title: "Closed / not-open states" },
   { n: 13, title: "Privacy invariant sweep", blocker: true },
   { n: 14, title: "Admin oversight" },
+  { n: 15, title: "Notifications strip" },
 ];
 
 /** The `@S<n>` tag string for a scenario number. */

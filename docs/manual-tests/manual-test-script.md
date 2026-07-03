@@ -338,6 +338,26 @@ accepted, that is a **release-blocking** defect. Stop and report it.
 
 ---
 
+## 15. Notifications strip (staff-authored banners)
+
+- [ ] In `/admin/`, add a Notification with plain-text content and audience
+      **Everyone**; leave the display window blank. It appears in the strip at the
+      top of the public home page.
+- [ ] Add a notification whose content includes a link and a `<script>` tag
+      (e.g. `Read <a href="https://example.com">more</a><script>alert(1)</script>`).
+      On the page the link renders and works, the `<script>` is gone, and the
+      anchor has `rel="noopener noreferrer"` — no alert fires (Invariant 4).
+- [ ] Dismiss a **dismissible** notification: it disappears, stays gone on reload,
+      and returns in a fresh browser session (new window / cleared storage).
+- [ ] A **permanent** (non-dismissible) notification shows no dismiss control and
+      cannot be hidden.
+- [ ] Audience gating: an **Anonymous** notification shows only when logged out; an
+      **Authenticated** one only when logged in; a **Custom** (e.g. ambassadors)
+      one only to a member of that group. A visitor outside the audience never
+      sees it.
+
+---
+
 ## Results log
 
 Copy this block per test run.
@@ -365,6 +385,7 @@ Scenario                              Result   Notes
 12  Closed / not-open states          [ ] pass / [ ] n/a
 13  Privacy invariant sweep           [ ] PASS / [ ] FAIL  (release blocker)
 14  Admin oversight                   [ ] pass / [ ] fail
+15  Notifications strip               [ ] pass / [ ] fail
 
 Defects raised (Linear VERB-___):
 ```

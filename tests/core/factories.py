@@ -3,7 +3,7 @@
 import factory
 from django.contrib.contenttypes.models import ContentType
 
-from core.models import StateTransitionLog
+from core.models import Notification, StateTransitionLog
 from tests.matching.factories import MatchFactory
 
 
@@ -33,3 +33,22 @@ class StateTransitionLogFactory(factory.django.DjangoModelFactory[StateTransitio
     field_name = "status"
     state_before = "PROPOSED"
     state_after = "ACCEPTED"
+
+
+class NotificationFactory(factory.django.DjangoModelFactory[Notification]):
+    """Factory for Notification.
+
+    Defaults to an always-active (both bounds null), dismissible, EVERYONE
+    notification. Override starts_at/ends_at/audience/custom_group_key per
+    test.
+    """
+
+    class Meta:
+        model = Notification
+
+    content = factory.Sequence(lambda n: f"Notification content {n}")
+    starts_at = None
+    ends_at = None
+    is_dismissible = True
+    audience = Notification.Audience.EVERYONE
+    custom_group_key = ""

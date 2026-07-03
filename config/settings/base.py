@@ -4,10 +4,17 @@
 # from here and override what differs. Secrets are read via python-decouple;
 # never hard-code credentials. See CLAUDE.md "Conventions" and "Authentication".
 
+from __future__ import annotations
+
+from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from csp.constants import NONCE, NONE, SELF
 from decouple import config
+
+if TYPE_CHECKING:
+    from django.db.models import QuerySet
 
 # Repo root: base.py -> settings -> config -> <root>.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -74,6 +81,7 @@ TEMPLATES = [
                 "django.template.context_processors.i18n",
                 "django.template.context_processors.debug",
                 "debug.context_processors.debug_panel",
+                "core.context_processors.notifications",
             ],
         },
     },
@@ -212,6 +220,41 @@ GEOIP_DATABASE_PATH: str = config(
 DEFAULT_FROM_EMAIL = config(
     "DEFAULT_FROM_EMAIL", default="Ambassadeurs <noreply@example.com>"
 )
+
+# --- Notifications (VERB-109) ----------------------------------------------
+# CUSTOM_NOTIFICATION_GROUPS backs Notification.Audience.CUSTOM: each value is
+# a pure, zero-argument callable returning a User queryset, evaluated lazily at
+# render time by core.models.Notification.is_visible_to(). Model imports are
+# done LAZILY inside each function body — settings are imported before the app
+# registry is ready, so importing matching.models at module level here would
+# raise AppRegistryNotReady. Editing this dict is a code change, not a UI
+# feature (out of scope for VERB-109 — see the plan).
+
+
+def _ambassadors() -> QuerySet[Any]:
+    """Return users with an ambassador registration."""
+    from django.contrib.auth import get_user_model
+
+    from matching.models import Registration
+
+    return get_user_model().objects.filter(
+        registration__role=Registration.Role.AMBASSADOR
+    )
+
+
+def _referees() -> QuerySet[Any]:
+    """Return users with a referee registration."""
+    from django.contrib.auth import get_user_model
+
+    from matching.models import Registration
+
+    return get_user_model().objects.filter(registration__role=Registration.Role.REFEREE)
+
+
+CUSTOM_NOTIFICATION_GROUPS: dict[str, Callable[[], QuerySet[Any]]] = {
+    "ambassadors": _ambassadors,
+    "referees": _referees,
+}
 
 # --- Logging --------------------------------------------------------------
 

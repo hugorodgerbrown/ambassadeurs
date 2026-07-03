@@ -14,7 +14,11 @@ from django.core.management.base import CommandError
 from django.test import override_settings
 from django.utils import timezone
 
-from accounts.management.commands.seed_test_data import SEED_EMAIL_DOMAIN
+from accounts.management.commands.seed_test_data import (
+    SEED_EMAIL_DOMAIN,
+    SEED_NOTIFICATION_MARKER,
+)
+from core.models import Notification
 from matching.models import Match, Registration
 
 pytestmark = pytest.mark.django_db
@@ -235,6 +239,107 @@ def test_admin_user_is_superuser_with_no_registration() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Notifications
+# ---------------------------------------------------------------------------
+
+
+def _seeded_notifications() -> list[Notification]:
+    """Return all notifications created by the command, newest first."""
+    return list(
+        Notification.objects.filter(content__startswith=SEED_NOTIFICATION_MARKER)
+    )
+
+
+def test_expected_notification_count() -> None:
+    """seed_test_data creates the sentinel set of notifications."""
+    _run()
+    assert len(_seeded_notifications()) == 11
+
+
+def test_seeded_notifications_cover_every_priority() -> None:
+    """The sentinel set exercises all four priority colours."""
+    _run()
+    priorities = {n.priority for n in _seeded_notifications()}
+    assert priorities == {
+        Notification.Priority.NEUTRAL,
+        Notification.Priority.LOW,
+        Notification.Priority.NORMAL,
+        Notification.Priority.HIGH,
+    }
+
+
+def test_seeded_notifications_include_a_disabled_kill_switch_example() -> None:
+    """One sentinel is disabled and so is excluded from the shown set."""
+    _run()
+    seeded = _seeded_notifications()
+    disabled = [n for n in seeded if not n.enabled]
+    assert len(disabled) == 1
+    # The disabled one is within its window (active) yet never shown, because
+    # enabled().active() drops it.
+    now = timezone.now()
+    shown = set(Notification.objects.enabled().active(now))
+    assert disabled[0] not in shown
+    assert disabled[0].is_active is True
+
+
+def test_seeded_notifications_cover_every_audience() -> None:
+    """The sentinel set exercises all four audiences."""
+    _run()
+    audiences = {n.audience for n in _seeded_notifications()}
+    assert audiences == {
+        Notification.Audience.EVERYONE,
+        Notification.Audience.ANONYMOUS,
+        Notification.Audience.AUTHENTICATED,
+        Notification.Audience.CUSTOM,
+    }
+
+
+def test_seeded_notifications_include_permanent_and_dismissible() -> None:
+    """Both a permanent and a dismissible notification are seeded."""
+    _run()
+    flags = {n.is_dismissible for n in _seeded_notifications()}
+    assert flags == {True, False}
+
+
+def test_seeded_notifications_include_scheduled_and_expired_windows() -> None:
+    """A future-window and a past-window notification are seeded (inactive now)."""
+    _run()
+    now = timezone.now()
+    active_ids = {n.pk for n in Notification.objects.active(now)}
+    seeded = _seeded_notifications()
+    # Exactly two seeded notifications are outside the current window.
+    inactive = [n for n in seeded if n.pk not in active_ids]
+    assert len(inactive) == 2
+
+
+def test_seeded_custom_group_keys_are_configured() -> None:
+    """CUSTOM notifications name keys that exist in CUSTOM_NOTIFICATION_GROUPS."""
+    _run()
+    custom = [
+        n for n in _seeded_notifications() if n.audience == Notification.Audience.CUSTOM
+    ]
+    assert {n.custom_group_key for n in custom} == {"ambassadors", "referees"}
+
+
+def test_seeded_notification_html_is_sanitised() -> None:
+    """A seeded <script> is stripped while a link survives (save() ran nh3)."""
+    _run()
+    combined = " ".join(n.content_sanitised for n in _seeded_notifications())
+    assert "<script>" not in combined
+    assert "alert(1)" not in combined
+    # The how-it-works link body survives sanitisation.
+    assert 'href="/how-it-works/"' in combined
+
+
+def test_running_twice_yields_same_notification_count() -> None:
+    """Re-running the command does not duplicate seeded notifications."""
+    _run()
+    first = len(_seeded_notifications())
+    _run()
+    assert len(_seeded_notifications()) == first
+
+
+# ---------------------------------------------------------------------------
 # Output
 # ---------------------------------------------------------------------------
 
@@ -243,3 +348,9 @@ def test_output_contains_seed_domain() -> None:
     """Command stdout mentions the seed email domain."""
     output = _run()
     assert SEED_EMAIL_DOMAIN in output
+
+
+def test_output_mentions_notifications() -> None:
+    """Command stdout reports the seeded notifications."""
+    output = _run()
+    assert "Notifications seeded." in output

@@ -172,13 +172,64 @@ def test_notification_str_delegates_to_to_string() -> None:
     assert str(notification) == notification.to_string()
 
 
-def test_notification_default_ordering_is_newest_first() -> None:
-    """Meta.ordering is -created_at so the most recent entry comes first."""
+def test_notification_default_ordering_is_newest_first_within_priority() -> None:
+    """Equal-priority notifications fall back to -created_at (newest first)."""
     first = NotificationFactory.create()
     second = NotificationFactory.create()
     qs = list(Notification.objects.all())
     assert qs[0].pk == second.pk
     assert qs[1].pk == first.pk
+
+
+def test_notification_ordering_puts_higher_priority_first() -> None:
+    """Meta.ordering is -priority first: a HIGH sorts above an earlier NEUTRAL."""
+    neutral = NotificationFactory.create(priority=Notification.Priority.NEUTRAL)
+    high = NotificationFactory.create(priority=Notification.Priority.HIGH)
+    qs = list(Notification.objects.all())
+    # high was created second but outranks neutral on priority.
+    assert qs[0].pk == high.pk
+    assert qs[1].pk == neutral.pk
+
+
+# ---------------------------------------------------------------------------
+# Notification.priority / enabled
+# ---------------------------------------------------------------------------
+
+
+def test_notification_priority_defaults_to_normal() -> None:
+    """A notification defaults to NORMAL priority."""
+    notification = NotificationFactory.create()
+    assert notification.priority == Notification.Priority.NORMAL
+
+
+@pytest.mark.parametrize(
+    ("priority", "tone"),
+    [
+        (Notification.Priority.NEUTRAL, "neutral"),
+        (Notification.Priority.LOW, "low"),
+        (Notification.Priority.NORMAL, "normal"),
+        (Notification.Priority.HIGH, "high"),
+    ],
+)
+def test_notification_priority_tone_maps_priority_to_token(
+    priority: int, tone: str
+) -> None:
+    """priority_tone returns the CSS tone token for each priority."""
+    notification = NotificationFactory.create(priority=priority)
+    assert notification.priority_tone == tone
+
+
+def test_notification_enabled_defaults_true() -> None:
+    """A notification's kill switch is on by default."""
+    notification = NotificationFactory.create()
+    assert notification.enabled is True
+
+
+def test_notification_queryset_enabled_excludes_disabled() -> None:
+    """The enabled() queryset drops notifications with the kill switch off."""
+    on = NotificationFactory.create(enabled=True)
+    NotificationFactory.create(enabled=False)
+    assert list(Notification.objects.enabled()) == [on]
 
 
 # ---------------------------------------------------------------------------

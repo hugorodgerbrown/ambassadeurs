@@ -17,18 +17,20 @@ from core.models import Notification
 def notifications(request: HttpRequest) -> dict[str, list[Notification]]:
     """Return the notifications the current request's user should see.
 
-    Filters ``Notification.objects.active(now)`` (the display-window
-    queryset) in Python by ``is_visible_to(request.user)`` — audience
-    membership (especially the CUSTOM case) is not practical to express as a
-    single queryset filter, and the active set is expected to be small.
+    Combines the two gating axes — the ``enabled`` kill switch and the
+    display window (``active(now)``) — then filters the result in Python by
+    ``is_visible_to(request.user)``. Audience membership (especially the
+    CUSTOM case) is not practical to express as a single queryset filter, and
+    the enabled + active set is expected to be small. A notification shows
+    only when it is enabled, within its window, and matches the audience.
 
     Args:
         request: The current HTTP request.
 
     Returns:
-        A dict with one key, ``active_notifications``, ordered newest first
-        (``Notification.Meta.ordering``).
+        A dict with one key, ``active_notifications``, ordered highest
+        priority first then newest (``Notification.Meta.ordering``).
     """
-    active = Notification.objects.active(timezone.now())
-    visible = [n for n in active if n.is_visible_to(request.user)]
+    candidates = Notification.objects.enabled().active(timezone.now())
+    visible = [n for n in candidates if n.is_visible_to(request.user)]
     return {"active_notifications": visible}

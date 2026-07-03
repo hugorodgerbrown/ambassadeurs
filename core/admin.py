@@ -95,6 +95,8 @@ class NotificationForm(forms.ModelForm):
         model = Notification
         fields = [
             "content",
+            "priority",
+            "enabled",
             "starts_at",
             "ends_at",
             "is_dismissible",
@@ -154,13 +156,16 @@ class NotificationAdmin(admin.ModelAdmin):
     form = NotificationForm
     list_display = [
         "content_preview",
+        "priority",
+        "enabled",
         "starts_at",
         "ends_at",
         "is_dismissible",
         "audience",
         "is_active",
     ]
-    list_filter = ["audience", "is_dismissible"]
+    list_editable = ["priority", "enabled"]
+    list_filter = ["enabled", "audience", "priority", "is_dismissible"]
     search_fields = ["content"]
 
     @admin.display(description=_("Content"))

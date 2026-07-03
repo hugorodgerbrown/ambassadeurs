@@ -253,7 +253,33 @@ def _seeded_notifications() -> list[Notification]:
 def test_expected_notification_count() -> None:
     """seed_test_data creates the sentinel set of notifications."""
     _run()
-    assert len(_seeded_notifications()) == 9
+    assert len(_seeded_notifications()) == 11
+
+
+def test_seeded_notifications_cover_every_priority() -> None:
+    """The sentinel set exercises all four priority colours."""
+    _run()
+    priorities = {n.priority for n in _seeded_notifications()}
+    assert priorities == {
+        Notification.Priority.NEUTRAL,
+        Notification.Priority.LOW,
+        Notification.Priority.NORMAL,
+        Notification.Priority.HIGH,
+    }
+
+
+def test_seeded_notifications_include_a_disabled_kill_switch_example() -> None:
+    """One sentinel is disabled and so is excluded from the shown set."""
+    _run()
+    seeded = _seeded_notifications()
+    disabled = [n for n in seeded if not n.enabled]
+    assert len(disabled) == 1
+    # The disabled one is within its window (active) yet never shown, because
+    # enabled().active() drops it.
+    now = timezone.now()
+    shown = set(Notification.objects.enabled().active(now))
+    assert disabled[0] not in shown
+    assert disabled[0].is_active is True
 
 
 def test_seeded_notifications_cover_every_audience() -> None:

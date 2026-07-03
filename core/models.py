@@ -138,6 +138,10 @@ class NotificationQuerySet(BaseQuerySet):
         inversion-of-control convention used elsewhere in the project (e.g.
         ``matching.MatchQuerySet.lapsed``).
 
+        This is the display-window axis only; it does not consider the
+        ``enabled`` kill switch — chain :meth:`enabled` for the combined
+        "would actually show" set.
+
         Args:
             now: The tz-aware instant to test the window against.
         """
@@ -145,6 +149,15 @@ class NotificationQuerySet(BaseQuerySet):
             models.Q(starts_at__isnull=True) | models.Q(starts_at__lte=now),
             models.Q(ends_at__isnull=True) | models.Q(ends_at__gt=now),
         )
+
+    def enabled(self) -> NotificationQuerySet:
+        """Return only notifications whose kill switch is on (``enabled=True``).
+
+        A separate axis from the display window (:meth:`active`): a
+        notification shows only when it is both enabled AND within its window,
+        so ``enabled=False`` hides it regardless of ``starts_at``/``ends_at``.
+        """
+        return self.filter(enabled=True)
 
 
 class Notification(BaseModel):
@@ -180,6 +193,19 @@ class Notification(BaseModel):
         AUTHENTICATED = "AUTHENTICATED", _("Authenticated users only")
         CUSTOM = "CUSTOM", _("Custom group")
 
+    class Priority(models.IntegerChoices):
+        """Visual priority of a notification. Higher priority sorts first.
+
+        Maps to a colour tone in the strip via the ``priority_tone`` property
+        (neutral → grey, low → blue, normal → amber, high → red). The colour
+        for each tone lives in ``src/css/main.css``.
+        """
+
+        NEUTRAL = 0, _("Neutral")
+        LOW = 1, _("Low")
+        NORMAL = 2, _("Normal")
+        HIGH = 3, _("High")
+
     content = models.TextField(
         help_text="Raw HTML/plain text as authored by staff.",
     )
@@ -208,6 +234,21 @@ class Notification(BaseModel):
             "session. Permanent notifications show no dismiss control."
         ),
     )
+    priority = models.IntegerField(
+        choices=Priority.choices,
+        default=Priority.NORMAL,
+        help_text=(
+            "Visual priority: sets the strip colour (neutral grey, low blue, "
+            "normal amber, high red) and sorts higher-priority notices first."
+        ),
+    )
+    enabled = models.BooleanField(
+        default=True,
+        help_text=(
+            "Date-independent kill switch. Uncheck to hide the notification "
+            "regardless of its display window; it never shows while disabled."
+        ),
+    )
     audience = models.CharField(
         max_length=16,
         choices=Audience.choices,
@@ -226,7 +267,9 @@ class Notification(BaseModel):
     objects = NotificationQuerySet.as_manager()
 
     class Meta:
-        ordering = ["-created_at"]
+        # Highest priority first, then newest — the strip stacks urgent
+        # notices above calmer ones, equal priorities falling back to recency.
+        ordering = ["-priority", "-created_at"]
 
     def __str__(self) -> str:
         """Delegate to to_string."""
@@ -252,10 +295,29 @@ class Notification(BaseModel):
         return f"{preview} [{self.get_audience_display()}]"
 
     @property
+    def priority_tone(self) -> str:
+        """Return the CSS colour tone token for this notification's priority.
+
+        A semantic string (``"neutral"``/``"low"``/``"normal"``/``"high"``)
+        emitted as the banner's ``data-priority`` attribute;
+        ``src/css/main.css`` maps each tone to its colour so the mapping lives
+        in one place. Derived from own fields → a property (CLAUDE.md).
+        """
+        return {
+            self.Priority.NEUTRAL: "neutral",
+            self.Priority.LOW: "low",
+            self.Priority.NORMAL: "normal",
+            self.Priority.HIGH: "high",
+        }.get(self.Priority(self.priority), "normal")
+
+    @property
     def is_active(self) -> bool:
         """True if now is within the display window (derived — a property).
 
-        Both bounds null means always active; either bound may be unset.
+        Both bounds null means always active; either bound may be unset. This
+        is the display-window axis only and does not consider ``enabled`` —
+        an ``enabled=False`` notification can still be ``is_active`` yet never
+        renders (see the ``notifications`` context processor).
         """
         now = timezone.now()
         if self.starts_at is not None and self.starts_at > now:

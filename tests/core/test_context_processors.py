@@ -62,13 +62,41 @@ def test_notifications_includes_authenticated_notification_for_authenticated() -
 
 
 def test_notifications_returns_newest_first() -> None:
-    """Multiple active notifications are returned newest first."""
+    """Equal-priority active notifications are returned newest first."""
     first = NotificationFactory.create(audience=Notification.Audience.EVERYONE)
     second = NotificationFactory.create(audience=Notification.Audience.EVERYONE)
     request = RequestFactory().get("/")
     request.user = AnonymousUser()
     result = notifications(request)
     assert [n.pk for n in result["active_notifications"]] == [second.pk, first.pk]
+
+
+def test_notifications_orders_higher_priority_first() -> None:
+    """A HIGH-priority notification is returned above an earlier NEUTRAL one."""
+    neutral = NotificationFactory.create(
+        audience=Notification.Audience.EVERYONE,
+        priority=Notification.Priority.NEUTRAL,
+    )
+    high = NotificationFactory.create(
+        audience=Notification.Audience.EVERYONE,
+        priority=Notification.Priority.HIGH,
+    )
+    request = RequestFactory().get("/")
+    request.user = AnonymousUser()
+    result = notifications(request)
+    assert [n.pk for n in result["active_notifications"]] == [high.pk, neutral.pk]
+
+
+def test_notifications_excludes_disabled_notification() -> None:
+    """A disabled (kill-switch off) notification is never returned, even if active."""
+    NotificationFactory.create(
+        audience=Notification.Audience.EVERYONE,
+        enabled=False,
+    )
+    request = RequestFactory().get("/")
+    request.user = AnonymousUser()
+    result = notifications(request)
+    assert result["active_notifications"] == []
 
 
 # ---------------------------------------------------------------------------

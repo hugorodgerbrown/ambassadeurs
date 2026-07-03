@@ -134,6 +134,8 @@ def _form_data(**overrides: object) -> dict[str, object]:
     """Build valid base NotificationForm data, with per-test overrides."""
     data: dict[str, object] = {
         "content": "Some announcement",
+        "priority": Notification.Priority.NORMAL,
+        "enabled": True,
         "starts_at": "",
         "ends_at": "",
         "is_dismissible": True,
@@ -142,6 +144,15 @@ def _form_data(**overrides: object) -> dict[str, object]:
     }
     data.update(overrides)
     return data
+
+
+@override_settings(CUSTOM_NOTIFICATION_GROUPS=_CUSTOM_GROUPS)
+def test_notification_form_everyone_with_priority_is_valid() -> None:
+    """A well-formed EVERYONE notification with a priority validates."""
+    form = NotificationForm(
+        data=_form_data(priority=Notification.Priority.HIGH, enabled=True)
+    )
+    assert form.is_valid(), form.errors
 
 
 @override_settings(CUSTOM_NOTIFICATION_GROUPS=_CUSTOM_GROUPS)

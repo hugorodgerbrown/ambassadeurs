@@ -47,6 +47,50 @@ test.describe("registration & account", () => {
     await expect(page.locator("#id_email")).toBeVisible();
   });
 
+  test("willingness-to-pay survey submits in place and does not re-show", { tag: "@S3" }, async ({
+    page,
+    mailbox,
+    runId,
+  }) => {
+    const p = makeParticipant("referee", runId);
+    await registerVerified(page, mailbox, p);
+    const doneUrl = page.url();
+
+    const survey = page.locator("#wtp-survey");
+    await expect(survey).toBeVisible();
+    await expect(survey).toContainText(/CHF \d+/);
+
+    await survey.locator('input[name="q1_answer"]').first().check();
+    await survey.locator('button[type="submit"]').click();
+
+    // The thanks fragment replaces the survey card in place — same URL, no
+    // full-page navigation, proving the HTMX submit path.
+    await expect(page).toHaveURL(doneUrl);
+    await expect(survey).toContainText("Thank you");
+
+    // A reload no longer shows the survey (already-responded gate).
+    await page.reload();
+    await expect(page.locator("#wtp-survey")).toHaveCount(0);
+  });
+
+  test("willingness-to-pay survey skip is a no-op", { tag: "@S3" }, async ({
+    page,
+    mailbox,
+    runId,
+  }) => {
+    const p = makeParticipant("referee", runId);
+    await registerVerified(page, mailbox, p);
+
+    const survey = page.locator("#wtp-survey");
+    await expect(survey).toBeVisible();
+    await survey.getByRole("button", { name: /skip/i }).click();
+    await expect(survey).toBeHidden();
+
+    // Skip never blocks the page — the main CTA still navigates normally.
+    await page.getByRole("link", { name: /go to my account/i }).click();
+    await expect(page).toHaveURL(new RegExp(ROUTES.account.replace(/\//g, "\\/")));
+  });
+
   test("magic-link login is prefetch-safe, logs in, and logs out", { tag: "@S10" }, async ({
     page,
     mailbox,

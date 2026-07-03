@@ -1,6 +1,10 @@
 # Development settings — local dev and the test suite.
 #
 # Insecure defaults are acceptable here; never reuse them in production.
+#
+# Postgres in CI (via DATABASE_URL, VERB-98) so Postgres-only SQL constraints
+# surface in the pytest suite, with SQLite as the zero-setup local default so a
+# developer can run tests without a database container.
 
 from decouple import config
 
@@ -19,12 +23,18 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]  # noqa: S104
 # The test client sends requests from 127.0.0.1 by default.
 INTERNAL_IPS = ["127.0.0.1"]
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",  # noqa: F405
+_database_url = config("DATABASE_URL", default="")
+if _database_url:
+    import dj_database_url
+
+    DATABASES = {"default": dj_database_url.config(env="DATABASE_URL")}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",  # noqa: F405
+        }
     }
-}
 
 # Signed-link / verification emails are written to the console in development.
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

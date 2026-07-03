@@ -24,7 +24,7 @@ def test_select_for_update_with_distinct_diverges_by_backend() -> None:
     raises. Forcing evaluation inside a transaction reproduces the exact
     query shape that caused VERB-97.
     """
-    RegistrationFactory.create()
+    registration = RegistrationFactory.create()
 
     with transaction.atomic():
         queryset = Registration.objects.distinct().select_for_update()
@@ -33,4 +33,6 @@ def test_select_for_update_with_distinct_diverges_by_backend() -> None:
             with pytest.raises(NotSupportedError):
                 list(queryset)
         else:
-            list(queryset)
+            # SQLite silently ignores FOR UPDATE, so evaluation succeeds and
+            # returns the registration we created — no error raised.
+            assert registration in list(queryset)

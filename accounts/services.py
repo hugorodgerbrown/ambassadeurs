@@ -26,10 +26,8 @@ import logging
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.core.mail import send_mail
 from django.db import transaction
 from django.http import HttpRequest
-from django.template.loader import render_to_string
 from django.urls import reverse
 
 from accounts.tokens import (
@@ -40,6 +38,7 @@ from accounts.tokens import (
 )
 from billing.models import Payment
 from billing.services.payments import InvalidPaymentTransition, refund
+from core.emails import send_templated_email
 from matching.models import Registration
 
 logger = logging.getLogger(__name__)
@@ -50,8 +49,8 @@ def send_login_email(request: HttpRequest, user: User) -> str:
 
     The token carries ``user.pk`` scoped to the single-purpose salt
     ``accounts.login`` (Invariant 6). Subject and body are rendered from
-    ``templates/email/login_subject.txt`` and ``templates/email/login_body.txt``
-    so copy can be translated without touching Python.
+    ``templates/email/login/subject.txt`` and ``templates/email/login/body.txt``
+    (plus ``body.html``) so copy can be translated without touching Python.
 
     Args:
         request: The current HTTP request, used to build the absolute verify URL.
@@ -71,11 +70,8 @@ def send_login_email(request: HttpRequest, user: User) -> str:
         "verify_url": verify_url,
         "expiry_hours": expiry_hours,
     }
-    # Do not pass request — email templates do not need context processors, and
-    # passing a bare RequestFactory request triggers the debug_panel processor.
-    subject = render_to_string("email/login_subject.txt", context).strip()
-    body = render_to_string("email/login_body.txt", context).strip()
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user.email])
+    # No language given — renders in the active request language, as before.
+    send_templated_email("login", context, [user.email])
 
     # In development the email is written to the console. Log the unwrapped link
     # on a single line for convenience. Gated on DEBUG so the signed token never
@@ -113,10 +109,8 @@ def send_already_registered_email(request: HttpRequest, user: User) -> str:
         "verify_url": verify_url,
         "expiry_hours": expiry_hours,
     }
-    # Do not pass request — email templates do not need context processors.
-    subject = render_to_string("email/already_registered_subject.txt", context).strip()
-    body = render_to_string("email/already_registered_body.txt", context).strip()
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user.email])
+    # No language given — renders in the active request language, as before.
+    send_templated_email("already_registered", context, [user.email])
 
     if settings.DEBUG:
         logger.info(
@@ -134,8 +128,8 @@ def send_confirmation_email(request: HttpRequest, registration: Registration) ->
     The token carries ``registration.pk`` scoped to the single-purpose salt
     ``accounts.registration-confirm`` (Invariant 6). Returns the confirm URL
     so the caller can stash it for the DEBUG shortcut. Subject and body are
-    rendered from ``templates/email/confirmation_subject.txt`` and
-    ``templates/email/confirmation_body.txt``.
+    rendered from ``templates/email/confirmation/subject.txt`` and
+    ``templates/email/confirmation/body.txt`` (plus ``body.html``).
 
     Args:
         request: The current HTTP request, used to build the absolute confirm URL.
@@ -152,10 +146,8 @@ def send_confirmation_email(request: HttpRequest, registration: Registration) ->
         "expiry_hours": expiry_hours,
         "is_ambassador": registration.is_ambassador,
     }
-    # Do not pass request — email templates do not need context processors.
-    subject = render_to_string("email/confirmation_subject.txt", context).strip()
-    body = render_to_string("email/confirmation_body.txt", context).strip()
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [registration.user.email])
+    # No language given — renders in the active request language, as before.
+    send_templated_email("confirmation", context, [registration.user.email])
 
     # In development the email is written to the console, where the long confirm
     # URL is quoted-printable soft-wrapped and awkward to copy. Log the

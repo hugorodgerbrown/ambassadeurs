@@ -120,7 +120,7 @@ def _email_confirmation(registration: Registration, counterpart: Registration) -
     """
     lang = registration.preferred_language or settings.LANGUAGE_CODE
     full_name = f"{counterpart.user.first_name} {counterpart.user.last_name}".strip()
-    context = {
+    context: dict[str, object] = {
         "name": full_name,
         "email": counterpart.user.email,
         "phone": counterpart.phone,

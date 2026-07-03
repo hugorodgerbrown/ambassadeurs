@@ -27,6 +27,7 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "django_htmx",
     "django_countries",
+    "side_effects",
 ]
 
 LOCAL_APPS = [

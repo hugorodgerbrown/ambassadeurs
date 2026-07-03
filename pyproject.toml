@@ -23,6 +23,7 @@ dependencies = [
     "django-csp>=4.0",
     "posthog>=7.21.2",
     "stripe>=15.3.0",
+    "django-side-effects>=3.2.0",
 ]
 
 [dependency-groups]
@@ -60,6 +61,9 @@ select = ["E", "F", "I", "UP", "B", "DJ", "C4", "S"]
 # PROPOSED/ACCEPTED matches) after the nullable-FK migration; these are
 # genuine runtime guards, not test-only checks.
 "matching/services.py" = ["S101"]
+# The side-effect handlers (VERB-107) use the same FK-invariant assertions,
+# plus one isinstance() assertion narrowing return_value's Any type.
+"matching/side_effects.py" = ["S101"]
 # Debug helpers use assertions to enforce the same FK invariants.
 "debug/views.py" = ["S101"]
 
@@ -72,7 +76,7 @@ warn_unused_ignores = true
 exclude = ['(^|/)migrations/', '^config/settings/']
 
 [[tool.mypy.overrides]]
-module = ["factory.*", "decouple.*", "django_ratelimit.*"]
+module = ["factory.*", "decouple.*", "django_ratelimit.*", "side_effects.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -81,6 +85,15 @@ ignore_missing_imports = true
 # stay unparametrised.
 module = ["*.admin", "matching.forms"]
 disallow_any_generics = false
+
+[[tool.mypy.overrides]]
+# django-side-effects (VERB-107 / ADR 0018) ships no py.typed marker or
+# stubs, so @has_side_effects / @is_side_effect_of are seen as untyped
+# decorators and erase the return type of every function they wrap
+# (untyped-decorator). Scoped to the two modules that use the decorators,
+# not a blanket project-wide relaxation.
+module = ["matching.services", "matching.side_effects"]
+disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]
 # Settings modules are dynamic (env-driven) and not worth type-gating.

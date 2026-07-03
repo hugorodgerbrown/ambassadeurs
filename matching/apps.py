@@ -8,3 +8,17 @@ class MatchingConfig(AppConfig):
 
     default_auto_field = "django.db.models.BigAutoField"
     name = "matching"
+
+    def ready(self) -> None:
+        """Import services and side_effects so their decorators register.
+
+        django-side-effects (ADR 0018 / VERB-107) does not autodiscover —
+        @has_side_effects / @is_side_effect_of only bind a label to a handler
+        when the defining module has been imported. Importing both modules
+        here, at app-ready time, guarantees every label is bound before the
+        `side_effects.checks.check_function_signatures` system check runs.
+        """
+        # Neither name is used directly here — importing them is the point,
+        # so the @has_side_effects/@is_side_effect_of decorators run and
+        # register their label bindings.
+        from . import services, side_effects  # noqa: F401

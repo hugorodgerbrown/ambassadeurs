@@ -135,10 +135,10 @@ class NotificationForm(forms.ModelForm):
             if custom_group_key not in settings.CUSTOM_NOTIFICATION_GROUPS:
                 raise ValidationError(
                     {
-                        "custom_group_key": _(
-                            "%(key)s is not a configured custom group."
+                        "custom_group_key": ValidationError(
+                            _("%(key)s is not a configured custom group."),
+                            params={"key": custom_group_key},
                         )
-                        % {"key": custom_group_key}
                     }
                 )
         else:

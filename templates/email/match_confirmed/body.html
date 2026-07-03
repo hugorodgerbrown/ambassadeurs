@@ -1,0 +1,26 @@
+{% extends "email/base.html" %}
+{% load i18n %}
+
+{% block content %}
+    <p style="margin: 0 0 16px">
+        {% blocktranslate trimmed %}Great news — your match has been confirmed!{% endblocktranslate %}
+    </p>
+    <p style="margin: 0 0 16px">
+        {% blocktranslate trimmed %}Here are your partner's contact details:{% endblocktranslate %}
+    </p>
+    <p style="margin: 0 0 16px">
+        {% translate "Name:" %}
+        {{ name }}<br>
+        {% translate "Email:" %}
+        {{ email }}<br>
+        {% translate "Phone:" %}
+        {{ phone }}
+    </p>
+    <p style="margin: 0 0 16px">
+        {% blocktranslate trimmed %}Please get in touch to arrange buying your passes together at the ticket
+            office.{% endblocktranslate %}
+    </p>
+    <p style="margin: 0">
+        {% translate "Good luck!" %}
+    </p>
+{% endblock %}

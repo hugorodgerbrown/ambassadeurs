@@ -1,0 +1,20 @@
+{% extends "email/base.html" %}
+{% load i18n %}
+
+{% block content %}
+    <p style="margin: 0 0 16px">
+        {% blocktranslate trimmed %}Good news — the matching system has found you a partner for the 4 Vallées
+            Ambassadors Programme.{% endblocktranslate %}
+    </p>
+    <p style="margin: 0 0 16px">
+        {% blocktranslate trimmed %}Open the link below to view your match and accept or decline within the contact
+            window:{% endblocktranslate %}
+    </p>
+    <p style="margin: 0 0 16px">
+        <a href="{{ url }}" style="color: #2563eb">{{ url }}</a>
+    </p>
+    <p style="margin: 0; color: #71717a; font-size: 14px">
+        {% blocktranslate trimmed %}If you did not register for this programme, please ignore this
+            email.{% endblocktranslate %}
+    </p>
+{% endblock %}

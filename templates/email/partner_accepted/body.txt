@@ -1,0 +1,7 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate trimmed %}Good news — your match partner for the 4 Vallées Ambassadors Programme has accepted.{% endblocktranslate %}
+
+{% blocktranslate trimmed %}Open the link below to accept or decline before the contact window closes:{% endblocktranslate %}
+
+{{ url }}
+
+{% blocktranslate trimmed %}If you did not register for this programme, please ignore this email.{% endblocktranslate %}{% endautoescape %}

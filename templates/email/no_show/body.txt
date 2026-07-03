@@ -1,0 +1,5 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate trimmed %}We have received a no-show report from your match partner for the 4 Vallées Ambassadors Programme.{% endblocktranslate %}
+
+{% blocktranslate trimmed %}Your registration has been removed from the pool. If you believe this report was made in error, please contact us for help.{% endblocktranslate %}
+
+{% blocktranslate trimmed %}If you did not register for this programme, please ignore this email.{% endblocktranslate %}{% endautoescape %}

@@ -1,0 +1,20 @@
+{% extends "email/base.html" %}
+{% load i18n %}
+
+{% block content %}
+    <p style="margin: 0 0 16px">
+        {% blocktranslate trimmed %}Good news — your match partner for the 4 Vallées Ambassadors Programme has
+            accepted.{% endblocktranslate %}
+    </p>
+    <p style="margin: 0 0 16px">
+        {% blocktranslate trimmed %}Open the link below to accept or decline before the contact window
+            closes:{% endblocktranslate %}
+    </p>
+    <p style="margin: 0 0 16px">
+        <a href="{{ url }}" style="color: #2563eb">{{ url }}</a>
+    </p>
+    <p style="margin: 0; color: #71717a; font-size: 14px">
+        {% blocktranslate trimmed %}If you did not register for this programme, please ignore this
+            email.{% endblocktranslate %}
+    </p>
+{% endblock %}

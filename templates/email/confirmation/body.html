@@ -1,0 +1,30 @@
+{% extends "email/base.html" %}
+{% load i18n %}
+
+{% block content %}
+    <p style="margin: 0 0 16px">
+        {% if first_name %}{% blocktranslate trimmed with first_name=first_name %}Hi
+                {{ first_name }},{% endblocktranslate %}{% else %}{% translate "Hi," %}{% endif %}
+    </p>
+    <p style="margin: 0 0 16px">
+        {% if is_ambassador %}{% blocktranslate trimmed %}Thanks for registering as an Ambassador for the 4 Vallées
+                Ambassadors Programme. Please confirm your email address to enter the matching queue — we'll pair you
+                with a Referee as soon as one is
+                available.{% endblocktranslate %}{% else %}{% blocktranslate trimmed %}Thanks for registering as a
+                Referee for the 4 Vallées Ambassadors Programme. Please confirm your email address to enter the
+                matching queue — we'll pair you with an Ambassador as soon as one is
+                available.{% endblocktranslate %}{% endif %}
+    </p>
+    <p style="margin: 0 0 16px">
+        {% blocktranslate trimmed %}Click the link below to confirm your email:{% endblocktranslate %}
+    </p>
+    <p style="margin: 0 0 16px">
+        <a href="{{ confirm_url }}" style="color: #2563eb">{{ confirm_url }}</a>
+    </p>
+    <p style="margin: 0; color: #71717a; font-size: 14px">
+        {% blocktranslate trimmed count expiry_hours=expiry_hours %}This link expires in {{ expiry_hours }} hour. If you
+            did not register for this programme, you can safely ignore this email.{% plural %}This link expires in
+            {{ expiry_hours }} hours. If you did not register for this programme, you can safely ignore this
+            email.{% endblocktranslate %}
+    </p>
+{% endblock %}

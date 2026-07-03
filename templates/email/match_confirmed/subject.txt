@@ -1,0 +1,1 @@
+{% load i18n %}{% translate "Match confirmed — contact your partner" %}

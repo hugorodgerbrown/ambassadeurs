@@ -28,7 +28,7 @@ from accounts.tokens import (
 from billing.models import Payment
 from matching.models import Match, Registration
 from matching.services import accept_match, register_participant
-from public.models import FormDownload
+from public.models import FormDownload, SurveyResponse
 from tests.accounts.factories import UserFactory
 from tests.matching.factories import MatchFactory, RegistrationFactory
 
@@ -1217,6 +1217,207 @@ def test_register_done_unknown_role_404() -> None:
     """An unknown role slug on the confirmation page returns 404."""
     response = Client().get(reverse("public:register_done", args=["banana"]))
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Willingness-to-pay survey (VERB-111)
+# ---------------------------------------------------------------------------
+
+
+def test_register_done_free_tier_verified_shows_survey() -> None:
+    """A VERIFIED, free-tier registrant sees the survey block on register_done."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:register_done", args=[reg.role.lower()]))
+
+    assert response.status_code == 200
+    assert b'id="wtp-survey"' in response.content
+
+
+def test_register_done_paid_tier_hides_survey() -> None:
+    """A paid-tier (fee_chf > 0) registrant does not see the survey block."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=5)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:register_done", args=[reg.role.lower()]))
+
+    assert response.status_code == 200
+    assert b'id="wtp-survey"' not in response.content
+
+
+def test_register_done_already_responded_hides_survey() -> None:
+    """A free-tier registrant who already responded does not see the survey again."""
+    from tests.public.factories import SurveyResponseFactory
+
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    SurveyResponseFactory.create(registration=reg)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:register_done", args=[reg.role.lower()]))
+
+    assert response.status_code == 200
+    assert b'id="wtp-survey"' not in response.content
+
+
+def test_register_done_anonymous_hides_survey() -> None:
+    """An anonymous visitor sees no survey block on register_done."""
+    response = Client().get(reverse("public:register_done", args=["referee"]))
+    assert response.status_code == 200
+    assert b'id="wtp-survey"' not in response.content
+
+
+def test_register_done_unverified_hides_survey() -> None:
+    """An UNVERIFIED free-tier registrant does not see the survey."""
+    reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:register_done", args=[reg.role.lower()]))
+
+    assert response.status_code == 200
+    assert b'id="wtp-survey"' not in response.content
+
+
+def _valid_survey_post() -> dict[str, object]:
+    """Return a minimal valid survey submission payload."""
+    return {"q1_answer": SurveyResponse.Q1Answer.PROBABLY}
+
+
+def test_register_survey_submit_requires_htmx() -> None:
+    """A non-HTMX POST to register_survey_submit returns 400 (Invariant 7)."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.post(
+        reverse("public:register_survey_submit"), _valid_survey_post()
+    )
+
+    assert response.status_code == 400
+    assert SurveyResponse.objects.count() == 0
+
+
+def test_register_survey_submit_rejects_get() -> None:
+    """A GET to register_survey_submit is rejected (POST-only)."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(
+        reverse("public:register_survey_submit"),
+        headers={"hx-request": "true"},
+    )
+
+    assert response.status_code == 405
+
+
+def test_register_survey_submit_creates_row_with_derived_price_and_framing() -> None:
+    """A valid submission persists price_chf_shown/framing_shown matching the
+    pk-derived variant, and q1_answer from the form."""
+    from public.models import survey_framing_for, survey_price_for
+
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.post(
+        reverse("public:register_survey_submit"),
+        _valid_survey_post(),
+        headers={"hx-request": "true"},
+    )
+
+    assert response.status_code == 200
+    assert SurveyResponse.objects.count() == 1
+    survey_response = SurveyResponse.objects.get()
+    assert survey_response.registration_id == reg.pk
+    assert survey_response.price_chf_shown == survey_price_for(reg)
+    assert survey_response.framing_shown == survey_framing_for(reg)
+    assert survey_response.q1_answer == SurveyResponse.Q1Answer.PROBABLY
+
+
+def test_register_survey_submit_second_submit_creates_no_second_row() -> None:
+    """A second submission is a safe no-op: no second row, still 200."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    client.post(
+        reverse("public:register_survey_submit"),
+        _valid_survey_post(),
+        headers={"hx-request": "true"},
+    )
+    response = client.post(
+        reverse("public:register_survey_submit"),
+        _valid_survey_post(),
+        headers={"hx-request": "true"},
+    )
+
+    assert response.status_code == 200
+    assert SurveyResponse.objects.count() == 1
+
+
+def test_register_survey_submit_invalid_rerenders_with_errors() -> None:
+    """Omitting the required q1_answer re-renders the survey with errors, no row."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.post(
+        reverse("public:register_survey_submit"),
+        {},
+        headers={"hx-request": "true"},
+    )
+
+    assert response.status_code == 200
+    assert "public/partials/wtp_survey.html" in [t.name for t in response.templates]
+    assert SurveyResponse.objects.count() == 0
+
+
+def test_register_survey_submit_q2_omitted_is_accepted() -> None:
+    """Omitting the optional q2_answer still creates a valid response."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.post(
+        reverse("public:register_survey_submit"),
+        _valid_survey_post(),
+        headers={"hx-request": "true"},
+    )
+
+    assert response.status_code == 200
+    survey_response = SurveyResponse.objects.get()
+    assert survey_response.q2_answer == ""
+
+
+def test_register_survey_submit_paid_tier_returns_400() -> None:
+    """A paid-tier registrant's submission is rejected with 400."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=5)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.post(
+        reverse("public:register_survey_submit"),
+        _valid_survey_post(),
+        headers={"hx-request": "true"},
+    )
+
+    assert response.status_code == 400
+    assert SurveyResponse.objects.count() == 0
+
+
+def test_register_survey_submit_anonymous_returns_400() -> None:
+    """An anonymous submission (no registration) is rejected with 400."""
+    response = Client().post(
+        reverse("public:register_survey_submit"),
+        _valid_survey_post(),
+        headers={"hx-request": "true"},
+    )
+    assert response.status_code == 400
 
 
 # ---------------------------------------------------------------------------

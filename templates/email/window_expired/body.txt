@@ -1,0 +1,11 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate trimmed %}The contact
+window for your recent Ski Parrainage match has closed because the match was
+not confirmed in time.{% endblocktranslate %}
+
+{% blocktranslate trimmed %}Your registration is now paused. When you are ready to be matched again, visit your account page and click "Rejoin the queue":{% endblocktranslate %}
+
+{{ url }}
+
+{% blocktranslate trimmed %}If you'd rather not wait, you can cancel from the same page and get any deposit you paid refunded.{% endblocktranslate %}
+
+{% blocktranslate trimmed %}If you did not register for this programme, please ignore this email.{% endblocktranslate %}{% endautoescape %}

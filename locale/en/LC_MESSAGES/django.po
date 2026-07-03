@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-03 11:04+0200\n"
+"POT-Creation-Date: 2026-07-03 14:49+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -203,101 +203,6 @@ msgid "Expired"
 msgstr ""
 
 msgid "Cancelled"
-msgstr ""
-
-msgid "You have been matched — 4 Vallées Ambassadors Programme"
-msgstr ""
-
-#, python-format
-msgid ""
-"Good news — the matching system has found you a partner for the 4 Vallées "
-"Ambassadors Programme.\n"
-"\n"
-"Open the link below to view your match and accept or decline within the "
-"contact window:\n"
-"\n"
-"%(url)s\n"
-"\n"
-"If you did not register for this programme, please ignore this email."
-msgstr ""
-
-msgid "Your partner has accepted — it's your turn"
-msgstr ""
-
-#, python-format
-msgid ""
-"Good news — your match partner for the 4 Vallées Ambassadors Programme has "
-"accepted.\n"
-"\n"
-"Open the link below to accept or decline before the contact window closes:\n"
-"\n"
-"%(url)s\n"
-"\n"
-"If you did not register for this programme, please ignore this email."
-msgstr ""
-
-msgid "Match confirmed — contact your partner"
-msgstr ""
-
-#, python-format
-msgid ""
-"Great news — your match has been confirmed!\n"
-"\n"
-"Here are your partner's contact details:\n"
-"\n"
-"Name: %(name)s\n"
-"Email: %(email)s\n"
-"Phone: %(phone)s\n"
-"\n"
-"Please get in touch to arrange buying your passes together at the ticket "
-"office.\n"
-"\n"
-"Good luck!"
-msgstr ""
-
-msgid "Your match didn't go ahead — you're back at the front of the queue"
-msgstr ""
-
-msgid ""
-"Your recent match in the 4 Vallées Ambassadors Programme did not go ahead.\n"
-"\n"
-"This is not a reflection on you — you have been returned to the front of the "
-"queue, and the matching system will pair you with a new partner as soon as "
-"one is available. There is nothing you need to do.\n"
-"\n"
-"If you did not register for this programme, please ignore this email."
-msgstr ""
-
-msgid "Your match has expired — rejoin the queue when you're ready"
-msgstr ""
-
-#, python-format
-msgid ""
-"The contact window for your recent match in the 4 Vallées Ambassadors "
-"Programme has closed because the match was not confirmed in time.\n"
-"\n"
-"Your registration is now paused. When you are ready to be matched again, "
-"visit your account page and click \"Rejoin the queue\":\n"
-"\n"
-"%(url)s\n"
-"\n"
-"If you'd rather not wait, you can cancel from the same page and get any "
-"deposit you paid refunded.\n"
-"\n"
-"If you did not register for this programme, please ignore this email."
-msgstr ""
-
-msgid "Your match has been reported as a no-show"
-msgstr ""
-
-msgid ""
-"We have received a no-show report from your match partner for the 4 Vallées "
-"Ambassadors Programme.\n"
-"\n"
-"Your registration has been removed from the pool. If you believe this report "
-"was made in error, please contact us for help.\n"
-"\n"
-"If you did not register for this programme, please ignore this email."
 msgstr ""
 
 msgid "Access denied"
@@ -552,7 +457,7 @@ msgid "Hi,"
 msgstr ""
 
 msgid ""
-"You're already registered for the 4 Vallées Ambassadors Programme — there is "
+"You're already registered for the Ski Parrainage matching service — there is "
 "no need to register again. Use the link below to sign in and see your status:"
 msgstr ""
 
@@ -566,10 +471,13 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-msgid "— 4 Vallées Ambassadors Programme"
+msgid "— Ski Parrainage"
 msgstr ""
 
 msgid "You're already registered — Ski Parrainage"
+msgstr ""
+
+msgid "- Ski Parrainage"
 msgstr ""
 
 msgid ""
@@ -579,9 +487,9 @@ msgid ""
 msgstr ""
 
 msgid ""
-"Thanks for registering as a Referee for the 4 Vallées Ambassadors Programme. "
-"Please confirm your email address to enter the matching queue — we'll pair "
-"you with an Ambassador as soon as one is available."
+"Thanks for registering as a Referee with Ski Parrainage. Please confirm your "
+"email address to enter the matching queue — we'll pair you with an "
+"Ambassador as soon as one is available."
 msgstr ""
 
 msgid "Click the link below to confirm your email:"
@@ -597,15 +505,131 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
+msgid ""
+"Thanks for registering as an Ambassador with Ski Parrainage. Please confirm "
+"your email address to enter the matching queue — we'll pair you with a "
+"Referee as soon as one is available."
+msgstr ""
+
 msgid "Confirm your email — Ski Parrainage"
 msgstr ""
 
 msgid ""
-"Someone (probably you) asked to sign in to the 4 Vallées Ambassadors "
-"Programme. Click the link below to confirm your sign-in:"
+"Someone asked to sign in to Ski Parrainage with this email address. Click "
+"the link below to confirm your sign-in:"
 msgstr ""
 
 msgid "Sign in to Ski Parrainage"
+msgstr ""
+
+msgid "Great news — your match has been confirmed!"
+msgstr ""
+
+msgid "Here are your partner's contact details:"
+msgstr ""
+
+msgid "Name:"
+msgstr ""
+
+msgid "Email:"
+msgstr ""
+
+msgid "Phone:"
+msgstr ""
+
+msgid ""
+"Please get in touch to arrange buying your passes together at the ticket "
+"office."
+msgstr ""
+
+msgid "Good luck!"
+msgstr ""
+
+msgid "Match confirmed — contact your partner"
+msgstr ""
+
+msgid ""
+"Good news — the matching system has found you a partner for the 4 Vallées "
+"Ambassadors Programme."
+msgstr ""
+
+msgid ""
+"Open the link below to view your match and accept or decline within the "
+"contact window:"
+msgstr ""
+
+msgid "If you did not register for this programme, please ignore this email."
+msgstr ""
+
+msgid ""
+"Good news — the Ski Parrainage matching system has found you a partner for "
+"the 4 Vallées Ambassadors Programme."
+msgstr ""
+
+msgid "You have been matched - Ski Parrainage"
+msgstr ""
+
+msgid ""
+"We have received a no-show report from your match partner for the 4 Vallées "
+"Ambassadors Programme."
+msgstr ""
+
+msgid ""
+"Your registration has been removed from the pool. If you believe this report "
+"was made in error, please contact us for help."
+msgstr ""
+
+msgid ""
+"We have received a no-show report from your match partner with Ski "
+"Parrainage."
+msgstr ""
+
+msgid "Your match has been reported as a no-show"
+msgstr ""
+
+msgid "Good news — your match partner with Ski Parrainage has accepted."
+msgstr ""
+
+msgid ""
+"Open the link below to accept or decline before the contact window closes:"
+msgstr ""
+
+msgid "Your partner has accepted — it's your turn"
+msgstr ""
+
+msgid "Your recent match in the with Ski Parrainage did not go ahead."
+msgstr ""
+
+msgid ""
+"This is not a reflection on you — you have been returned to the front of the "
+"queue, and the matching system will pair you with a new partner as soon as "
+"one is available. There is nothing you need to do."
+msgstr ""
+
+msgid "Your match didn't go ahead — you're back at the front of the queue"
+msgstr ""
+
+msgid ""
+"The contact window for your recent match with Ski Parrainage has closed "
+"because the match was not confirmed in time."
+msgstr ""
+
+msgid ""
+"Your registration is now paused. When you are ready to be matched again, "
+"visit your account page and click \"Rejoin the queue\":"
+msgstr ""
+
+msgid ""
+"If you'd rather not wait, you can cancel from the same page and get any "
+"deposit you paid refunded."
+msgstr ""
+
+msgid ""
+"The contact window for your recent Ski Parrainage match has closed because "
+"the match was not confirmed in time."
+msgstr ""
+
+msgid "Your match has expired — rejoin the queue when you're ready"
 msgstr ""
 
 msgid "Ski Parrainage"

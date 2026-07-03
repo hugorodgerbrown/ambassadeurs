@@ -17,6 +17,7 @@ from django.test import RequestFactory, override_settings
 
 from accounts.services import (
     delete_account,
+    send_already_registered_email,
     send_confirmation_email,
     send_login_email,
     update_account,
@@ -109,6 +110,25 @@ def test_send_confirmation_email_sends_mail_and_returns_confirm_url() -> None:
     assert "register/confirm/" in confirm_url
 
 
+def test_send_confirmation_email_attaches_html_alternative() -> None:
+    """send_confirmation_email attaches a non-empty text/html alternative."""
+    registration = RegistrationFactory.create(status=Registration.Status.UNVERIFIED)
+    request = RequestFactory().get("/")
+    request.META["SERVER_NAME"] = "testserver"
+    request.META["SERVER_PORT"] = "80"
+    mail.outbox.clear()
+
+    send_confirmation_email(request, registration)
+
+    html_alternatives = [
+        content
+        for content, mimetype in mail.outbox[0].alternatives
+        if mimetype == "text/html"
+    ]
+    assert len(html_alternatives) == 1
+    assert html_alternatives[0].strip()
+
+
 # ---------------------------------------------------------------------------
 # send_login_email (VERB-46 magic-link login)
 # ---------------------------------------------------------------------------
@@ -126,6 +146,25 @@ def test_send_login_email_sends_mail_to_user() -> None:
 
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == ["ada@example.com"]
+
+
+def test_send_login_email_attaches_html_alternative() -> None:
+    """send_login_email attaches a non-empty text/html alternative."""
+    user = UserFactory.create(email="ada@example.com")
+    request = RequestFactory().get("/")
+    request.META["SERVER_NAME"] = "testserver"
+    request.META["SERVER_PORT"] = "80"
+    mail.outbox.clear()
+
+    send_login_email(request, user)
+
+    html_alternatives = [
+        content
+        for content, mimetype in mail.outbox[0].alternatives
+        if mimetype == "text/html"
+    ]
+    assert len(html_alternatives) == 1
+    assert html_alternatives[0].strip()
 
 
 def test_send_login_email_body_contains_verify_url() -> None:
@@ -253,6 +292,45 @@ def test_send_confirmation_email_referee_body_mentions_ambassador() -> None:
 
     # The EN source string mentions "Ambassador" in the referee copy.
     assert "Ambassador" in mail.outbox[0].body
+
+
+# ---------------------------------------------------------------------------
+# send_already_registered_email (VERB-72 — no email enumeration on register)
+# ---------------------------------------------------------------------------
+
+
+def test_send_already_registered_email_sends_mail_to_user() -> None:
+    """send_already_registered_email sends one email to the user's address."""
+    user = UserFactory.create(email="ada@example.com")
+    request = RequestFactory().get("/")
+    request.META["SERVER_NAME"] = "testserver"
+    request.META["SERVER_PORT"] = "80"
+    mail.outbox.clear()
+
+    verify_url = send_already_registered_email(request, user)
+
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == ["ada@example.com"]
+    assert verify_url in mail.outbox[0].body
+
+
+def test_send_already_registered_email_attaches_html_alternative() -> None:
+    """send_already_registered_email attaches a non-empty text/html alternative."""
+    user = UserFactory.create(email="ada@example.com")
+    request = RequestFactory().get("/")
+    request.META["SERVER_NAME"] = "testserver"
+    request.META["SERVER_PORT"] = "80"
+    mail.outbox.clear()
+
+    send_already_registered_email(request, user)
+
+    html_alternatives = [
+        content
+        for content, mimetype in mail.outbox[0].alternatives
+        if mimetype == "text/html"
+    ]
+    assert len(html_alternatives) == 1
+    assert html_alternatives[0].strip()
 
 
 # ---------------------------------------------------------------------------

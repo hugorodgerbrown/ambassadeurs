@@ -1,7 +1,6 @@
 # Tests for the matching service functions.
 
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import pytest
 from django.conf import settings
@@ -418,23 +417,29 @@ def test_email_proposal_contains_no_pii() -> None:
     _email_proposal(referee_reg, match)
 
     for message in mail.outbox:
-        body = message.body
-        # No phone numbers.
-        assert "+41790001234" not in body
-        assert "+41790005678" not in body
-        # No email addresses (only the recipient's own, which is the To: field).
-        assert ambassador_reg.user.email not in body
-        assert referee_reg.user.email not in body
-        # No names.
-        assert (
-            ambassador_reg.user.first_name not in body
-            or not ambassador_reg.user.first_name
+        html_body = next(
+            content
+            for content, mimetype in message.alternatives
+            if mimetype == "text/html"
         )
-        assert (
-            referee_reg.user.first_name not in body or not referee_reg.user.first_name
-        )
-        # The match link is present (non-PII — token is opaque).
-        assert "/match/" in body
+        for body in (message.body, html_body):
+            # No phone numbers.
+            assert "+41790001234" not in body
+            assert "+41790005678" not in body
+            # No email addresses (only the recipient's own, which is the To: field).
+            assert ambassador_reg.user.email not in body
+            assert referee_reg.user.email not in body
+            # No names.
+            assert (
+                ambassador_reg.user.first_name not in body
+                or not ambassador_reg.user.first_name
+            )
+            assert (
+                referee_reg.user.first_name not in body
+                or not referee_reg.user.first_name
+            )
+            # The match link is present (non-PII — token is opaque).
+            assert "/match/" in body
 
 
 def test_email_proposal_includes_match_link() -> None:
@@ -449,19 +454,33 @@ def test_email_proposal_includes_match_link() -> None:
         assert "/match/" in message.body
 
 
+def test_email_proposal_attaches_html_alternative() -> None:
+    """_email_proposal attaches a non-empty text/html alternative."""
+    match = MatchFactory.create()
+    assert match.ambassador_registration is not None
+    _email_proposal(match.ambassador_registration, match)
+
+    html_alternatives = [
+        content
+        for content, mimetype in mail.outbox[0].alternatives
+        if mimetype == "text/html"
+    ]
+    assert len(html_alternatives) == 1
+    assert html_alternatives[0].strip()
+
+
 def test_email_proposal_respects_preferred_language() -> None:
     """Each recipient's email is rendered in their preferred_language.
 
-    The French-language recipient must still receive the match link: the
-    match-notification body carries a ``%(url)s`` placeholder and VERB-29
-    tracked a French catalogue entry that dropped it, silently mailing a
-    linkless notification. Assert the ``/match/`` link survives in the
-    French-rendered body (mirrors ``..._includes_match_link`` for English).
-
-    Note: the tox/CI test env compiles no ``.mo`` catalogues, so rendering
-    under ``fr`` falls back to the English source and this assertion cannot
-    by itself catch a re-drop of the French placeholder. The catalogue is
-    guarded directly by ``test_french_match_notification_msgstr_keeps_url``.
+    The French-language recipient must still receive the match link: VERB-29
+    tracked a French catalogue entry that dropped the ``%(url)s`` placeholder
+    from the old Python-source body, silently mailing a linkless
+    notification. Since VERB-108 the body lives in
+    ``templates/email/match_proposed/body.txt`` with the URL emitted
+    *outside* every ``{% blocktranslate %}`` block, so no catalogue entry
+    carries the link and a translator cannot drop it. Assert the ``/match/``
+    link survives in the French-rendered body (mirrors
+    ``..._includes_match_link`` for English).
     """
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,
@@ -483,68 +502,6 @@ def test_email_proposal_respects_preferred_language() -> None:
         message for message in mail.outbox if ambassador_reg.user.email in message.to
     )
     assert "/match/" in fr_message.body
-
-
-def _read_po_msgstr(po_path: Path, msgid_needle: str) -> str:
-    """Return the ``msgstr`` whose ``msgid`` contains ``msgid_needle``.
-
-    A minimal, dependency-free ``.po`` reader: it concatenates the quoted
-    continuation lines of each ``msgid`` / ``msgstr`` pair into single
-    strings and returns the first ``msgstr`` whose ``msgid`` contains the
-    given needle. Used to assert placeholder parity directly against the
-    catalogue source, independent of ``.mo`` compilation (which the tox
-    test env skips). Raises ``LookupError`` if no entry matches.
-    """
-    msgid_parts: list[str] = []
-    msgstr_parts: list[str] = []
-    target: list[str] | None = None
-    entries: list[tuple[str, str]] = []
-
-    def flush() -> None:
-        """Record the current msgid/msgstr pair, if any was collected."""
-        if msgid_parts or msgstr_parts:
-            entries.append(("".join(msgid_parts), "".join(msgstr_parts)))
-
-    for raw_line in po_path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if line.startswith("msgid "):
-            flush()
-            msgid_parts, msgstr_parts = [], []
-            target = msgid_parts
-            line = line[len("msgid ") :]
-        elif line.startswith("msgstr "):
-            target = msgstr_parts
-            line = line[len("msgstr ") :]
-        elif not line.startswith('"'):
-            # A comment or blank line ends the current entry's string block.
-            target = None
-            continue
-        if target is not None and line.startswith('"') and line.endswith('"'):
-            target.append(line[1:-1])
-    flush()
-
-    for msgid, msgstr in entries:
-        if msgid_needle in msgid:
-            return msgstr
-    raise LookupError(f"No .po entry with msgid containing {msgid_needle!r}")
-
-
-def test_french_match_notification_msgstr_keeps_url() -> None:
-    """The French match-notification ``msgstr`` retains the ``%(url)s`` link.
-
-    This is the real regression guard for VERB-29: it asserts against the
-    ``.po`` source, so it catches a re-drop of the placeholder even though
-    the tox test env compiles no catalogues (a rendered-email test falls
-    back to English and would not). The body is interpolated with
-    ``% {"url": match_url}``; a French ``msgstr`` missing ``%(url)s`` mails
-    a linkless notification, leaving the recipient unable to act.
-    """
-    po_path = Path(settings.BASE_DIR) / "locale" / "fr" / "LC_MESSAGES" / "django.po"
-    msgstr = _read_po_msgstr(
-        po_path,
-        "the matching system has found you a partner",
-    )
-    assert "%(url)s" in msgstr
 
 
 # ---------------------------------------------------------------------------
@@ -1678,22 +1635,56 @@ def test_email_confirmation_contains_counterpart_details() -> None:
     _email_confirmation(referee_reg, ambassador_reg)
     assert len(mail.outbox) == 2
 
-    # Map To: addresses to message bodies.
+    def _html_part(to_address: str) -> str:
+        """Return the text/html alternative body for the message sent to to_address."""
+        message = next(msg for msg in mail.outbox if msg.to == [to_address])
+        return next(
+            content
+            for content, mimetype in message.alternatives
+            if mimetype == "text/html"
+        )
+
+    # Map To: addresses to message bodies (text part).
     body_by_recipient = {msg.to[0]: msg.body for msg in mail.outbox}
 
-    # The ambassador's email contains the referee's contact details.
+    # The ambassador's email contains the referee's contact details, in both
+    # the text and the HTML part.
     amb_body = body_by_recipient[ambassador_reg.user.email]
-    assert referee_reg.user.email in amb_body
-    assert referee_reg.phone in amb_body
-    assert referee_reg.user.first_name in amb_body or not referee_reg.user.first_name
+    amb_html = _html_part(ambassador_reg.user.email)
+    for amb_part in (amb_body, amb_html):
+        assert referee_reg.user.email in amb_part
+        assert referee_reg.phone in amb_part
+        assert (
+            referee_reg.user.first_name in amb_part or not referee_reg.user.first_name
+        )
 
-    # The referee's email contains the ambassador's contact details.
+    # The referee's email contains the ambassador's contact details, in both
+    # the text and the HTML part.
     ref_body = body_by_recipient[referee_reg.user.email]
-    assert ambassador_reg.user.email in ref_body
-    assert ambassador_reg.phone in ref_body
-    assert (
-        ambassador_reg.user.first_name in ref_body or not ambassador_reg.user.first_name
-    )
+    ref_html = _html_part(referee_reg.user.email)
+    for ref_part in (ref_body, ref_html):
+        assert ambassador_reg.user.email in ref_part
+        assert ambassador_reg.phone in ref_part
+        assert (
+            ambassador_reg.user.first_name in ref_part
+            or not ambassador_reg.user.first_name
+        )
+
+
+def test_email_confirmation_attaches_html_alternative() -> None:
+    """_email_confirmation attaches a non-empty text/html alternative."""
+    match = MatchFactory.create(accepted=True)
+    assert match.ambassador_registration is not None
+    assert match.referee_registration is not None
+    _email_confirmation(match.ambassador_registration, match.referee_registration)
+
+    html_alternatives = [
+        content
+        for content, mimetype in mail.outbox[0].alternatives
+        if mimetype == "text/html"
+    ]
+    assert len(html_alternatives) == 1
+    assert html_alternatives[0].strip()
 
 
 def test_email_confirmation_respects_preferred_language() -> None:
@@ -2781,18 +2772,46 @@ def test_email_partner_accepted_includes_match_link_no_pii() -> None:
         status=Match.Status.PENDING,
     )
     _email_partner_accepted(referee_reg, match)
-    body = mail.outbox[0].body
+    message = mail.outbox[0]
+    body = message.body
+    html_body = next(
+        content for content, mimetype in message.alternatives if mimetype == "text/html"
+    )
 
     # The link is scoped to the recipient (the referee), not the counterpart.
     assert "/match/" in body
-    # No counterpart contact PII is disclosed before mutual accept (Invariant 1).
+    assert "/match/" in html_body
+    # No counterpart contact PII is disclosed before mutual accept (Invariant 1),
+    # in either the text or the HTML part.
     assert ambassador_reg.phone not in body
     assert ambassador_reg.user.email not in body
+    assert ambassador_reg.phone not in html_body
+    assert ambassador_reg.user.email not in html_body
 
     # The embedded token decodes to (match, recipient).
     token = body.split("/match/")[1].split("/")[0]
     decoded = read_match_access_token(token)
     assert decoded == (match.pk, referee_reg.pk)
+
+
+def test_email_partner_accepted_attaches_html_alternative() -> None:
+    """_email_partner_accepted attaches a non-empty text/html alternative."""
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+        status=Match.Status.PENDING,
+    )
+    _email_partner_accepted(referee_reg, match)
+
+    html_alternatives = [
+        content
+        for content, mimetype in mail.outbox[0].alternatives
+        if mimetype == "text/html"
+    ]
+    assert len(html_alternatives) == 1
+    assert html_alternatives[0].strip()
 
 
 # ---------------------------------------------------------------------------

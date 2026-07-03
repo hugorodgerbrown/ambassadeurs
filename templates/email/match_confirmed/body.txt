@@ -1,0 +1,11 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate trimmed %}Great news — your match has been confirmed!{% endblocktranslate %}
+
+{% blocktranslate trimmed %}Here are your partner's contact details:{% endblocktranslate %}
+
+{% translate "Name:" %} {{ name }}
+{% translate "Email:" %} {{ email }}
+{% translate "Phone:" %} {{ phone }}
+
+{% blocktranslate trimmed %}Please get in touch to arrange buying your passes together at the ticket office.{% endblocktranslate %}
+
+{% translate "Good luck!" %}{% endautoescape %}

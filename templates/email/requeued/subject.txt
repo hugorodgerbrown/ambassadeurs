@@ -1,0 +1,1 @@
+{% load i18n %}{% translate "Your match didn't go ahead — you're back at the front of the queue" %}

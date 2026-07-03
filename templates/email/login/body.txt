@@ -1,0 +1,10 @@
+{% load i18n %}{% autoescape off %}{% if first_name %}{% blocktranslate trimmed with first_name=first_name %}Hi {{ first_name }},{% endblocktranslate %}{% else %}{% translate "Hi," %}{% endif %}
+
+{% blocktranslate trimmed %}Someone asked to sign in to Ski Parrainage with this
+email address. Click the link below to confirm your sign-in:{% endblocktranslate %}
+
+{{ verify_url }}
+
+{% blocktranslate trimmed count expiry_hours=expiry_hours %}This link expires in {{ expiry_hours }} hour. If you did not request this, you can safely ignore this email — your account is not affected.{% plural %}This link expires in {{ expiry_hours }} hours. If you did not request this, you can safely ignore this email — your account is not affected.{% endblocktranslate %}
+
+{% translate "- Ski Parrainage" %}{% endautoescape %}

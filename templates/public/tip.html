@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% comment %}
+Standalone tip page (VERB-110) — exercises the _tip_panel.html component in
+isolation; not linked from any nav or journey page. Not yet mounted anywhere
+(a follow-up ticket wires it into the confirmed-match page).
+
+?disclaimer=0 turns off show_refund_disclaimer (defaults on), so both panel
+variants can be previewed pre-placement.
+{% endcomment %}
+
+{% block title %}{% translate "Say thanks &middot; Ski Parrainage" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-narrow">
+        <p class="eyebrow mb-3">{% translate "Ski Parrainage" %}</p>
+        <h1 class="mb-6 text-ink">{% translate "Say thanks" %}</h1>
+        {% include "includes/_tip_panel.html" with form=form skip_url=skip_url show_refund_disclaimer=show_refund_disclaimer %}
+    </section>
+{% endblock %}

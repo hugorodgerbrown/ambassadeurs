@@ -1,0 +1,97 @@
+{% load i18n %}
+{% comment %}
+Site-wide notifications strip (VERB-109). Rendered by base.html's
+{% block notifications %} on every page, below the nav and above the main
+content block. active_notifications comes from
+core.context_processors.notifications — already filtered to the current
+request's audience and display window, newest first.
+
+Each notification's content_sanitised was sanitised once at save() via
+core.services.sanitise_notification_html (nh3 allow-list) — this is the one
+audited exception to Invariant 4 (no mark_safe on user content), so
+rendering it with |safe here is deliberate and safe.
+
+Dismissal is client-side only (sessionStorage, no server round-trip): a
+dismissible notification's ID is recorded in sessionStorage on dismiss, and
+any element whose ID is already stored is hidden on load. A new browser
+session clears sessionStorage, so the notification reappears. Permanent
+(non-dismissible) notifications render no dismiss control and are never
+hidden by this script.
+{% endcomment %}
+{% if active_notifications %}
+    <div id="notification-strip" class="flex flex-col gap-px border-b border-line">
+        {% for notification in active_notifications %}
+            <div
+                data-notification-id="{{ notification.pk }}"
+                class="notification-banner flex items-center justify-between gap-4 bg-notice-tint px-4 py-2.5 text-sm text-notice-ink sm:px-10 lg:px-16"
+            >
+                <div class="notification-banner__content">{{ notification.content_sanitised|safe }}</div>
+                {% if notification.is_dismissible %}
+                    <button
+                        type="button"
+                        class="notification-banner__dismiss shrink-0 cursor-pointer border-0 bg-transparent p-1 text-notice-ink"
+                        data-dismiss-notification="{{ notification.pk }}"
+                        aria-label="{% translate 'Dismiss this notification' %}"
+                    >
+                        <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            aria-hidden="true"
+                        >
+                            <path d="M6 6l12 12M18 6L6 18" />
+                        </svg>
+                    </button>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+    <script nonce="{{ request.csp_nonce }}">
+        (function () {
+            var STORAGE_KEY = "dismissedNotifications";
+
+            function dismissedIds() {
+                try {
+                    return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "[]");
+                } catch (e) {
+                    return [];
+                }
+            }
+
+            function rememberDismissed(id) {
+                var ids = dismissedIds();
+                if (ids.indexOf(id) === -1) {
+                    ids.push(id);
+                    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+                }
+            }
+
+            var strip = document.getElementById("notification-strip");
+            if (!strip) {
+                return;
+            }
+
+            var dismissed = dismissedIds();
+            strip.querySelectorAll("[data-notification-id]").forEach(function (el) {
+                if (dismissed.indexOf(el.getAttribute("data-notification-id")) !== -1) {
+                    el.style.display = "none";
+                }
+            });
+
+            strip.querySelectorAll("[data-dismiss-notification]").forEach(function (button) {
+                button.addEventListener("click", function () {
+                    var id = button.getAttribute("data-dismiss-notification");
+                    rememberDismissed(id);
+                    var banner = button.closest("[data-notification-id]");
+                    if (banner) {
+                        banner.style.display = "none";
+                    }
+                });
+            });
+        })();
+    </script>
+{% endif %}

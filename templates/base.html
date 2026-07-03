@@ -78,6 +78,14 @@
             {% include "includes/nav.html" %}
             {% block hero %}{% endblock %}
         </div>
+        {% comment %}
+        Site-wide notifications strip (VERB-109), below the nav and above the
+        main content block. Cleanly absent (no layout gap) when there are no
+        active notifications for this visitor — see notification_strip.html.
+        {% endcomment %}
+        {% block notifications %}
+            {% include "includes/notification_strip.html" %}
+        {% endblock %}
         <main id="main" class="mx-auto max-w-3xl px-4 py-10">
             {% block content %}{% endblock %}
         </main>

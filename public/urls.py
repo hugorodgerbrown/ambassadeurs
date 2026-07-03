@@ -49,6 +49,12 @@ urlpatterns = [
         views.register_payment_cancelled,
         name="register_payment_cancelled",
     ),
+    # Standalone tip (voluntary contribution) page (VERB-110) — built in
+    # isolation, not yet mounted in any journey; not linked from any nav.
+    path("tip/", views.tip_page, name="tip_page"),
+    path("tip/start/", views.tip_start, name="tip_start"),
+    path("tip/return/", views.tip_return, name="tip_return"),
+    path("tip/cancelled/", views.tip_cancelled, name="tip_cancelled"),
     path("legal/<slug:page>/", views.legal_page, name="legal"),
     path("how-it-works/", views.how_it_works, name="how_it_works"),
     path("faq/", views.faq, name="faq"),

@@ -1,0 +1,100 @@
+{% load i18n %}
+{% comment %}
+Tip (voluntary contribution) panel — VERB-110.
+
+Include contract (the handoff to the placement ticket — keep these three
+params explicit):
+  form                   — a billing.forms.TipForm instance (bound or unbound)
+  skip_url               — where the "No thanks" link goes; the mount decides
+                           the target (the standalone page passes accounts:detail)
+  show_refund_disclaimer — boolean. When true, renders the "refunded if no
+                           match is found; decline/no-show is on you" copy.
+                           The decided mount (the confirmed-match page) will
+                           pass false and supply its own no-refund framing,
+                           since a match is already found by that point.
+
+The three preset amounts (CHF 5/10/20) are buttons, not form fields — clicking
+one sets the free-amount number input (the sole "amount_chf" field submitted)
+via a small nonce'd script. Without JS, the number input is still fully
+usable on its own, so the form degrades gracefully. Submits to
+public:tip_start.
+{% endcomment %}
+<div class="card" id="tip-panel">
+    <h2 class="mb-2 text-h3 text-ink">{% translate "Buy the team a coffee" %}</h2>
+    <p class="mb-5 text-body">
+        {% blocktranslate trimmed %}
+            If Ski Parrainage helped you find a partner, a small voluntary contribution helps keep it running. Entirely
+            optional.
+        {% endblocktranslate %}
+    </p>
+
+    {% if show_refund_disclaimer %}
+        <p class="field__hint mb-5">
+            {% blocktranslate trimmed %}
+                If no match is found for you this season, your contribution will be refunded.
+            {% endblocktranslate %}
+        </p>
+    {% endif %}
+
+    <form method="post" action="{% url 'public:tip_start' %}">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="mb-4 rounded-control border border-danger bg-danger-tint p-3 text-sm text-danger-ink">
+                {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+            </div>
+        {% endif %}
+
+        <fieldset class="mb-4">
+            <legend class="label mb-2">{% translate "Amount" %}</legend>
+            <div class="field-row mb-3">
+                <button type="button" class="btn btn--secondary tip-preset" data-tip-amount="5">
+                    {% blocktranslate %}CHF 5 — Buy me a beer{% endblocktranslate %}
+                </button>
+                <button type="button" class="btn btn--secondary tip-preset" data-tip-amount="10">
+                    {% blocktranslate %}CHF 10 — Buy me lunch on the hill{% endblocktranslate %}
+                </button>
+            </div>
+            <button type="button" class="btn btn--secondary btn--block tip-preset mb-3" data-tip-amount="20">
+                {% blocktranslate %}CHF 20 — Help me buy a lift pass{% endblocktranslate %}
+            </button>
+
+            {% comment %}Free-amount fallback — the form field itself, bounded 1-500 CHF.{% endcomment %}
+            {% include "includes/_field.html" with field=form.amount_chf %}
+        </fieldset>
+
+        {% include "includes/_field.html" with field=form.message %}
+
+        <button type="submit" class="btn btn--primary btn--block">
+            {% translate "Send my contribution" %}
+        </button>
+    </form>
+
+    <p class="mt-4 text-center">
+        <a href="{{ skip_url }}" class="font-medium text-accent underline">
+            {% translate "No thanks" %}
+        </a>
+    </p>
+</div>
+{% comment %}
+Preset buttons write straight into the amount_chf number input — progressive
+enhancement only; the input itself is always a fully working standalone
+control (CLAUDE.md: no JS framework, plain vanilla JS is fine for this).
+{% endcomment %}
+<script nonce="{{ request.csp_nonce }}">
+    (function () {
+        var panel = document.getElementById("tip-panel");
+        if (!panel) {
+            return;
+        }
+        var amountInput = panel.querySelector('input[name="amount_chf"]');
+        if (!amountInput) {
+            return;
+        }
+        panel.querySelectorAll(".tip-preset").forEach(function (button) {
+            button.addEventListener("click", function () {
+                amountInput.value = button.getAttribute("data-tip-amount");
+            });
+        });
+    })();
+</script>

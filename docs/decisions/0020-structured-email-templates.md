@@ -1,4 +1,4 @@
-# ADR 0019 — Structured, translatable email templates (text + HTML)
+# ADR 0020 — Structured, translatable email templates (text + HTML)
 
 **Status:** Accepted
 **Date:** 2026-07-03

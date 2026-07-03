@@ -83,10 +83,21 @@ Context:
             <button type="submit" class="btn btn--primary flex-1">
                 {% translate "Submit" %}
             </button>
+            {% comment %}
+                Skip is a server-side no-op via the same submit endpoint —
+                formnovalidate so the browser's required-field check on
+                q1_answer doesn't block it. register_survey_submit sees
+                "skip" in request.POST and returns an empty 200 body before
+                any validation, creating no row; the hx-swap="innerHTML"
+                then clears #wtp-survey. This avoids hx-on:click (blocked by
+                the production CSP's script-src, which has no unsafe-eval).
+            {% endcomment %}
             <button
-                type="button"
+                type="submit"
+                name="skip"
+                value="1"
+                formnovalidate
                 class="btn btn--ghost"
-                hx-on:click="document.getElementById('wtp-survey').style.display = 'none'"
             >
                 {% translate "Skip" %}
             </button>

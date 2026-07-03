@@ -28,9 +28,15 @@ from accounts.tokens import (
 from billing.models import Payment
 from matching.models import Match, Registration
 from matching.services import accept_match, register_participant
-from public.models import FormDownload, SurveyResponse
+from public.models import (
+    FormDownload,
+    SurveyResponse,
+    survey_framing_for,
+    survey_price_for,
+)
 from tests.accounts.factories import UserFactory
 from tests.matching.factories import MatchFactory, RegistrationFactory
+from tests.public.factories import SurveyResponseFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -1250,8 +1256,6 @@ def test_register_done_paid_tier_hides_survey() -> None:
 
 def test_register_done_already_responded_hides_survey() -> None:
     """A free-tier registrant who already responded does not see the survey again."""
-    from tests.public.factories import SurveyResponseFactory
-
     reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
     SurveyResponseFactory.create(registration=reg)
     client = Client()
@@ -1318,8 +1322,6 @@ def test_register_survey_submit_rejects_get() -> None:
 def test_register_survey_submit_creates_row_with_derived_price_and_framing() -> None:
     """A valid submission persists price_chf_shown/framing_shown matching the
     pk-derived variant, and q1_answer from the form."""
-    from public.models import survey_framing_for, survey_price_for
-
     reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
     client = Client()
     client.force_login(reg.user)
@@ -1418,6 +1420,57 @@ def test_register_survey_submit_anonymous_returns_400() -> None:
         headers={"hx-request": "true"},
     )
     assert response.status_code == 400
+
+
+def test_register_survey_submit_skip_returns_200_creates_no_row() -> None:
+    """A skip submission returns an empty 200 and creates no SurveyResponse row."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.post(
+        reverse("public:register_survey_submit"),
+        {"skip": "1"},
+        headers={"hx-request": "true"},
+    )
+
+    assert response.status_code == 200
+    assert response.content == b""
+    assert SurveyResponse.objects.count() == 0
+
+
+def test_register_survey_submit_skip_ignores_missing_q1() -> None:
+    """Skip bypasses q1_answer validation entirely (formnovalidate on the client
+    mirrors this server-side: skip is checked before form validation)."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.post(
+        reverse("public:register_survey_submit"),
+        {"skip": "1"},
+        headers={"hx-request": "true"},
+    )
+
+    assert response.status_code == 200
+    assert SurveyResponse.objects.count() == 0
+
+
+def test_register_survey_submit_skip_survey_reappears_on_reload() -> None:
+    """Because skip persists nothing, the survey shows again on the next GET."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    client.post(
+        reverse("public:register_survey_submit"),
+        {"skip": "1"},
+        headers={"hx-request": "true"},
+    )
+
+    response = client.get(reverse("public:register_done", args=[reg.role.lower()]))
+    assert response.status_code == 200
+    assert b'id="wtp-survey"' in response.content
 
 
 # ---------------------------------------------------------------------------

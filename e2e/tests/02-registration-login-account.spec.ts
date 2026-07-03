@@ -83,8 +83,12 @@ test.describe("registration & account", () => {
 
     const survey = page.locator("#wtp-survey");
     await expect(survey).toBeVisible();
+    // Skip is a second submit button on the same form (server-side no-op via
+    // register_survey_submit, not an hx-on:click — the production CSP has no
+    // unsafe-eval). The response body is empty, so the hx-swap empties the
+    // block in place rather than hiding it.
     await survey.getByRole("button", { name: /skip/i }).click();
-    await expect(survey).toBeHidden();
+    await expect(survey).toBeEmpty();
 
     // Skip never blocks the page — the main CTA still navigates normally.
     await page.getByRole("link", { name: /go to my account/i }).click();

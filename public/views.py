@@ -754,6 +754,15 @@ def register_survey_submit(request: HttpRequest) -> HttpResponse:
     without creating a second row (the ``IntegrityError`` from the OneToOne
     constraint is a race backstop for the "already responded" check).
 
+    Skip (``"skip" in request.POST``, from the survey form's second submit
+    button) is checked before any validation and returns an empty 200 body,
+    creating no row — the ``hx-swap="innerHTML"`` then clears ``#wtp-survey``.
+    Because nothing is persisted, the survey re-appears on a later GET of
+    ``register_done`` (skip is a genuine no-op, not a dismissal that is
+    remembered). This avoids ``hx-on:click`` — HTMX's ``hx-on:*`` executes via
+    ``new Function()``, which the production CSP's ``script-src`` (no
+    ``unsafe-eval``) blocks.
+
     ``price_chf_shown`` / ``framing_shown`` are re-derived server-side from
     the registration's pk — never trusted from client input — so the
     persisted row always reflects what the respondent actually saw.
@@ -764,6 +773,9 @@ def register_survey_submit(request: HttpRequest) -> HttpResponse:
     registration = _authenticated_registration(request)
     if registration is None or registration.fee_chf != 0:
         return HttpResponse(status=400)
+
+    if "skip" in request.POST:
+        return HttpResponse(status=200)
 
     already_responded = SurveyResponse.objects.filter(
         registration=registration

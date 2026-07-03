@@ -1,6 +1,7 @@
 # Tests for core model abstractions.
 
 from datetime import timedelta
+from unittest import mock
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -227,6 +228,27 @@ def test_notification_is_active_false_when_both_bounds_exclude_now() -> None:
     assert notification.is_active is False
 
 
+def test_notification_is_active_false_at_exact_ends_at_boundary() -> None:
+    """At ends_at == now, is_active is False (closed interval on ends_at).
+
+    Locks in the half-open window: starts_at is inclusive (<=) but ends_at is
+    exclusive (<=, i.e. inactive from the boundary instant onward), matching
+    NotificationQuerySet.active()'s ends_at__gt=now.
+    """
+    now = timezone.now()
+    notification = NotificationFactory.create(starts_at=None, ends_at=now)
+    with mock.patch("core.models.timezone.now", return_value=now):
+        assert notification.is_active is False
+
+
+def test_notification_is_active_true_at_exact_starts_at_boundary() -> None:
+    """At starts_at == now, is_active is True (starts_at is inclusive, <=)."""
+    now = timezone.now()
+    notification = NotificationFactory.create(starts_at=now, ends_at=None)
+    with mock.patch("core.models.timezone.now", return_value=now):
+        assert notification.is_active is True
+
+
 # ---------------------------------------------------------------------------
 # NotificationQuerySet.active()
 # ---------------------------------------------------------------------------
@@ -273,6 +295,28 @@ def test_notification_queryset_active_excludes_both_bounds_in_past() -> None:
         starts_at=now - timedelta(hours=2), ends_at=now - timedelta(hours=1)
     )
     assert notification not in Notification.objects.active(now)
+
+
+def test_notification_queryset_active_excludes_exact_ends_at_boundary() -> None:
+    """.active(now) excludes a notification whose ends_at == now exactly.
+
+    Locks in the half-open window: ends_at__gt=now, so the boundary instant
+    itself is already inactive.
+    """
+    now = timezone.now()
+    notification = NotificationFactory.create(starts_at=None, ends_at=now)
+    assert notification not in Notification.objects.active(now)
+
+
+def test_notification_queryset_active_includes_exact_starts_at_boundary() -> None:
+    """.active(now) includes a notification whose starts_at == now exactly.
+
+    Locks in the half-open window: starts_at__lte=now, so the boundary instant
+    itself is already active.
+    """
+    now = timezone.now()
+    notification = NotificationFactory.create(starts_at=now, ends_at=None)
+    assert notification in Notification.objects.active(now)
 
 
 # ---------------------------------------------------------------------------

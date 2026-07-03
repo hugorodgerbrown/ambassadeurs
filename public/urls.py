@@ -24,6 +24,11 @@ urlpatterns = [
         name="register_details_form",
     ),
     path("register/done/<slug:role>/", views.register_done, name="register_done"),
+    path(
+        "register/done/survey/",
+        views.register_survey_submit,
+        name="register_survey_submit",
+    ),
     # Paid-tier deposit flow — Stripe hosted Checkout (VERB-86). The webhook
     # itself is mounted un-prefixed in config/urls.py, not here.
     path(

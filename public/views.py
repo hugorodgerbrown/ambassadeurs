@@ -43,6 +43,13 @@
 # so whichever of the two fires first "wins" and the other is a safe no-op.
 # An UNVERIFIED paid-tier registration is never matched — pool entry is
 # gated on both email confirmation AND payment (Invariant 2's spirit).
+#
+# Willingness-to-pay survey (VERB-111): register_done shows a short,
+# skippable survey to VERIFIED, free-tier (fee_chf == 0) registrants who
+# have not already responded. register_survey_submit (@require_htmx) creates
+# the SurveyResponse row, re-deriving price_chf_shown / framing_shown
+# server-side from the registration's pk (never trusting the client) and
+# returning the thanks fragment in place.
 
 from __future__ import annotations
 
@@ -91,7 +98,13 @@ from matching.services import (
     total_accepted_matches,
     withdraw_acceptance,
 )
-from public.models import FormDownload
+from public.forms import SurveyResponseForm
+from public.models import (
+    FormDownload,
+    SurveyResponse,
+    survey_framing_for,
+    survey_price_for,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -458,6 +471,12 @@ def register_done(request: HttpRequest, role: str) -> HttpResponse:
     registration is in VERIFIED status, adds ``queue_position`` and
     ``total_accepted_matches`` to the context so the template can display the
     participant's position in the pool.
+
+    Also adds the willingness-to-pay survey context (VERB-111) when the
+    registration is VERIFIED, free-tier (``fee_chf == 0``), and has not
+    already responded — ``survey_form``, ``survey_price_chf`` and
+    ``survey_framing`` are omitted entirely otherwise, so the template block
+    simply does not render.
     """
     role_value = ROLE_BY_SLUG.get(role)
     if role_value is None:
@@ -466,20 +485,27 @@ def register_done(request: HttpRequest, role: str) -> HttpResponse:
     registration = _authenticated_registration(request)
     position: int | None = None
     accepted_count: int = 0
+    context: dict[str, object] = {
+        "role": role,
+        "role_value": role_value,
+        "queue_position": position,
+        "total_accepted_matches": accepted_count,
+    }
     if registration is not None and registration.status == Registration.Status.VERIFIED:
         position = queue_position(registration)
         accepted_count = total_accepted_matches()
+        context["queue_position"] = position
+        context["total_accepted_matches"] = accepted_count
 
-    return render(
-        request,
-        "public/register_done.html",
-        {
-            "role": role,
-            "role_value": role_value,
-            "queue_position": position,
-            "total_accepted_matches": accepted_count,
-        },
-    )
+        if (
+            registration.fee_chf == 0
+            and not SurveyResponse.objects.filter(registration=registration).exists()
+        ):
+            context["survey_form"] = SurveyResponseForm()
+            context["survey_price_chf"] = survey_price_for(registration)
+            context["survey_framing"] = survey_framing_for(registration)
+
+    return render(request, "public/register_done.html", context)
 
 
 # ---------------------------------------------------------------------------
@@ -709,6 +735,71 @@ def register_details_form(request: HttpRequest) -> HttpResponse:
             "already_registered": already_registered,
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Willingness-to-pay survey (VERB-111)
+# ---------------------------------------------------------------------------
+
+
+@require_htmx
+@require_POST
+def register_survey_submit(request: HttpRequest) -> HttpResponse:
+    """HTMX POST: record a willingness-to-pay survey response, in place.
+
+    Guarded by ``@require_htmx`` (Invariant 7) and ``@require_POST``.
+    Resolves the caller's own registration — 400 if there is none. Requires
+    the registration to be free-tier (``fee_chf == 0``); a paid-tier or
+    already-responded caller gets the thanks fragment back idempotently
+    without creating a second row (the ``IntegrityError`` from the OneToOne
+    constraint is a race backstop for the "already responded" check).
+
+    ``price_chf_shown`` / ``framing_shown`` are re-derived server-side from
+    the registration's pk — never trusted from client input — so the
+    persisted row always reflects what the respondent actually saw.
+
+    An invalid submission (missing ``q1_answer``) re-renders the survey
+    fragment with form errors and creates no row.
+    """
+    registration = _authenticated_registration(request)
+    if registration is None or registration.fee_chf != 0:
+        return HttpResponse(status=400)
+
+    already_responded = SurveyResponse.objects.filter(
+        registration=registration
+    ).exists()
+    if already_responded:
+        return render(request, "public/partials/wtp_survey_thanks.html")
+
+    form = SurveyResponseForm(data=request.POST)
+    if not form.is_valid():
+        return render(
+            request,
+            "public/partials/wtp_survey.html",
+            {
+                "survey_form": form,
+                "survey_price_chf": survey_price_for(registration),
+                "survey_framing": survey_framing_for(registration),
+            },
+        )
+
+    try:
+        SurveyResponse.objects.create(
+            registration=registration,
+            price_chf_shown=survey_price_for(registration),
+            framing_shown=survey_framing_for(registration),
+            q1_answer=form.cleaned_data["q1_answer"],
+            q2_answer=form.cleaned_data.get("q2_answer", ""),
+        )
+    except IntegrityError:
+        # Race backstop: a concurrent submission already created the row.
+        logger.info(
+            "register_survey_submit: IntegrityError for registration pk=%s — "
+            "already responded",
+            registration.pk,
+        )
+
+    return render(request, "public/partials/wtp_survey_thanks.html")
 
 
 # ---------------------------------------------------------------------------

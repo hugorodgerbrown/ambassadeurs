@@ -61,7 +61,8 @@ test.describe("registration & account", () => {
     await expect(survey).toContainText(/CHF \d+/);
 
     await survey.locator('input[name="q1_answer"]').first().check();
-    await survey.locator('button[type="submit"]').click();
+    // Skip is also type="submit" (server-side no-op), so target by name.
+    await survey.getByRole("button", { name: /submit/i }).click();
 
     // The thanks fragment replaces the survey card in place — same URL, no
     // full-page navigation, proving the HTMX submit path.

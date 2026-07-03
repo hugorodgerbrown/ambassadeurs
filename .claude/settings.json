@@ -17,6 +17,15 @@
       "Read(./.pytest_cache/**)",
       "Read(./.ruff_cache/**)",
       "Read(./.mypy_cache/**)"
+    ],
+    "allow": [
+      "Bash(git log *)",
+      "mcp__Linear__list_projects",
+      "mcp__Linear__get_status_updates",
+      "mcp__Linear__list_issues",
+      "mcp__Linear__get_issue",
+      "mcp__Linear__save_status_update",
+      "mcp__Linear__get_project"
     ]
   }
 }

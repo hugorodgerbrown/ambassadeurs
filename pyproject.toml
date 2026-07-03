@@ -24,6 +24,7 @@ dependencies = [
     "posthog>=7.21.2",
     "stripe>=15.3.0",
     "django-side-effects>=3.2.0",
+    "nh3>=0.3.6",
 ]
 
 [dependency-groups]

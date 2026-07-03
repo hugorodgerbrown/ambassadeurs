@@ -36,13 +36,11 @@ from __future__ import annotations
 import logging
 
 from django.conf import settings
-from django.core.mail import send_mail
 from django.urls import reverse
-from django.utils import translation
-from django.utils.translation import gettext as _
 from side_effects.decorators import is_side_effect_of
 
 from accounts.tokens import make_match_access_token
+from core.emails import send_templated_email
 
 from .models import Match, Registration
 
@@ -77,17 +75,12 @@ def _email_proposal(registration: Registration, match: Match) -> None:
     # only. The token carries no PII — only the match and registration PKs.
     token = make_match_access_token(match.pk, registration.pk)
     match_url = settings.BASE_URL + reverse("public:match", args=[token])
-    with translation.override(lang):
-        subject = _("You have been matched — 4 Vallées Ambassadors Programme")
-        body = _(
-            "Good news — the matching system has found you a partner for the "
-            "4 Vallées Ambassadors Programme.\n\n"
-            "Open the link below to view your match and accept or decline "
-            "within the contact window:\n\n"
-            "%(url)s\n\n"
-            "If you did not register for this programme, please ignore this email."
-        ) % {"url": match_url}
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [registration.user.email])
+    send_templated_email(
+        "match_proposed",
+        {"url": match_url},
+        [registration.user.email],
+        language=lang,
+    )
     logger.info(
         "Sent match notification for match pk=%s to registration pk=%s",
         match.pk,
@@ -106,18 +99,11 @@ def _email_partner_accepted(waiting_registration: Registration, match: Match) ->
     lang = waiting_registration.preferred_language or settings.LANGUAGE_CODE
     token = make_match_access_token(match.pk, waiting_registration.pk)
     match_url = settings.BASE_URL + reverse("public:match", args=[token])
-    with translation.override(lang):
-        subject = _("Your partner has accepted — it's your turn")
-        body = _(
-            "Good news — your match partner for the 4 Vallées Ambassadors "
-            "Programme has accepted.\n\n"
-            "Open the link below to accept or decline before the contact window "
-            "closes:\n\n"
-            "%(url)s\n\n"
-            "If you did not register for this programme, please ignore this email."
-        ) % {"url": match_url}
-    send_mail(
-        subject, body, settings.DEFAULT_FROM_EMAIL, [waiting_registration.user.email]
+    send_templated_email(
+        "partner_accepted",
+        {"url": match_url},
+        [waiting_registration.user.email],
+        language=lang,
     )
     logger.info(
         "Sent partner-accepted notification for match pk=%s to registration pk=%s",
@@ -134,23 +120,14 @@ def _email_confirmation(registration: Registration, counterpart: Registration) -
     """
     lang = registration.preferred_language or settings.LANGUAGE_CODE
     full_name = f"{counterpart.user.first_name} {counterpart.user.last_name}".strip()
-    with translation.override(lang):
-        subject = _("Match confirmed — contact your partner")
-        body = _(
-            "Great news — your match has been confirmed!\n\n"
-            "Here are your partner's contact details:\n\n"
-            "Name: %(name)s\n"
-            "Email: %(email)s\n"
-            "Phone: %(phone)s\n\n"
-            "Please get in touch to arrange buying your passes together at "
-            "the ticket office.\n\n"
-            "Good luck!"
-        ) % {
-            "name": full_name,
-            "email": counterpart.user.email,
-            "phone": counterpart.phone,
-        }
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [registration.user.email])
+    context = {
+        "name": full_name,
+        "email": counterpart.user.email,
+        "phone": counterpart.phone,
+    }
+    send_templated_email(
+        "match_confirmed", context, [registration.user.email], language=lang
+    )
     logger.info(
         "Sent match confirmed email to registration pk=%s",
         registration.pk,
@@ -168,20 +145,7 @@ def _email_requeued(registration: Registration) -> None:
     recipient (re-queuing is automatic).
     """
     lang = registration.preferred_language or settings.LANGUAGE_CODE
-    with translation.override(lang):
-        subject = _(
-            "Your match didn't go ahead — you're back at the front of the queue"
-        )
-        body = _(
-            "Your recent match in the 4 Vallées Ambassadors Programme did not go "
-            "ahead.\n\n"
-            "This is not a reflection on you — you have been returned to the "
-            "front of the queue, and the matching system will pair you with a "
-            "new partner as soon as one is available. There is nothing you need "
-            "to do.\n\n"
-            "If you did not register for this programme, please ignore this email."
-        )
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [registration.user.email])
+    send_templated_email("requeued", {}, [registration.user.email], language=lang)
     logger.info("Sent requeued notification to registration pk=%s", registration.pk)
 
 
@@ -196,20 +160,12 @@ def _email_window_expired(registration: Registration) -> None:
     """
     lang = registration.preferred_language or settings.LANGUAGE_CODE
     account_url = settings.BASE_URL + reverse("accounts:detail")
-    with translation.override(lang):
-        subject = _("Your match has expired — rejoin the queue when you're ready")
-        body = _(
-            "The contact window for your recent match in the 4 Vallées "
-            "Ambassadors Programme has closed because the match was not confirmed "
-            "in time.\n\n"
-            "Your registration is now paused. When you are ready to be matched "
-            'again, visit your account page and click "Rejoin the queue":\n\n'
-            "%(url)s\n\n"
-            "If you'd rather not wait, you can cancel from the same page and "
-            "get any deposit you paid refunded.\n\n"
-            "If you did not register for this programme, please ignore this email."
-        ) % {"url": account_url}
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [registration.user.email])
+    send_templated_email(
+        "window_expired",
+        {"url": account_url},
+        [registration.user.email],
+        language=lang,
+    )
     logger.info(
         "Sent window-expired notification to registration pk=%s",
         registration.pk,
@@ -224,17 +180,8 @@ def _email_no_show(accused_registration: Registration) -> None:
     included (Invariant 1).
     """
     lang = accused_registration.preferred_language or settings.LANGUAGE_CODE
-    with translation.override(lang):
-        subject = _("Your match has been reported as a no-show")
-        body = _(
-            "We have received a no-show report from your match partner for the "
-            "4 Vallées Ambassadors Programme.\n\n"
-            "Your registration has been removed from the pool. If you believe "
-            "this report was made in error, please contact us for help.\n\n"
-            "If you did not register for this programme, please ignore this email."
-        )
-    send_mail(
-        subject, body, settings.DEFAULT_FROM_EMAIL, [accused_registration.user.email]
+    send_templated_email(
+        "no_show", {}, [accused_registration.user.email], language=lang
     )
     logger.info(
         "Sent no-show notification to registration pk=%s",

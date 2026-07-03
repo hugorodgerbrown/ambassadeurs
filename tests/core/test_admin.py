@@ -1,6 +1,9 @@
 # Tests for core admin classes.
 
+from typing import cast
+
 import pytest
+from django import forms
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.test import Client, override_settings
@@ -97,6 +100,19 @@ def test_target_link_returns_dash_for_unregistered_content_type() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_notification_content_preview_truncates_long_content() -> None:
+    """content_preview truncates content over 50 characters with an ellipsis."""
+    from django.contrib import admin as django_admin
+
+    from core.admin import NotificationAdmin
+
+    admin_instance = NotificationAdmin(Notification, django_admin.site)
+    notification = NotificationFactory.create(content="x" * 100)
+    result = admin_instance.content_preview(notification)
+    assert result.endswith("...")
+    assert len(result) <= 50
+
+
 def test_notification_changelist_returns_200(client: Client) -> None:
     """GET the Notification changelist as a staff user returns HTTP 200."""
     NotificationFactory.create()
@@ -140,13 +156,45 @@ def test_notification_form_custom_without_key_is_invalid() -> None:
 
 @override_settings(CUSTOM_NOTIFICATION_GROUPS=_CUSTOM_GROUPS)
 def test_notification_form_custom_with_unknown_key_is_invalid() -> None:
-    """CUSTOM audience naming a key absent from settings fails validation."""
+    """CUSTOM audience naming a key absent from settings fails validation.
+
+    The ChoiceField widget itself already rejects a key outside its
+    settings-derived choices, so this exercises that first layer of defence.
+    """
     form = NotificationForm(
         data=_form_data(
             audience=Notification.Audience.CUSTOM,
             custom_group_key="not-a-real-group",
         )
     )
+    assert not form.is_valid()
+    assert "custom_group_key" in form.errors
+
+
+@override_settings(CUSTOM_NOTIFICATION_GROUPS=_CUSTOM_GROUPS)
+def test_notification_form_clean_rejects_key_bypassing_widget_choices() -> None:
+    """clean() itself rejects an unconfigured key even if the widget allowed it.
+
+    Defence-in-depth: simulates a stale/tampered value that bypassed the
+    ChoiceField widget (e.g. a key removed from settings after the form was
+    rendered), proving core.admin.NotificationForm.clean()'s own membership
+    check — not just the widget — enforces the invariant.
+    """
+    form = NotificationForm(
+        data=_form_data(
+            audience=Notification.Audience.CUSTOM,
+            custom_group_key="ambassadors",
+        )
+    )
+    # Widen the widget's choices after construction so "stale-group" passes
+    # ChoiceField validation and clean() is left to reject it.
+    cast(forms.ChoiceField, form.fields["custom_group_key"]).choices = [
+        ("", "—"),
+        ("stale-group", "stale-group"),
+    ]
+    form.data = form.data.copy()
+    form.data["custom_group_key"] = "stale-group"
+
     assert not form.is_valid()
     assert "custom_group_key" in form.errors
 

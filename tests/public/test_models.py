@@ -118,11 +118,13 @@ def test_survey_price_for_is_deterministic() -> None:
     assert first == second
 
 
-def test_survey_price_for_varies_by_pk() -> None:
-    """Across a run of pks, all three configured price points are reachable."""
+def test_survey_price_for_matches_pk_modulo_formula() -> None:
+    """survey_price_for follows SURVEY_PRICE_POINTS_CHF[pk % 3] for each pk,
+    regardless of gaps in the pk sequence from other tests' rows."""
     registrations = [RegistrationFactory.create(fee_chf=0) for _ in range(6)]
-    prices = {survey_price_for(reg) for reg in registrations}
-    assert prices == set(SURVEY_PRICE_POINTS_CHF)
+    for reg in registrations:
+        expected = SURVEY_PRICE_POINTS_CHF[reg.pk % len(SURVEY_PRICE_POINTS_CHF)]
+        assert survey_price_for(reg) == expected
 
 
 def test_survey_framing_for_is_deterministic() -> None:
@@ -133,8 +135,15 @@ def test_survey_framing_for_is_deterministic() -> None:
     assert first == second
 
 
-def test_survey_framing_for_reaches_both_variants() -> None:
-    """Across a run of pks, both DEPOSIT and FEE framings are reachable."""
+def test_survey_framing_for_matches_pk_block_formula() -> None:
+    """survey_framing_for follows the (pk // 3) % 2 alternation for each pk,
+    regardless of gaps in the pk sequence from other tests' rows."""
     registrations = [RegistrationFactory.create(fee_chf=0) for _ in range(12)]
-    framings = {survey_framing_for(reg) for reg in registrations}
-    assert framings == {SurveyResponse.Framing.DEPOSIT, SurveyResponse.Framing.FEE}
+    for reg in registrations:
+        block = reg.pk // len(SURVEY_PRICE_POINTS_CHF)
+        expected = (
+            SurveyResponse.Framing.DEPOSIT
+            if block % 2 == 0
+            else SurveyResponse.Framing.FEE
+        )
+        assert survey_framing_for(reg) == expected

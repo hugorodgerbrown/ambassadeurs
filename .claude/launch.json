@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "npm install --no-fund --no-audit && uv run python manage.py migrate --no-input && npx @tailwindcss/cli -i ./src/css/main.css -o ./static/css/output.css && { npx @tailwindcss/cli -i ./src/css/main.css -o ./static/css/output.css --watch & exec uv run python manage.py runserver 127.0.0.1:${PORT:-8100}; }"
+      ],
+      "port": 8100,
+      "autoPort": true
+    }
+  ]
+}

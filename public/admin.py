@@ -1,6 +1,9 @@
 """Admin registration for the public app."""
 
+from typing import Any
+
 from django.contrib import admin
+from django.http import HttpRequest
 
 from .models import FormDownload, SurveyResponse
 
@@ -39,12 +42,24 @@ class SurveyResponseAdmin(admin.ModelAdmin):
     list_filter = ["price_chf_shown", "framing_shown", "q1_answer", "q2_answer"]
     raw_id_fields = ["registration"]
 
-    def has_add_permission(self, request: object) -> bool:
+    def has_add_permission(self, request: HttpRequest) -> bool:
         """Disallow creating SurveyResponse rows by hand.
 
         A response must correspond to a real submission from register_done;
         an admin-created row would misrepresent the research data.
         """
+        return False
+
+    def has_change_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        """Disallow editing SurveyResponse rows (mirrors StateTransitionLogAdmin).
+
+        Responses are research data — even a superuser must not be able to
+        alter what a respondent actually submitted.
+        """
+        return False
+
+    def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        """Disallow deleting SurveyResponse rows — responses are research data."""
         return False
 
     readonly_fields = [

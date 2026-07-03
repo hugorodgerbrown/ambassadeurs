@@ -8,6 +8,10 @@
 # (post-accept no-show) are therefore pure state transitions with no further
 # Stripe call; only REFUNDED calls Stripe (see billing/services/payments.py).
 #
+# The Tip model: an audit row for a voluntary contribution (VERB-110), a
+# separate money flow from the prepaid deposit above with no match-outcome
+# lifecycle — see billing/services/tips.py.
+#
 # Fixed choice values are TextChoices with UPPER_CASE values (CLAUDE.md).
 
 from __future__ import annotations
@@ -114,6 +118,83 @@ class Payment(BaseModel):
     def to_string(self) -> str:
         """Return a human-readable label for the payment."""
         return f"Payment {self.pk}: {self.amount_chf} CHF [{self.get_status_display()}]"
+
+    def __str__(self) -> str:
+        """Delegate to to_string."""
+        return self.to_string()
+
+
+class TipQuerySet(BaseQuerySet):
+    """Queryset for Tip."""
+
+    def paid(self) -> TipQuerySet:
+        """Return tips in the PAID state."""
+        return self.filter(status=Tip.Status.PAID)
+
+    def for_registration(self, registration: Registration) -> TipQuerySet:
+        """Return tips belonging to ``registration``."""
+        return self.filter(registration=registration)
+
+
+class Tip(BaseModel):
+    """An audit row for one voluntary contribution ("tip"), collected via Stripe.
+
+    A tip is a separate money flow from the prepaid registration deposit
+    (``Payment``) — it has no match-outcome lifecycle, so unlike ``Payment``
+    it is captured as ``PAID`` immediately on completed payment; there is no
+    HELD/pending-outcome state. ``registration`` uses ``on_delete=SET_NULL``
+    (mirroring ``Payment``) so the audit row survives account deletion.
+    """
+
+    class Status(models.TextChoices):
+        """Tip lifecycle. UPPER_CASE values (CLAUDE.md).
+
+        PAID: the default — money collected via Stripe Checkout. A Tip row
+            is only ever created once payment is confirmed, so there is no
+            pending/HELD equivalent.
+        REFUNDED: staff-initiated via the Stripe dashboard. No in-app
+            transition exists for this ticket (VERB-110).
+        """
+
+        PAID = "PAID", _("Paid")
+        REFUNDED = "REFUNDED", _("Refunded")
+
+    registration = models.ForeignKey(
+        Registration,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tips",
+        help_text=(
+            "The registration this tip belongs to. SET_NULL so the audit "
+            "row survives account deletion."
+        ),
+    )
+    amount_chf = models.PositiveIntegerField(
+        help_text="Whole-CHF tip amount (domain never sees centimes).",
+    )
+    message = models.CharField(
+        max_length=280,
+        blank=True,
+        help_text="Optional 'say something nice' message from the tipper. Staff-only.",
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.PAID,
+    )
+    stripe_customer_id = models.CharField(max_length=255, blank=True)
+    stripe_payment_intent_id = models.CharField(max_length=255, blank=True)
+    stripe_refund_id = models.CharField(max_length=255, blank=True)
+
+    objects = TipQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def to_string(self) -> str:
+        """Return a human-readable label for the tip."""
+        return f"Tip {self.pk}: {self.amount_chf} CHF [{self.get_status_display()}]"
 
     def __str__(self) -> str:
         """Delegate to to_string."""

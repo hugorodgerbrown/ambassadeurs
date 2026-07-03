@@ -78,10 +78,10 @@ def _email_proposal(registration: Registration, match: Match) -> None:
     token = make_match_access_token(match.pk, registration.pk)
     match_url = settings.BASE_URL + reverse("public:match", args=[token])
     with translation.override(lang):
-        subject = _("You have been matched — 4 Vallées Ambassadors Program")
+        subject = _("You have been matched — 4 Vallées Ambassadors Programme")
         body = _(
             "Good news — the matching system has found you a partner for the "
-            "4 Vallées Ambassadors Program.\n\n"
+            "4 Vallées Ambassadors Programme.\n\n"
             "Open the link below to view your match and accept or decline "
             "within the contact window:\n\n"
             "%(url)s\n\n"
@@ -110,7 +110,7 @@ def _email_partner_accepted(waiting_registration: Registration, match: Match) ->
         subject = _("Your partner has accepted — it's your turn")
         body = _(
             "Good news — your match partner for the 4 Vallées Ambassadors "
-            "Program has accepted.\n\n"
+            "Programme has accepted.\n\n"
             "Open the link below to accept or decline before the contact window "
             "closes:\n\n"
             "%(url)s\n\n"
@@ -173,7 +173,7 @@ def _email_requeued(registration: Registration) -> None:
             "Your match didn't go ahead — you're back at the front of the queue"
         )
         body = _(
-            "Your recent match in the 4 Vallées Ambassadors Program did not go "
+            "Your recent match in the 4 Vallées Ambassadors Programme did not go "
             "ahead.\n\n"
             "This is not a reflection on you — you have been returned to the "
             "front of the queue, and the matching system will pair you with a "
@@ -200,7 +200,7 @@ def _email_window_expired(registration: Registration) -> None:
         subject = _("Your match has expired — rejoin the queue when you're ready")
         body = _(
             "The contact window for your recent match in the 4 Vallées "
-            "Ambassadors Program has closed because the match was not confirmed "
+            "Ambassadors Programme has closed because the match was not confirmed "
             "in time.\n\n"
             "Your registration is now paused. When you are ready to be matched "
             'again, visit your account page and click "Rejoin the queue":\n\n'
@@ -228,7 +228,7 @@ def _email_no_show(accused_registration: Registration) -> None:
         subject = _("Your match has been reported as a no-show")
         body = _(
             "We have received a no-show report from your match partner for the "
-            "4 Vallées Ambassadors Program.\n\n"
+            "4 Vallées Ambassadors Programme.\n\n"
             "Your registration has been removed from the pool. If you believe "
             "this report was made in error, please contact us for help.\n\n"
             "If you did not register for this programme, please ignore this email."

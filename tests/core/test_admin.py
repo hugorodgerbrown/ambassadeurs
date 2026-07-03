@@ -3,12 +3,13 @@
 import pytest
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
-from django.test import Client
+from django.test import Client, override_settings
 from django.urls import reverse
 
-from core.models import StateTransitionLog
+from core.admin import NotificationForm
+from core.models import Notification, StateTransitionLog
 from tests.accounts.factories import UserFactory
-from tests.core.factories import StateTransitionLogFactory
+from tests.core.factories import NotificationFactory, StateTransitionLogFactory
 from tests.matching.factories import MatchFactory
 
 pytestmark = pytest.mark.django_db
@@ -89,3 +90,87 @@ def test_target_link_returns_dash_for_unregistered_content_type() -> None:
 
     result = admin_instance.target_link(_FakeLog())  # type: ignore[arg-type]
     assert result == "—"
+
+
+# ---------------------------------------------------------------------------
+# NotificationAdmin — changelist smoke test
+# ---------------------------------------------------------------------------
+
+
+def test_notification_changelist_returns_200(client: Client) -> None:
+    """GET the Notification changelist as a staff user returns HTTP 200."""
+    NotificationFactory.create()
+    staff = make_staff_user()
+    client.force_login(staff)
+    url = reverse("admin:core_notification_changelist")
+    response = client.get(url)
+    assert response.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# NotificationForm validation
+# ---------------------------------------------------------------------------
+
+_CUSTOM_GROUPS = {"ambassadors": lambda: User.objects.none()}
+
+
+def _form_data(**overrides: object) -> dict[str, object]:
+    """Build valid base NotificationForm data, with per-test overrides."""
+    data: dict[str, object] = {
+        "content": "Some announcement",
+        "starts_at": "",
+        "ends_at": "",
+        "is_dismissible": True,
+        "audience": Notification.Audience.EVERYONE,
+        "custom_group_key": "",
+    }
+    data.update(overrides)
+    return data
+
+
+@override_settings(CUSTOM_NOTIFICATION_GROUPS=_CUSTOM_GROUPS)
+def test_notification_form_custom_without_key_is_invalid() -> None:
+    """CUSTOM audience with a blank custom_group_key fails validation."""
+    form = NotificationForm(
+        data=_form_data(audience=Notification.Audience.CUSTOM, custom_group_key="")
+    )
+    assert not form.is_valid()
+    assert "custom_group_key" in form.errors
+
+
+@override_settings(CUSTOM_NOTIFICATION_GROUPS=_CUSTOM_GROUPS)
+def test_notification_form_custom_with_unknown_key_is_invalid() -> None:
+    """CUSTOM audience naming a key absent from settings fails validation."""
+    form = NotificationForm(
+        data=_form_data(
+            audience=Notification.Audience.CUSTOM,
+            custom_group_key="not-a-real-group",
+        )
+    )
+    assert not form.is_valid()
+    assert "custom_group_key" in form.errors
+
+
+@override_settings(CUSTOM_NOTIFICATION_GROUPS=_CUSTOM_GROUPS)
+def test_notification_form_custom_with_valid_key_is_valid() -> None:
+    """CUSTOM audience naming a configured key passes validation."""
+    form = NotificationForm(
+        data=_form_data(
+            audience=Notification.Audience.CUSTOM,
+            custom_group_key="ambassadors",
+        )
+    )
+    assert form.is_valid(), form.errors
+
+
+@override_settings(CUSTOM_NOTIFICATION_GROUPS=_CUSTOM_GROUPS)
+def test_notification_form_non_custom_clears_custom_group_key() -> None:
+    """A non-CUSTOM audience forces custom_group_key blank, even if supplied."""
+    form = NotificationForm(
+        data=_form_data(
+            audience=Notification.Audience.EVERYONE,
+            custom_group_key="ambassadors",
+        )
+    )
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["custom_group_key"] == ""

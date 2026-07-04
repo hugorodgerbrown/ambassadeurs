@@ -4,43 +4,32 @@
 {% block title %}Components · Match status panel{% endblock %}
 
 {% comment %}
-    DEBUG-only component gallery (debug.views.components). Renders the account
-    Match status panel (accounts/partials/match_status.html) in every
-    combination, each rendered live with synthetic context — not a mock. The
-    role theme is fixed to Ambassador (accent) here; the panel content is
-    role-independent, only the "View your match" button colour follows the role.
+    DEBUG-only component gallery (debug.views.components). Renders the Match
+    status card (accounts/partials/match_status.html) in every combination,
+    each rendered live with synthetic context — not a mock. The role theme is
+    fixed to Ambassador (accent) here; the panel content is role-independent,
+    only the "View your match" button colour follows the role.
 
-    Also renders the shared includes/_status_pill.html partial in isolation
-    (VERB-116) for a representative subset of states, so the pill used on
-    both the account page and the registration-confirmation page
-    (public/register_done.html) can be reviewed here in one place.
+    This is the same card, in full (heading, pill, sentence, action buttons),
+    now rendered identically on both the account page
+    (accounts/detail.html) and the registration-confirmation page
+    (public/register_done.html, VERB-116) — so this gallery is the shared
+    visual review surface for both.
 {% endcomment %}
 {% block content %}
     <section class="role-theme mx-auto max-w-xl">
         <p class="eyebrow mb-2">Components · DEBUG</p>
         <h1 class="mb-2 text-ink">Match status panel</h1>
         <p class="mb-8 text-sm text-body">
-            Every combination of the account Match status panel, rendered live from <code
-            >accounts/partials/match_status.html</code>.
+            Every combination of the Match status card, rendered live from <code
+            >accounts/partials/match_status.html</code>. Shared identically by
+            <code>accounts/detail.html</code> and <code>public/register_done.html</code>.
         </p>
 
         {% for s in scenarios %}
             <div class="mb-8">
                 <p class="label mb-2">{{ s.label }}</p>
                 {% include "accounts/partials/match_status.html" with registration=s.registration status_pill=s.status_pill match_state=s.match_state partner_first_name=s.partner_first_name partner_accepted=s.partner_accepted queue_position=s.queue_position total_accepted_matches=s.total_accepted_matches can_rejoin=s.can_rejoin can_cancel=s.can_cancel %}
-            </div>
-        {% endfor %}
-
-        <h2 class="mb-2 mt-12 text-h3 text-ink">Shared status pill (register_done)</h2>
-        <p class="mb-8 text-sm text-body">
-            The same <code>includes/_status_pill.html</code> partial as rendered on
-            <code>public/register_done.html</code>, shown here for a representative subset of states.
-        </p>
-
-        {% for s in register_done_pills %}
-            <div class="mb-4 flex items-center gap-3">
-                <p class="label m-0">{{ s.label }}</p>
-                {% include "includes/_status_pill.html" with status_pill=s.status_pill %}
             </div>
         {% endfor %}
     </section>

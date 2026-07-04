@@ -471,30 +471,6 @@ def _match_status_scenario(
     }
 
 
-def _status_pill_scenario(
-    label: str,
-    *,
-    status: str | None,
-    match_state: str = "none",
-) -> dict[str, object]:
-    """Build one labelled ``status_pill`` render-context for the pill alone.
-
-    Used for the register_done pill review (VERB-116) — a lighter-weight
-    scenario than ``_match_status_scenario`` since register_done only ever
-    renders the pill itself (``includes/_status_pill.html``), not the full
-    Match status card.
-    """
-    registration = (
-        None
-        if status is None
-        else Registration(role=Registration.Role.REFEREE, status=status)
-    )
-    return {
-        "label": label,
-        "status_pill": status_pill_for(registration, match_state),
-    }
-
-
 @require_debug
 def components(request: HttpRequest) -> HttpResponse:
     """Render the account Match status panel in every combination (DEBUG-only).
@@ -505,10 +481,10 @@ def components(request: HttpRequest) -> HttpResponse:
     Registration.Status, all match_state variants, the two VERIFIED
     queue-position variants, and the no-registration case.
 
-    Also renders the ``includes/_status_pill.html`` partial in isolation
-    (VERB-116) for a representative subset of states, so the pill shared by
-    the account page and the registration-confirmation page (register_done)
-    can be reviewed on both surfaces in one place.
+    This same partial — the whole card, not just the pill — is now also
+    rendered in full on the registration-confirmation page
+    (``public/register_done.html``, VERB-116), so the gallery below doubles as
+    the visual review surface for both.
     """
     scenarios = [
         _match_status_scenario("No registration", status=None),
@@ -565,23 +541,8 @@ def components(request: HttpRequest) -> HttpResponse:
         _match_status_scenario("Withdrawn", status=Registration.Status.WITHDRAWN),
         _match_status_scenario("Suspended", status=Registration.Status.SUSPENDED),
     ]
-    register_done_pills = [
-        _status_pill_scenario(
-            "register_done — just verified, in the queue",
-            status=Registration.Status.VERIFIED,
-        ),
-        _status_pill_scenario(
-            "register_done — proposed synchronously at registration",
-            status=Registration.Status.VERIFIED,
-            match_state="proposed",
-        ),
-        _status_pill_scenario(
-            "register_done — email unconfirmed (paid tier, pending payment)",
-            status=Registration.Status.UNVERIFIED,
-        ),
-    ]
     return render(
         request,
         "debug/components.html",
-        {"scenarios": scenarios, "register_done_pills": register_done_pills},
+        {"scenarios": scenarios},
     )

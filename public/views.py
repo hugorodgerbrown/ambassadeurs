@@ -52,6 +52,12 @@
 # stripe_webhook dispatches on the "purpose" session metadata key set by
 # create_tip_checkout_session, falling through to the existing deposit path
 # (which carries no "purpose" key) unchanged.
+#
+# Page access permissions (VERB-115): an already-registered, logged-in user
+# hitting either enrolment surface — register (GET/POST) or
+# register_details_form (HTMX partial) — receives a plain 403
+# (register_forbidden.html) instead of a locked/disabled form. This replaces
+# the earlier locked-form and defensive-authenticated-POST behaviour.
 
 from __future__ import annotations
 
@@ -90,7 +96,6 @@ from core.geo import geolocate, get_client_ip
 from core.ratelimit import rate_limited_response
 from matching.forms import RegistrationForm
 from matching.models import Match, Registration
-from matching.pricing_config import fee_chf_for
 from matching.services import (
     accept_match,
     confirm_registration,
@@ -194,17 +199,23 @@ def register(request: HttpRequest) -> HttpResponse:
     POST (anonymous): validate, create an UNVERIFIED registration (or resend if
         one already exists for the email), send a confirmation email, redirect
         to ``register_email_sent``.
-    POST (authenticated, defensive): complete the registration immediately at
-        VERIFIED status and redirect to ``register_done``.
+
+    An already-registered, logged-in user (any Registration status) hitting
+    this view — GET or POST — receives a 403 (``register_forbidden.html``)
+    instead of the enrolment surface: they have already enrolled and the
+    surface is not theirs to see or resubmit (VERB-115).
 
     Rate-limited: 30 POSTs/hour per IP and 5 POSTs/hour per email address.
     Exceeding either limit returns a 429 response. The email key is derived
-    from the POST param; an absent ``email`` field (authenticated path) is
-    treated as an empty string by django-ratelimit and does not trigger the
-    per-email limit.
+    from the POST param; an absent ``email`` field is treated as an empty
+    string by django-ratelimit and does not trigger the per-email limit.
     """
     if not is_registration_open():
         return render(request, "public/register_closed.html")
+
+    already_registered = _authenticated_registration(request)
+    if already_registered is not None:
+        return render(request, "public/register_forbidden.html", status=403)
 
     role_slug = request.GET.get("role")
     role_value = ROLE_BY_SLUG.get(role_slug) if role_slug is not None else None
@@ -212,20 +223,11 @@ def register(request: HttpRequest) -> HttpResponse:
     if request.method == "GET":
         # After is_authenticated, Django stubs narrow request.user to User.
         anon_user: User | None = request.user if request.user.is_authenticated else None
-        already_registered = _authenticated_registration(request)
-        if already_registered is not None:
-            # Lock the form to the role they actually registered with, ignoring
-            # the ?role= they arrived on (e.g. an already-registered ambassador
-            # clicking "I'm a Referee" on the homepage). The form is read-only,
-            # so it must reflect their record, not the link they followed.
-            role_value = Registration.Role(already_registered.role)
 
         if role_value is None:
-            # Neutral state: no valid role chosen yet (already_registered is
-            # necessarily None too — their real role would have been assigned
-            # above). Build the form for field shape only (role choice is
-            # arbitrary here) and disable it so nothing can be submitted
-            # before a role is picked.
+            # Neutral state: no valid role chosen yet. Build the form for
+            # field shape only (role choice is arbitrary here) and disable it
+            # so nothing can be submitted before a role is picked.
             form = RegistrationForm(role=Registration.Role.AMBASSADOR, user=anon_user)
             for field in form.fields.values():
                 field.disabled = True
@@ -236,17 +238,11 @@ def register(request: HttpRequest) -> HttpResponse:
                     "form": form,
                     "role": "",
                     "role_value": None,
-                    "already_registered": already_registered,
                 },
             )
 
-        # Derive the display slug from the validated role value so a locked
-        # already-registered role always renders correctly.
         role_slug = SLUG_BY_ROLE[role_value]
         form = RegistrationForm(role=role_value, user=anon_user)
-        if already_registered is not None:
-            for field in form.fields.values():
-                field.disabled = True
         return render(
             request,
             "public/register_details.html",
@@ -254,7 +250,6 @@ def register(request: HttpRequest) -> HttpResponse:
                 "form": form,
                 "role": role_slug,
                 "role_value": role_value,
-                "already_registered": already_registered,
             },
         )
 
@@ -268,51 +263,11 @@ def register(request: HttpRequest) -> HttpResponse:
         raise Http404("Unknown registration role.")
     role_value = post_role_value
 
-    # Resolve geolocation once, before the auth/anon branch, so both call
-    # sites receive the same country and region. The raw IP is discarded after
-    # the lookup — it is NEVER persisted (data minimisation).
+    # Resolve geolocation once, before the anon path, so the register_participant
+    # call receives the caller's country and region. The raw IP is discarded
+    # after the lookup — it is NEVER persisted (data minimisation).
     _client_ip = get_client_ip(request)
     _geo_country, _geo_region = geolocate(_client_ip) if _client_ip else ("", "")
-
-    if request.user.is_authenticated:
-        # Defensive authenticated path (not reachable from the standard UI but
-        # handled for completeness). Free tier: create a VERIFIED registration
-        # immediately, as before. Paid tier (VERB-86): create UNVERIFIED and
-        # divert to the payment funnel — this path must not put an unpaid
-        # registration in the pool either.
-        # Django stubs narrow request.user to User after is_authenticated.
-        auth_user: User = request.user
-        form = RegistrationForm(role=role_value, data=request.POST, user=auth_user)
-        if form.is_valid():
-            data = form.cleaned_data
-            is_paid_tier = fee_chf_for(timezone.localdate()) > 0
-            register_participant(
-                role=role_value,
-                user=auth_user,
-                first_name=data["first_name"],
-                last_name=data["last_name"],
-                prior_pass=data["prior_pass"],
-                phone=data.get("phone", ""),
-                preferred_location=data.get("preferred_location", ""),
-                preferred_language=data.get("preferred_language", ""),
-                nationality=data.get("nationality", ""),
-                accepted_terms=form.accepted_statements(),
-                registration_country=_geo_country,
-                registration_region=_geo_region,
-                status=(
-                    Registration.Status.UNVERIFIED
-                    if is_paid_tier
-                    else Registration.Status.VERIFIED
-                ),
-            )
-            if is_paid_tier:
-                return redirect("public:register_payment_start")
-            return redirect("public:register_done", role=role_slug)
-        return render(
-            request,
-            "public/register_details.html",
-            {"form": form, "role": role_slug, "role_value": role_value},
-        )
 
     # Anonymous path: validate, create UNVERIFIED or resend.
     form = RegistrationForm(role=role_value, data=request.POST)
@@ -897,7 +852,12 @@ def register_details_form(request: HttpRequest) -> HttpResponse:
     ``#reg-surface`` so the eyebrow, lead copy, eligibility callout, form and
     submit button all re-tone to the chosen role.
 
-    No login required: the combined form is anonymous.
+    No login required for a first-time visitor. An already-registered,
+    logged-in user hitting this endpoint receives a full-page 403
+    (``register_forbidden.html``, no swap fragment) rather than a themed
+    surface — they have already enrolled (VERB-115). The ``@require_htmx``
+    guard (Invariant 7) is checked first, so a non-HTMX request still gets a
+    400 regardless of registration state.
     """
     if not is_registration_open():
         raise Http404("Registration is closed.")
@@ -905,19 +865,14 @@ def register_details_form(request: HttpRequest) -> HttpResponse:
     role_value = ROLE_BY_SLUG.get(role)
     if role_value is None:
         raise Http404("Unknown registration role.")
-    # After is_authenticated, Django stubs narrow request.user to User.
-    htmx_user: User | None = request.user if request.user.is_authenticated else None
+
     already_registered = _authenticated_registration(request)
     if already_registered is not None:
-        # Already registered: the locked surface must show their actual role,
-        # not whichever role this swap requested (the picker is disabled, but a
-        # crafted request must not re-theme the form).
-        role_value = Registration.Role(already_registered.role)
-        role = SLUG_BY_ROLE[role_value]
+        return render(request, "public/register_forbidden.html", status=403)
+
+    # After is_authenticated, Django stubs narrow request.user to User.
+    htmx_user: User | None = request.user if request.user.is_authenticated else None
     form = RegistrationForm(role=role_value, user=htmx_user)
-    if already_registered is not None:
-        for field in form.fields.values():
-            field.disabled = True
     return render(
         request,
         "public/partials/register_surface.html",
@@ -926,7 +881,6 @@ def register_details_form(request: HttpRequest) -> HttpResponse:
             "role": role,
             "role_value": role_value,
             "is_htmx": True,
-            "already_registered": already_registered,
         },
     )
 

@@ -851,6 +851,26 @@ def test_account_match_lapsed_proposed_match_redirects_to_detail() -> None:
     assert response.url == reverse("accounts:detail")
 
 
+def test_account_match_lapsed_pending_match_redirects_to_detail() -> None:
+    """A lapsed, unswept PENDING match is also treated as inactive (VERB-113).
+
+    ``lapsed()`` gates on ``status__in=[PROPOSED, PENDING]``, so a one-sided
+    PENDING acceptance whose window has closed is redirected just like a
+    lapsed PROPOSED match.
+    """
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED)
+    MatchFactory.create(
+        pending=True,
+        ambassador_registration=reg,
+        expires_at=datetime(2020, 1, 1, tzinfo=UTC),
+    )
+    client = Client()
+    client.force_login(reg.user)
+    response = client.get(reverse("accounts:match"))
+    assert response.status_code == 302
+    assert response.url == reverse("accounts:detail")
+
+
 def test_account_match_no_registration_redirects_to_detail() -> None:
     """A logged-in user with no registration at all is redirected to accounts:detail."""
     user = UserFactory.create()

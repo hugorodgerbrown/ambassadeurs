@@ -36,6 +36,7 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from django_ratelimit.decorators import ratelimit
 
@@ -249,8 +250,12 @@ def account_detail(request: HttpRequest) -> HttpResponse:
 
     # Look up the active match for this user (PROPOSED, PENDING, or ACCEPTED).
     # Registration.status no longer reflects match progress (VERB-44).
+    # active_at excludes a PROPOSED/PENDING match whose contact window has
+    # lapsed but which the hourly expire_matches sweep has not yet processed,
+    # so the account page reads it as inactive — matching the match page's own
+    # expires_at check (VERB-113).
     active_match: Match | None = (
-        Match.objects.active()
+        Match.objects.active_at(timezone.now())
         .filter(
             Q(ambassador_registration__user=user) | Q(referee_registration__user=user)
         )
@@ -445,6 +450,10 @@ def account_match(request: HttpRequest) -> HttpResponse:
     without requiring a token — the login session provides the auth. This route
     allows participants to reach their match page from the account page even
     after the emailed token link has expired (relevant for ACCEPTED matches).
+    A PROPOSED/PENDING match whose contact window has lapsed but which the
+    hourly expire_matches sweep has not yet processed is treated as inactive
+    (``active_at``), so the user is redirected to ``accounts:detail`` rather
+    than shown a stale match page (VERB-113).
 
     A fresh single-purpose match-access token is minted on each load and passed
     to ``_render_match_page`` so the on-page accept/decline/report-no-show forms
@@ -458,7 +467,7 @@ def account_match(request: HttpRequest) -> HttpResponse:
     """
     user = cast(User, request.user)
     match = (
-        Match.objects.active()
+        Match.objects.active_at(timezone.now())
         .filter(
             Q(ambassador_registration__user=user) | Q(referee_registration__user=user)
         )

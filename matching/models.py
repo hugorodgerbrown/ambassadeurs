@@ -402,6 +402,15 @@ class MatchQuerySet(BaseQuerySet):
 
         Excludes DECLINED, EXPIRED, and CANCELLED — all three are terminal
         states in the match state machine.
+
+        Note: this does not account for a PROPOSED/PENDING match whose contact
+        window has already lapsed but which the hourly ``expire_matches`` sweep
+        has not yet processed — such a row is still "active" by status alone.
+        Callers driving pool eligibility (``_without_active_match()``) rely on
+        that: excluding a lapsed-but-unswept match here would let the engine
+        propose a second match before the sweep runs (Invariant 3). Callers
+        presenting match state to a user (e.g. the account page) should use
+        ``active_at()`` instead, which also excludes lapsed rows.
         """
         return self.exclude(
             status__in=[
@@ -410,6 +419,30 @@ class MatchQuerySet(BaseQuerySet):
                 Match.Status.CANCELLED,
             ]
         )
+
+    def active_at(self, cutoff: datetime) -> MatchQuerySet:
+        """Return active matches that have not lapsed as at ``cutoff``.
+
+        Shorthand for "what a user should currently see as their active match":
+        ``active()`` minus any PROPOSED/PENDING row whose contact window has
+        already expired (``lapsed(cutoff)``), even if the hourly
+        ``expire_matches`` sweep has not yet transitioned it to EXPIRED. This
+        keeps display surfaces (e.g. the account page) consistent with the
+        match page itself, which checks ``expires_at`` directly rather than
+        relying on ``status`` alone.
+
+        ``cutoff`` is a required, tz-aware "now" passed in by the caller
+        (inversion of control, VERB-100) rather than read internally via
+        ``timezone.now()`` — this keeps the queryset a pure function of its
+        arguments and lets the caller control "now" for testing.
+
+        Do not use this for pool-eligibility checks (``_without_active_match()``)
+        — see the note on ``active()``.
+
+        Args:
+            cutoff: The tz-aware instant to compare ``expires_at`` against.
+        """
+        return self.active().exclude(pk__in=self.lapsed(cutoff))
 
 
 class Match(BaseModel):

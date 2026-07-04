@@ -32,15 +32,13 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from accounts.services import send_confirmation_email
-from accounts.views import (
-    _match_status_pill,  # noqa: PLC2701 — deliberate import of private helper for gallery
-)
 from core.decorators import require_debug
 from matching.models import Match, Registration
 from matching.services import (
     accept_match,
     decline_match,
     register_participant,
+    status_pill_for,
 )
 from public.views import _match_context
 
@@ -448,7 +446,7 @@ def _match_status_scenario(
     ``pending``, ``accepted`` — derived from the active match in the real view
     (VERB-44). The Registration is unsaved — the partial only reads its
     ``status``/``get_status_display`` — and ``status_pill`` is derived the same
-    way the real view derives it (``_match_status_pill``).
+    way the real view derives it (``status_pill_for``).
 
     ``can_rejoin`` mirrors the context variable injected by ``account_detail``
     for the PAUSED state (VERB-74). ``can_cancel`` mirrors the equivalent flag
@@ -462,7 +460,7 @@ def _match_status_scenario(
     return {
         "label": label,
         "registration": registration,
-        "status_pill": _match_status_pill(registration, match_state),
+        "status_pill": status_pill_for(registration, match_state),
         "match_state": match_state,
         "partner_first_name": partner_first_name,
         "partner_accepted": partner_accepted,
@@ -482,6 +480,11 @@ def components(request: HttpRequest) -> HttpResponse:
     so the page is the live component — not a mock. Covers every
     Registration.Status, all match_state variants, the two VERIFIED
     queue-position variants, and the no-registration case.
+
+    This same partial — the whole card, not just the pill — is now also
+    rendered in full on the registration-confirmation page
+    (``public/register_done.html``, VERB-116), so the gallery below doubles as
+    the visual review surface for both.
     """
     scenarios = [
         _match_status_scenario("No registration", status=None),
@@ -538,4 +541,8 @@ def components(request: HttpRequest) -> HttpResponse:
         _match_status_scenario("Withdrawn", status=Registration.Status.WITHDRAWN),
         _match_status_scenario("Suspended", status=Registration.Status.SUSPENDED),
     ]
-    return render(request, "debug/components.html", {"scenarios": scenarios})
+    return render(
+        request,
+        "debug/components.html",
+        {"scenarios": scenarios},
+    )

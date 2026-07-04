@@ -101,6 +101,13 @@ disallow_untyped_decorators = false
 module = ["config.settings.*"]
 ignore_errors = true
 
+[[tool.mypy.overrides]]
+# The test factories are followed (not checked) because seed_test_data builds
+# its rows through them. They pre-date strict mode; suppress error reporting
+# while keeping their .create() return types visible to the command.
+module = ["tests.*"]
+ignore_errors = true
+
 [tool.django-stubs]
 django_settings_module = "config.settings.development"
 

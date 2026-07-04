@@ -1,0 +1,8 @@
+{% comment %}
+    Status pill (shared). Renders the {label, tone} status_pill dict as a
+    .tag-status pill. Used by the account page (accounts/partials/match_status.html),
+    the registration-confirmation page (public/register_done.html) and the DEBUG
+    component gallery. tone is one of done|wait|muted; label is pre-translated by
+    the view (matching.services.status_pill_for).
+{% endcomment %}
+<span class="tag-status tag-status--{{ status_pill.tone }}">{{ status_pill.label }}</span>

@@ -45,41 +45,29 @@
             {% endif %}
         </p>
 
-        <div class="announce announce--role mb-8">
-            <span class="announce__dot"></span>
-            {% if role_value == 'AMBASSADOR' %}
-                {% translate "Looking for your Referee" %}
-            {% else %}
-                {% translate "Looking for your Ambassador" %}
-            {% endif %}
-        </div>
+        <div class="text-left">
+            {% comment %}
+                Match status card (accounts/partials/match_status.html), shared
+                identically with the account page (VERB-116).
+            {% endcomment %}
+            {% include "accounts/partials/match_status.html" %}
 
-        {% if queue_position is not None %}
-            <p class="mb-6 text-sm text-body">
-                {% blocktranslate trimmed with position=queue_position %}
-                    You are number {{ position }} in the queue.
-                {% endblocktranslate %}
-                {% blocktranslate trimmed count counter=total_accepted_matches %}
-                    {{ counter }} pair matched so far this season.
-                {% plural %}
-                    {{ counter }} pairs matched so far this season.
-                {% endblocktranslate %}
-            </p>
-        {% endif %}
-
-        <div class="card mb-6 text-left">
-            <h2 class="mb-2 text-h3 text-ink">{% translate "Your responsibilities" %}</h2>
-            <ul class="list-disc space-y-2 pl-5 text-sm text-body">
-                <li>{% translate "Watch your inbox — we contact you by email." %}</li>
-                <li>{% translate "When matched, accept (or decline) within the window shown in the match email." %}</li>
-                <li>
-                    {% blocktranslate trimmed %}
-                        If you don't respond in time, your registration is paused — rejoin the queue from your account
-                        page when you are ready.
-                    {% endblocktranslate %}
-                </li>
-                <li>{% translate "Be respectful and prompt with your matched partner." %}</li>
-            </ul>
+            <div class="card mb-6">
+                <h2 class="mb-2 text-h3 text-ink">{% translate "Your responsibilities" %}</h2>
+                <ul class="list-disc space-y-2 pl-5 text-sm text-body">
+                    <li>{% translate "Watch your inbox — we contact you by email." %}</li>
+                    <li>
+                        {% translate "When matched, accept (or decline) within the window shown in the match email." %}
+                    </li>
+                    <li>
+                        {% blocktranslate trimmed %}
+                            If you don't respond in time, your registration is paused — rejoin the queue from your
+                            account page when you are ready.
+                        {% endblocktranslate %}
+                    </li>
+                    <li>{% translate "Be respectful and prompt with your matched partner." %}</li>
+                </ul>
+            </div>
         </div>
 
         <a href="{% url 'accounts:detail' %}" class="btn btn--role btn--block">

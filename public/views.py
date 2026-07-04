@@ -96,10 +96,10 @@ from matching.services import (
     confirm_registration,
     decline_match,
     is_registration_open,
-    queue_position,
+    match_status_context,
     register_participant,
     report_no_show,
-    total_accepted_matches,
+    status_pill_for,
     withdraw_acceptance,
 )
 from public.models import FormDownload
@@ -465,21 +465,35 @@ def register_confirm(request: HttpRequest, token: str) -> HttpResponse:
 def register_done(request: HttpRequest, role: str) -> HttpResponse:
     """Render the post-registration "what happens next" confirmation page.
 
-    Resolves the authenticated user's registration (if any) and, when the
-    registration is in VERIFIED status, adds ``queue_position`` and
-    ``total_accepted_matches`` to the context so the template can display the
-    participant's position in the pool.
+    The full Match status card (``templates/accounts/partials/match_status.html``)
+    is rendered on this page too (VERB-116), sharing its context with the
+    account page via ``matching.services.match_status_context`` — the
+    registration engine runs synchronously inside ``register_participant``, so
+    a user can already hold a PROPOSED (or later) match by the time they reach
+    this page, and the card reflects it rather than always showing the
+    pool-standing state.
+
+    For an anonymous request (no just-registered session — should not happen
+    in the standard journey, but handled defensively) a minimal, safe context
+    is built directly so the card still renders its "no registration" state.
     """
     role_value = ROLE_BY_SLUG.get(role)
     if role_value is None:
         raise Http404("Unknown registration role.")
 
-    registration = _authenticated_registration(request)
-    position: int | None = None
-    accepted_count: int = 0
-    if registration is not None and registration.status == Registration.Status.VERIFIED:
-        position = queue_position(registration)
-        accepted_count = total_accepted_matches()
+    if request.user.is_authenticated:
+        status_context = match_status_context(request.user)
+    else:
+        status_context = {
+            "registration": None,
+            "status_pill": status_pill_for(None, "none"),
+            "match_state": "none",
+            "partner_first_name": "",
+            "partner_accepted": False,
+            "queue_position": None,
+            "can_rejoin": False,
+            "can_cancel": False,
+        }
 
     return render(
         request,
@@ -487,8 +501,7 @@ def register_done(request: HttpRequest, role: str) -> HttpResponse:
         {
             "role": role,
             "role_value": role_value,
-            "queue_position": position,
-            "total_accepted_matches": accepted_count,
+            **status_context,
         },
     )
 

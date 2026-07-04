@@ -29,7 +29,7 @@
     <div class="card mb-6">
         <div class="mb-4 flex items-center justify-between gap-3">
             <h2 class="text-h3 text-ink">{% translate "Match status" %}</h2>
-            <span class="tag-status tag-status--{{ status_pill.tone }}">{{ status_pill.label }}</span>
+            {% include "includes/_status_pill.html" %}
         </div>
         <p class="text-sm text-body">
             {% if match_state == 'proposed' or match_state == 'pending' %}
@@ -137,7 +137,7 @@
     <div class="card mb-6">
         <div class="mb-4 flex items-center justify-between gap-3">
             <h2 class="text-h3 text-ink">{% translate "Match status" %}</h2>
-            <span class="tag-status tag-status--{{ status_pill.tone }}">{{ status_pill.label }}</span>
+            {% include "includes/_status_pill.html" %}
         </div>
         <p class="text-sm text-body">{% translate "You have no registration yet." %}</p>
         <a href="{% url 'public:register' %}" class="btn btn--role mt-4">

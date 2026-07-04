@@ -36,6 +36,7 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from django_ratelimit.decorators import ratelimit
 
@@ -250,7 +251,7 @@ def account_detail(request: HttpRequest) -> HttpResponse:
     # Look up the active match for this user (PROPOSED, PENDING, or ACCEPTED).
     # Registration.status no longer reflects match progress (VERB-44).
     active_match: Match | None = (
-        Match.objects.active()
+        Match.objects.active_at(timezone.now())
         .filter(
             Q(ambassador_registration__user=user) | Q(referee_registration__user=user)
         )
@@ -458,7 +459,7 @@ def account_match(request: HttpRequest) -> HttpResponse:
     """
     user = cast(User, request.user)
     match = (
-        Match.objects.active()
+        Match.objects.active_at(timezone.now())
         .filter(
             Q(ambassador_registration__user=user) | Q(referee_registration__user=user)
         )

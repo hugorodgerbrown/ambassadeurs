@@ -45,11 +45,11 @@
 # gated on both email confirmation AND payment (Invariant 2's spirit).
 #
 # Willingness-to-pay survey (VERB-111): register_done shows a short,
-# skippable survey to VERIFIED, free-tier (fee_chf == 0) registrants who
-# have not already responded. register_survey_submit (@require_htmx) creates
-# the SurveyResponse row, re-deriving price_chf_shown / framing_shown
-# server-side from the registration's pk (never trusting the client) and
-# returning the thanks fragment in place.
+# skippable, single-question survey to VERIFIED, free-tier (fee_chf == 0)
+# registrants who have not already responded, asking directly for the
+# highest refundable deposit they would have been happy to pay to register.
+# register_survey_submit (@require_htmx) validates and creates the
+# SurveyResponse row, returning the thanks fragment in place.
 #
 # Tip flow (VERB-110): a standalone, login-required page (tip_page) that
 # exercises billing.services.tips in isolation — it is not mounted in any
@@ -110,12 +110,7 @@ from matching.services import (
     withdraw_acceptance,
 )
 from public.forms import SurveyResponseForm
-from public.models import (
-    FormDownload,
-    SurveyResponse,
-    survey_framing_for,
-    survey_price_for,
-)
+from public.models import FormDownload, SurveyResponse
 
 logger = logging.getLogger(__name__)
 
@@ -485,9 +480,8 @@ def register_done(request: HttpRequest, role: str) -> HttpResponse:
 
     Also adds the willingness-to-pay survey context (VERB-111) when the
     registration is VERIFIED, free-tier (``fee_chf == 0``), and has not
-    already responded — ``survey_form``, ``survey_price_chf`` and
-    ``survey_framing`` are omitted entirely otherwise, so the template block
-    simply does not render.
+    already responded — ``survey_form`` is omitted entirely otherwise, so
+    the template block simply does not render.
     """
     role_value = ROLE_BY_SLUG.get(role)
     if role_value is None:
@@ -513,8 +507,6 @@ def register_done(request: HttpRequest, role: str) -> HttpResponse:
             and not SurveyResponse.objects.filter(registration=registration).exists()
         ):
             context["survey_form"] = SurveyResponseForm()
-            context["survey_price_chf"] = survey_price_for(registration)
-            context["survey_framing"] = survey_framing_for(registration)
 
     return render(request, "public/register_done.html", context)
 
@@ -983,11 +975,7 @@ def register_survey_submit(request: HttpRequest) -> HttpResponse:
     ``new Function()``, which the production CSP's ``script-src`` (no
     ``unsafe-eval``) blocks.
 
-    ``price_chf_shown`` / ``framing_shown`` are re-derived server-side from
-    the registration's pk — never trusted from client input — so the
-    persisted row always reflects what the respondent actually saw.
-
-    An invalid submission (missing ``q1_answer``) re-renders the survey
+    An invalid submission (missing ``max_deposit``) re-renders the survey
     fragment with form errors and creates no row.
     """
     registration = _authenticated_registration(request)
@@ -1008,20 +996,13 @@ def register_survey_submit(request: HttpRequest) -> HttpResponse:
         return render(
             request,
             "public/partials/wtp_survey.html",
-            {
-                "survey_form": form,
-                "survey_price_chf": survey_price_for(registration),
-                "survey_framing": survey_framing_for(registration),
-            },
+            {"survey_form": form},
         )
 
     try:
         SurveyResponse.objects.create(
             registration=registration,
-            price_chf_shown=survey_price_for(registration),
-            framing_shown=survey_framing_for(registration),
-            q1_answer=form.cleaned_data["q1_answer"],
-            q2_answer=form.cleaned_data.get("q2_answer", ""),
+            max_deposit=form.cleaned_data["max_deposit"],
         )
     except IntegrityError:
         # Race backstop: a concurrent submission already created the row.

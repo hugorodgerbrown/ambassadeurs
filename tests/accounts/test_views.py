@@ -475,6 +475,29 @@ def test_detail_status_pill_proposed_match() -> None:
     assert b"Pending" in response.content
 
 
+def test_detail_status_pill_lapsed_proposed_match_shown_as_queued() -> None:
+    """A PROPOSED match whose contact window has lapsed is treated as inactive.
+
+    Mirrors the match page's own expiry check (VERB-113): a registration
+    with only a lapsed, unswept PROPOSED match falls through to the
+    registration-status pill rather than showing "Pending".
+    """
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED)
+    MatchFactory.create(
+        ambassador_registration=reg,
+        status=Match.Status.PROPOSED,
+        expires_at=datetime(2020, 1, 1, tzinfo=UTC),
+    )
+    client = Client()
+    client.force_login(reg.user)
+    response = client.get(reverse("accounts:detail"))
+    assert response.status_code == 200
+    assert b"tag-status--wait" not in response.content
+    assert b"Pending" not in response.content
+    assert b"tag-status--muted" in response.content
+    assert b"Queued" in response.content
+
+
 def test_detail_status_pill_accepted_match() -> None:
     """A registration with an ACCEPTED match shows the 'done' tone pill."""
     reg = RegistrationFactory.create()
@@ -804,6 +827,25 @@ def test_account_match_no_active_match_redirects_to_detail() -> None:
     RegistrationFactory.create(user=user, status=Registration.Status.VERIFIED)
     client = Client()
     client.force_login(user)
+    response = client.get(reverse("accounts:match"))
+    assert response.status_code == 302
+    assert response.url == reverse("accounts:detail")
+
+
+def test_account_match_lapsed_proposed_match_redirects_to_detail() -> None:
+    """A user whose only match is a lapsed, unswept PROPOSED match is redirected.
+
+    Mirrors ``test_detail_status_pill_lapsed_proposed_match_shown_as_queued``:
+    the match page also treats a lapsed match as inactive (VERB-113).
+    """
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED)
+    MatchFactory.create(
+        ambassador_registration=reg,
+        status=Match.Status.PROPOSED,
+        expires_at=datetime(2020, 1, 1, tzinfo=UTC),
+    )
+    client = Client()
+    client.force_login(reg.user)
     response = client.get(reverse("accounts:match"))
     assert response.status_code == 302
     assert response.url == reverse("accounts:detail")

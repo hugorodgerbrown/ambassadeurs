@@ -5,8 +5,9 @@
 
 {% block meta %}
     {% blocktranslate trimmed asvar page_description %}
-        Frequently asked questions about the Ski Parrainage partner-matching service — eligibility, how matching
-        works, the contact window, and what happens after you are matched.
+        Frequently asked questions about the 4 Vallées Ambassadors Programme and the Ski Parrainage partner-matching
+        service — what they are, who is eligible, how to apply, how matching works, and what happens after you are
+        matched.
     {% endblocktranslate %}
     {% blocktranslate trimmed asvar page_title %}
         FAQ — Ski Parrainage
@@ -17,23 +18,48 @@
 {% endblock %}
 
 {% comment %}
-Full FAQ page covering eligibility, how matching works, the contact window,
-first-name-only reveal, flaking/suspension, and the off-app application.
-Uses <details>/<summary> accordions — keyboard-accessible by default.
+Full FAQ page split into two groupings: the 4 Vallées Ambassadors Programme (the
+off-app referral scheme — what it is, eligibility, applying) and Ski Parrainage
+(this matchmaking service — what it is, how matching works, the contact window,
+after matching). Uses <details>/<summary> accordions — keyboard-accessible by
+default.
 {% endcomment %}
 {% block content %}
     <article class="space-y-4 text-body">
         <h1 class="text-ink">{% translate "Frequently asked questions" %}</h1>
         <p>
-            {% translate "Quick answers to the questions we hear most. For a full walkthrough of how the programme works, see the" %}
+            {% translate "Quick answers to the questions we hear most. For a full walkthrough of how the process works, see the" %}
             <a href="{% url 'public:how_it_works' %}" class="underline">{% translate "How it works" %}</a>
             {% translate "page." %}
         </p>
 
         {% comment %}
-        Section: Eligibility
+        Grouping 1: The Ambassadors Programme — the off-app referral scheme itself
+        (what it is, who is eligible, how to apply).
         {% endcomment %}
-        <h2 class="pt-4 text-ink">{% translate "Eligibility" %}</h2>
+        <h2 class="pt-4 text-ink">{% translate "The 4 Vallées Ambassadors Programme" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                The Ambassadors Programme is the referral discount itself — who can claim it and how you apply for
+                your season pass. This part happens off this site, with the pass operator.
+            {% endblocktranslate %}
+        </p>
+
+        <details class="group border-b border-gray-200 pb-2">
+            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
+                {% translate "What is the 4 Vallées Ambassadors Programme?" %}
+            </summary>
+            <div class="mt-2 space-y-2">
+                <p>
+                    {% blocktranslate trimmed %}
+                        The 4 Vallées Ambassadors Programme is a referral scheme that lets a returning season-pass
+                        holder (an Ambassador) pair up with a new season pass applicant (a Referee); both receive a
+                        discount on their 4 Vallées season pass. You apply together, off this site, at the ticket
+                        office.
+                    {% endblocktranslate %}
+                </p>
+            </div>
+        </details>
 
         <details class="group border-b border-gray-200 pb-2">
             <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
@@ -80,10 +106,91 @@ Uses <details>/<summary> accordions — keyboard-accessible by default.
             </div>
         </details>
 
+        <details class="group border-b border-gray-200 pb-2">
+            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
+                {% translate "How do I apply for the Ambassador discount?" %}
+            </summary>
+            <div class="mt-2 space-y-2">
+                <p>
+                    {% blocktranslate trimmed with email="customer@televerbier.ch" %}
+                        Download the application form, fill it in together with your partner, and email it to
+                        {{ email }} (Téléverbier). Both parties must sign the form and provide proof of identity
+                        (passport or national ID card) and a digital passport photo. If applying by email these can be
+                        photograph attachments.
+                    {% endblocktranslate %}
+                </p>
+                <p><em>{% translate "This process is your responsibility." %}</em></p>
+                <p>
+                    <a
+                        href="{% url 'public:application_form' %}"
+                        class="btn btn--primary"
+                        target="_blank"
+                        rel="noopener"
+                    >
+                        {% translate "Download application form" %}
+                    </a>
+                </p>
+            </div>
+        </details>
+
+        <details class="group border-b border-gray-200 pb-2">
+            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
+                {% translate "What are the application requirements?" %}
+            </summary>
+            <div class="mt-2 space-y-2">
+                <p>
+                    {% blocktranslate trimmed %}
+                        Both the Ambassador and the Referee must sign the application form and provide a valid passport
+                        or national identity card. Both must attest to the fact that they have or have not had a
+                        qualifying pass (as appropriate); this will be checked during the application process.
+                    {% endblocktranslate %}
+                </p>
+            </div>
+        </details>
+
+        <details class="group border-b border-gray-200 pb-2">
+            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
+                {% translate "What is the season pass approval process?" %}
+            </summary>
+            <div class="mt-2 space-y-2">
+                <p>
+                    {% blocktranslate trimmed %}
+                        Once Téléverbier receives the application form they will assess your eligibility. If approved,
+                        they will issue a payment link or invoice. Once payment is received your passes will be
+                        approved. You can then collect your physical pass cards at the ticket desk, or have them loaded
+                        onto your existing keycards if you provided your keycard numbers in the application.
+                    {% endblocktranslate %}
+                </p>
+            </div>
+        </details>
+
         {% comment %}
-        Section: How matching works
+        Grouping 2: Ski Parrainage — this matchmaking service (what it is, how
+        matching works, the contact window, after matching).
         {% endcomment %}
-        <h2 class="pt-4 text-ink">{% translate "How matching works" %}</h2>
+        <h2 class="pt-4 text-ink">{% translate "Ski Parrainage" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                Ski Parrainage is this site — the service that finds you a partner for the Ambassadors Programme.
+                These questions cover how the matching works and what to expect.
+            {% endblocktranslate %}
+        </p>
+
+        <details class="group border-b border-gray-200 pb-2">
+            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
+                {% translate "What is Ski Parrainage?" %}
+            </summary>
+            <div class="mt-2 space-y-2">
+                <p>
+                    {% blocktranslate trimmed %}
+                        Ski Parrainage handles the matchmaking for the Ambassadors Programme — it finds an Ambassador
+                        for a Referee, and vice versa — replacing the chaotic scramble for a partner that happens in
+                        online community groups as the season approaches. It only introduces you to a partner; the
+                        application and pass purchase happen off this site.
+                    {% endblocktranslate %}
+                </p>
+            </div>
+        </details>
 
         <details class="group border-b border-gray-200 pb-2">
             <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
@@ -127,11 +234,6 @@ Uses <details>/<summary> accordions — keyboard-accessible by default.
                 </p>
             </div>
         </details>
-
-        {% comment %}
-        Section: The contact window
-        {% endcomment %}
-        <h2 class="pt-4 text-ink">{% translate "The contact window" %}</h2>
 
         <details class="group border-b border-gray-200 pb-2">
             <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
@@ -209,11 +311,6 @@ Uses <details>/<summary> accordions — keyboard-accessible by default.
             </div>
         </details>
 
-        {% comment %}
-        Section: After matching
-        {% endcomment %}
-        <h2 class="pt-4 text-ink">{% translate "After matching" %}</h2>
-
         <details class="group border-b border-gray-200 pb-2">
             <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
                 {% translate "What happens once both of us have accepted?" %}
@@ -223,7 +320,7 @@ Uses <details>/<summary> accordions — keyboard-accessible by default.
                     {% blocktranslate trimmed %}
                         Once both parties accept, each receives the other's contact details. You must then arrange to
                         fill in the application form together and submit it to the ticket office. The pass purchase and
-                        application happen off this site, unchanged from the normal process.
+                        application happen off this site, unchanged from the existing process.
                     {% endblocktranslate %}
                 </p>
             </div>
@@ -253,86 +350,7 @@ Uses <details>/<summary> accordions — keyboard-accessible by default.
                     {% blocktranslate trimmed %}
                         No. This site handles the matchmaking only — connecting an Ambassador with a Referee so they
                         can apply together. Filling in the application form and purchasing the passes at the ticket
-                        office are unchanged and happen entirely off this site.
-                    {% endblocktranslate %}
-                </p>
-            </div>
-        </details>
-
-        {% comment %}
-        Section: Applying
-        {% endcomment %}
-        <h2 class="pt-4 text-ink">{% translate "Applying" %}</h2>
-
-        <details class="group border-b border-gray-200 pb-2">
-            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
-                {% translate "What is the 4 Vallées Ambassadors Programme?" %}
-            </summary>
-            <div class="mt-2 space-y-2">
-                <p>
-                    {% blocktranslate trimmed %}
-                        The 4 Vallées Ambassadors Programme is a referral scheme that lets a returning season-pass
-                        holder (an Ambassador) bring a new person (a Referee) into the programme. Both apply together
-                        and, if eligible, both receive a discount on their seasonal pass. This site handles the
-                        matchmaking — it finds an Ambassador a Referee, and vice versa — replacing the chaotic
-                        scramble for a partner that used to happen in community groups.
-                    {% endblocktranslate %}
-                </p>
-            </div>
-        </details>
-
-        <details class="group border-b border-gray-200 pb-2">
-            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
-                {% translate "How do I apply?" %}
-            </summary>
-            <div class="mt-2 space-y-2">
-                <p>
-                    {% blocktranslate trimmed with email="customer@televerbier.ch" %}
-                        Download the application form, fill it in together with your partner, and email it to
-                        {{ email }} (Téléverbier). Both parties must sign the form and provide proof of identity
-                        (passport or national ID card) and a digital passport photo. If applying by email these can be
-                        photograph attachments.
-                    {% endblocktranslate %}
-                </p>
-                <p>
-                    <a
-                        href="{% url 'public:application_form' %}"
-                        class="btn btn--primary"
-                        target="_blank"
-                        rel="noopener"
-                    >
-                        {% translate "Download application form" %}
-                    </a>
-                </p>
-            </div>
-        </details>
-
-        <details class="group border-b border-gray-200 pb-2">
-            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
-                {% translate "What is the approval process?" %}
-            </summary>
-            <div class="mt-2 space-y-2">
-                <p>
-                    {% blocktranslate trimmed %}
-                        Once Téléverbier receives the application form they will assess your eligibility. If approved,
-                        they will issue a payment link or invoice. Once payment is received your passes will be
-                        approved. You can then collect your physical pass cards at the ticket desk, or have them loaded
-                        onto your existing keycards if you provided your keycard numbers in the application.
-                    {% endblocktranslate %}
-                </p>
-            </div>
-        </details>
-
-        <details class="group border-b border-gray-200 pb-2">
-            <summary class="cursor-pointer list-none py-2 font-medium text-ink hover:text-primary">
-                {% translate "What are the requirements?" %}
-            </summary>
-            <div class="mt-2 space-y-2">
-                <p>
-                    {% blocktranslate trimmed %}
-                        Both the Ambassador and the Referee must sign the application form and provide a valid passport
-                        or national identity card. Both must attest to the fact that they have or have not had a
-                        qualifying pass (as appropriate); this will be checked during the application process.
+                        office are unchanged and happen entirely off this site. This is your responsibility.
                     {% endblocktranslate %}
                 </p>
             </div>

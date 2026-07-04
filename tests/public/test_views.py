@@ -1709,14 +1709,26 @@ def test_faq_contains_application_form_link() -> None:
     assert application_form_url in response.content
 
 
-def test_faq_contains_applying_section() -> None:
-    """The FAQ page renders the migrated 'Applying' section accordions."""
+def test_faq_contains_ambassadors_programme_section() -> None:
+    """The FAQ page groups the Programme questions (what it is, how to apply)
+    under the '4 Vallées Ambassadors Programme' heading.
+    """
     response = Client().get(reverse("public:faq"))
     content = response.content
+    assert b"The 4 Vall\xc3\xa9es Ambassadors Programme" in content
     assert b"What is the 4 Vall\xc3\xa9es Ambassadors Programme?" in content
-    assert b"How do I apply?" in content
-    assert b"What is the approval process?" in content
-    assert b"What are the requirements?" in content
+    assert b"How do I apply for the Ambassador discount?" in content
+    assert b"What are the application requirements?" in content
+    assert b"What is the season pass approval process?" in content
+
+
+def test_faq_contains_ski_parrainage_section() -> None:
+    """The FAQ page groups the service questions under the 'Ski Parrainage'
+    heading, including the 'What is Ski Parrainage?' entry.
+    """
+    response = Client().get(reverse("public:faq"))
+    content = response.content
+    assert b"What is Ski Parrainage?" in content
 
 
 def test_how_it_works_link_in_footer() -> None:

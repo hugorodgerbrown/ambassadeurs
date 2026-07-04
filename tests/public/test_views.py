@@ -1220,6 +1220,50 @@ def test_register_done_unknown_role_404() -> None:
 
 
 # ---------------------------------------------------------------------------
+# register_done — shared status pill (VERB-116)
+# ---------------------------------------------------------------------------
+
+
+def test_register_done_status_pill_unverified() -> None:
+    """An UNVERIFIED registration (e.g. paid tier awaiting payment) shows Unverified."""
+    reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED)
+    client = Client()
+    client.force_login(reg.user)
+    response = client.get(reverse("public:register_done", args=["ambassador"]))
+    assert response.status_code == 200
+    assert b"tag-status--muted" in response.content
+    assert b"Unverified" in response.content
+
+
+def test_register_done_status_pill_verified_queued() -> None:
+    """A VERIFIED registration with no active match shows Queued (muted)."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED)
+    client = Client()
+    client.force_login(reg.user)
+    response = client.get(reverse("public:register_done", args=["ambassador"]))
+    assert response.status_code == 200
+    assert b"tag-status--muted" in response.content
+    assert b"Queued" in response.content
+
+
+def test_register_done_status_pill_active_proposed_match() -> None:
+    """A registration already PROPOSED (synchronous match at registration) shows Pending.
+
+    register_participant runs propose_match synchronously, so a user can reach
+    register_done already holding a PROPOSED match — the pill must reflect that
+    rather than the underlying VERIFIED pool-standing state.
+    """
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED)
+    MatchFactory.create(ambassador_registration=reg, status=Match.Status.PROPOSED)
+    client = Client()
+    client.force_login(reg.user)
+    response = client.get(reverse("public:register_done", args=["ambassador"]))
+    assert response.status_code == 200
+    assert b"tag-status--wait" in response.content
+    assert b"Pending" in response.content
+
+
+# ---------------------------------------------------------------------------
 # Facebook removal — no Facebook references on any rendered page
 # ---------------------------------------------------------------------------
 

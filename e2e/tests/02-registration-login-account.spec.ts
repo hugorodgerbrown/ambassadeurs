@@ -58,9 +58,9 @@ test.describe("registration & account", () => {
 
     const survey = page.locator("#wtp-survey");
     await expect(survey).toBeVisible();
-    await expect(survey).toContainText(/CHF \d+/);
+    await expect(survey).toContainText("CHF 5");
 
-    await survey.locator('input[name="q1_answer"]').first().check();
+    await survey.locator('input[name="max_deposit"]').first().check();
     // Skip is also type="submit" (server-side no-op), so target by name.
     await survey.getByRole("button", { name: /submit/i }).click();
 

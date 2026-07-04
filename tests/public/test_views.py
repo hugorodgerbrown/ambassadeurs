@@ -1131,6 +1131,9 @@ def test_register_details_form_already_registered_returns_403() -> None:
         (False, None, 200),
         (True, Registration.Status.VERIFIED, 403),
         (True, Registration.Status.PAUSED, 403),
+        (True, Registration.Status.UNVERIFIED, 403),
+        (True, Registration.Status.SUSPENDED, 403),
+        (True, Registration.Status.WITHDRAWN, 403),
     ],
 )
 def test_register_get_status_code_matrix(
@@ -1158,6 +1161,9 @@ def test_register_get_status_code_matrix(
         (False, None, 200),
         (True, Registration.Status.VERIFIED, 403),
         (True, Registration.Status.PAUSED, 403),
+        (True, Registration.Status.UNVERIFIED, 403),
+        (True, Registration.Status.SUSPENDED, 403),
+        (True, Registration.Status.WITHDRAWN, 403),
     ],
 )
 def test_register_details_form_status_code_matrix(
@@ -1180,6 +1186,22 @@ def test_register_details_form_status_code_matrix(
     )
 
     assert response.status_code == expected_status
+
+
+def test_details_form_non_htmx_registered_user_still_400() -> None:
+    """Invariant 7 ordering: a plain (non-HTMX) request from an authenticated
+    user WHO HAS a registration still returns 400, not 403.
+
+    require_htmx must fire before the already-registered 403 check.
+    """
+    user = UserFactory.create()
+    RegistrationFactory.create(user=user, status=Registration.Status.VERIFIED)
+    client = Client()
+    client.force_login(user)
+
+    response = client.get(reverse("public:register_details_form") + "?role=ambassador")
+
+    assert response.status_code == 400
 
 
 def test_register_get_authenticated_without_registration_shows_normal_form() -> None:

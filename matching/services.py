@@ -253,7 +253,7 @@ def status_pill_for(
     ``match_state`` is one of ``none``, ``proposed``, ``pending``, ``accepted``.
 
     Covers every Registration.Status plus the no-registration and active-match
-    cases. VERIFIED with no active match → "In the queue" (muted); UNVERIFIED,
+    cases. VERIFIED with no active match → "Queued" (muted); UNVERIFIED,
     WITHDRAWN, SUSPENDED → muted. An active match overrides the pill regardless
     of Registration.Status.
 

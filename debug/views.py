@@ -446,7 +446,7 @@ def _match_status_scenario(
     ``pending``, ``accepted`` — derived from the active match in the real view
     (VERB-44). The Registration is unsaved — the partial only reads its
     ``status``/``get_status_display`` — and ``status_pill`` is derived the same
-    way the real view derives it (``_match_status_pill``).
+    way the real view derives it (``status_pill_for``).
 
     ``can_rejoin`` mirrors the context variable injected by ``account_detail``
     for the PAUSED state (VERB-74). ``can_cancel`` mirrors the equivalent flag

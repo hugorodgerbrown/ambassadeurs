@@ -8,16 +8,17 @@ which swaps this whole block for wtp_survey_thanks.html on success, or
 re-renders this same fragment with form errors on an invalid submission.
 
 Context:
-  survey_form       — SurveyResponseForm (q1_answer required, q2_answer optional)
-  survey_price_chf  — int, the hypothetical CHF price point shown
-  survey_framing    — SurveyResponse.Framing ("DEPOSIT" or "FEE")
+  survey_form — SurveyResponseForm (single required field: max_deposit)
 {% endcomment %}
 <div class="card text-left">
-    <p class="label mb-2">{% translate "Help us set next season's price" %}</p>
+    <p class="label mb-2">{% translate "Help us set the price" %}</p>
     <p class="mb-6 text-base text-body">
         {% blocktranslate trimmed %}
-            Registration is free for you. From 1 October it will carry a deposit — help us set it fairly by answering
-            two quick questions.
+            This service is currently provided free of charge.
+        {% endblocktranslate %}
+        {% blocktranslate trimmed %}
+            From next season, registration may carry a refundable deposit — returned in full if we don't find you a
+            match. Help us set it fairly by answering one quick question.
         {% endblocktranslate %}
     </p>
 
@@ -36,45 +37,18 @@ Context:
         {% endif %}
 
         <fieldset class="mb-8">
-            <legend class="mb-3 text-base font-medium text-ink">
-                {% if survey_framing == "DEPOSIT" %}
-                    {% blocktranslate trimmed with price=survey_price_chf %}
-                        If registering had required a refundable CHF {{ price }} deposit, would that have changed your
-                        decision to register?
-                    {% endblocktranslate %}
-                {% else %}
-                    {% blocktranslate trimmed with price=survey_price_chf %}
-                        If registering had required a CHF {{ price }} fee, would that have changed your decision to
-                        register?
-                    {% endblocktranslate %}
-                {% endif %}
+            <legend class="mb-6 text-base font-medium text-ink">
+                {{ survey_form.max_deposit.label }}
             </legend>
             <div class="space-y-3">
-                {% for radio in survey_form.q1_answer %}
+                {% for radio in survey_form.max_deposit %}
                     <label class="flex items-start gap-2 text-base text-ink">
                         {{ radio.tag }}
                         <span>{{ radio.choice_label }}</span>
                     </label>
                 {% endfor %}
             </div>
-            {% for error in survey_form.q1_answer.errors %}
-                <p class="mt-1 text-xs text-danger">{{ error }}</p>
-            {% endfor %}
-        </fieldset>
-
-        <fieldset class="mb-8">
-            <legend class="mb-3 text-base font-medium text-ink">
-                {{ survey_form.q2_answer.label }}
-            </legend>
-            <div class="space-y-3">
-                {% for radio in survey_form.q2_answer %}
-                    <label class="flex items-start gap-2 text-base text-ink">
-                        {{ radio.tag }}
-                        <span>{{ radio.choice_label }}</span>
-                    </label>
-                {% endfor %}
-            </div>
-            {% for error in survey_form.q2_answer.errors %}
+            {% for error in survey_form.max_deposit.errors %}
                 <p class="mt-1 text-xs text-danger">{{ error }}</p>
             {% endfor %}
         </fieldset>
@@ -86,7 +60,7 @@ Context:
             {% comment %}
                 Skip is a server-side no-op via the same submit endpoint —
                 formnovalidate so the browser's required-field check on
-                q1_answer doesn't block it. register_survey_submit sees
+                max_deposit doesn't block it. register_survey_submit sees
                 "skip" in request.POST and returns an empty 200 body before
                 any validation, creating no row; the hx-swap="innerHTML"
                 then clears #wtp-survey. This avoids hx-on:click (blocked by

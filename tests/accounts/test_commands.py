@@ -69,20 +69,20 @@ def test_expected_user_count() -> None:
     count = User.objects.filter(email__endswith=f"@{SEED_EMAIL_DOMAIN}").count()
     # admin + unverified + amb_queue + ref_queue
     # + proposed pair (2) + pending pair (2) + accepted pair (2)
-    # + suspended + withdrawn
+    # + suspended + withdrawn + paused
     # + declined pair (2) + expired pair (2) + cancelled pair (2)
-    # = 1 + 1 + 1 + 1 + 2 + 2 + 2 + 1 + 1 + 2 + 2 + 2 = 18
-    assert count == 18
+    # = 1 + 1 + 1 + 1 + 2 + 2 + 2 + 1 + 1 + 1 + 2 + 2 + 2 = 19
+    assert count == 19
 
 
 def test_expected_registration_count() -> None:
     """seed_test_data creates the expected number of seed Registrations."""
     _run()
-    # All seed users except the superuser (admin) have a Registration = 17.
+    # All seed users except the superuser (admin) have a Registration = 18.
     reg_count = Registration.objects.filter(
         user__email__endswith=f"@{SEED_EMAIL_DOMAIN}"
     ).count()
-    assert reg_count == 17
+    assert reg_count == 18
 
 
 def test_expected_match_count() -> None:
@@ -207,7 +207,7 @@ def test_all_match_statuses_present() -> None:
 
 
 def test_all_registration_statuses_present() -> None:
-    """All four Registration.Status values are represented in the seed data."""
+    """Every Registration.Status value is represented in the seed data."""
     _run()
     seed_statuses = set(
         Registration.objects.filter(
@@ -217,10 +217,55 @@ def test_all_registration_statuses_present() -> None:
     expected = {
         Registration.Status.UNVERIFIED,
         Registration.Status.VERIFIED,
+        Registration.Status.PAUSED,
         Registration.Status.WITHDRAWN,
         Registration.Status.SUSPENDED,
     }
     assert expected.issubset(seed_statuses)
+
+
+# ---------------------------------------------------------------------------
+# Historical pairs mirror the real service outcomes (ADR 0013 / ADR 0007)
+# ---------------------------------------------------------------------------
+
+
+def test_declined_pair_mirrors_decline_flow() -> None:
+    """The decliner is PAUSED; the kept-faith referee is re-queued to the front."""
+    _run()
+    decliner = Registration.objects.get(user__email="declined.amb@seed.test")
+    kept_faith = Registration.objects.get(user__email="declined.ref@seed.test")
+    assert decliner.status == Registration.Status.PAUSED
+    assert kept_faith.status == Registration.Status.VERIFIED
+    assert kept_faith.priority == 1
+    declined = Match.objects.get(status=Match.Status.DECLINED)
+    assert declined.referee_accepted_at is not None
+
+
+def test_expired_pair_both_paused() -> None:
+    """Both non-responders on the expired match are PAUSED."""
+    _run()
+    for email in ("expired.amb@seed.test", "expired.ref@seed.test"):
+        reg = Registration.objects.get(user__email=email)
+        assert reg.status == Registration.Status.PAUSED, email
+
+
+def test_cancelled_pair_mirrors_no_show_report() -> None:
+    """The reporting referee is re-queued to the front; the reported is SUSPENDED."""
+    _run()
+    reported = Registration.objects.get(user__email="cancelled.amb@seed.test")
+    reporter = Registration.objects.get(user__email="cancelled.ref@seed.test")
+    assert reported.status == Registration.Status.SUSPENDED
+    assert reporter.status == Registration.Status.VERIFIED
+    assert reporter.priority == 1
+
+
+def test_paused_user_seeded_with_no_match_history() -> None:
+    """A standalone PAUSED registration is seeded (rejoin/cancel account actions)."""
+    _run()
+    reg = Registration.objects.get(user__email="paused@seed.test")
+    assert reg.status == Registration.Status.PAUSED
+    assert not Match.objects.filter(ambassador_registration=reg).exists()
+    assert not Match.objects.filter(referee_registration=reg).exists()
 
 
 # ---------------------------------------------------------------------------

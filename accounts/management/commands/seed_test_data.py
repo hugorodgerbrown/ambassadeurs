@@ -9,8 +9,21 @@
 # database in a half-seeded state.
 #
 # Do NOT call matching.services mutation functions here — they have side effects
-# (sending email, deleting users on decline, re-queueing). Build rows via the
-# Django ORM directly and set timestamps explicitly.
+# (sending email, pausing registrations, re-queueing). Rows are built via the
+# test factories (tests/*/factories.py) so the seed data and the test suite
+# share one definition of a valid object graph; timestamps and statuses are set
+# explicitly. The seeded historical pairs mirror what the real services would
+# have left behind (ADR 0013): a decliner or non-responder is PAUSED, and a
+# kept-faith party is re-queued to the front (priority=1).
+#
+# factory_boy is a dev-only dependency, so the factory imports live inside the
+# helper functions rather than at module level — the module stays importable
+# in production, where the dev dependency group is not installed.
+#
+# Shelf life: the seeded PROPOSED/PENDING matches lapse CONTACT_WINDOW_HOURS
+# after seeding, and nothing runs the expire_matches sweep locally — after that
+# the account page and the match page disagree about them. Re-run this command
+# to refresh.
 #
 # allauth has been removed (VERB-46). Email-verified state is now derived from
 # Registration.status (UNVERIFIED vs any other status). EmailAddress rows are
@@ -63,7 +76,7 @@ def _make_user(
     is_superuser: bool = False,
     is_staff: bool = False,
 ) -> User:
-    """Create a User with an unusable password.
+    """Create a User with an unusable password via UserFactory.
 
     Args:
         email: Already-normalised email address.
@@ -75,23 +88,17 @@ def _make_user(
     Returns:
         The newly created User instance.
     """
-    if is_superuser:
-        user = User.objects.create_superuser(
-            username=email,
-            email=email,
-            password=None,
-            first_name=first_name,
-            last_name=last_name,
-        )
-    else:
-        user = User.objects.create_user(
-            username=email,
-            email=email,
-            password=None,
-            first_name=first_name,
-            last_name=last_name,
-            is_staff=is_staff,
-        )
+    # Deferred import: factory_boy is a dev-only dependency (see module header).
+    from tests.accounts.factories import UserFactory
+
+    user = UserFactory.create(
+        username=email,
+        email=email,
+        first_name=first_name,
+        last_name=last_name,
+        is_superuser=is_superuser,
+        is_staff=is_staff,
+    )
     user.set_unusable_password()
     user.save(update_fields=["password"])
     return user
@@ -106,8 +113,9 @@ def _make_registration(
     phone: str,
     preferred_language: str,
     preferred_location: str,
+    priority: int = 0,
 ) -> Registration:
-    """Create a Registration row directly via the ORM (no service side-effects).
+    """Create a Registration row via RegistrationFactory (no service side-effects).
 
     Args:
         user: The owning User.
@@ -117,12 +125,16 @@ def _make_registration(
         phone: Phone number string.
         preferred_language: ISO 639 language code.
         preferred_location: Resort choice value (may be empty string).
+        priority: Queue priority; 1 marks a kept-faith party re-queued to the
+            front after a decline / no-show report (ADR 0013).
 
     Returns:
         The newly created Registration instance.
     """
-    now = timezone.now()
-    return Registration.objects.create(
+    # Deferred import: factory_boy is a dev-only dependency (see module header).
+    from tests.matching.factories import RegistrationFactory
+
+    return RegistrationFactory.create(
         user=user,
         role=role,
         prior_pass=prior_pass,
@@ -130,10 +142,10 @@ def _make_registration(
         phone=phone,
         preferred_language=preferred_language,
         preferred_location=preferred_location,
-        priority=0,
+        priority=priority,
         fee_chf=fee_chf_for(timezone.localdate()),
         accepted_terms=list(_ACCEPTED_TERMS),
-        terms_accepted_at=now,
+        terms_accepted_at=timezone.now(),
     )
 
 
@@ -148,7 +160,7 @@ def _make_notification(
     ends_at: datetime | None = None,
     custom_group_key: str = "",
 ) -> Notification:
-    """Create a seeded Notification via the ORM (save() runs the nh3 sanitiser).
+    """Create a seeded Notification via NotificationFactory (save() runs nh3).
 
     The content is prefixed with ``SEED_NOTIFICATION_MARKER`` by the caller so
     the wipe step can find it again. ``save()`` populates ``content_sanitised``
@@ -172,7 +184,10 @@ def _make_notification(
     Returns:
         The newly created Notification instance.
     """
-    return Notification.objects.create(
+    # Deferred import: factory_boy is a dev-only dependency (see module header).
+    from tests.core.factories import NotificationFactory
+
+    return NotificationFactory.create(
         content=content,
         audience=audience,
         priority=priority,
@@ -198,12 +213,16 @@ class Command(BaseCommand):
     """Populate the local database with a deterministic set of loginable test users.
 
     Creates users, registrations, and matches covering every Registration.Status
-    and Match.Status so all UI states can be explored locally. All seeded rows
-    share the ``seed.test`` email domain for easy identification and cleanup.
+    (including PAUSED) and Match.Status so all UI states can be explored locally.
+    All seeded rows share the ``seed.test`` email domain for easy identification
+    and cleanup.
 
     Refuses to run unless settings.DEBUG is True (or --force is passed). Running
     the command a second time wipes the previous seed data and rebuilds it from
     scratch (idempotent / deterministic). Pass --keep to skip the wipe.
+
+    The seeded active matches lapse CONTACT_WINDOW_HOURS after seeding (see the
+    module header); re-run the command to refresh them.
     """
 
     help = "Seed the local database with deterministic test data (DEBUG only)."
@@ -276,6 +295,9 @@ class Command(BaseCommand):
             List of dicts with keys ``email``, ``role``, ``reg_status``,
             ``match_status`` for printing.
         """
+        # Deferred import: factory_boy is a dev-only dependency (module header).
+        from tests.matching.factories import MatchFactory
+
         rows: list[dict[str, str]] = []
         now = timezone.now()
 
@@ -399,10 +421,9 @@ class Command(BaseCommand):
             preferred_location=Resort.NENDAZ,
         )
 
-        Match.objects.create(
+        MatchFactory.create(
             ambassador_registration=proposed_amb_reg,
             referee_registration=proposed_ref_reg,
-            status=Match.Status.PROPOSED,
             expires_at=_future_expires_at(),
         )
         rows.append(
@@ -453,10 +474,10 @@ class Command(BaseCommand):
             preferred_location=Resort.VEYSONNAZ,
         )
 
-        Match.objects.create(
+        MatchFactory.create(
+            pending=True,
             ambassador_registration=pending_amb_reg,
             referee_registration=pending_ref_reg,
-            status=Match.Status.PENDING,
             expires_at=_future_expires_at(),
             ambassador_accepted_at=now,
         )
@@ -508,10 +529,10 @@ class Command(BaseCommand):
             preferred_location=Resort.LA_TZOUMAZ,
         )
 
-        Match.objects.create(
+        MatchFactory.create(
+            accepted=True,
             ambassador_registration=accepted_amb_reg,
             referee_registration=accepted_ref_reg,
-            status=Match.Status.ACCEPTED,
             expires_at=_future_expires_at(),
             ambassador_accepted_at=now - timedelta(hours=2),
             referee_accepted_at=now - timedelta(hours=1),
@@ -581,7 +602,36 @@ class Command(BaseCommand):
             }
         )
 
+        # --- PAUSED registration (out of pool, self-recoverable) -----------
+        # Shows the "Rejoin the queue" and "Cancel & refund" account actions.
+        paused_user = _make_user(
+            _seed_email("paused"),
+            first_name="Patricia",
+            last_name="Vaudan",
+        )
+        _make_registration(
+            paused_user,
+            role=Registration.Role.REFEREE,
+            prior_pass=Registration.PriorPass.NONE,
+            status=Registration.Status.PAUSED,
+            phone="+41790000018",
+            preferred_language="en",
+            preferred_location=Resort.VERBIER,
+        )
+        rows.append(
+            {
+                "email": paused_user.email,
+                "role": "REFEREE",
+                "reg_status": "PAUSED",
+                "match_status": "—",
+            }
+        )
+
         # --- Historical DECLINED match ------------------------------------
+        # Mirrors the real decline flow (ADR 0013): the referee had accepted
+        # (match was PENDING), then the ambassador declined. The decliner is
+        # PAUSED (out of pool, self-recoverable); the kept-faith referee is
+        # re-queued to the front (priority=1).
         declined_amb_user = _make_user(
             _seed_email("declined.amb"),
             first_name="Denis",
@@ -591,7 +641,7 @@ class Command(BaseCommand):
             declined_amb_user,
             role=Registration.Role.AMBASSADOR,
             prior_pass=Registration.PriorPass.ANNUAL,
-            status=Registration.Status.VERIFIED,
+            status=Registration.Status.PAUSED,
             phone="+41790000012",
             preferred_language="fr",
             preferred_location=Resort.VERBIER,
@@ -610,21 +660,22 @@ class Command(BaseCommand):
             phone="+41790000013",
             preferred_language="fr",
             preferred_location=Resort.VERBIER,
+            priority=1,
         )
 
-        Match.objects.create(
+        MatchFactory.create(
+            declined=True,
             ambassador_registration=declined_amb_reg,
             referee_registration=declined_ref_reg,
-            status=Match.Status.DECLINED,
             expires_at=_past_expires_at(),
-            declined_by=Match.Side.AMBASSADOR,
+            referee_accepted_at=now - timedelta(hours=30),
             declined_at=now - timedelta(hours=24),
         )
         rows.append(
             {
                 "email": declined_amb_user.email,
                 "role": "AMBASSADOR",
-                "reg_status": "VERIFIED",
+                "reg_status": "PAUSED",
                 "match_status": "DECLINED (historical)",
             }
         )
@@ -638,6 +689,8 @@ class Command(BaseCommand):
         )
 
         # --- Historical EXPIRED match -------------------------------------
+        # Mirrors the expiry sweep (ADR 0013): neither side responded within
+        # the contact window, so both non-responders are PAUSED.
         expired_amb_user = _make_user(
             _seed_email("expired.amb"),
             first_name="Etienne",
@@ -647,7 +700,7 @@ class Command(BaseCommand):
             expired_amb_user,
             role=Registration.Role.AMBASSADOR,
             prior_pass=Registration.PriorPass.SEASONAL,
-            status=Registration.Status.VERIFIED,
+            status=Registration.Status.PAUSED,
             phone="+41790000014",
             preferred_language="en",
             preferred_location=Resort.THYON,
@@ -662,13 +715,13 @@ class Command(BaseCommand):
             expired_ref_user,
             role=Registration.Role.REFEREE,
             prior_pass=Registration.PriorPass.NONE,
-            status=Registration.Status.VERIFIED,
+            status=Registration.Status.PAUSED,
             phone="+41790000015",
             preferred_language="en",
             preferred_location=Resort.THYON,
         )
 
-        Match.objects.create(
+        MatchFactory.create(
             ambassador_registration=expired_amb_reg,
             referee_registration=expired_ref_reg,
             status=Match.Status.EXPIRED,
@@ -678,7 +731,7 @@ class Command(BaseCommand):
             {
                 "email": expired_amb_user.email,
                 "role": "AMBASSADOR",
-                "reg_status": "VERIFIED",
+                "reg_status": "PAUSED",
                 "match_status": "EXPIRED (historical)",
             }
         )
@@ -686,7 +739,7 @@ class Command(BaseCommand):
             {
                 "email": expired_ref_user.email,
                 "role": "REFEREE",
-                "reg_status": "VERIFIED",
+                "reg_status": "PAUSED",
                 "match_status": "EXPIRED (historical)",
             }
         )
@@ -712,6 +765,8 @@ class Command(BaseCommand):
             first_name="Claire",
             last_name="Michelet",
         )
+        # The reporting referee is re-queued to the front (priority=1); the
+        # reported ambassador is SUSPENDED (ADR 0007).
         cancelled_ref_reg = _make_registration(
             cancelled_ref_user,
             role=Registration.Role.REFEREE,
@@ -720,16 +775,16 @@ class Command(BaseCommand):
             phone="+41790000017",
             preferred_language="fr",
             preferred_location=Resort.BRUSON,
+            priority=1,
         )
 
-        Match.objects.create(
+        MatchFactory.create(
+            cancelled=True,
             ambassador_registration=cancelled_amb_reg,
             referee_registration=cancelled_ref_reg,
-            status=Match.Status.CANCELLED,
             expires_at=_future_expires_at(),
             ambassador_accepted_at=now - timedelta(hours=48),
             referee_accepted_at=now - timedelta(hours=47),
-            no_show_reported_by=Match.Side.REFEREE,
             no_show_reported_at=now - timedelta(hours=4),
         )
         rows.append(
@@ -926,6 +981,11 @@ class Command(BaseCommand):
         self.stdout.write(f"Total: {len(rows)} entries created.")
         self.stdout.write("")
         self.stdout.write("Login via /account/login/ using any email above.")
+        self.stdout.write(
+            f"Note: the PROPOSED/PENDING matches lapse in "
+            f"{settings.CONTACT_WINDOW_HOURS} hours; re-run this command to "
+            f"refresh them."
+        )
         self.stdout.write("")
 
     def _print_notification_summary(self, rows: list[dict[str, str]]) -> None:

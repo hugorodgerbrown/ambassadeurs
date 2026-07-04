@@ -288,39 +288,120 @@ def status_pill_for(
     return {"label": str(label), "tone": tone}
 
 
-def active_match_state_for(user: User) -> str:
-    """Return ``user``'s active-match state: ``none|proposed|pending|accepted``.
+def match_status_context(user: User) -> dict[str, object]:
+    """Build the full render context for the Match status card, for ``user``.
 
-    Mirrors the active-match lookup and status→state mapping in
-    ``accounts.views.account_detail`` (PROPOSED, PENDING, or ACCEPTED, via
-    ``Match.objects.active_at``), but returns only the derived state string —
-    callers needing the Match object itself (e.g. for partner data) should do
-    their own lookup rather than call this helper.
+    Returns every key ``templates/accounts/partials/match_status.html`` reads:
+    ``registration``, ``status_pill``, ``match_state``, ``partner_first_name``,
+    ``partner_accepted``, ``queue_position``, ``can_rejoin``, ``can_cancel``.
 
-    Used by ``public.views.register_done`` so the registration-confirmation
-    page reflects a match already proposed synchronously during
-    ``register_participant`` (VERB-116).
+    Shared by ``accounts.views.account_detail`` and ``public.views.register_done``
+    (VERB-116) so both surfaces render the identical Match status component —
+    the registration engine runs synchronously inside ``register_participant``,
+    so a user can already hold a PROPOSED (or later) match by the time they
+    reach ``register_done``.
+
+    Looks up the user's own ``Registration`` (``None`` if they have none, e.g.
+    an admin user). Match progress (``match_state``) is derived from the active
+    ``Match`` row (PROPOSED, PENDING, or ACCEPTED via ``Match.objects.active_at``),
+    never from ``Registration.status`` (VERB-44 / ADR 0011). ``active_at``
+    excludes a PROPOSED/PENDING match whose contact window has lapsed but which
+    the hourly ``expire_matches`` sweep has not yet processed, so a lapsed,
+    unswept match reads as inactive (VERB-113 parity).
+
+    ``queue_position`` is only computed for a VERIFIED registration with no
+    active match. ``can_rejoin``/``can_cancel`` are both True only when the
+    registration is PAUSED with no active match.
 
     Args:
-        user: The user whose active match (if any) to inspect.
+        user: The user whose match status to derive.
 
     Returns:
-        One of ``"none"``, ``"proposed"``, ``"pending"``, ``"accepted"``.
+        The full Match status card context, keyed as above.
     """
-    active_match = (
+    try:
+        registration: Registration | None = Registration.objects.get(user=user)
+    except Registration.DoesNotExist:
+        registration = None
+
+    active_match: Match | None = (
         Match.objects.active_at(timezone.now())
         .filter(
             Q(ambassador_registration__user=user) | Q(referee_registration__user=user)
         )
+        .select_related(
+            "ambassador_registration__user",
+            "referee_registration__user",
+        )
         .first()
     )
-    if active_match is None:
-        return "none"
-    if active_match.status == Match.Status.ACCEPTED:
-        return "accepted"
-    if active_match.status == Match.Status.PENDING:
-        return "pending"
-    return "proposed"
+
+    match_state = "none"
+    partner_first_name = ""
+    partner_accepted = False
+
+    if active_match is not None:
+        if active_match.status == Match.Status.ACCEPTED:
+            match_state = "accepted"
+        elif active_match.status == Match.Status.PENDING:
+            match_state = "pending"
+        else:
+            match_state = "proposed"
+
+        # Identify which side this user is on to find the partner.
+        if active_match.ambassador_registration is not None and (
+            active_match.ambassador_registration.user_id == user.pk
+        ):
+            partner = active_match.referee_registration
+            partner_accepted = active_match.referee_accepted_at is not None
+        else:
+            partner = active_match.ambassador_registration
+            partner_accepted = active_match.ambassador_accepted_at is not None
+
+        if partner is not None:
+            partner_first_name = partner.user.first_name
+
+    # Fall back to a generic noun when the partner has no first name on file.
+    if not partner_first_name:
+        partner_first_name = _("your partner")
+
+    # Queue position — only computed for VERIFIED registrations without an active
+    # match (pool members awaiting a pairing).
+    position: int | None = None
+    if (
+        registration is not None
+        and registration.status == Registration.Status.VERIFIED
+        and active_match is None
+    ):
+        position = queue_position(registration)
+
+    # can_rejoin — True when the registration is PAUSED and there is no active
+    # match (the normal case after a decline or expiry).
+    can_rejoin = (
+        registration is not None
+        and registration.status == Registration.Status.PAUSED
+        and active_match is None
+    )
+
+    # can_cancel — True under the same condition as can_rejoin (PAUSED, no
+    # active match). Drives the "Cancel & refund" link (VERB-88), which sits
+    # alongside "Rejoin the queue" on the account page.
+    can_cancel = (
+        registration is not None
+        and registration.status == Registration.Status.PAUSED
+        and active_match is None
+    )
+
+    return {
+        "registration": registration,
+        "status_pill": status_pill_for(registration, match_state),
+        "match_state": match_state,
+        "partner_first_name": partner_first_name,
+        "partner_accepted": partner_accepted,
+        "queue_position": position,
+        "can_rejoin": can_rejoin,
+        "can_cancel": can_cancel,
+    }
 
 
 @has_side_effects(MATCH_PROPOSED, run_on_exit=lambda match: match is not None)

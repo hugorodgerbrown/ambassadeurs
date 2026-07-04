@@ -15,12 +15,12 @@ from core.models import StateTransitionLog
 from matching.models import Match, Registration
 from matching.services import (
     accept_match,
-    active_match_state_for,
     confirm_registration,
     decline_match,
     expire_lapsed_matches,
     is_eligible_pair,
     is_registration_open,
+    match_status_context,
     pause_registration,
     propose_match,
     queue_position,
@@ -2600,53 +2600,88 @@ def test_status_pill_for_active_match_state_overrides_registration_status(
 
 
 # ---------------------------------------------------------------------------
-# active_match_state_for (VERB-116)
+# match_status_context (VERB-116)
 # ---------------------------------------------------------------------------
 
 
-def test_active_match_state_for_no_match_returns_none() -> None:
-    """A user with no active match returns the 'none' state."""
+def test_match_status_context_no_registration() -> None:
+    """A user with no Registration gets a neutral, no-registration context."""
+    user = UserFactory.create()
+    context = match_status_context(user)
+    assert context["registration"] is None
+    assert context["status_pill"] == {"label": "Queued", "tone": "muted"}
+    assert context["match_state"] == "none"
+    assert context["queue_position"] is None
+    assert context["can_rejoin"] is False
+    assert context["can_cancel"] is False
+
+
+def test_match_status_context_verified_no_match() -> None:
+    """A VERIFIED registration with no active match reports its queue position."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED)
+    context = match_status_context(reg.user)
+    assert context["registration"] == reg
+    assert context["match_state"] == "none"
+    assert context["queue_position"] == 1
+    assert context["can_rejoin"] is False
+    assert context["can_cancel"] is False
+
+
+def test_match_status_context_paused_no_match() -> None:
+    """A PAUSED registration with no active match allows rejoin and cancel."""
+    reg = RegistrationFactory.create(status=Registration.Status.PAUSED)
+    context = match_status_context(reg.user)
+    assert context["match_state"] == "none"
+    assert context["queue_position"] is None
+    assert context["can_rejoin"] is True
+    assert context["can_cancel"] is True
+
+
+def test_match_status_context_proposed_match() -> None:
+    """An active PROPOSED match surfaces match_state and partner details."""
     reg = RegistrationFactory.create()
-    assert active_match_state_for(reg.user) == "none"
+    partner_user = UserFactory.create(first_name="Bernard")
+    partner = RegistrationFactory.create(referee=True, user=partner_user)
+    MatchFactory.create(
+        ambassador_registration=reg,
+        referee_registration=partner,
+        status=Match.Status.PROPOSED,
+    )
+    context = match_status_context(reg.user)
+    assert context["match_state"] == "proposed"
+    assert context["partner_first_name"] == "Bernard"
+    assert context["partner_accepted"] is False
 
 
-def test_active_match_state_for_proposed_match() -> None:
-    """A user in a PROPOSED match returns the 'proposed' state."""
-    reg = RegistrationFactory.create()
-    MatchFactory.create(ambassador_registration=reg, status=Match.Status.PROPOSED)
-    assert active_match_state_for(reg.user) == "proposed"
-
-
-def test_active_match_state_for_pending_match() -> None:
-    """A user in a PENDING match returns the 'pending' state."""
-    reg = RegistrationFactory.create()
-    MatchFactory.create(ambassador_registration=reg, pending=True)
-    assert active_match_state_for(reg.user) == "pending"
-
-
-def test_active_match_state_for_accepted_match() -> None:
-    """A user in an ACCEPTED match returns the 'accepted' state."""
-    reg = RegistrationFactory.create()
-    MatchFactory.create(ambassador_registration=reg, accepted=True)
-    assert active_match_state_for(reg.user) == "accepted"
-
-
-def test_active_match_state_for_referee_side() -> None:
-    """The helper matches on either side of the match (referee here)."""
+def test_match_status_context_referee_side() -> None:
+    """The context resolves the partner correctly from the referee's side too."""
     reg = RegistrationFactory.create(referee=True)
-    MatchFactory.create(referee_registration=reg, status=Match.Status.PROPOSED)
-    assert active_match_state_for(reg.user) == "proposed"
+    partner_user = UserFactory.create(first_name="Léa")
+    partner = RegistrationFactory.create(user=partner_user)
+    MatchFactory.create(
+        ambassador_registration=partner,
+        referee_registration=reg,
+        status=Match.Status.PROPOSED,
+    )
+    context = match_status_context(reg.user)
+    assert context["match_state"] == "proposed"
+    assert context["partner_first_name"] == "Léa"
 
 
-def test_active_match_state_for_lapsed_proposed_match_returns_none() -> None:
+def test_match_status_context_lapsed_proposed_match_returns_none() -> None:
     """A lapsed, unswept PROPOSED match is treated as inactive (VERB-113 parity)."""
-    reg = RegistrationFactory.create()
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED)
     MatchFactory.create(
         ambassador_registration=reg,
         status=Match.Status.PROPOSED,
         expires_at=datetime(2020, 1, 1, tzinfo=UTC),
     )
-    assert active_match_state_for(reg.user) == "none"
+    context = match_status_context(reg.user)
+    assert context["match_state"] == "none"
+    # queue_position() is pool-eligibility-based (_without_active_match), which
+    # still excludes a lapsed-but-unswept match (Invariant 3) — unlike
+    # match_state, which uses active_at() and treats it as inactive.
+    assert context["queue_position"] is None
 
 
 # ---------------------------------------------------------------------------

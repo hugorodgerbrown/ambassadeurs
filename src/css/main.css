@@ -208,15 +208,16 @@
     outline: none;
   }
 
-  /* Headings carry the display face, colour and type-scale sizes by default so
-     a bare <h1>/<h2>/<h3> renders at the intended size (Tailwind's preflight
-     otherwise resets headings to inherit). Explicit text-* utilities still win
-     (utilities sort after @layer base), so pages that size headings inline are
-     unaffected. */
+  /* Headings carry the display face and colour by default, sized at the
+     reading scale (≡ Tailwind text-2xl/lg/base) so a bare <h1>/<h2>/<h3> on a
+     standard content page renders at the intended size (Tailwind's preflight
+     otherwise resets headings to inherit). The homepage hero opts into the
+     larger display scale via the explicit .text-h1/2/3 utilities below, which
+     still win (utilities sort after @layer base). */
   h1, h2, h3 { font-family: var(--font-display); color: var(--color-ink); }
-  h1 { font-size: var(--text-h1); line-height: var(--text-h1--line-height); letter-spacing: var(--text-h1--letter-spacing); font-weight: var(--text-h1--font-weight); }
-  h2 { font-size: var(--text-h2); line-height: var(--text-h2--line-height); letter-spacing: var(--text-h2--letter-spacing); font-weight: var(--text-h2--font-weight); }
-  h3 { font-size: var(--text-h3); line-height: var(--text-h3--line-height); letter-spacing: var(--text-h3--letter-spacing); font-weight: var(--text-h3--font-weight); }
+  h1 { font-size: 1.5rem; line-height: 1.25; letter-spacing: -0.01em; font-weight: 700; }
+  h2 { font-size: 1.125rem; line-height: 1.4; font-weight: 600; }
+  h3 { font-size: 1rem; line-height: 1.5; font-weight: 600; }
 }
 
 /* ── Component classes ───────────────────────────────────────────────────── */

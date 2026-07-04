@@ -11,7 +11,6 @@
 
 import re
 from datetime import UTC, datetime
-from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -929,35 +928,6 @@ def test_stripe_webhook_rejects_get() -> None:
     assert response.status_code == 405
 
 
-def test_authenticated_register_post_paid_tier_diverts_to_payment(
-    settings: Any,
-) -> None:
-    """The authenticated defensive register() path creates an UNVERIFIED
-    registration and redirects to payment when the tier is paid."""
-    settings.REGISTRATION_FEE_TIERS = "2020-01-01:5"
-    user = UserFactory.create(username="auth@example.com", email="auth@example.com")
-    client = Client()
-    client.force_login(user)
-
-    response = client.post(
-        reverse("public:register"),
-        {
-            "role": "ambassador",
-            "first_name": "Ada",
-            "last_name": "Lovelace",
-            "prior_pass": Registration.PriorPass.SEASONAL,
-            "prior_pass_attestation": "on",
-            "terms_accepted": "on",
-        },
-    )
-
-    assert response.status_code == 302
-    assert response.url == reverse("public:register_payment_start")
-    reg = Registration.objects.get(user=user)
-    assert reg.status == Registration.Status.UNVERIFIED
-    assert reg.fee_chf == 5
-
-
 def test_account_cta_shown_for_unverified_paid_registration() -> None:
     """The account page shows the "Complete payment" CTA for an UNVERIFIED,
     fee_chf > 0 registration."""
@@ -1077,16 +1047,15 @@ def test_details_form_fragment_closed_without_open_window_404() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Already-registered user sees banner and disabled surface (VERB-26)
+# Already-registered user is refused access (VERB-115)
 # ---------------------------------------------------------------------------
 
 
-def test_register_get_already_registered_shows_banner_and_disabled_inputs() -> None:
-    """A logged-in user with a Registration sees the already-registered banner
-    and disabled form inputs on GET /register/.
+def test_register_get_already_registered_returns_403() -> None:
+    """A logged-in user with a Registration receives 403 on GET /register/.
 
-    Checks: banner copy, correct role label, link to accounts:detail, and the
-    disabled attribute on an input field and the submit button.
+    Checks: 403 status, the register_forbidden.html template, and a link to
+    accounts:detail.
     """
     user = UserFactory.create()
     RegistrationFactory.create(
@@ -1099,28 +1068,15 @@ def test_register_get_already_registered_shows_banner_and_disabled_inputs() -> N
     client.force_login(user)
     response = client.get(reverse("public:register"))
 
-    assert response.status_code == 200
+    assert response.status_code == 403
+    assert "public/register_forbidden.html" in [t.name for t in response.templates]
     content = response.content.decode()
-    # Lock-banner copy.
-    assert "You're already registered" in content
-    assert "Ambassador" in content
-    # Locked submit replacement label.
-    assert "Already registered" in content
-    # Link to account detail (the exit).
     assert reverse("accounts:detail") in content
-    assert "View my account" in content
-    # At least one form input element must carry the disabled attribute.
-    assert re.search(r"<input[^>]*\bdisabled\b", content)
-    # The submit button element itself must be disabled.
-    assert re.search(r'<button[^>]*type="submit"[^>]*\bdisabled\b', content)
 
 
-def test_register_get_already_registered_locks_to_registered_role() -> None:
-    """An already-registered user is shown the role they registered with even
-    if they arrived via the other role's homepage link.
-
-    A registered ambassador hitting /register/?role=referee must see the
-    ambassador-themed, ambassador-labelled locked form — not the referee one.
+def test_register_post_already_registered_returns_403() -> None:
+    """A logged-in, already-registered user POSTing valid form data to
+    /register/ receives 403 and no second Registration row is created.
     """
     user = UserFactory.create()
     RegistrationFactory.create(
@@ -1131,21 +1087,26 @@ def test_register_get_already_registered_locks_to_registered_role() -> None:
     )
     client = Client()
     client.force_login(user)
-    response = client.get(reverse("public:register") + "?role=referee")
+    response = client.post(
+        reverse("public:register") + "?role=ambassador",
+        data={
+            "role": "ambassador",
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "prior_pass": Registration.PriorPass.SEASONAL,
+            "prior_pass_attestation": "on",
+            "terms_accepted": "on",
+        },
+    )
 
-    assert response.status_code == 200
-    content = response.content.decode()
-    # The surface is themed for the registered (ambassador) role, not referee.
-    assert "role-theme--referee" not in content
-    # The hidden role input carries the registered role's slug.
-    assert 'name="role" value="ambassador"' in content
-    # The submit-area exit copy reflects the locked state.
-    assert "Already registered" in content
+    assert response.status_code == 403
+    assert "public/register_forbidden.html" in [t.name for t in response.templates]
+    assert Registration.objects.count() == 1
 
 
-def test_register_details_form_already_registered_shows_banner() -> None:
-    """A logged-in user with a Registration sees the banner and disabled surface
-    on the HTMX role-swap partial endpoint (register_details_form).
+def test_register_details_form_already_registered_returns_403() -> None:
+    """A logged-in user with a Registration receives 403 on the HTMX
+    role-swap partial endpoint (register_details_form).
     """
     user = UserFactory.create()
     RegistrationFactory.create(
@@ -1160,15 +1121,65 @@ def test_register_details_form_already_registered_shows_banner() -> None:
         headers={"hx-request": "true"},
     )
 
-    assert response.status_code == 200
-    content = response.content.decode()
-    # Lock-banner copy with correct role.
-    assert "You're already registered" in content
-    assert "Referee" in content
-    assert reverse("accounts:detail") in content
-    assert "View my account" in content
-    # Disabled state present.
-    assert "disabled" in content
+    assert response.status_code == 403
+    assert "public/register_forbidden.html" in [t.name for t in response.templates]
+
+
+@pytest.mark.parametrize(
+    ("has_registration", "registration_status", "expected_status"),
+    [
+        (False, None, 200),
+        (True, Registration.Status.VERIFIED, 403),
+        (True, Registration.Status.PAUSED, 403),
+    ],
+)
+def test_register_get_status_code_matrix(
+    has_registration: bool,
+    registration_status: str | None,
+    expected_status: int,
+) -> None:
+    """GET /register/ returns 200 unless the caller is authenticated with a
+    Registration (any status), in which case it returns 403.
+    """
+    client = Client()
+    if has_registration:
+        user = UserFactory.create()
+        RegistrationFactory.create(user=user, status=registration_status)
+        client.force_login(user)
+
+    response = client.get(reverse("public:register") + "?role=ambassador")
+
+    assert response.status_code == expected_status
+
+
+@pytest.mark.parametrize(
+    ("has_registration", "registration_status", "expected_status"),
+    [
+        (False, None, 200),
+        (True, Registration.Status.VERIFIED, 403),
+        (True, Registration.Status.PAUSED, 403),
+    ],
+)
+def test_register_details_form_status_code_matrix(
+    has_registration: bool,
+    registration_status: str | None,
+    expected_status: int,
+) -> None:
+    """HTMX GET on register_details_form returns 200 unless the caller is
+    authenticated with a Registration (any status), in which case 403.
+    """
+    client = Client()
+    if has_registration:
+        user = UserFactory.create()
+        RegistrationFactory.create(user=user, status=registration_status)
+        client.force_login(user)
+
+    response = client.get(
+        reverse("public:register_details_form") + "?role=ambassador",
+        headers={"hx-request": "true"},
+    )
+
+    assert response.status_code == expected_status
 
 
 def test_register_get_authenticated_without_registration_shows_normal_form() -> None:

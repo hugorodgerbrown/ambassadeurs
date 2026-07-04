@@ -1247,7 +1247,7 @@ def test_register_done_status_pill_verified_queued() -> None:
 
 
 def test_register_done_status_pill_active_proposed_match() -> None:
-    """A registration already PROPOSED (synchronous match at registration) shows Pending.
+    """A registration already PROPOSED at registration time shows Pending.
 
     register_participant runs propose_match synchronously, so a user can reach
     register_done already holding a PROPOSED match — the pill must reflect that

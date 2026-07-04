@@ -490,9 +490,10 @@ def register_done(request: HttpRequest, role: str) -> HttpResponse:
         position = queue_position(registration)
         accepted_count = total_accepted_matches()
 
-    match_state = (
-        active_match_state_for(request.user) if request.user.is_authenticated else "none"
-    )
+    if request.user.is_authenticated:
+        match_state = active_match_state_for(request.user)
+    else:
+        match_state = "none"
     status_pill = status_pill_for(registration, match_state)
 
     return render(

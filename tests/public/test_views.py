@@ -1653,6 +1653,7 @@ def test_faq_contains_contact_window_section() -> None:
     assert b"What is the contact window?" in content
     assert b"What happens if I miss the contact window?" in content
     assert b"What happens if my partner misses the contact window?" in content
+    assert b"How long is the contact window?" in content
 
 
 def test_faq_contains_after_matching_section() -> None:
@@ -1677,31 +1678,57 @@ def test_home_menu_links_to_faq_and_how_it_works() -> None:
 
 
 def test_how_it_works_contains_section_markers() -> None:
-    """The how-it-works page renders its section headings."""
+    """The how-it-works page renders its process-narrative section headings and
+    representative registration/match status names.
+    """
     response = Client().get(reverse("public:how_it_works"))
     content = response.content
-    assert b"What is the 4 Vall\xc3\xa9es Ambassadors Programme?" in content
-    assert b"Who is an Ambassador and who is a Referee?" in content
-    assert b"How do I apply?" in content
-    assert b"What is the approval process?" in content
-    assert b"What are the requirements?" in content
-    assert b"So what does this site do?" in content
-    assert b"What does this site not do?" in content
-    assert b"How does the match work?" in content
-    assert b"What happens then?" in content
+    assert b"Your registration" in content
+    assert b"A match" in content
+    assert b"Verified" in content
+    assert b"Proposed" in content
+    assert b"Accepted" in content
 
 
-def test_how_it_works_contains_contact_email() -> None:
-    """The how-it-works page shows the customer contact email address."""
+def test_how_it_works_links_to_faq() -> None:
+    """The how-it-works page links to the FAQ page."""
     response = Client().get(reverse("public:how_it_works"))
+    assert reverse("public:faq").encode() in response.content
+
+
+def test_faq_contains_contact_email() -> None:
+    """The FAQ page shows the customer contact email address."""
+    response = Client().get(reverse("public:faq"))
     assert b"customer@televerbier.ch" in response.content
 
 
-def test_how_it_works_contains_application_form_link() -> None:
-    """The how-it-works page contains a link to the application-form download."""
-    response = Client().get(reverse("public:how_it_works"))
+def test_faq_contains_application_form_link() -> None:
+    """The FAQ page contains a link to the application-form download."""
+    response = Client().get(reverse("public:faq"))
     application_form_url = reverse("public:application_form").encode()
     assert application_form_url in response.content
+
+
+def test_faq_contains_ambassadors_programme_section() -> None:
+    """The FAQ page groups the Programme questions (what it is, how to apply)
+    under the '4 Vallées Ambassadors Programme' heading.
+    """
+    response = Client().get(reverse("public:faq"))
+    content = response.content
+    assert b"The 4 Vall\xc3\xa9es Ambassadors Programme" in content
+    assert b"What is the 4 Vall\xc3\xa9es Ambassadors Programme?" in content
+    assert b"How do I apply for the Ambassador discount?" in content
+    assert b"What are the application requirements?" in content
+    assert b"What is the season pass approval process?" in content
+
+
+def test_faq_contains_ski_parrainage_section() -> None:
+    """The FAQ page groups the service questions under the 'Ski Parrainage'
+    heading, including the 'What is Ski Parrainage?' entry.
+    """
+    response = Client().get(reverse("public:faq"))
+    content = response.content
+    assert b"What is Ski Parrainage?" in content
 
 
 def test_how_it_works_link_in_footer() -> None:

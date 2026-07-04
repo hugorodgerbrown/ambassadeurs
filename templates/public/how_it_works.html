@@ -5,8 +5,8 @@
 
 {% block meta %}
     {% blocktranslate trimmed asvar page_description %}
-        How the 4 Vallées Ambassadors partner-matching service works: register, join the queue, get matched
-        automatically with a partner, accept within 72 hours, then apply together at the ticket office.
+        A plain-language walkthrough of the Ski Parrainage matchmaking process: your registration status, how a match is
+        proposed, the contact window, and what happens after you accept.
     {% endblocktranslate %}
     {% blocktranslate trimmed asvar page_title %}
         How it works — Ski Parrainage
@@ -16,150 +16,282 @@
     {% endwith %}
 {% endblock %}
 
+{% comment %}
+Plain-language process narrative sourced from docs/state-machines.md — the
+registration and match state tables plus their "short version" summaries.
+{% endcomment %}
 {% block content %}
     <article class="space-y-4 text-body">
         <h1 class="text-ink">{% translate "How it works" %}</h1>
 
-        <h2 class="pt-2 text-ink">
-            {% translate "What is the 4 Vallées Ambassadors Programme?" %}
-        </h2>
         <p>
             {% blocktranslate trimmed %}
-                The 4 Vallées Ambassadors Programme is a referral scheme that lets a returning season-pass holder (an
-                Ambassador) bring a new person (a Referee) into the programme. Both apply together and, if eligible,
-                both receive a discount on their seasonal pass.
+                Two things carry a status here, and it helps to keep them apart: your registration, and a match. You
+                always have exactly one registration — your own standing in the system. Over a season you might be
+                part of several matches, since an early one can fall through and you go back in the queue to be paired
+                again.
             {% endblocktranslate %}
         </p>
 
-        <h2 class="pt-2 text-ink">
-            {% translate "Who is an Ambassador and who is a Referee?" %}
-        </h2>
+        <h2 class="pt-2 text-ink">{% translate "Part 1 — Your registration" %}</h2>
         <p>
             {% blocktranslate trimmed %}
-                An Ambassador is someone who held a 4 Vallées seasonal or annual pass in either of the last two seasons
-                (2024/25 or 2025/26). A Referee is someone who did not hold a season pass in either of the last two
-                seasons. Each Ambassador can sponsor exactly one Referee.
+                Your registration is your place in the system — the answer to "am I in the queue, waiting to be
+                matched?"
             {% endblocktranslate %}
         </p>
 
-        <h2 class="pt-2 text-ink">{% translate "How do I apply?" %}</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th scope="col" class="border border-gray-200 p-2 font-medium text-ink">
+                            {% translate "Status" %}
+                        </th>
+                        <th scope="col" class="border border-gray-200 p-2 font-medium text-ink">
+                            {% translate "What it means" %}
+                        </th>
+                        <th scope="col" class="border border-gray-200 p-2 font-medium text-ink">
+                            {% translate "What happens next" %}
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="border border-gray-200 p-2 font-medium text-ink">
+                            {% translate "Unverified" %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                You've signed up but haven't confirmed your email address yet. You are not in the queue.
+                            {% endblocktranslate %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                Click the link in the confirmation email. That moves you to Verified.
+                            {% endblocktranslate %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 p-2 font-medium text-ink">
+                            {% translate "Verified" %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                You're active and in the queue, waiting to be matched (or already in an active match).
+                            {% endblocktranslate %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                The system pairs you with an eligible partner as soon as one is available. When it does,
+                                a match is created.
+                            {% endblocktranslate %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 p-2 font-medium text-ink">
+                            {% translate "Paused" %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                You declined a match, or didn't respond in time, so you've been taken out of the queue.
+                                Nothing is lost — your registration is kept.
+                            {% endblocktranslate %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                Go to your account page and choose "Rejoin the queue". That moves you back to Verified
+                                and you'll be matched again.
+                            {% endblocktranslate %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 p-2 font-medium text-ink">
+                            {% translate "Withdrawn" %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% translate "You chose to leave the programme." %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                Nothing further. You can register again if you change your mind.
+                            {% endblocktranslate %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 p-2 font-medium text-ink">
+                            {% translate "Suspended" %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                You were reported as a no-show after a match was confirmed, so you've been removed from
+                                the pool.
+                            {% endblocktranslate %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                This is set by programme staff via the report process, not something you undo yourself.
+                                Contact the programme if you think it's a mistake.
+                            {% endblocktranslate %}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
         <p>
-            {% blocktranslate trimmed with email="customer@televerbier.ch" %}
-                Download the application form, fill it in together with your partner, and email it to
-                {{ email }} (Téléverbier). Both parties must sign the form and provide proof of identity (passport or
-                national ID card) and a digital passport photo. If applying by email these can be photograph
-                attachments.
+            {% blocktranslate trimmed %}
+                In short: Verified is the healthy, waiting state. Everything else is either a step before it
+                (Unverified) or a step out of the pool (Paused, Withdrawn, Suspended). Only Paused has a self-service
+                way back in.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-ink">{% translate "Part 2 — A match" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                Once you're Verified and a suitable partner is available, the system creates a match — a pairing of
+                one Ambassador and one Referee. You don't choose your partner; the system assigns one, and both of you
+                are notified. From that moment there is a contact window — its length is shown in the match email —
+                in which both of you must accept. Until you both accept, you can each see the other person's first name,
+                but not their email or phone number: contact details are revealed only once both sides have accepted.
+                This is deliberate — it's the core privacy promise of the service.
+            {% endblocktranslate %}
+        </p>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th scope="col" class="border border-gray-200 p-2 font-medium text-ink">
+                            {% translate "Status" %}
+                        </th>
+                        <th scope="col" class="border border-gray-200 p-2 font-medium text-ink">
+                            {% translate "What it means" %}
+                        </th>
+                        <th scope="col" class="border border-gray-200 p-2 font-medium text-ink">
+                            {% translate "What happens next" %}
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="border border-gray-200 p-2 font-medium text-ink">
+                            {% translate "Proposed" %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                You've just been paired. Neither of you has accepted yet. You can see your partner's
+                                first name only.
+                            {% endblocktranslate %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                Accept within the contact window. If your partner accepts first, you'll see the match
+                                move to Pending.
+                            {% endblocktranslate %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 p-2 font-medium text-ink">
+                            {% translate "Pending" %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                One of you has accepted; the system is waiting on the other.
+                            {% endblocktranslate %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                The second person accepts and the match becomes Accepted. If the window runs out with
+                                only one acceptance, it becomes Expired.
+                            {% endblocktranslate %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 p-2 font-medium text-ink">
+                            {% translate "Accepted" %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                Both of you accepted. Contact details are now revealed. This is the success state.
+                            {% endblocktranslate %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                Get in touch with your partner and go make your application together — this happens
+                                off the app.
+                            {% endblocktranslate %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 p-2 font-medium text-ink">
+                            {% translate "Declined" %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% translate "One of you declined the pairing." %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                The match is over. The person who declined is Paused; the other person goes back to the
+                                front of the queue to be matched again quickly.
+                            {% endblocktranslate %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 p-2 font-medium text-ink">
+                            {% translate "Expired" %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                The contact window ran out before both of you accepted.
+                            {% endblocktranslate %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                Same as declined: whoever didn't respond is Paused; the one who did accept goes to the
+                                front of the queue.
+                            {% endblocktranslate %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 p-2 font-medium text-ink">
+                            {% translate "Cancelled" %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                After a match was accepted, one party reported the other as a no-show.
+                            {% endblocktranslate %}
+                        </td>
+                        <td class="border border-gray-200 p-2">
+                            {% blocktranslate trimmed %}
+                                The person who showed up goes back to the front of the queue; the reported person is
+                                Suspended.
+                            {% endblocktranslate %}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <p>
+            {% blocktranslate trimmed %}
+                In short: Accepted is the goal. Declined, Expired and Cancelled all end the match — but they don't end
+                you: unless you were the one who dropped out, you go back to the front of the queue and are matched
+                again.
+            {% endblocktranslate %}
+        </p>
+
+        <p class="pt-4">
+            {% url 'public:faq' as faq_url %}
+            {% blocktranslate trimmed %}
+                Still have questions? See the <a href="{{ faq_url }}" class="underline">FAQ</a>.
             {% endblocktranslate %}
         </p>
         <p>
-            <a href="{% url 'public:application_form' %}" class="btn btn--primary" target="_blank" rel="noopener">
-                {% translate "Download application form" %}
+            <a href="{% url 'public:faq' %}" class="btn btn--primary">
+                {% translate "Read the FAQ" %}
             </a>
-        </p>
-
-        <h2 class="pt-2 text-ink">{% translate "What is the approval process?" %}</h2>
-        <p>
-            {% blocktranslate trimmed %}
-                Once Téléverbier receives the application form they will assess your eligibility. If approved, they
-                will issue a payment link or invoice. Once payment is received your passes will be approved. You can
-                then collect your physical pass cards at the ticket desk, or have them loaded onto your existing
-                keycards if you provided your keycard numbers in the application.
-            {% endblocktranslate %}
-        </p>
-
-        <h2 class="pt-2 text-ink">{% translate "What are the requirements?" %}</h2>
-        <p>
-            {% blocktranslate trimmed %}
-                Both the Ambassador and the Referee must sign the application form and provide a valid passport or
-                national identity card. Both must attest to the fact that they have or have not had a qualifying pass
-                (as appropriate); this will be checked during the application process.
-            {% endblocktranslate %}
-        </p>
-
-        <h2 class="pt-2 text-ink">
-            {% translate "So what does this site do?" %}
-        </h2>
-        <p>
-            {% blocktranslate trimmed %}
-                The biggest challenge for Ambassadors is finding someone who wants to buy a Season pass for the first
-                time. The current process is chaotic — everyone scrambles in a community group to match up with
-                someone. People are let down, ghosted, and it's hard to manage. Last year I 'lost' three potential
-                matches in 24 hours and people scrambled to find someone. This site handles that matchmaking process. If
-                you're an Ambassador we'll find you a Referee, and vice versa.
-            {% endblocktranslate %}
-        </p>
-
-        <h2 class="pt-2 text-ink">
-            {% translate "What does this site not do?" %}
-        </h2>
-        <p>
-            {% blocktranslate trimmed %}
-                This site handles only the matchmaking: it connects an Ambassador with a Referee so they can apply
-                together. It does not collect the full application details (date of birth, address, photo ID, keycard,
-                or insurance) and it is not connected to the ticket-office purchase system. Filling in the form and
-                applying are unchanged. We'll introduce you to a partner, you can then take it from there.
-            {% endblocktranslate %}
-        </p>
-
-        <h2 class="pt-2 text-ink">{% translate "How does the match work?" %}</h2>
-        <p>
-            {% blocktranslate trimmed %}
-                When you register, the system places you in a queue and pairs you with an eligible partner as soon as
-                one becomes available. You do not browse or choose — the system assigns a match. Once proposed, both
-                parties have a fixed time window to accept. Neither side sees the other's contact details until both
-                have accepted the match.
-            {% endblocktranslate %}
-        </p>
-
-        <h2 class="pt-2 text-ink">{% translate "How long does it take to find a match?" %}</h2>
-        <p>
-            {% blocktranslate trimmed %}
-                The match is done on registration if a partner is available. Ambassadors typically outnumber Referees,
-                so if you register as a Referee you may be matched instantly. If you register as an Ambassador you may
-                have to wait until you reach the front of the queue. The queue is chronological, and you can see where
-                you are in the queue from your account page.
-            {% endblocktranslate %}
-        </p>
-
-        <h2 class="pt-2 text-ink">{% translate "What happens then?" %}</h2>
-        <p>
-            {% blocktranslate trimmed %}
-                Once both parties accept the match, each receives the other's contact details. They then arrange to fill
-                in the application form and submit the application. If either party declines, or the acceptance window
-                lapses, their registration is paused — they can rejoin the queue from their account page whenever they
-                are ready, and the system proposes a new match.
-            {% endblocktranslate %}
-        </p>
-
-        <h2 class="pt-2 text-ink">
-            {% translate "What happens if I miss the match confirmation window?" %}
-        </h2>
-        <p>
-            {% blocktranslate trimmed %}
-                If you are matched but you miss the confirmation window, the match expires and your registration is
-                paused. You can rejoin the queue from your account page whenever you are ready.
-            {% endblocktranslate %}
-        </p>
-
-        <h2 class="pt-2 text-ink">
-            {% translate "What happens if my partner misses the confirmation window?" %}
-        </h2>
-        <p>
-            {% blocktranslate trimmed %}
-                If you are matched but your partner misses the confirmation window, the match expires and you are moved
-                to the front of the queue. The system will propose a new match for you as soon as an eligible partner is
-                available.
-            {% endblocktranslate %}
-        </p>
-
-        <h2 class="pt-2 text-ink">{% translate "How long is the confirmation window?" %}</h2>
-        <p>
-            {% blocktranslate trimmed %}
-                The confirmation window is variable - as we get closer to the season start things get more frantic, and
-                the window will shorten. It will start at 72hrs (covers a weekend not looking at your email), and it'll
-                reduce down to 24hrs, possibly even shorter if it's really busy in December. The current window will be
-                shown in the match email notifications.
-            {% endblocktranslate %}
         </p>
     </article>
 {% endblock %}

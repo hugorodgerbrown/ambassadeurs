@@ -5,13 +5,10 @@ import datetime
 import pytest
 
 from public.models import (
-    SURVEY_PRICE_POINTS_CHF,
     FormDownload,
     FormDownloadQuerySet,
     SurveyResponse,
     SurveyResponseQuerySet,
-    survey_framing_for,
-    survey_price_for,
 )
 from tests.matching.factories import RegistrationFactory
 from tests.public.factories import FormDownloadFactory, SurveyResponseFactory
@@ -63,16 +60,12 @@ def test_form_download_manager_is_custom_queryset() -> None:
 
 
 def test_survey_response_to_string_format() -> None:
-    """SurveyResponse.to_string includes price, framing, and q1 answer."""
+    """SurveyResponse.to_string includes the max_deposit value."""
     response = SurveyResponseFactory.create(
-        price_chf_shown=10,
-        framing_shown=SurveyResponse.Framing.FEE,
-        q1_answer=SurveyResponse.Q1Answer.DEFINITELY,
+        max_deposit=SurveyResponse.MaxDeposit.CHF_20
     )
     s = str(response)
-    assert s.startswith("Survey response · CHF 10")
-    assert "Fee" in s
-    assert "Definitely" in s
+    assert s == "Survey response · CHF_20"
 
 
 def test_survey_response_manager_is_custom_queryset() -> None:
@@ -102,48 +95,3 @@ def test_survey_response_registration_set_null_on_delete() -> None:
     registration.delete()
     response.refresh_from_db()
     assert response.registration_id is None
-
-
-def test_survey_price_for_is_in_range() -> None:
-    """survey_price_for always returns one of the configured price points."""
-    registration = RegistrationFactory.create(fee_chf=0)
-    assert survey_price_for(registration) in SURVEY_PRICE_POINTS_CHF
-
-
-def test_survey_price_for_is_deterministic() -> None:
-    """survey_price_for returns the same value across repeated calls."""
-    registration = RegistrationFactory.create(fee_chf=0)
-    first = survey_price_for(registration)
-    second = survey_price_for(registration)
-    assert first == second
-
-
-def test_survey_price_for_matches_pk_modulo_formula() -> None:
-    """survey_price_for follows SURVEY_PRICE_POINTS_CHF[pk % 3] for each pk,
-    regardless of gaps in the pk sequence from other tests' rows."""
-    registrations = [RegistrationFactory.create(fee_chf=0) for _ in range(6)]
-    for reg in registrations:
-        expected = SURVEY_PRICE_POINTS_CHF[reg.pk % len(SURVEY_PRICE_POINTS_CHF)]
-        assert survey_price_for(reg) == expected
-
-
-def test_survey_framing_for_is_deterministic() -> None:
-    """survey_framing_for returns the same value across repeated calls."""
-    registration = RegistrationFactory.create(fee_chf=0)
-    first = survey_framing_for(registration)
-    second = survey_framing_for(registration)
-    assert first == second
-
-
-def test_survey_framing_for_matches_pk_block_formula() -> None:
-    """survey_framing_for follows the (pk // 3) % 2 alternation for each pk,
-    regardless of gaps in the pk sequence from other tests' rows."""
-    registrations = [RegistrationFactory.create(fee_chf=0) for _ in range(12)]
-    for reg in registrations:
-        block = reg.pk // len(SURVEY_PRICE_POINTS_CHF)
-        expected = (
-            SurveyResponse.Framing.DEPOSIT
-            if block % 2 == 0
-            else SurveyResponse.Framing.FEE
-        )
-        assert survey_framing_for(reg) == expected

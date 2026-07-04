@@ -20,15 +20,11 @@ class FormDownloadFactory(factory.django.DjangoModelFactory[FormDownload]):
 class SurveyResponseFactory(factory.django.DjangoModelFactory[SurveyResponse]):
     """Factory for SurveyResponse (VERB-111).
 
-    Defaults to a DEPOSIT-framed CHF 5 response with q2 left blank (the
-    optional payment-model preference question skipped).
+    Defaults to a CHF 10 max_deposit response.
     """
 
     class Meta:
         model = SurveyResponse
 
     registration = factory.SubFactory(RegistrationFactory, fee_chf=0)
-    price_chf_shown = 5
-    framing_shown = SurveyResponse.Framing.DEPOSIT
-    q1_answer = SurveyResponse.Q1Answer.PROBABLY
-    q2_answer = ""
+    max_deposit = SurveyResponse.MaxDeposit.CHF_10

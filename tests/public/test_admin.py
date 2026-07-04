@@ -66,7 +66,7 @@ def test_survey_response_change_view_is_read_only_for_superuser(client: Client) 
     url = reverse("admin:public_surveyresponse_change", args=[response_row.pk])
     response = client.get(url)
     assert response.status_code == 200
-    assert b'name="q1_answer"' not in response.content
+    assert b'name="max_deposit"' not in response.content
 
 
 def test_survey_response_change_post_forbidden_for_superuser(client: Client) -> None:
@@ -77,7 +77,7 @@ def test_survey_response_change_post_forbidden_for_superuser(client: Client) -> 
     staff = make_staff_user()
     client.force_login(staff)
     url = reverse("admin:public_surveyresponse_change", args=[response_row.pk])
-    response = client.post(url, {"price_chf_shown": 20})
+    response = client.post(url, {"max_deposit": SurveyResponse.MaxDeposit.CHF_20})
     assert response.status_code == 403
 
 
@@ -95,10 +95,7 @@ def test_survey_response_fields_are_readonly() -> None:
     readonly = SurveyResponseAdmin.readonly_fields
     for field in (
         "registration",
-        "price_chf_shown",
-        "framing_shown",
-        "q1_answer",
-        "q2_answer",
+        "max_deposit",
         "created_at",
         "updated_at",
     ):

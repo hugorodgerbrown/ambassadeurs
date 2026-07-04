@@ -28,12 +28,7 @@ from accounts.tokens import (
 from billing.models import Payment, Tip
 from matching.models import Match, Registration
 from matching.services import accept_match, register_participant
-from public.models import (
-    FormDownload,
-    SurveyResponse,
-    survey_framing_for,
-    survey_price_for,
-)
+from public.models import FormDownload, SurveyResponse
 from tests.accounts.factories import UserFactory
 from tests.matching.factories import MatchFactory, RegistrationFactory
 from tests.public.factories import SurveyResponseFactory
@@ -1288,7 +1283,7 @@ def test_register_done_unverified_hides_survey() -> None:
 
 def _valid_survey_post() -> dict[str, object]:
     """Return a minimal valid survey submission payload."""
-    return {"q1_answer": SurveyResponse.Q1Answer.PROBABLY}
+    return {"max_deposit": SurveyResponse.MaxDeposit.CHF_10}
 
 
 def test_register_survey_submit_requires_htmx() -> None:
@@ -1319,9 +1314,8 @@ def test_register_survey_submit_rejects_get() -> None:
     assert response.status_code == 405
 
 
-def test_register_survey_submit_creates_row_with_derived_price_and_framing() -> None:
-    """A valid submission persists price_chf_shown/framing_shown matching the
-    pk-derived variant, and q1_answer from the form."""
+def test_register_survey_submit_creates_row_with_max_deposit() -> None:
+    """A valid submission persists max_deposit from the form."""
     reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
     client = Client()
     client.force_login(reg.user)
@@ -1336,9 +1330,7 @@ def test_register_survey_submit_creates_row_with_derived_price_and_framing() -> 
     assert SurveyResponse.objects.count() == 1
     survey_response = SurveyResponse.objects.get()
     assert survey_response.registration_id == reg.pk
-    assert survey_response.price_chf_shown == survey_price_for(reg)
-    assert survey_response.framing_shown == survey_framing_for(reg)
-    assert survey_response.q1_answer == SurveyResponse.Q1Answer.PROBABLY
+    assert survey_response.max_deposit == SurveyResponse.MaxDeposit.CHF_10
 
 
 def test_register_survey_submit_second_submit_creates_no_second_row() -> None:
@@ -1363,7 +1355,7 @@ def test_register_survey_submit_second_submit_creates_no_second_row() -> None:
 
 
 def test_register_survey_submit_invalid_rerenders_with_errors() -> None:
-    """Omitting the required q1_answer re-renders the survey with errors, no row."""
+    """Omitting the required max_deposit re-renders the survey with errors, no row."""
     reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
     client = Client()
     client.force_login(reg.user)
@@ -1377,23 +1369,6 @@ def test_register_survey_submit_invalid_rerenders_with_errors() -> None:
     assert response.status_code == 200
     assert "public/partials/wtp_survey.html" in [t.name for t in response.templates]
     assert SurveyResponse.objects.count() == 0
-
-
-def test_register_survey_submit_q2_omitted_is_accepted() -> None:
-    """Omitting the optional q2_answer still creates a valid response."""
-    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
-    client = Client()
-    client.force_login(reg.user)
-
-    response = client.post(
-        reverse("public:register_survey_submit"),
-        _valid_survey_post(),
-        headers={"hx-request": "true"},
-    )
-
-    assert response.status_code == 200
-    survey_response = SurveyResponse.objects.get()
-    assert survey_response.q2_answer == ""
 
 
 def test_register_survey_submit_paid_tier_returns_400() -> None:

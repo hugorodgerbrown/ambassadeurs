@@ -1653,6 +1653,7 @@ def test_faq_contains_contact_window_section() -> None:
     assert b"What is the contact window?" in content
     assert b"What happens if I miss the contact window?" in content
     assert b"What happens if my partner misses the contact window?" in content
+    assert b"How long is the contact window?" in content
 
 
 def test_faq_contains_after_matching_section() -> None:

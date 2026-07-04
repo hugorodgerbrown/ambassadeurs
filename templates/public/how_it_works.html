@@ -45,13 +45,13 @@ registration and match state tables plus their "short version" summaries.
             <table class="w-full text-left">
                 <thead>
                     <tr class="border-b border-gray-200">
-                        <th class="border border-gray-200 p-2 font-medium text-ink">
+                        <th scope="col" class="border border-gray-200 p-2 font-medium text-ink">
                             {% translate "Status" %}
                         </th>
-                        <th class="border border-gray-200 p-2 font-medium text-ink">
+                        <th scope="col" class="border border-gray-200 p-2 font-medium text-ink">
                             {% translate "What it means" %}
                         </th>
-                        <th class="border border-gray-200 p-2 font-medium text-ink">
+                        <th scope="col" class="border border-gray-200 p-2 font-medium text-ink">
                             {% translate "What happens next" %}
                         </th>
                     </tr>
@@ -163,13 +163,13 @@ registration and match state tables plus their "short version" summaries.
             <table class="w-full text-left">
                 <thead>
                     <tr class="border-b border-gray-200">
-                        <th class="border border-gray-200 p-2 font-medium text-ink">
+                        <th scope="col" class="border border-gray-200 p-2 font-medium text-ink">
                             {% translate "Status" %}
                         </th>
-                        <th class="border border-gray-200 p-2 font-medium text-ink">
+                        <th scope="col" class="border border-gray-200 p-2 font-medium text-ink">
                             {% translate "What it means" %}
                         </th>
-                        <th class="border border-gray-200 p-2 font-medium text-ink">
+                        <th scope="col" class="border border-gray-200 p-2 font-medium text-ink">
                             {% translate "What happens next" %}
                         </th>
                     </tr>
@@ -283,8 +283,10 @@ registration and match state tables plus their "short version" summaries.
         </p>
 
         <p class="pt-4">
-            {% translate "Still have questions? See the" %}
-            <a href="{% url 'public:faq' %}" class="underline">{% translate "FAQ" %}</a>.
+            {% url 'public:faq' as faq_url %}
+            {% blocktranslate trimmed %}
+                Still have questions? See the <a href="{{ faq_url }}" class="underline">FAQ</a>.
+            {% endblocktranslate %}
         </p>
         <p>
             <a href="{% url 'public:faq' %}" class="btn btn--primary">

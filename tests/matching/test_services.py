@@ -15,6 +15,7 @@ from core.models import StateTransitionLog
 from matching.models import Match, Registration
 from matching.services import (
     accept_match,
+    active_match_state_for,
     confirm_registration,
     decline_match,
     expire_lapsed_matches,
@@ -30,6 +31,7 @@ from matching.services import (
     report_no_show,
     requeue_to_front,
     run_matching,
+    status_pill_for,
     suspend_for_no_show,
     total_accepted_matches,
     withdraw_acceptance,
@@ -2537,6 +2539,114 @@ def test_total_accepted_matches_counts_only_accepted() -> None:
     MatchFactory.create(cancelled=True)  # was ACCEPTED, then reported as no-show
 
     assert total_accepted_matches() == 2
+
+
+# ---------------------------------------------------------------------------
+# status_pill_for (VERB-116)
+# ---------------------------------------------------------------------------
+
+
+def test_status_pill_for_no_registration() -> None:
+    """No registration renders a neutral 'Queued' (muted) pill."""
+    assert status_pill_for(None, "none") == {"label": "Queued", "tone": "muted"}
+
+
+@pytest.mark.parametrize(
+    ("status", "label", "tone"),
+    [
+        (Registration.Status.UNVERIFIED, "Unverified", "muted"),
+        (Registration.Status.VERIFIED, "Queued", "muted"),
+        (Registration.Status.PAUSED, "Paused", "muted"),
+        (Registration.Status.WITHDRAWN, "Withdrawn", "muted"),
+        (Registration.Status.SUSPENDED, "Suspended", "muted"),
+    ],
+)
+def test_status_pill_for_each_registration_status(
+    status: str, label: str, tone: str
+) -> None:
+    """Each Registration.Status (no active match) maps to its own pill."""
+    registration = RegistrationFactory.create(status=status)
+    assert status_pill_for(registration, "none") == {"label": label, "tone": tone}
+
+
+@pytest.mark.parametrize(
+    ("match_state", "label", "tone"),
+    [
+        ("proposed", "Pending", "wait"),
+        ("pending", "Pending", "wait"),
+        ("accepted", "Accepted", "done"),
+    ],
+)
+def test_status_pill_for_active_match_state_overrides_registration_status(
+    match_state: str, label: str, tone: str
+) -> None:
+    """An active match_state overrides the pill regardless of Registration.Status.
+
+    Exercised against every Registration.Status to confirm the override always
+    wins, not just for VERIFIED.
+    """
+    for status in (
+        Registration.Status.UNVERIFIED,
+        Registration.Status.VERIFIED,
+        Registration.Status.PAUSED,
+        Registration.Status.WITHDRAWN,
+        Registration.Status.SUSPENDED,
+    ):
+        registration = RegistrationFactory.create(status=status)
+        assert status_pill_for(registration, match_state) == {
+            "label": label,
+            "tone": tone,
+        }
+
+
+# ---------------------------------------------------------------------------
+# active_match_state_for (VERB-116)
+# ---------------------------------------------------------------------------
+
+
+def test_active_match_state_for_no_match_returns_none() -> None:
+    """A user with no active match returns the 'none' state."""
+    reg = RegistrationFactory.create()
+    assert active_match_state_for(reg.user) == "none"
+
+
+def test_active_match_state_for_proposed_match() -> None:
+    """A user in a PROPOSED match returns the 'proposed' state."""
+    reg = RegistrationFactory.create()
+    MatchFactory.create(ambassador_registration=reg, status=Match.Status.PROPOSED)
+    assert active_match_state_for(reg.user) == "proposed"
+
+
+def test_active_match_state_for_pending_match() -> None:
+    """A user in a PENDING match returns the 'pending' state."""
+    reg = RegistrationFactory.create()
+    MatchFactory.create(ambassador_registration=reg, pending=True)
+    assert active_match_state_for(reg.user) == "pending"
+
+
+def test_active_match_state_for_accepted_match() -> None:
+    """A user in an ACCEPTED match returns the 'accepted' state."""
+    reg = RegistrationFactory.create()
+    MatchFactory.create(ambassador_registration=reg, accepted=True)
+    assert active_match_state_for(reg.user) == "accepted"
+
+
+def test_active_match_state_for_referee_side() -> None:
+    """The helper matches on either side of the match (referee here)."""
+    reg = RegistrationFactory.create(referee=True)
+    MatchFactory.create(referee_registration=reg, status=Match.Status.PROPOSED)
+    assert active_match_state_for(reg.user) == "proposed"
+
+
+def test_active_match_state_for_lapsed_proposed_match_returns_none() -> None:
+    """A lapsed, unswept PROPOSED match is treated as inactive (VERB-113 parity)."""
+    reg = RegistrationFactory.create()
+    MatchFactory.create(
+        ambassador_registration=reg,
+        status=Match.Status.PROPOSED,
+        expires_at=datetime(2020, 1, 1, tzinfo=UTC),
+    )
+    assert active_match_state_for(reg.user) == "none"
 
 
 # ---------------------------------------------------------------------------

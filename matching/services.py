@@ -114,6 +114,7 @@ from django.db import transaction
 from django.db.models import Case, IntegerField, Q, Value, When
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from django.utils.translation import gettext as _
 from side_effects.decorators import has_side_effects
 
 from billing.models import Payment
@@ -240,6 +241,86 @@ def total_accepted_matches() -> int:
     how many pairs have already been successfully matched.
     """
     return Match.objects.filter(status=Match.Status.ACCEPTED).count()
+
+
+def status_pill_for(
+    registration: Registration | None,
+    match_state: str,
+) -> dict[str, str]:
+    """Return the ``{label, tone}`` for the Match status heading pill.
+
+    ``tone`` is the ``.tag-status--<tone>`` suffix; ``label`` is translated.
+    ``match_state`` is one of ``none``, ``proposed``, ``pending``, ``accepted``.
+
+    Covers every Registration.Status plus the no-registration and active-match
+    cases. VERIFIED with no active match → "In the queue" (muted); UNVERIFIED,
+    WITHDRAWN, SUSPENDED → muted. An active match overrides the pill regardless
+    of Registration.Status.
+
+    Shared by the account page (``accounts.views.account_detail``) and the
+    registration-confirmation page (``public.views.register_done``) so both
+    surfaces render the same ``.tag-status`` pill from the same mapping
+    (VERB-116).
+    """
+    if registration is None:
+        return {"label": _("Queued"), "tone": "muted"}
+
+    # Active-match states override the registration-status pill.
+    if match_state == "proposed":
+        return {"label": _("Pending"), "tone": "wait"}
+    if match_state == "pending":
+        return {"label": _("Pending"), "tone": "wait"}
+    if match_state == "accepted":
+        return {"label": _("Accepted"), "tone": "done"}
+
+    # No active match — derive from pool standing.
+    pills: dict[str, tuple[str, str]] = {
+        Registration.Status.UNVERIFIED: (_("Unverified"), "muted"),
+        Registration.Status.VERIFIED: (_("Queued"), "muted"),
+        Registration.Status.PAUSED: (_("Paused"), "muted"),
+        Registration.Status.WITHDRAWN: (_("Withdrawn"), "muted"),
+        Registration.Status.SUSPENDED: (_("Suspended"), "muted"),
+    }
+    label, tone = pills.get(
+        Registration.Status(registration.status),
+        (registration.get_status_display(), "muted"),
+    )
+    return {"label": str(label), "tone": tone}
+
+
+def active_match_state_for(user: User) -> str:
+    """Return ``user``'s active-match state: ``none|proposed|pending|accepted``.
+
+    Mirrors the active-match lookup and status→state mapping in
+    ``accounts.views.account_detail`` (PROPOSED, PENDING, or ACCEPTED, via
+    ``Match.objects.active_at``), but returns only the derived state string —
+    callers needing the Match object itself (e.g. for partner data) should do
+    their own lookup rather than call this helper.
+
+    Used by ``public.views.register_done`` so the registration-confirmation
+    page reflects a match already proposed synchronously during
+    ``register_participant`` (VERB-116).
+
+    Args:
+        user: The user whose active match (if any) to inspect.
+
+    Returns:
+        One of ``"none"``, ``"proposed"``, ``"pending"``, ``"accepted"``.
+    """
+    active_match = (
+        Match.objects.active_at(timezone.now())
+        .filter(
+            Q(ambassador_registration__user=user) | Q(referee_registration__user=user)
+        )
+        .first()
+    )
+    if active_match is None:
+        return "none"
+    if active_match.status == Match.Status.ACCEPTED:
+        return "accepted"
+    if active_match.status == Match.Status.PENDING:
+        return "pending"
+    return "proposed"
 
 
 @has_side_effects(MATCH_PROPOSED, run_on_exit=lambda match: match is not None)

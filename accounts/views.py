@@ -45,7 +45,7 @@ from core.emails import normalise_email
 from core.ratelimit import rate_limited_response
 from matching.models import Match, Registration
 from matching.services import queue_position as get_queue_position
-from matching.services import rejoin_queue
+from matching.services import rejoin_queue, status_pill_for
 from public.views import _render_match_page
 
 from .forms import AccountForm
@@ -58,46 +58,6 @@ from .services import (
 from .tokens import make_match_access_token, read_login_token
 
 logger = logging.getLogger(__name__)
-
-
-def _match_status_pill(
-    registration: Registration | None,
-    match_state: str,
-) -> dict[str, str]:
-    """Return the ``{label, tone}`` for the Match status heading pill.
-
-    ``tone`` is the ``.tag-status--<tone>`` suffix; ``label`` is translated.
-    ``match_state`` is one of ``none``, ``proposed``, ``pending``, ``accepted``.
-
-    Covers every Registration.Status plus the no-registration and active-match
-    cases. VERIFIED with no active match → "In the queue" (muted); UNVERIFIED,
-    WITHDRAWN, SUSPENDED → muted. An active match overrides the pill regardless
-    of Registration.Status.
-    """
-    if registration is None:
-        return {"label": _("Queued"), "tone": "muted"}
-
-    # Active-match states override the registration-status pill.
-    if match_state == "proposed":
-        return {"label": _("Pending"), "tone": "wait"}
-    if match_state == "pending":
-        return {"label": _("Pending"), "tone": "wait"}
-    if match_state == "accepted":
-        return {"label": _("Accepted"), "tone": "done"}
-
-    # No active match — derive from pool standing.
-    pills: dict[str, tuple[str, str]] = {
-        Registration.Status.UNVERIFIED: (_("Unverified"), "muted"),
-        Registration.Status.VERIFIED: (_("Queued"), "muted"),
-        Registration.Status.PAUSED: (_("Paused"), "muted"),
-        Registration.Status.WITHDRAWN: (_("Withdrawn"), "muted"),
-        Registration.Status.SUSPENDED: (_("Suspended"), "muted"),
-    }
-    label, tone = pills.get(
-        Registration.Status(registration.status),
-        (registration.get_status_display(), "muted"),
-    )
-    return {"label": str(label), "tone": tone}
 
 
 # ---------------------------------------------------------------------------
@@ -329,7 +289,7 @@ def account_detail(request: HttpRequest) -> HttpResponse:
             "registration": registration,
             "email_verified": email_verified,
             "debug_verify_url": debug_verify_url,
-            "status_pill": _match_status_pill(registration, match_state),
+            "status_pill": status_pill_for(registration, match_state),
             "match_state": match_state,
             "partner_first_name": partner_first_name,
             "partner_accepted": partner_accepted,

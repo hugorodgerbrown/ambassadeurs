@@ -32,15 +32,13 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from accounts.services import send_confirmation_email
-from accounts.views import (
-    _match_status_pill,  # noqa: PLC2701 — deliberate import of private helper for gallery
-)
 from core.decorators import require_debug
 from matching.models import Match, Registration
 from matching.services import (
     accept_match,
     decline_match,
     register_participant,
+    status_pill_for,
 )
 from public.views import _match_context
 
@@ -462,7 +460,7 @@ def _match_status_scenario(
     return {
         "label": label,
         "registration": registration,
-        "status_pill": _match_status_pill(registration, match_state),
+        "status_pill": status_pill_for(registration, match_state),
         "match_state": match_state,
         "partner_first_name": partner_first_name,
         "partner_accepted": partner_accepted,

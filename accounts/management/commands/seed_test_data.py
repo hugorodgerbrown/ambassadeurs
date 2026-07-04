@@ -58,7 +58,7 @@ SEED_NOTIFICATION_MARKER = "[seed]"
 
 # Fixed consent text used for all seeded registrations (avoids translation lookup).
 _ACCEPTED_TERMS = [
-    "I confirm my eligibility for the 4 Vallées Ambassadors Programme.",
+    "I confirm my eligibility for the 4 Vallées Ambassador Offer.",
     "I have read and agree to the Terms of Use.",
 ]
 

@@ -2,7 +2,7 @@
 
 ## Project overview
 
-Django web app that **matches partners** for the 4 Vallées Ambassadors Program
+Django web app that **matches partners** for the 4 Vallées Ambassador Offer
 (referral / *parrainage* scheme for the 4 Vallées annual season ticket).
 
 **The problem this solves.** To get the referral discount, a returning holder (an

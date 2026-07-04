@@ -1709,14 +1709,14 @@ def test_faq_contains_application_form_link() -> None:
     assert application_form_url in response.content
 
 
-def test_faq_contains_ambassadors_programme_section() -> None:
-    """The FAQ page groups the Programme questions (what it is, how to apply)
-    under the '4 Vallées Ambassadors Programme' heading.
+def test_faq_contains_ambassador_offer_section() -> None:
+    """The FAQ page groups the Ambassador Offer questions (what it is, how to
+    apply) under the '4 Vallées Ambassador Offer' heading.
     """
     response = Client().get(reverse("public:faq"))
     content = response.content
-    assert b"The 4 Vall\xc3\xa9es Ambassadors Programme" in content
-    assert b"What is the 4 Vall\xc3\xa9es Ambassadors Programme?" in content
+    assert b"The 4 Vall\xc3\xa9es Ambassador Offer" in content
+    assert b"What is the 4 Vall\xc3\xa9es Ambassador Offer?" in content
     assert b"How do I apply for the Ambassador discount?" in content
     assert b"What are the application requirements?" in content
     assert b"What is the season pass approval process?" in content

@@ -62,7 +62,7 @@ nothing renders to a database row.
   below).
 - `body.html` — the HTML part, extending a shared `templates/email/base.html`
   wrapper (a minimal single-column, inline-styled layout with no logo asset;
-  the same neutral "— 4 Vallées Ambassadors Programme" sign-off as the text
+  the same neutral "— 4 Vallées Ambassador Offer" sign-off as the text
   parts).
 
 `core.emails.send_templated_email(name, context, to, language=None)` renders

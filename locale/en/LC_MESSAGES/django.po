@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-03 14:49+0200\n"
+"POT-Creation-Date: 2026-07-04 19:17+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -31,34 +31,16 @@ msgstr ""
 msgid "No preference"
 msgstr ""
 
-msgid "Queued"
-msgstr ""
-
-msgid "Pending"
-msgstr ""
-
-msgid "Accepted"
-msgstr ""
-
-msgid "Unverified"
-msgstr ""
-
-msgid "Paused"
-msgstr ""
-
-msgid "Withdrawn"
-msgstr ""
-
-msgid "Suspended"
-msgstr ""
-
-msgid "your partner"
-msgstr ""
-
 msgid "Your details have been updated."
 msgstr ""
 
 msgid "Your account has been deleted."
+msgstr ""
+
+msgid "Amount (CHF)"
+msgstr ""
+
+msgid "Say something nice (optional)"
 msgstr ""
 
 msgid "Held"
@@ -85,10 +67,56 @@ msgstr ""
 msgid "Post-accept no-show"
 msgstr ""
 
+msgid "Paid"
+msgstr ""
+
 msgid "4 Vallées Ambassadors — registration deposit"
 msgstr ""
 
+msgid "4 Vallées Ambassadors — thank-you tip"
+msgstr ""
+
 msgid "Target"
+msgstr ""
+
+msgid "Required when audience is Custom group; ignored otherwise."
+msgstr ""
+
+msgid "A custom group is required when audience is Custom group."
+msgstr ""
+
+#, python-format
+msgid "%(key)s is not a configured custom group."
+msgstr ""
+
+msgid "Content"
+msgstr ""
+
+msgid "Active"
+msgstr ""
+
+msgid "Everyone"
+msgstr ""
+
+msgid "Anonymous visitors only"
+msgstr ""
+
+msgid "Authenticated users only"
+msgstr ""
+
+msgid "Custom group"
+msgstr ""
+
+msgid "Neutral"
+msgstr ""
+
+msgid "Low"
+msgstr ""
+
+msgid "Normal"
+msgstr ""
+
+msgid "High"
 msgstr ""
 
 msgid "Too many attempts. Please wait a moment and try again."
@@ -178,7 +206,19 @@ msgstr ""
 msgid "Bruson"
 msgstr ""
 
+msgid "Unverified"
+msgstr ""
+
 msgid "Verified"
+msgstr ""
+
+msgid "Paused"
+msgstr ""
+
+msgid "Withdrawn"
+msgstr ""
+
+msgid "Suspended"
 msgstr ""
 
 msgid "None — I did not hold a prior pass"
@@ -196,6 +236,12 @@ msgstr ""
 msgid "Proposed"
 msgstr ""
 
+msgid "Pending"
+msgstr ""
+
+msgid "Accepted"
+msgstr ""
+
 msgid "Declined"
 msgstr ""
 
@@ -203,6 +249,40 @@ msgid "Expired"
 msgstr ""
 
 msgid "Cancelled"
+msgstr ""
+
+msgid "Queued"
+msgstr ""
+
+msgid "your partner"
+msgstr ""
+
+msgid ""
+"What is the highest deposit you would have been happy to pay to register?"
+msgstr ""
+
+msgid "I would not have registered if there was a deposit"
+msgstr ""
+
+msgid "CHF 5"
+msgstr ""
+
+msgid "CHF 10"
+msgstr ""
+
+msgid "CHF 20"
+msgstr ""
+
+msgid "More than CHF 20"
+msgstr ""
+
+msgid ""
+"The registration this response belongs to. SET_NULL so the research row "
+"survives account deletion."
+msgstr ""
+
+msgid ""
+"The highest deposit the respondent would have been happy to pay to register."
 msgstr ""
 
 msgid "Access denied"
@@ -481,9 +561,9 @@ msgid "- Ski Parrainage"
 msgstr ""
 
 msgid ""
-"Thanks for registering as an Ambassador for the 4 Vallées Ambassadors "
-"Programme. Please confirm your email address to enter the matching queue — "
-"we'll pair you with a Referee as soon as one is available."
+"Thanks for registering as an Ambassador for the 4 Vallées Ambassador Offer. "
+"Please confirm your email address to enter the matching queue — we'll pair "
+"you with a Referee as soon as one is available."
 msgstr ""
 
 msgid ""
@@ -550,7 +630,7 @@ msgstr ""
 
 msgid ""
 "Good news — the matching system has found you a partner for the 4 Vallées "
-"Ambassadors Programme."
+"Ambassador Offer."
 msgstr ""
 
 msgid ""
@@ -563,7 +643,7 @@ msgstr ""
 
 msgid ""
 "Good news — the Ski Parrainage matching system has found you a partner for "
-"the 4 Vallées Ambassadors Programme."
+"the 4 Vallées Ambassador Offer."
 msgstr ""
 
 msgid "You have been matched - Ski Parrainage"
@@ -571,7 +651,7 @@ msgstr ""
 
 msgid ""
 "We have received a no-show report from your match partner for the 4 Vallées "
-"Ambassadors Programme."
+"Ambassador Offer."
 msgstr ""
 
 msgid ""
@@ -635,7 +715,37 @@ msgstr ""
 msgid "Ski Parrainage"
 msgstr ""
 
-msgid "Find your season-pass partner for the 4 Vallées Ambassadors Programme."
+msgid "Find your season-pass partner for the 4 Vallées Ambassador Offer."
+msgstr ""
+
+msgid "Buy the team a coffee"
+msgstr ""
+
+msgid ""
+"If Ski Parrainage helped you find a partner, a small voluntary contribution "
+"helps keep it running. Entirely optional."
+msgstr ""
+
+msgid ""
+"If no match is found for you this season, your contribution will be refunded."
+msgstr ""
+
+msgid "Amount"
+msgstr ""
+
+msgid "CHF 5 — Buy me a beer"
+msgstr ""
+
+msgid "CHF 10 — Buy me lunch on the hill"
+msgstr ""
+
+msgid "CHF 20 — Help me buy a lift pass"
+msgstr ""
+
+msgid "Send my contribution"
+msgstr ""
+
+msgid "No thanks"
 msgstr ""
 
 msgid "The easy way to find your season-pass partner."
@@ -686,10 +796,13 @@ msgstr ""
 msgid "Account menu"
 msgstr ""
 
+msgid "Dismiss this notification"
+msgstr ""
+
 msgid ""
-"Frequently asked questions about the Ski Parrainage partner-matching service "
-"— eligibility, how matching works, the contact window, and what happens "
-"after you are matched."
+"Frequently asked questions about the 4 Vallées Ambassador Offer and the Ski "
+"Parrainage partner-matching service — what they are, who is eligible, how to "
+"apply, how matching works, and what happens after you are matched."
 msgstr ""
 
 msgid "FAQ — Ski Parrainage"
@@ -700,13 +813,29 @@ msgstr ""
 
 msgid ""
 "Quick answers to the questions we hear most. For a full walkthrough of how "
-"the programme works, see the"
+"the process works, see the"
 msgstr ""
 
 msgid "page."
 msgstr ""
 
-msgid "Eligibility"
+msgid "The 4 Vallées Ambassador Offer"
+msgstr ""
+
+msgid ""
+"The Ambassador Offer is the referral discount itself — who can claim it and "
+"how you apply for your season pass. This part happens off this site, with "
+"the pass operator."
+msgstr ""
+
+msgid "What is the 4 Vallées Ambassador Offer?"
+msgstr ""
+
+msgid ""
+"The 4 Vallées Ambassador Offer is a referral scheme that lets a returning "
+"season-pass holder (an Ambassador) pair up with a new season pass applicant "
+"(a Referee); both receive a discount on their 4 Vallées season pass. You "
+"apply together, off this site, at the ticket office."
 msgstr ""
 
 msgid "Who qualifies as an Ambassador?"
@@ -737,7 +866,59 @@ msgid ""
 "even if the Ambassador does not receive one themselves."
 msgstr ""
 
-msgid "How matching works"
+msgid "How do I apply for the Ambassador discount?"
+msgstr ""
+
+#, python-format
+msgid ""
+"Download the application form, fill it in together with your partner, and "
+"email it to %(email)s (Téléverbier). Both parties must sign the form and "
+"provide proof of identity (passport or national ID card) and a digital "
+"passport photo. If applying by email these can be photograph attachments."
+msgstr ""
+
+msgid "This process is your responsibility."
+msgstr ""
+
+msgid "Download application form"
+msgstr ""
+
+msgid "What are the application requirements?"
+msgstr ""
+
+msgid ""
+"Both the Ambassador and the Referee must sign the application form and "
+"provide a valid passport or national identity card. Both must attest to the "
+"fact that they have or have not had a qualifying pass (as appropriate); this "
+"will be checked during the application process."
+msgstr ""
+
+msgid "What is the season pass approval process?"
+msgstr ""
+
+msgid ""
+"Once Téléverbier receives the application form they will assess your "
+"eligibility. If approved, they will issue a payment link or invoice. Once "
+"payment is received your passes will be approved. You can then collect your "
+"physical pass cards at the ticket desk, or have them loaded onto your "
+"existing keycards if you provided your keycard numbers in the application."
+msgstr ""
+
+msgid ""
+"Ski Parrainage is this site — the service that finds you a partner for the "
+"Ambassador Offer. These questions cover how the matching works and what to "
+"expect."
+msgstr ""
+
+msgid "What is Ski Parrainage?"
+msgstr ""
+
+msgid ""
+"Ski Parrainage handles the matchmaking for the Ambassador Offer — it finds "
+"an Ambassador for a Referee, and vice versa — replacing the chaotic scramble "
+"for a partner that happens in online community groups as the season "
+"approaches. It only introduces you to a partner; the application and pass "
+"purchase happen off this site."
 msgstr ""
 
 msgid "Do I choose my own partner?"
@@ -766,9 +947,6 @@ msgid ""
 "proposed immediately. Ambassadors typically outnumber Referees, so Referees "
 "are often matched instantly; Ambassadors may wait in the queue. You can see "
 "your position in the queue from your account page."
-msgstr ""
-
-msgid "The contact window"
 msgstr ""
 
 msgid "What is the contact window?"
@@ -811,7 +989,13 @@ msgid ""
 "as soon as an eligible partner is available."
 msgstr ""
 
-msgid "After matching"
+msgid "How long is the contact window?"
+msgstr ""
+
+msgid ""
+"It starts at 72 hours — long enough to cover a weekend away from email — and "
+"shortens towards 24 hours, possibly less, as the season start approaches and "
+"things get busier. The current window is always shown in the match email."
 msgstr ""
 
 msgid "What happens once both of us have accepted?"
@@ -821,7 +1005,7 @@ msgid ""
 "Once both parties accept, each receives the other's contact details. You "
 "must then arrange to fill in the application form together and submit it to "
 "the ticket office. The pass purchase and application happen off this site, "
-"unchanged from the normal process."
+"unchanged from the existing process."
 msgstr ""
 
 msgid "What if my partner doesn't show up after we've both accepted?"
@@ -840,7 +1024,7 @@ msgid ""
 "No. This site handles the matchmaking only — connecting an Ambassador with a "
 "Referee so they can apply together. Filling in the application form and "
 "purchasing the passes at the ticket office are unchanged and happen entirely "
-"off this site."
+"off this site. This is your responsibility."
 msgstr ""
 
 msgid "Read how it works"
@@ -852,7 +1036,7 @@ msgid ""
 "Ambassadors, with alpine peaks behind"
 msgstr ""
 
-msgid "4 Vallées Ambassadors Programme"
+msgid "4 Vallées Ambassador Offer"
 msgstr ""
 
 msgid "Find your season-pass match"
@@ -931,154 +1115,168 @@ msgid "Register as a Referee"
 msgstr ""
 
 msgid ""
-"How the 4 Vallées Ambassadors partner-matching service works: register, join "
-"the queue, get matched automatically with a partner, accept within 72 hours, "
-"then apply together at the ticket office."
+"A plain-language walkthrough of the Ski Parrainage matchmaking process: your "
+"registration status, how a match is proposed, the contact window, and what "
+"happens after you accept."
 msgstr ""
 
 msgid "How it works — Ski Parrainage"
 msgstr ""
 
-msgid "What is the 4 Vallées Ambassadors Programme?"
+msgid ""
+"Two things carry a status here, and it helps to keep them apart: your "
+"registration, and a match. You always have exactly one registration — your "
+"own standing in the system. Over a season you might be part of several "
+"matches, since an early one can fall through and you go back in the queue to "
+"be paired again."
+msgstr ""
+
+msgid "Part 1 — Your registration"
 msgstr ""
 
 msgid ""
-"The 4 Vallées Ambassadors Programme is a referral scheme that lets a "
-"returning season-pass holder (an Ambassador) bring a new person (a Referee) "
-"into the programme. Both apply together and, if eligible, both receive a "
-"discount on their seasonal pass."
+"Your registration is your place in the system — the answer to \"am I in the "
+"queue, waiting to be matched?\""
 msgstr ""
 
-msgid "Who is an Ambassador and who is a Referee?"
+msgid "Status"
+msgstr ""
+
+msgid "What it means"
+msgstr ""
+
+msgid "What happens next"
 msgstr ""
 
 msgid ""
-"An Ambassador is someone who held a 4 Vallées seasonal or annual pass in "
-"either of the last two seasons (2024/25 or 2025/26). A Referee is someone "
-"who did not hold a season pass in either of the last two seasons. Each "
-"Ambassador can sponsor exactly one Referee."
+"You've signed up but haven't confirmed your email address yet. You are not "
+"in the queue."
 msgstr ""
 
-msgid "How do I apply?"
+msgid "Click the link in the confirmation email. That moves you to Verified."
+msgstr ""
+
+msgid ""
+"You're active and in the queue, waiting to be matched (or already in an "
+"active match)."
+msgstr ""
+
+msgid ""
+"The system pairs you with an eligible partner as soon as one is available. "
+"When it does, a match is created."
+msgstr ""
+
+msgid ""
+"You declined a match, or didn't respond in time, so you've been taken out of "
+"the queue. Nothing is lost — your registration is kept."
+msgstr ""
+
+msgid ""
+"Go to your account page and choose \"Rejoin the queue\". That moves you back "
+"to Verified and you'll be matched again."
+msgstr ""
+
+msgid "You chose to leave the programme."
+msgstr ""
+
+msgid "Nothing further. You can register again if you change your mind."
+msgstr ""
+
+msgid ""
+"You were reported as a no-show after a match was confirmed, so you've been "
+"removed from the pool."
+msgstr ""
+
+msgid ""
+"This is set by programme staff via the report process, not something you "
+"undo yourself. Contact the programme if you think it's a mistake."
+msgstr ""
+
+msgid ""
+"In short: Verified is the healthy, waiting state. Everything else is either "
+"a step before it (Unverified) or a step out of the pool (Paused, Withdrawn, "
+"Suspended). Only Paused has a self-service way back in."
+msgstr ""
+
+msgid "Part 2 — A match"
+msgstr ""
+
+msgid ""
+"Once you're Verified and a suitable partner is available, the system creates "
+"a match — a pairing of one Ambassador and one Referee. You don't choose your "
+"partner; the system assigns one, and both of you are notified. From that "
+"moment there is a contact window — its length is shown in the match email — "
+"in which both of you must accept. Until you both accept, you can each see "
+"the other person's first name, but not their email or phone number: contact "
+"details are revealed only once both sides have accepted. This is deliberate "
+"— it's the core privacy promise of the service."
+msgstr ""
+
+msgid ""
+"You've just been paired. Neither of you has accepted yet. You can see your "
+"partner's first name only."
+msgstr ""
+
+msgid ""
+"Accept within the contact window. If your partner accepts first, you'll see "
+"the match move to Pending."
+msgstr ""
+
+msgid "One of you has accepted; the system is waiting on the other."
+msgstr ""
+
+msgid ""
+"The second person accepts and the match becomes Accepted. If the window runs "
+"out with only one acceptance, it becomes Expired."
+msgstr ""
+
+msgid ""
+"Both of you accepted. Contact details are now revealed. This is the success "
+"state."
+msgstr ""
+
+msgid ""
+"Get in touch with your partner and go make your application together — this "
+"happens off the app."
+msgstr ""
+
+msgid "One of you declined the pairing."
+msgstr ""
+
+msgid ""
+"The match is over. The person who declined is Paused; the other person goes "
+"back to the front of the queue to be matched again quickly."
+msgstr ""
+
+msgid "The contact window ran out before both of you accepted."
+msgstr ""
+
+msgid ""
+"Same as declined: whoever didn't respond is Paused; the one who did accept "
+"goes to the front of the queue."
+msgstr ""
+
+msgid "After a match was accepted, one party reported the other as a no-show."
+msgstr ""
+
+msgid ""
+"The person who showed up goes back to the front of the queue; the reported "
+"person is Suspended."
+msgstr ""
+
+msgid ""
+"In short: Accepted is the goal. Declined, Expired and Cancelled all end the "
+"match — but they don't end you: unless you were the one who dropped out, you "
+"go back to the front of the queue and are matched again."
 msgstr ""
 
 #, python-format
 msgid ""
-"Download the application form, fill it in together with your partner, and "
-"email it to %(email)s (Téléverbier). Both parties must sign the form and "
-"provide proof of identity (passport or national ID card) and a digital "
-"passport photo. If applying by email these can be photograph attachments."
+"Still have questions? See the <a href=\"%(faq_url)s\" "
+"class=\"underline\">FAQ</a>."
 msgstr ""
 
-msgid "Download application form"
-msgstr ""
-
-msgid "What is the approval process?"
-msgstr ""
-
-msgid ""
-"Once Téléverbier receives the application form they will assess your "
-"eligibility. If approved, they will issue a payment link or invoice. Once "
-"payment is received your passes will be approved. You can then collect your "
-"physical pass cards at the ticket desk, or have them loaded onto your "
-"existing keycards if you provided your keycard numbers in the application."
-msgstr ""
-
-msgid "What are the requirements?"
-msgstr ""
-
-msgid ""
-"Both the Ambassador and the Referee must sign the application form and "
-"provide a valid passport or national identity card. Both must attest to the "
-"fact that they have or have not had a qualifying pass (as appropriate); this "
-"will be checked during the application process."
-msgstr ""
-
-msgid "So what does this site do?"
-msgstr ""
-
-msgid ""
-"The biggest challenge for Ambassadors is finding someone who wants to buy a "
-"Season pass for the first time. The current process is chaotic — everyone "
-"scrambles in a community group to match up with someone. People are let "
-"down, ghosted, and it's hard to manage. Last year I 'lost' three potential "
-"matches in 24 hours and people scrambled to find someone. This site handles "
-"that matchmaking process. If you're an Ambassador we'll find you a Referee, "
-"and vice versa."
-msgstr ""
-
-msgid "What does this site not do?"
-msgstr ""
-
-msgid ""
-"This site handles only the matchmaking: it connects an Ambassador with a "
-"Referee so they can apply together. It does not collect the full application "
-"details (date of birth, address, photo ID, keycard, or insurance) and it is "
-"not connected to the ticket-office purchase system. Filling in the form and "
-"applying are unchanged. We'll introduce you to a partner, you can then take "
-"it from there."
-msgstr ""
-
-msgid "How does the match work?"
-msgstr ""
-
-msgid ""
-"When you register, the system places you in a queue and pairs you with an "
-"eligible partner as soon as one becomes available. You do not browse or "
-"choose — the system assigns a match. Once proposed, both parties have a "
-"fixed time window to accept. Neither side sees the other's contact details "
-"until both have accepted the match."
-msgstr ""
-
-msgid "How long does it take to find a match?"
-msgstr ""
-
-msgid ""
-"The match is done on registration if a partner is available. Ambassadors "
-"typically outnumber Referees, so if you register as a Referee you may be "
-"matched instantly. If you register as an Ambassador you may have to wait "
-"until you reach the front of the queue. The queue is chronological, and you "
-"can see where you are in the queue from your account page."
-msgstr ""
-
-msgid "What happens then?"
-msgstr ""
-
-msgid ""
-"Once both parties accept the match, each receives the other's contact "
-"details. They then arrange to fill in the application form and submit the "
-"application. If either party declines, or the acceptance window lapses, "
-"their registration is paused — they can rejoin the queue from their account "
-"page whenever they are ready, and the system proposes a new match."
-msgstr ""
-
-msgid "What happens if I miss the match confirmation window?"
-msgstr ""
-
-msgid ""
-"If you are matched but you miss the confirmation window, the match expires "
-"and your registration is paused. You can rejoin the queue from your account "
-"page whenever you are ready."
-msgstr ""
-
-msgid "What happens if my partner misses the confirmation window?"
-msgstr ""
-
-msgid ""
-"If you are matched but your partner misses the confirmation window, the "
-"match expires and you are moved to the front of the queue. The system will "
-"propose a new match for you as soon as an eligible partner is available."
-msgstr ""
-
-msgid "How long is the confirmation window?"
-msgstr ""
-
-msgid ""
-"The confirmation window is variable - as we get closer to the season start "
-"things get more frantic, and the window will shorten. It will start at 72hrs "
-"(covers a weekend not looking at your email), and it'll reduce down to "
-"24hrs, possibly even shorter if it's really busy in December. The current "
-"window will be shown in the match email notifications."
+msgid "Read the FAQ"
 msgstr ""
 
 msgid "Cookie Policy"
@@ -1136,9 +1334,8 @@ msgstr ""
 #, python-format
 msgid ""
 "This is an independent service provided free of charge for the purpose of "
-"finding a partner for the 4 Vallées Ambassadors season pass Programme. It "
-"has no affiliation with the pass operator. For privacy questions, contact "
-"%(email)s"
+"finding a partner for the 4 Vallées Ambassador Offer. It has no affiliation "
+"with the pass operator. For privacy questions, contact %(email)s"
 msgstr ""
 
 msgid "What we collect"
@@ -1205,8 +1402,8 @@ msgid "What this service does"
 msgstr ""
 
 msgid ""
-"This service exists to help you find a partner for the 4 Vallées Ambassadors "
-"Programme. It is matchmaking only: the ski pass application process (and "
+"This service exists to help you find a partner for the 4 Vallées Ambassador "
+"Offer. It is matchmaking only: the ski pass application process (and "
 "payment) are done directly by you with the pass operator."
 msgstr ""
 
@@ -1246,6 +1443,9 @@ msgid ""
 msgstr ""
 
 msgid "Be respectful and prompt with the partner you are matched with."
+msgstr ""
+
+msgid "Eligibility"
 msgstr ""
 
 msgid ""
@@ -1401,8 +1601,8 @@ msgid "Fill in the application form together"
 msgstr ""
 
 msgid ""
-"Download and complete the official Ambassador Programme application form. "
-"Both partners must sign it."
+"Download and complete the official Ambassador Offer application form. Both "
+"partners must sign it."
 msgstr ""
 
 msgid "Email it to Téléverbier"
@@ -1505,29 +1705,12 @@ msgstr ""
 msgid "Registration"
 msgstr ""
 
-msgid ""
-"Your registration is complete — these are the details we have on file. They "
-"can't be changed here."
-msgstr ""
-
 msgid "Select your role below to start your registration."
 msgstr ""
 
 msgid ""
 "Once you have completed registration and verified your email we'll start the "
 "matching process."
-msgstr ""
-
-msgid "You're already registered"
-msgstr ""
-
-#, python-format
-msgid ""
-"Signed in as <strong>%(email)s</strong> — you registered as %(role)s on "
-"%(date)s, so this form is locked."
-msgstr ""
-
-msgid "View my account"
 msgstr ""
 
 msgid "Select your role"
@@ -1550,17 +1733,16 @@ msgstr ""
 
 msgid ""
 "\n"
-"                You held a 4 Vallées pass in 2024/25 or 2025/26 and are "
+"                    You held a 4 Vallées pass in 2024/25 or 2025/26 and are "
 "looking for someone to refer this season.\n"
 "                "
 msgstr ""
 
 msgid ""
 "\n"
-"                You're applying for a 2026/27 season pass and are looking "
-"for\n"
-"                a previous season pass holder (in 2024/25 or 2025/26) to "
-"pair up with.\n"
+"                    You're applying for a 2026/27 season pass and are "
+"looking for a previous season pass holder (in\n"
+"                    2024/25 or 2025/26) to pair up with.\n"
 "                "
 msgstr ""
 
@@ -1576,14 +1758,6 @@ msgid ""
 "rel=\"noopener\" class=\"text-accent underline\" >Terms of Use</a>."
 msgstr ""
 
-msgid "Already registered"
-msgstr ""
-
-msgid ""
-"You can only register once. To change your details, contact us or check your "
-"account page."
-msgstr ""
-
 msgid "Select a role to continue"
 msgstr ""
 
@@ -1591,6 +1765,33 @@ msgid "Register as Ambassador"
 msgstr ""
 
 msgid "Register as Referee"
+msgstr ""
+
+msgid "Help us set the price"
+msgstr ""
+
+msgid ""
+"This service is currently provided free of charge. In the future "
+"registration may carry a refundable deposit — returned in full if we don't "
+"find you a match."
+msgstr ""
+
+msgid "Help us set it fairly by answering one quick question."
+msgstr ""
+
+msgid "Submit"
+msgstr ""
+
+msgid "Skip"
+msgstr ""
+
+msgid "Sending…"
+msgstr ""
+
+msgid "Thank you"
+msgstr ""
+
+msgid "Your answer helps us set a fair price for future seasons."
 msgstr ""
 
 msgid "Registration closed"
@@ -1631,22 +1832,6 @@ msgid ""
 "you the moment we pair you with your Ambassador."
 msgstr ""
 
-msgid "Looking for your Referee"
-msgstr ""
-
-msgid "Looking for your Ambassador"
-msgstr ""
-
-#, python-format
-msgid "You are number %(position)s in the queue."
-msgstr ""
-
-#, python-format
-msgid "%(counter)s pair matched so far this season."
-msgid_plural "%(counter)s pairs matched so far this season."
-msgstr[0] ""
-msgstr[1] ""
-
 msgid "Watch your inbox — we contact you by email."
 msgstr ""
 
@@ -1676,6 +1861,17 @@ msgstr ""
 msgid ""
 "The link expires in 24 hours. If it doesn't arrive in a few minutes, check "
 "your spam folder."
+msgstr ""
+
+msgid "You're already registered."
+msgstr ""
+
+msgid ""
+"You can only register once. To check your details or your place in the "
+"queue, view your account."
+msgstr ""
+
+msgid "View my account"
 msgstr ""
 
 msgid "Link expired"
@@ -1712,4 +1908,25 @@ msgstr ""
 msgid ""
 "Stripe hasn't told us your payment succeeded yet. This can take a few "
 "seconds — check your account page shortly, or try again below."
+msgstr ""
+
+msgid "Say thanks &middot; Ski Parrainage"
+msgstr ""
+
+msgid "Say thanks"
+msgstr ""
+
+msgid "No problem"
+msgstr ""
+
+msgid ""
+"No contribution has been taken. You can try again whenever you're ready."
+msgstr ""
+
+msgid "Thank you for your contribution"
+msgstr ""
+
+msgid ""
+"Your payment has been received. It genuinely helps keep Ski Parrainage "
+"running."
 msgstr ""

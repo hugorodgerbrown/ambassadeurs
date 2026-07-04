@@ -45,13 +45,8 @@
             {% endif %}
         </p>
 
-        <div class="announce announce--role mb-8">
-            <span class="announce__dot"></span>
-            {% if role_value == 'AMBASSADOR' %}
-                {% translate "Looking for your Referee" %}
-            {% else %}
-                {% translate "Looking for your Ambassador" %}
-            {% endif %}
+        <div class="mb-8">
+            {% include "includes/_status_pill.html" %}
         </div>
 
         {% if queue_position is not None %}

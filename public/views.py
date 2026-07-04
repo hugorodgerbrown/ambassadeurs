@@ -93,12 +93,14 @@ from matching.models import Match, Registration
 from matching.pricing_config import fee_chf_for
 from matching.services import (
     accept_match,
+    active_match_state_for,
     confirm_registration,
     decline_match,
     is_registration_open,
     queue_position,
     register_participant,
     report_no_show,
+    status_pill_for,
     total_accepted_matches,
     withdraw_acceptance,
 )
@@ -469,6 +471,13 @@ def register_done(request: HttpRequest, role: str) -> HttpResponse:
     registration is in VERIFIED status, adds ``queue_position`` and
     ``total_accepted_matches`` to the context so the template can display the
     participant's position in the pool.
+
+    ``status_pill`` (VERB-116) gives the heading a single shared pill with the
+    account page, driven by ``matching.services.status_pill_for``. The
+    registration engine runs synchronously inside ``register_participant``, so
+    a user can already hold a PROPOSED (or later) match by the time they reach
+    this page — ``active_match_state_for`` looks that up so the pill reflects
+    it rather than always showing the pool-standing state.
     """
     role_value = ROLE_BY_SLUG.get(role)
     if role_value is None:
@@ -481,6 +490,11 @@ def register_done(request: HttpRequest, role: str) -> HttpResponse:
         position = queue_position(registration)
         accepted_count = total_accepted_matches()
 
+    match_state = (
+        active_match_state_for(request.user) if request.user.is_authenticated else "none"
+    )
+    status_pill = status_pill_for(registration, match_state)
+
     return render(
         request,
         "public/register_done.html",
@@ -489,6 +503,7 @@ def register_done(request: HttpRequest, role: str) -> HttpResponse:
             "role_value": role_value,
             "queue_position": position,
             "total_accepted_matches": accepted_count,
+            "status_pill": status_pill,
         },
     )
 

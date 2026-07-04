@@ -195,6 +195,40 @@ def test_match_active_excludes_declined_and_expired() -> None:
     assert set(Match.objects.active()) == {proposed, pending, accepted}
 
 
+def test_match_active_at_includes_in_window_and_accepted() -> None:
+    """MatchQuerySet.active_at includes in-window PROPOSED/PENDING and ACCEPTED."""
+    cutoff = datetime(2030, 1, 1, tzinfo=UTC)
+    proposed = MatchFactory.create(status=Match.Status.PROPOSED)
+    pending = MatchFactory.create(status=Match.Status.PENDING)
+    accepted = MatchFactory.create(status=Match.Status.ACCEPTED)
+    assert set(Match.objects.active_at(cutoff)) == {proposed, pending, accepted}
+
+
+def test_match_active_at_excludes_lapsed_proposed_and_pending() -> None:
+    """MatchQuerySet.active_at excludes lapsed PROPOSED/PENDING even if unswept."""
+    cutoff = datetime(2030, 1, 1, tzinfo=UTC)
+    lapsed_proposed = MatchFactory.create(
+        status=Match.Status.PROPOSED,
+        expires_at=datetime(2020, 1, 1, tzinfo=UTC),
+    )
+    lapsed_pending = MatchFactory.create(
+        status=Match.Status.PENDING,
+        expires_at=datetime(2020, 1, 1, tzinfo=UTC),
+    )
+    active = set(Match.objects.active_at(cutoff))
+    assert lapsed_proposed not in active
+    assert lapsed_pending not in active
+
+
+def test_match_active_at_excludes_terminal_states() -> None:
+    """MatchQuerySet.active_at excludes DECLINED, EXPIRED, and CANCELLED."""
+    cutoff = datetime(2030, 1, 1, tzinfo=UTC)
+    MatchFactory.create(status=Match.Status.DECLINED)
+    MatchFactory.create(status=Match.Status.EXPIRED)
+    MatchFactory.create(status=Match.Status.CANCELLED)
+    assert set(Match.objects.active_at(cutoff)) == set()
+
+
 def test_multiple_matches_per_registration_allowed() -> None:
     """There is no unique constraint — a registration can appear in multiple matches."""
     ambassador = RegistrationFactory.create(role=Registration.Role.AMBASSADOR)

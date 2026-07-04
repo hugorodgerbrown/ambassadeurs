@@ -33,13 +33,10 @@ class SurveyResponseAdmin(admin.ModelAdmin):
     list_display = [
         "pk",
         "registration",
-        "price_chf_shown",
-        "framing_shown",
-        "q1_answer",
-        "q2_answer",
+        "max_deposit",
         "created_at",
     ]
-    list_filter = ["price_chf_shown", "framing_shown", "q1_answer", "q2_answer"]
+    list_filter = ["max_deposit"]
     raw_id_fields = ["registration"]
 
     def has_add_permission(self, request: HttpRequest) -> bool:
@@ -64,10 +61,7 @@ class SurveyResponseAdmin(admin.ModelAdmin):
 
     readonly_fields = [
         "registration",
-        "price_chf_shown",
-        "framing_shown",
-        "q1_answer",
-        "q2_answer",
+        "max_deposit",
         "created_at",
         "updated_at",
     ]

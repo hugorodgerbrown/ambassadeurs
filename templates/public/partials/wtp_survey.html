@@ -14,7 +14,7 @@ Context:
 {% endcomment %}
 <div class="card text-left">
     <p class="label mb-2">{% translate "Help us set next season's price" %}</p>
-    <p class="mb-4 text-sm text-body">
+    <p class="mb-6 text-base text-body">
         {% blocktranslate trimmed %}
             Registration is free for you. From 1 October it will carry a deposit — help us set it fairly by answering
             two quick questions.
@@ -35,8 +35,8 @@ Context:
             </div>
         {% endif %}
 
-        <fieldset class="mb-5">
-            <legend class="mb-2 text-sm font-medium text-ink">
+        <fieldset class="mb-8">
+            <legend class="mb-3 text-base font-medium text-ink">
                 {% if survey_framing == "DEPOSIT" %}
                     {% blocktranslate trimmed with price=survey_price_chf %}
                         If registering had required a refundable CHF {{ price }} deposit, would that have changed your
@@ -49,9 +49,9 @@ Context:
                     {% endblocktranslate %}
                 {% endif %}
             </legend>
-            <div class="space-y-2">
+            <div class="space-y-3">
                 {% for radio in survey_form.q1_answer %}
-                    <label class="flex items-start gap-2 text-sm text-ink">
+                    <label class="flex items-start gap-2 text-base text-ink">
                         {{ radio.tag }}
                         <span>{{ radio.choice_label }}</span>
                     </label>
@@ -62,13 +62,13 @@ Context:
             {% endfor %}
         </fieldset>
 
-        <fieldset class="mb-5">
-            <legend class="mb-2 text-sm font-medium text-ink">
+        <fieldset class="mb-8">
+            <legend class="mb-3 text-base font-medium text-ink">
                 {{ survey_form.q2_answer.label }}
             </legend>
-            <div class="space-y-2">
+            <div class="space-y-3">
                 {% for radio in survey_form.q2_answer %}
-                    <label class="flex items-start gap-2 text-sm text-ink">
+                    <label class="flex items-start gap-2 text-base text-ink">
                         {{ radio.tag }}
                         <span>{{ radio.choice_label }}</span>
                     </label>

@@ -130,9 +130,9 @@ class RegistrationForm(forms.Form):
     ) -> None:
         """Bind the form to ``role``.
 
-        When ``user`` is given (e.g. after a Facebook login) the email field is
-        dropped and the name is prefilled — the participant is already
-        identified, so we only collect the role-specific fields.
+        When ``user`` is given (i.e. the participant is already authenticated)
+        the email field is dropped and the name is prefilled — the participant
+        is already identified, so we only collect the role-specific fields.
 
         Referees do not see the prior_pass select — their value is always NONE.
         """

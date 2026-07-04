@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Access denied" %}{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-md text-center">
+        <h1 class="mb-4 text-2xl font-bold text-ink">{% translate "You're already registered." %}</h1>
+        <p class="text-body">
+            {% blocktranslate trimmed %}
+                You can only register once. To check your details or your place in the queue, view your account.
+            {% endblocktranslate %}
+        </p>
+        <p class="mt-6">
+            <a href="{% url 'accounts:detail' %}" class="font-medium text-accent underline">
+                {% translate "View my account" %}
+            </a>
+        </p>
+    </section>
+{% endblock %}

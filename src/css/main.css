@@ -463,17 +463,6 @@
   .field--disabled .field__label { color: var(--color-text-disabled); }
   .field--disabled .field__hint  { opacity: .75; }
 
-  /* ── Lock banner ─────────────────────────────────────────────────────────
-     The notice topping a locked (already-registered) form: a calm surface card
-     with a role-coloured left accent and a lock medallion. Follows --role, so
-     it tones to the active role and inverts in dark mode via the tokens. */
-  .lock-banner { display: flex; align-items: flex-start; gap: 13px; background: var(--color-surface); border: 1px solid var(--color-line); border-left: 3px solid var(--role); border-radius: var(--radius-card); padding: 18px 20px; }
-  .lock-banner__icon { flex: none; width: 34px; height: 34px; margin-top: 1px; border-radius: var(--radius-pill); background: var(--role-tint); color: var(--role); display: flex; align-items: center; justify-content: center; }
-  .lock-banner__title { font-size: 1rem; font-weight: 600; color: var(--color-ink); margin-bottom: 3px; }
-  .lock-banner__body  { font-size: 0.92rem; line-height: 1.5; color: var(--color-body); }
-  .lock-banner__body strong { color: var(--color-ink); font-weight: 600; }
-  .lock-banner__body a { color: var(--role); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
-
   /* ── Role select ────────────────────────────────────────────────────────
      The "Your role" dropdown that drives .role-theme. The trigger follows
      --role; the two options in the open menu keep FIXED per-role badges
@@ -503,16 +492,6 @@
   .role-select__role  { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--role-ink); }
   .role-select__caret { flex: none; color: var(--color-meta); transition: transform var(--dur-base) ease; }
   .role-select[open] .role-select__caret { transform: rotate(180deg); }
-
-  /* Locked role picker — the role can't be changed once registered. The trigger
-     is a <summary>, not a <button>, so it can't take :disabled; .role-select--locked
-     mirrors the handoff's :disabled treatment: drop the 2px role outline to a
-     quiet border, flatten the fill to surface-disabled and mute the text. Pair
-     it with pointer-events-none in the template so the <details> can't open. */
-  .role-select--locked .role-select__trigger { background: var(--color-surface-disabled); border: 1px solid var(--color-line); cursor: not-allowed; }
-  .role-select--locked .role-select__name,
-  .role-select--locked .role-select__caret { color: var(--color-text-disabled); }
-  .role-select--locked .role-select__badge { background: var(--color-surface); color: var(--color-text-disabled); }
 
   .role-select__menu {
     position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 30;

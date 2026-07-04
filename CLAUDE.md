@@ -464,6 +464,7 @@ feature docs are written:
 | Matching engine (queue, assignment, eligibility) | _to be written_ |
 | Match lifecycle (states, contact window, reveal-on-accept) | [ADR 0007](docs/decisions/0007-post-match-confirmation-workflow.md), [ADR 0011](docs/decisions/0011-two-state-machines.md) |
 | Registration.Status / Match.Status state machines | [ADR 0011](docs/decisions/0011-two-state-machines.md) |
+| State machines in plain language ("where am I / what's next") | [`docs/state-machines.md`](docs/state-machines.md) |
 | Flaking / priority handling | [ADR 0007](docs/decisions/0007-post-match-confirmation-workflow.md) |
 | State-transition model/service split | [ADR 0017](docs/decisions/0017-state-transition-model-service-split.md) |
 | Side-effect / notification dispatch (on_commit → django-side-effects) | [ADR 0018](docs/decisions/0018-adopt-django-side-effects-for-notification-dispatch.md) |

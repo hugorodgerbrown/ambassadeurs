@@ -1220,37 +1220,51 @@ def test_register_done_unknown_role_404() -> None:
 
 
 # ---------------------------------------------------------------------------
-# register_done — shared status pill (VERB-116)
+# register_done — shared Match status card (VERB-116)
 # ---------------------------------------------------------------------------
 
 
-def test_register_done_status_pill_unverified() -> None:
+def test_register_done_status_card_unverified() -> None:
     """An UNVERIFIED registration (e.g. paid tier awaiting payment) shows Unverified."""
     reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED)
     client = Client()
     client.force_login(reg.user)
     response = client.get(reverse("public:register_done", args=["ambassador"]))
     assert response.status_code == 200
-    assert b"tag-status--muted" in response.content
-    assert b"Unverified" in response.content
+    content = response.content
+    assert b"Match status" in content
+    assert b"tag-status--muted" in content
+    assert b"Unverified" in content
+    assert b"Please confirm your email address to enter the pool." in content
+    assert b"Your responsibilities" in content
 
 
-def test_register_done_status_pill_verified_queued() -> None:
-    """A VERIFIED registration with no active match shows Queued (muted)."""
+def test_register_done_status_card_verified_queued() -> None:
+    """A VERIFIED registration with no active match shows Queued (muted).
+
+    The card's own queue-position sentence replaces the old standalone
+    "pairs matched so far this season" line, which is gone from the page.
+    """
     reg = RegistrationFactory.create(status=Registration.Status.VERIFIED)
     client = Client()
     client.force_login(reg.user)
     response = client.get(reverse("public:register_done", args=["ambassador"]))
     assert response.status_code == 200
-    assert b"tag-status--muted" in response.content
-    assert b"Queued" in response.content
+    content = response.content
+    assert b"Match status" in content
+    assert b"tag-status--muted" in content
+    assert b"Queued" in content
+    assert b"in the queue" in content
+    assert b"pairs matched so far this season" not in content
+    assert b"pair matched so far this season" not in content
+    assert b"Your responsibilities" in content
 
 
-def test_register_done_status_pill_active_proposed_match() -> None:
+def test_register_done_status_card_active_proposed_match() -> None:
     """A registration already PROPOSED at registration time shows Pending.
 
     register_participant runs propose_match synchronously, so a user can reach
-    register_done already holding a PROPOSED match — the pill must reflect that
+    register_done already holding a PROPOSED match — the card must reflect that
     rather than the underlying VERIFIED pool-standing state.
     """
     reg = RegistrationFactory.create(status=Registration.Status.VERIFIED)
@@ -1259,8 +1273,11 @@ def test_register_done_status_pill_active_proposed_match() -> None:
     client.force_login(reg.user)
     response = client.get(reverse("public:register_done", args=["ambassador"]))
     assert response.status_code == 200
-    assert b"tag-status--wait" in response.content
-    assert b"Pending" in response.content
+    content = response.content
+    assert b"tag-status--wait" in content
+    assert b"Pending" in content
+    assert b"You have been matched with" in content
+    assert b"Your responsibilities" in content
 
 
 # ---------------------------------------------------------------------------

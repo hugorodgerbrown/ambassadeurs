@@ -9,10 +9,10 @@
 # Match state on the account page (VERB-44 / ADR 0011):
 #   Registration.Status tracks pool standing (UNVERIFIED, VERIFIED, WITHDRAWN,
 #   SUSPENDED). Match progress is derived from the active Match row.
-#   account_detail computes `match_state ∈ {none, proposed, pending, accepted}`
-#   from the active match (if any) and passes it to the template, so the
-#   template never needs to compare Registration.Status values to infer match
-#   progress.
+#   `match_state ∈ {none, proposed, pending, accepted}` and the rest of the
+#   Match status card's context are built by matching.services.match_status_context
+#   (VERB-116), shared with public.views.register_done so both surfaces render
+#   the identical component.
 #
 # Login flow (VERB-46 — allauth removed):
 #   login_request  GET/POST — email form → sends magic link
@@ -44,8 +44,7 @@ from billing.models import Payment
 from core.emails import normalise_email
 from core.ratelimit import rate_limited_response
 from matching.models import Match, Registration
-from matching.services import queue_position as get_queue_position
-from matching.services import rejoin_queue, status_pill_for
+from matching.services import match_status_context, rejoin_queue
 from public.views import _render_match_page
 
 from .forms import AccountForm
@@ -172,29 +171,20 @@ def logout_view(request: HttpRequest) -> HttpResponse:
 def account_detail(request: HttpRequest) -> HttpResponse:
     """Show the participant's profile, match status and security controls.
 
-    Fetches the user's active match (if any) and derives:
-    - ``match_state``: one of ``none``, ``proposed``, ``pending``, ``accepted``.
-    - ``partner_first_name``: the partner's first name (shown before mutual
-      accept; only surname/email/phone stay hidden per Invariant 1).
-    - ``partner_accepted``: whether the partner has responded (drives the
-      "partner pending" vs "partner waiting on us" copy).
-
-    Queue position and accepted-match count are computed for VERIFIED
-    registrations that are currently in the pool (no active match).
+    The Match status card's context (``registration``, ``status_pill``,
+    ``match_state``, ``partner_first_name``, ``partner_accepted``,
+    ``queue_position``, ``can_rejoin``, ``can_cancel``) is built by
+    ``matching.services.match_status_context`` (VERB-116) — shared with
+    ``public.views.register_done`` so both surfaces render the identical
+    component.
 
     ``email_verified`` is derived from the Registration status (not from the
     former allauth EmailAddress model, which has been removed in VERB-46).
     An admin user with no Registration is treated as unverified (False).
-
-    ``can_cancel`` (VERB-88) is True under the same condition as
-    ``can_rejoin`` (PAUSED, no active match); it drives the "Cancel & refund"
-    link on the account page.
     """
     user = cast(User, request.user)
-    try:
-        registration: Registration | None = Registration.objects.get(user=user)
-    except Registration.DoesNotExist:
-        registration = None
+    status_context = match_status_context(user)
+    registration = cast("Registration | None", status_context["registration"])
 
     # Email is considered verified once the registration leaves UNVERIFIED status
     # (i.e. the confirmation link was clicked). Admin users without a registration
@@ -208,94 +198,13 @@ def account_detail(request: HttpRequest) -> HttpResponse:
     if settings.DEBUG:
         debug_verify_url = request.session.pop("debug_verify_url", None)
 
-    # Look up the active match for this user (PROPOSED, PENDING, or ACCEPTED).
-    # Registration.status no longer reflects match progress (VERB-44).
-    # active_at excludes a PROPOSED/PENDING match whose contact window has
-    # lapsed but which the hourly expire_matches sweep has not yet processed,
-    # so the account page reads it as inactive — matching the match page's own
-    # expires_at check (VERB-113).
-    active_match: Match | None = (
-        Match.objects.active_at(timezone.now())
-        .filter(
-            Q(ambassador_registration__user=user) | Q(referee_registration__user=user)
-        )
-        .select_related(
-            "ambassador_registration__user",
-            "referee_registration__user",
-        )
-        .first()
-    )
-
-    match_state = "none"
-    partner_first_name = ""
-    partner_accepted = False
-
-    if active_match is not None:
-        if active_match.status == Match.Status.ACCEPTED:
-            match_state = "accepted"
-        elif active_match.status == Match.Status.PENDING:
-            match_state = "pending"
-        else:
-            match_state = "proposed"
-
-        # Identify which side this user is on to find the partner.
-        if active_match.ambassador_registration is not None and (
-            active_match.ambassador_registration.user_id == user.pk
-        ):
-            partner = active_match.referee_registration
-            partner_accepted = active_match.referee_accepted_at is not None
-        else:
-            partner = active_match.ambassador_registration
-            partner_accepted = active_match.ambassador_accepted_at is not None
-
-        if partner is not None:
-            partner_first_name = partner.user.first_name
-
-    # Fall back to a generic noun when the partner has no first name on file.
-    if not partner_first_name:
-        partner_first_name = _("your partner")
-
-    # Queue position — only computed for VERIFIED registrations without an active
-    # match (pool members awaiting a pairing).
-    position: int | None = None
-    if (
-        registration is not None
-        and registration.status == Registration.Status.VERIFIED
-        and active_match is None
-    ):
-        position = get_queue_position(registration)
-
-    # can_rejoin — True when the registration is PAUSED and there is no active
-    # match (the normal case after a decline or expiry).
-    can_rejoin = (
-        registration is not None
-        and registration.status == Registration.Status.PAUSED
-        and active_match is None
-    )
-
-    # can_cancel — True under the same condition as can_rejoin (PAUSED, no
-    # active match). Drives the "Cancel & refund" link (VERB-88), which sits
-    # alongside "Rejoin the queue" on the account page.
-    can_cancel = (
-        registration is not None
-        and registration.status == Registration.Status.PAUSED
-        and active_match is None
-    )
-
     return render(
         request,
         "accounts/detail.html",
         {
-            "registration": registration,
+            **status_context,
             "email_verified": email_verified,
             "debug_verify_url": debug_verify_url,
-            "status_pill": status_pill_for(registration, match_state),
-            "match_state": match_state,
-            "partner_first_name": partner_first_name,
-            "partner_accepted": partner_accepted,
-            "queue_position": position,
-            "can_rejoin": can_rejoin,
-            "can_cancel": can_cancel,
         },
     )
 

@@ -10,7 +10,7 @@
 {% endblock %}
 
 {% block content %}
-    <section class="role-theme{% if registration and registration.role != 'AMBASSADOR' %} role-theme--referee{% endif %} mx-auto max-w-xl">
+    <section class="role-theme{% if registration and registration.role != 'AMBASSADOR' %} role-theme--referee{% endif %}">
         <p class="eyebrow mb-2 text-role">{% translate "Account details" %}</p>
         <h1 class="mb-6 text-ink">{% translate "Your account" %}</h1>
 
@@ -21,7 +21,7 @@
         {% if registration %}
             <div class="card mb-6">
                 <div class="mb-4 flex items-center justify-between">
-                    <h2 class="text-h3 text-ink">{% translate "Your role" %}</h2>
+                    <h2 class="text-lg font-semibold text-ink">{% translate "Your role" %}</h2>
                 </div>
                 <div class="role-zone mb-3">
                     <p class="role-select__name">{{ registration.get_role_display }}</p>
@@ -39,7 +39,7 @@
         {# Your details card #}
         <div class="card mb-6">
             <div class="mb-4 flex items-center justify-between">
-                <h2 class="text-h3 text-ink">{% translate "Your details" %}</h2>
+                <h2 class="text-lg font-semibold text-ink">{% translate "Your details" %}</h2>
                 <a href="{% url 'accounts:edit' %}" class="text-sm font-medium underline text-role">
                     {% translate "Edit" %}
                 </a>
@@ -107,7 +107,7 @@
 
         {# Security #}
         <div class="card">
-            <h2 class="mb-3 text-h3 text-ink">{% translate "Security" %}</h2>
+            <h2 class="mb-3 text-lg font-semibold text-ink">{% translate "Security" %}</h2>
             <h3 class="mb-2 text-sm font-semibold text-danger">{% translate "Delete account" %}</h3>
             <p class="mb-3 text-sm text-body">
                 {% blocktranslate trimmed %}

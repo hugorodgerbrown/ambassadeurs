@@ -20,7 +20,7 @@
             DEBUG-only state switcher (debug.views.match_preview). Never rendered
             in the real flow — the production views do not set `preview_states`.
         {% endcomment %}
-        <div class="mx-auto mb-5 max-w-xl">
+        <div class="mb-5">
             <p class="label mb-2">Preview state · debug only</p>
             <div class="flex flex-wrap gap-1.5">
                 {% for s in preview_states %}
@@ -32,7 +32,7 @@
             </div>
         </div>
     {% endif %}
-    <section class="role-theme{% if side == 'REFEREE' %} role-theme--referee{% endif %} mx-auto max-w-xl">
+    <section class="role-theme{% if side == 'REFEREE' %} role-theme--referee{% endif %}">
         <p class="eyebrow mb-2 text-role">{% translate "Match details" %}</p>
         <h1 class="mb-6 text-ink">{% translate "Your match" %}</h1>
 

@@ -24,6 +24,13 @@ empty base.html's default below-the-nav placement so it never shows twice.
 {% block notifications %}{% endblock %}
 
 {% comment %}
+The homepage keeps the wider column (the only exception, per VERB-117): its
+hero + below-hero sections use the display type scale and were designed
+against max-w-3xl. Every other page uses the base max-w-2xl reading column.
+{% endcomment %}
+{% block main_width %}max-w-3xl{% endblock %}
+
+{% comment %}
 Homepage — Alpine v2 direction. Full-bleed photographic hero: two people (one
 in a red jacket, one in blue) shaking hands on a platform between a red gondola
 and a blue gondola, both branded "4 Vallées Ambassadors", with alpine peaks

@@ -4,8 +4,14 @@ import datetime
 
 import pytest
 
-from public.models import FormDownload, FormDownloadQuerySet
-from tests.public.factories import FormDownloadFactory
+from public.models import (
+    FormDownload,
+    FormDownloadQuerySet,
+    SurveyResponse,
+    SurveyResponseQuerySet,
+)
+from tests.matching.factories import RegistrationFactory
+from tests.public.factories import FormDownloadFactory, SurveyResponseFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -46,3 +52,46 @@ def test_form_download_default_ordering_newest_first() -> None:
 def test_form_download_manager_is_custom_queryset() -> None:
     """The default manager produces FormDownloadQuerySet instances."""
     assert isinstance(FormDownload.objects.all(), FormDownloadQuerySet)
+
+
+# ---------------------------------------------------------------------------
+# SurveyResponse (VERB-111)
+# ---------------------------------------------------------------------------
+
+
+def test_survey_response_to_string_format() -> None:
+    """SurveyResponse.to_string includes the max_deposit value."""
+    response = SurveyResponseFactory.create(
+        max_deposit=SurveyResponse.MaxDeposit.CHF_20
+    )
+    s = str(response)
+    assert s == "Survey response · CHF_20"
+
+
+def test_survey_response_manager_is_custom_queryset() -> None:
+    """The default manager produces SurveyResponseQuerySet instances."""
+    assert isinstance(SurveyResponse.objects.all(), SurveyResponseQuerySet)
+
+
+def test_survey_response_default_ordering_newest_first() -> None:
+    """SurveyResponse rows are ordered newest-first by default."""
+    first = SurveyResponseFactory.create()
+    second = SurveyResponseFactory.create()
+    SurveyResponse.objects.filter(pk=first.pk).update(
+        created_at=datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)
+    )
+    SurveyResponse.objects.filter(pk=second.pk).update(
+        created_at=datetime.datetime(2024, 1, 1, 13, 0, 0, tzinfo=datetime.UTC)
+    )
+    rows = list(SurveyResponse.objects.all())
+    assert rows[0].pk == second.pk
+    assert rows[1].pk == first.pk
+
+
+def test_survey_response_registration_set_null_on_delete() -> None:
+    """Deleting the registration preserves the SurveyResponse row (SET_NULL)."""
+    registration = RegistrationFactory.create(fee_chf=0)
+    response = SurveyResponseFactory.create(registration=registration)
+    registration.delete()
+    response.refresh_from_db()
+    assert response.registration_id is None

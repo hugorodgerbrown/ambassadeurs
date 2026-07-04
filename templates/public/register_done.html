@@ -13,7 +13,7 @@
 {% endblock %}
 
 {% block content %}
-    <section class="role-theme{% if role_value != 'AMBASSADOR' %} role-theme--referee{% endif %} mx-auto max-w-md text-center">
+    <section class="role-theme{% if role_value != 'AMBASSADOR' %} role-theme--referee{% endif %} mx-auto max-w-lg text-center">
         <div class="medallion mx-auto mb-6">
             <svg
                 width="32"
@@ -69,6 +69,12 @@
                 </ul>
             </div>
         </div>
+
+        {% if survey_form %}
+            <div id="wtp-survey" class="mb-6">
+                {% include "public/partials/wtp_survey.html" %}
+            </div>
+        {% endif %}
 
         <a href="{% url 'accounts:detail' %}" class="btn btn--role btn--block">
             {% translate "Go to my account" %}

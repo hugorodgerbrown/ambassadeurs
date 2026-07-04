@@ -1,0 +1,85 @@
+{% load i18n %}
+{% comment %}
+Willingness-to-pay survey card (VERB-111).
+
+Shown on register_done to a VERIFIED, free-tier registrant who has not
+already responded. Submitted in place via HTMX to register_survey_submit,
+which swaps this whole block for wtp_survey_thanks.html on success, or
+re-renders this same fragment with form errors on an invalid submission.
+
+Context:
+  survey_form — SurveyResponseForm (single required field: max_deposit)
+{% endcomment %}
+<div class="card text-left">
+    <p class="label mb-2">{% translate "Help us set the price" %}</p>
+    <p class="mb-6 text-base text-body">
+        {% blocktranslate trimmed %}
+            This service is currently provided free of charge. In the future registration may carry a refundable deposit
+            — returned in full if we don't find you a match.
+        {% endblocktranslate %}
+    </p>
+    <p class="mb-6 text-base text-body">
+        {% blocktranslate trimmed %}
+            Help us set it fairly by answering one quick question.
+        {% endblocktranslate %}
+    </p>
+
+    <form
+        hx-post="{% url 'public:register_survey_submit' %}"
+        hx-target="#wtp-survey"
+        hx-swap="innerHTML"
+        hx-indicator="#wtp-survey-indicator"
+    >
+        {% csrf_token %}
+
+        {% if survey_form.non_field_errors %}
+            <div class="mb-4 rounded-control border border-danger bg-danger-tint p-3 text-sm text-danger-ink">
+                {% for error in survey_form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+            </div>
+        {% endif %}
+
+        <fieldset class="mb-8">
+            <legend class="mb-6 text-base font-medium text-ink">
+                {{ survey_form.max_deposit.label }}
+            </legend>
+            <div class="space-y-3">
+                {% for radio in survey_form.max_deposit %}
+                    <label class="flex items-start gap-2 text-base text-ink">
+                        {{ radio.tag }}
+                        <span>{{ radio.choice_label }}</span>
+                    </label>
+                {% endfor %}
+            </div>
+            {% for error in survey_form.max_deposit.errors %}
+                <p class="mt-1 text-xs text-danger">{{ error }}</p>
+            {% endfor %}
+        </fieldset>
+
+        <div class="flex items-center gap-2.5">
+            <button type="submit" class="btn btn--primary flex-1">
+                {% translate "Submit" %}
+            </button>
+            {% comment %}
+                Skip is a server-side no-op via the same submit endpoint —
+                formnovalidate so the browser's required-field check on
+                max_deposit doesn't block it. register_survey_submit sees
+                "skip" in request.POST and returns an empty 200 body before
+                any validation, creating no row; the hx-swap="innerHTML"
+                then clears #wtp-survey. This avoids hx-on:click (blocked by
+                the production CSP's script-src, which has no unsafe-eval).
+            {% endcomment %}
+            <button
+                type="submit"
+                name="skip"
+                value="1"
+                formnovalidate
+                class="btn btn--ghost"
+            >
+                {% translate "Skip" %}
+            </button>
+            <span id="wtp-survey-indicator" class="htmx-indicator text-xs text-meta">
+                {% translate "Sending…" %}
+            </span>
+        </div>
+    </form>
+</div>

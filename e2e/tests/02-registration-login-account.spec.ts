@@ -47,6 +47,55 @@ test.describe("registration & account", () => {
     await expect(page.locator("#id_email")).toBeVisible();
   });
 
+  test("willingness-to-pay survey submits in place and does not re-show", { tag: "@S3" }, async ({
+    page,
+    mailbox,
+    runId,
+  }) => {
+    const p = makeParticipant("referee", runId);
+    await registerVerified(page, mailbox, p);
+    const doneUrl = page.url();
+
+    const survey = page.locator("#wtp-survey");
+    await expect(survey).toBeVisible();
+    await expect(survey).toContainText("CHF 5");
+
+    await survey.locator('input[name="max_deposit"]').first().check();
+    // Skip is also type="submit" (server-side no-op), so target by name.
+    await survey.getByRole("button", { name: /submit/i }).click();
+
+    // The thanks fragment replaces the survey card in place — same URL, no
+    // full-page navigation, proving the HTMX submit path.
+    await expect(page).toHaveURL(doneUrl);
+    await expect(survey).toContainText("Thank you");
+
+    // A reload no longer shows the survey (already-responded gate).
+    await page.reload();
+    await expect(page.locator("#wtp-survey")).toHaveCount(0);
+  });
+
+  test("willingness-to-pay survey skip is a no-op", { tag: "@S3" }, async ({
+    page,
+    mailbox,
+    runId,
+  }) => {
+    const p = makeParticipant("referee", runId);
+    await registerVerified(page, mailbox, p);
+
+    const survey = page.locator("#wtp-survey");
+    await expect(survey).toBeVisible();
+    // Skip is a second submit button on the same form (server-side no-op via
+    // register_survey_submit, not an hx-on:click — the production CSP has no
+    // unsafe-eval). The response body is empty, so the hx-swap empties the
+    // block in place rather than hiding it.
+    await survey.getByRole("button", { name: /skip/i }).click();
+    await expect(survey).toBeEmpty();
+
+    // Skip never blocks the page — the main CTA still navigates normally.
+    await page.getByRole("link", { name: /go to my account/i }).click();
+    await expect(page).toHaveURL(new RegExp(ROUTES.account.replace(/\//g, "\\/")));
+  });
+
   test("magic-link login is prefetch-safe, logs in, and logs out", { tag: "@S10" }, async ({
     page,
     mailbox,

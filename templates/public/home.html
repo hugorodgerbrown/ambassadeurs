@@ -197,6 +197,13 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
                 </div>
             </div>
         </div>
+        {% url 'public:how_it_works' as how_it_works_url %}
+        <p class="mt-6 text-center text-sm text-meta">
+            {% blocktranslate trimmed %}
+                Want the full picture? Read the <a href="{{ how_it_works_url }}" class="text-accent underline"
+                >step-by-step walkthrough</a>.
+            {% endblocktranslate %}
+        </p>
     </section>
 
     {% comment %}Which one are you? — the two role cards using fixed red/blue tones.{% endcomment %}
@@ -287,5 +294,11 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
                 </a>
             </div>
         </div>
+        {% url 'public:faq' as faq_url %}
+        <p class="mt-6 text-center text-sm text-meta">
+            {% blocktranslate trimmed %}
+                Not sure which one you are? Check the <a href="{{ faq_url }}" class="text-accent underline">FAQ</a>.
+            {% endblocktranslate %}
+        </p>
     </section>
 {% endblock %}

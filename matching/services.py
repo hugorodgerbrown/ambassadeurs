@@ -1144,8 +1144,8 @@ def withdraw_acceptance(match: Match, registration: Registration) -> Match:
     returns them to the actionable ``proposed`` view (VERB-43 / ADR 0010).
 
     Only the accepting side's ``*_accepted_at`` timestamp is cleared. Nothing
-    is re-queued and no flake penalty is applied — withdrawing differs from a
-    decline (which removes the registration) and from a non-response flake.
+    is re-queued and no penalty is applied — withdrawing differs from a decline
+    or a non-response, which both pause the registration (VERB-74 / ADR 0013).
 
     The guard that the other side has not accepted is what keeps the operation
     safe: if both sides had accepted the match would already be ``ACCEPTED`` (a

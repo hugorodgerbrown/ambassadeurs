@@ -1139,7 +1139,8 @@ def _roster_row(
     Reveals the party's first name, initials and nationality (the match redesign
     shows these from the proposed state; contact PII — email and phone — stays
     hidden until mutual accept, see Invariant 1). ``registration`` is ``None``
-    when the party declined and their account was deleted, in which case the
+    only when the party's account has since been deleted — a decline no longer
+    deletes it (the decliner is paused, VERB-74 / ADR 0013) — in which case the
     template falls back to a generic label.
     """
     name = ""
@@ -1165,10 +1166,11 @@ def _roster_row(
 def _related_registration(match: Match, attr: str) -> Registration | None:
     """Return ``match.<attr>`` (a Registration FK), or None if the row is gone.
 
-    A decline deletes the decliner's Registration and SET_NULLs the FK. A
-    freshly-loaded match returns None for the FK, but an in-memory match handed
-    back by the decline service still holds the stale FK id, so the lazy load
-    raises ``Registration.DoesNotExist``; treat that as None.
+    The FK is non-nullable (CASCADE), so a freshly-loaded match normally
+    resolves both sides; a decline no longer deletes the Registration — the
+    decliner is paused (VERB-74 / ADR 0013). This guard is defensive: if the
+    referenced Registration has since been deleted (e.g. via account deletion)
+    the lazy load raises ``Registration.DoesNotExist``; treat that as None.
     """
     try:
         related: Registration | None = getattr(match, attr)
@@ -1195,10 +1197,12 @@ def _match_context(
     ``match.status == ACCEPTED`` (Invariant 1); the first name is revealed
     earlier via ``partner_name`` and the roster.
     """
-    # Resolve both sides defensively: after a decline the decliner's User and
-    # Registration are deleted and the match FK is SET_NULL, but an in-memory
-    # match returned by the service still carries the stale FK id, so a lazy load
-    # raises DoesNotExist. A freshly-loaded match returns None cleanly.
+    # Resolve both sides defensively. The FKs are non-nullable (CASCADE), so a
+    # freshly-loaded match normally has both registrations; a decline no longer
+    # deletes either (the decliner is paused, VERB-74 / ADR 0013). The guard
+    # covers the residual case where a registration has been deleted (e.g.
+    # account deletion): the lazy load raises DoesNotExist, which
+    # _related_registration treats as None.
     ambassador_reg = _related_registration(match, "ambassador_registration")
     referee_reg = _related_registration(match, "referee_registration")
     counterpart = referee_reg if side == Match.Side.AMBASSADOR else ambassador_reg
@@ -1284,11 +1288,10 @@ def match_detail(request: HttpRequest, token: str) -> HttpResponse:
                     accept_match(match, token_registration)
                 else:
                     decline_match(match, token_registration)
-                    # After a successful decline the decliner's User and
-                    # Registration are deleted. Redirecting would re-resolve
-                    # the token, find the FK NULL, and return 400. Render the
-                    # removed page directly instead (no PRG for this terminal
-                    # path).
+                    # After a successful decline the decliner's registration is
+                    # paused (VERB-74 / ADR 0013), not deleted. Render the
+                    # paused-confirmation page (match_removed.html) directly
+                    # rather than PRG-redirecting back to the match view.
                     return render(request, "public/match_removed.html")
             except StateTransitionError, ValueError:
                 # Match status changed between read and action (accept raises
@@ -1400,8 +1403,9 @@ def match_decline(request: HttpRequest, token: str) -> HttpResponse:
     """HTMX POST: decline the match and return the updated actions partial.
 
     Guarded by ``@require_htmx`` (Invariant 7) and ``@require_POST`` — decline
-    is destructive (deletes the decliner's User) so a GET, even with the HX
-    header, must not trigger it. Re-validates the token, confirms the match is
+    is a state mutation (it pauses the decliner's registration, VERB-74 /
+    ADR 0013) so a GET, even with the HX header, must not trigger it.
+    Re-validates the token, confirms the match is
     still PROPOSED and within the window, then calls ``decline_match``. Renders
     ``public/partials/match_actions.html`` reflecting the resulting state.
     """

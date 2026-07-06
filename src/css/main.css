@@ -318,8 +318,9 @@
      --color-meta (was --color-text-3). */
   .eyebrow { font-family: var(--font-mono); font-size: var(--text-eyebrow); letter-spacing: var(--text-eyebrow--letter-spacing); text-transform: uppercase; color: var(--color-accent); }
   .label   { font-family: var(--font-mono); font-size: var(--text-label); letter-spacing: var(--text-label--letter-spacing); text-transform: uppercase; color: var(--color-meta); }
+  .lowbrow { font-family: var(--font-mono); font-size: var(--text-eyebrow); letter-spacing: var(--text-eyebrow--letter-spacing); text-transform: uppercase; background: var(--color-accent); width: fit-content; }
 
-  /* Chip / language switch. Uses --color-line-strong (was --color-border-strong),
+   /* Chip / language switch. Uses --color-line-strong (was --color-border-strong),
      --color-ink (was --color-text-1). */
   .chip { display: inline-flex; align-items: center; gap: 8px; padding: 7px 13px; border: 1px solid var(--color-line-strong); border-radius: var(--radius-pill); font-size: 13px; font-weight: 500; color: var(--color-ink); background: transparent; }
 

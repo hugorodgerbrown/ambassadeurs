@@ -13,8 +13,8 @@ Context:
   view               — design view key (proposed / you_accepted / partner_accepted
                        / confirmed / declined_you / declined_partner / expired /
                        cancelled_you / cancelled_partner)
-  partner_name       — the other party's first name ("" if their account was
-                       deleted on decline; the template falls back to a generic)
+  partner_name       — the other party's first name ("" if their account has
+                       been deleted; the template falls back to a generic)
   show_deadline      — whether to render the contact-window strip
   accept_url / decline_url / report_no_show_url — HTMX action endpoints
   withdraw_url       — HTMX withdraw-acceptance endpoint (token route only)
@@ -116,7 +116,7 @@ Context:
                 hx-post="{{ decline_url }}"
                 hx-target="#match-actions"
                 hx-swap="innerHTML"
-                hx-confirm='{% translate "Declining will remove your registration. You can re-register at any time. Are you sure?" %}'
+                hx-confirm='{% translate "Declining will pause your registration. You can rejoin the queue from your account at any time. Are you sure?" %}'
             >
                 {% csrf_token %}
                 <button type="submit" class="btn btn--ghost match-decline">

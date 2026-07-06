@@ -2288,7 +2288,8 @@ def test_match_decline_htmx_get_is_rejected() -> None:
     """An HTMX GET to match_decline is rejected with 405 Method Not Allowed.
 
     @require_POST must guard the view even when the HX-Request header is present,
-    since decline is destructive (deletes the decliner's User row).
+    since decline is a state mutation (it pauses the decliner's registration,
+    VERB-74 / ADR 0013).
     """
     match = MatchFactory.create()
     token = make_match_access_token(match.pk, match.ambassador_registration_id)
@@ -2406,9 +2407,9 @@ def test_match_detail_post_fallback_accept_redirects() -> None:
 def test_match_detail_post_fallback_decline_renders_removed_page() -> None:
     """A no-JS POST with action=decline renders match_removed.html directly.
 
-    After decline the decliner's registration is deleted. A PRG redirect would
-    re-resolve the token, find the FK NULL, and return 400 on the invalid
-    template. Instead the view renders match_removed.html in-place (no redirect).
+    After decline the decliner's registration is paused (VERB-74 / ADR 0013),
+    not deleted. The view renders match_removed.html (the paused-confirmation
+    page) in-place rather than PRG-redirecting back to the match view.
     """
     ambassador_reg = RegistrationFactory.create(
         role=Registration.Role.AMBASSADOR,

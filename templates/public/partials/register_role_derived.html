@@ -1,22 +1,58 @@
 {% load i18n %}
 {% comment %}
-Live "You will be registering as …" statement for the role-chooser matrix
-(VERB-131). Rendered inline on the initial register_role.html GET and
-re-rendered in place via HTMX (register_role_derive) on every Y/N change.
+Live derived-role affordance for the role-chooser matrix (VERB-131).
+Rendered inline on the initial register_role.html GET and re-rendered in
+place via HTMX (register_role_derive) on every Y/N change. Contains the
+form's submit button so the label and colour reflect the derived role:
+Ambassador (accent) / Referee (secondary), or a neutral "Continue" with the
+"answer both questions" prompt while either question is unanswered. The
+button stays enabled in every state so the no-JS path still submits (the
+server re-validates and derives the role).
 
 Context:
   derived_role — "ambassador" / "referee" / None (either question unanswered)
 {% endcomment %}
-{% if derived_role == "ambassador" %}
-    <p class="role-derived role-derived--amb" role="status">
-        {% translate "You will be registering as an Ambassador." %}
-    </p>
-{% elif derived_role == "referee" %}
-    <p class="role-derived role-derived--ref" role="status">
-        {% translate "You will be registering as a Referee." %}
-    </p>
+{% if derived_role == "ambassador" or derived_role == "referee" %}
+    <div class="role-theme{% if derived_role == 'referee' %} role-theme--referee{% endif %}">
+        <button type="submit" class="btn btn--role btn--block">
+            {% if derived_role == "referee" %}
+                {% translate "Register as Referee" %}
+            {% else %}
+                {% translate "Register as Ambassador" %}
+            {% endif %}
+            <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            >
+                <path d="M5 12h14" />
+                <path d="m13 5 7 7-7 7" />
+            </svg>
+        </button>
+    </div>
 {% else %}
-    <p class="role-derived role-derived--prompt" role="status">
+    <p class="role-derived role-derived--prompt mb-4" role="status">
         {% translate "Answer both questions to continue." %}
     </p>
+    <button type="submit" class="btn btn--role btn--block">
+        {% translate "Continue" %}
+        <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+        >
+            <path d="M5 12h14" />
+            <path d="m13 5 7 7-7 7" />
+        </svg>
+    </button>
 {% endif %}

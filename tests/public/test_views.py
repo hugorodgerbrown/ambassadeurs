@@ -178,26 +178,28 @@ def test_register_role_derive_plain_get_returns_400() -> None:
     assert response.status_code == 400
 
 
-def test_register_role_derive_htmx_get_any_yes_shows_ambassador_statement() -> None:
-    """An HTMX GET with either answer 'yes' shows the Ambassador statement."""
+def test_register_role_derive_htmx_get_any_yes_shows_ambassador_button() -> None:
+    """An HTMX GET with either answer 'yes' shows the Register as Ambassador button."""
     response = Client().get(
         reverse("public:register_role_derive"),
         {"pass_2024_25": "yes", "pass_2025_26": "no"},
         headers={"HX-Request": "true"},
     )
     assert response.status_code == 200
-    assert "You will be registering as an Ambassador." in response.content.decode()
+    assert "Register as Ambassador" in response.content.decode()
 
 
-def test_register_role_derive_htmx_get_both_no_shows_referee_statement() -> None:
-    """An HTMX GET with both answers 'no' shows the Referee statement."""
+def test_register_role_derive_htmx_get_both_no_shows_referee_button() -> None:
+    """An HTMX GET with both answers 'no' shows the Register as Referee button."""
     response = Client().get(
         reverse("public:register_role_derive"),
         {"pass_2024_25": "no", "pass_2025_26": "no"},
         headers={"HX-Request": "true"},
     )
     assert response.status_code == 200
-    assert "You will be registering as a Referee." in response.content.decode()
+    content = response.content.decode()
+    assert "Register as Referee" in content
+    assert "role-theme--referee" in content
 
 
 def test_register_role_derive_htmx_get_incomplete_shows_prompt() -> None:

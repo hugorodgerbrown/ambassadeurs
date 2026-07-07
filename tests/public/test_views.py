@@ -82,19 +82,17 @@ def test_home_contains_hero_image() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_register_role_get_renders_question_and_links() -> None:
-    """GET /register/role/ asks the eligibility question and links both roles."""
+def test_register_role_get_renders_matrix_and_continue() -> None:
+    """GET /register/role/ asks both season questions and shows Continue."""
     response = Client().get(reverse("public:register_role"))
     assert response.status_code == 200
     assert "public/register_role.html" in [t.name for t in response.templates]
     content = response.content.decode()
-    assert "Have you had a 4 Vallées season pass in the last two years?" in content
-    assert "Yes - I had a season pass in 2024/25 or 2025/26" in content
-    assert "No - I did not have a season pass in either 2024/25 or 2025/26" in content
-    ambassador_url = reverse("public:register_form", kwargs={"role": "ambassador"})
-    referee_url = reverse("public:register_form", kwargs={"role": "referee"})
-    assert ambassador_url in content
-    assert referee_url in content
+    assert "Did you have a 4 Vallées season pass in 2024/25?" in content
+    assert "Did you have a 4 Vallées season pass in 2025/26?" in content
+    assert "Continue" in content
+    assert 'name="pass_2024_25"' in content
+    assert 'name="pass_2025_26"' in content
 
 
 @override_settings(
@@ -105,6 +103,112 @@ def test_register_role_closed_when_registration_closed() -> None:
     """With registration closed the chooser shows the closed page."""
     response = Client().get(reverse("public:register_role"))
     assert "public/register_closed.html" in [t.name for t in response.templates]
+
+
+@pytest.mark.parametrize(
+    ("pass_2024_25", "pass_2025_26"),
+    [("yes", "yes"), ("yes", "no"), ("no", "yes")],
+)
+def test_register_role_post_any_yes_redirects_to_ambassador_form(
+    pass_2024_25: str, pass_2025_26: str
+) -> None:
+    """POSTing any 'yes' answer redirects to the Ambassador form."""
+    response = Client().post(
+        reverse("public:register_role"),
+        {"pass_2024_25": pass_2024_25, "pass_2025_26": pass_2025_26},
+    )
+    assert response.status_code == 302
+    assert response.url == reverse(
+        "public:register_form", kwargs={"role": "ambassador"}
+    )
+
+
+def test_register_role_post_both_no_redirects_to_referee_form() -> None:
+    """POSTing 'no' to both questions redirects to the Referee form."""
+    response = Client().post(
+        reverse("public:register_role"),
+        {"pass_2024_25": "no", "pass_2025_26": "no"},
+    )
+    assert response.status_code == 302
+    assert response.url == reverse("public:register_form", kwargs={"role": "referee"})
+
+
+def test_register_role_post_missing_answer_reincludes_form_with_error() -> None:
+    """POSTing with a missing answer re-renders the form with a validation
+    message, creates no Registration, and does not redirect.
+    """
+    response = Client().post(
+        reverse("public:register_role"),
+        {"pass_2024_25": "yes"},
+    )
+    assert response.status_code == 200
+    assert "public/register_role.html" in [t.name for t in response.templates]
+    content = response.content.decode()
+    assert "Please answer both questions before continuing." in content
+    assert Registration.objects.count() == 0
+
+
+def test_register_role_post_already_registered_returns_403() -> None:
+    """A logged-in, already-registered user POSTing to /register/role/ gets 403."""
+    user = UserFactory.create()
+    RegistrationFactory.create(
+        user=user,
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.VERIFIED,
+    )
+    client = Client()
+    client.force_login(user)
+    response = client.post(
+        reverse("public:register_role"),
+        {"pass_2024_25": "yes", "pass_2025_26": "no"},
+    )
+    assert response.status_code == 403
+    assert "public/register_forbidden.html" in [t.name for t in response.templates]
+
+
+# ---------------------------------------------------------------------------
+# Role-derivation HTMX partial (register_role_derive)
+# ---------------------------------------------------------------------------
+
+
+def test_register_role_derive_plain_get_returns_400() -> None:
+    """A plain (non-HTMX) GET to register_role_derive is rejected (Invariant 7)."""
+    response = Client().get(reverse("public:register_role_derive"))
+    assert response.status_code == 400
+
+
+def test_register_role_derive_htmx_get_any_yes_shows_ambassador_statement() -> None:
+    """An HTMX GET with either answer 'yes' shows the Ambassador statement."""
+    response = Client().get(
+        reverse("public:register_role_derive"),
+        {"pass_2024_25": "yes", "pass_2025_26": "no"},
+        headers={"HX-Request": "true"},
+    )
+    assert response.status_code == 200
+    assert "You will be registering as an Ambassador." in response.content.decode()
+
+
+def test_register_role_derive_htmx_get_both_no_shows_referee_statement() -> None:
+    """An HTMX GET with both answers 'no' shows the Referee statement."""
+    response = Client().get(
+        reverse("public:register_role_derive"),
+        {"pass_2024_25": "no", "pass_2025_26": "no"},
+        headers={"HX-Request": "true"},
+    )
+    assert response.status_code == 200
+    assert "You will be registering as a Referee." in response.content.decode()
+
+
+def test_register_role_derive_htmx_get_incomplete_shows_prompt() -> None:
+    """An HTMX GET with a missing answer shows the 'answer both' prompt."""
+    response = Client().get(
+        reverse("public:register_role_derive"),
+        {"pass_2024_25": "yes"},
+        headers={"HX-Request": "true"},
+    )
+    assert response.status_code == 200
+    assert "Answer both questions to continue." in response.content.decode()
 
 
 # ---------------------------------------------------------------------------

@@ -319,10 +319,10 @@ NOTIFICATION_DESIGNS: dict[str, NotificationDesign] = {
         _("Attention-grabbing tone for urgent/critical notices."),
         "notification-urgent",
     ),
-    "URGENT_ALT": NotificationDesign(
-        _("Urgent alternative"),
-        _("Highlight for pre-launch messaging."),
-        "notification-urgent-alt",
+    "BRAND": NotificationDesign(
+        _("Brand"),
+        _("Solid alpine-red block with white text — the boldest look."),
+        "notification-brand",
     ),
 }
 

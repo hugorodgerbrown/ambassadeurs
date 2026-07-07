@@ -153,7 +153,7 @@ def _make_notification(
     content: str,
     *,
     audience: str,
-    priority: int = Notification.Priority.NORMAL,
+    design: str = "NOTICE",
     enabled: bool = True,
     is_dismissible: bool = True,
     starts_at: datetime | None = None,
@@ -170,7 +170,8 @@ def _make_notification(
     Args:
         content: Raw HTML/plain text (already marker-prefixed by the caller).
         audience: Notification.Audience value.
-        priority: Notification.Priority value (drives the strip colour).
+        design: Key into settings.NOTIFICATION_DESIGNS (drives the strip's
+            look; VERB-123).
         enabled: Whether the kill switch is on; a disabled notification never
             shows regardless of its window.
         is_dismissible: Whether the banner shows a dismiss control.
@@ -190,7 +191,7 @@ def _make_notification(
     return NotificationFactory.create(
         content=content,
         audience=audience,
-        priority=priority,
+        design=design,
         enabled=enabled,
         is_dismissible=is_dismissible,
         starts_at=starts_at,
@@ -814,8 +815,9 @@ class Command(BaseCommand):
         """Create a sentinel set of notifications covering every variant.
 
         One notification per axis a developer needs to eyeball: audience
-        (everyone / anonymous / authenticated / custom groups), every priority
-        colour (neutral / low / normal / high), dismissible vs permanent, the
+        (everyone / anonymous / authenticated / custom groups), every seed
+        design (info / muted / notice / urgent — see
+        settings.NOTIFICATION_DESIGNS), dismissible vs permanent, the
         ``enabled`` kill switch, an HTML/link body, a body carrying a
         ``<script>`` to show the sanitiser strips it, and future/past display
         windows (present in admin but not currently rendered). Every content
@@ -823,12 +825,11 @@ class Command(BaseCommand):
         can reclaim them.
 
         Returns:
-            List of dicts with keys ``audience``, ``priority``,
+            List of dicts with keys ``audience``, ``design``,
             ``dismissible``, ``state``, ``content`` for printing.
         """
         now = timezone.now()
         m = SEED_NOTIFICATION_MARKER
-        prio = Notification.Priority
 
         # (notification, human "state" label for the summary table).
         specs: list[tuple[Notification, str]] = [
@@ -836,7 +837,7 @@ class Command(BaseCommand):
                 _make_notification(
                     f"{m} Last day to register — closes tonight.",
                     audience=Notification.Audience.EVERYONE,
-                    priority=prio.HIGH,
+                    design="URGENT",
                 ),
                 "active",
             ),
@@ -853,7 +854,7 @@ class Command(BaseCommand):
                     f"{m} Register before <strong>31 October</strong> for free — "
                     '<a href="/how-it-works/">read more</a>.',
                     audience=Notification.Audience.EVERYONE,
-                    priority=prio.LOW,
+                    design="MUTED",
                 ),
                 "active",
             ),
@@ -862,7 +863,7 @@ class Command(BaseCommand):
                     f"{m} Sanitiser check: <em>this stays</em>, "
                     "<script>alert(1)</script> is stripped.",
                     audience=Notification.Audience.EVERYONE,
-                    priority=prio.NEUTRAL,
+                    design="INFO",
                 ),
                 "active",
             ),
@@ -871,7 +872,7 @@ class Command(BaseCommand):
                     f"{m} You are browsing as a guest — sign in to manage your "
                     "registration.",
                     audience=Notification.Audience.ANONYMOUS,
-                    priority=prio.LOW,
+                    design="MUTED",
                 ),
                 "active",
             ),
@@ -879,7 +880,7 @@ class Command(BaseCommand):
                 _make_notification(
                     f"{m} Signed in: your account page shows your match status.",
                     audience=Notification.Audience.AUTHENTICATED,
-                    priority=prio.LOW,
+                    design="MUTED",
                 ),
                 "active",
             ),
@@ -919,7 +920,7 @@ class Command(BaseCommand):
                 _make_notification(
                     f"{m} Disabled example — hidden by the kill switch.",
                     audience=Notification.Audience.EVERYONE,
-                    priority=prio.HIGH,
+                    design="URGENT",
                     enabled=False,
                 ),
                 "disabled (kill switch)",
@@ -929,7 +930,7 @@ class Command(BaseCommand):
         return [
             {
                 "audience": n.audience,
-                "priority": n.get_priority_display(),
+                "design": n.design,
                 "dismissible": "yes" if n.is_dismissible else "no",
                 "state": state,
                 "content": n.content,
@@ -993,7 +994,7 @@ class Command(BaseCommand):
 
         Args:
             rows: List of dicts from _create_notifications with keys
-                  ``audience``, ``priority``, ``dismissible``, ``state``,
+                  ``audience``, ``design``, ``dismissible``, ``state``,
                   ``content``.
         """
         self.stdout.write(self.style.SUCCESS("Notifications seeded."))
@@ -1008,14 +1009,14 @@ class Command(BaseCommand):
         ]
 
         col_aud = max(len("Audience"), *(len(r["audience"]) for r in rows))
-        col_prio = max(len("Priority"), *(len(r["priority"]) for r in rows))
+        col_design = max(len("Design"), *(len(r["design"]) for r in rows))
         col_dis = len("Dismissible")
         col_state = max(len("State"), *(len(r["state"]) for r in rows))
         col_prev = max(len("Content"), *(len(p) for p in previews))
 
         header = (
             f"{'Audience':<{col_aud}}  "
-            f"{'Priority':<{col_prio}}  "
+            f"{'Design':<{col_design}}  "
             f"{'Dismissible':<{col_dis}}  "
             f"{'State':<{col_state}}  "
             f"{'Content':<{col_prev}}"
@@ -1027,7 +1028,7 @@ class Command(BaseCommand):
         for row, preview in zip(rows, previews, strict=True):
             self.stdout.write(
                 f"{row['audience']:<{col_aud}}  "
-                f"{row['priority']:<{col_prio}}  "
+                f"{row['design']:<{col_design}}  "
                 f"{row['dismissible']:<{col_dis}}  "
                 f"{row['state']:<{col_state}}  "
                 f"{preview:<{col_prev}}"

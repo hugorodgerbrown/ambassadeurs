@@ -156,8 +156,34 @@ def test_notification_form_everyone_with_design_and_weight_is_valid() -> None:
 
 @override_settings(CUSTOM_NOTIFICATION_GROUPS=_CUSTOM_GROUPS)
 def test_notification_form_unknown_design_is_invalid() -> None:
-    """A design value absent from settings.NOTIFICATION_DESIGNS is rejected."""
+    """A design value absent from settings.NOTIFICATION_DESIGNS is rejected.
+
+    The ChoiceField widget itself already rejects a key outside its
+    settings-derived choices, so this exercises that first layer of defence.
+    """
     form = NotificationForm(data=_form_data(design="not-a-real-design"))
+    assert not form.is_valid()
+    assert "design" in form.errors
+
+
+@override_settings(CUSTOM_NOTIFICATION_GROUPS=_CUSTOM_GROUPS)
+def test_notification_form_clean_rejects_design_bypassing_widget_choices() -> None:
+    """clean() itself rejects an unconfigured design even if the widget allowed it.
+
+    Defence-in-depth: simulates a stale/tampered value that bypassed the
+    ChoiceField widget (e.g. a design removed from settings after the form
+    was rendered), proving core.admin.NotificationForm.clean()'s own
+    membership check — not just the widget — enforces the invariant.
+    """
+    form = NotificationForm(data=_form_data(design="NOTICE"))
+    # Widen the widget's choices after construction so "stale-design" passes
+    # ChoiceField validation and clean() is left to reject it.
+    cast(forms.ChoiceField, form.fields["design"]).choices = [
+        ("stale-design", "stale-design"),
+    ]
+    form.data = form.data.copy()
+    form.data["design"] = "stale-design"
+
     assert not form.is_valid()
     assert "design" in form.errors
 

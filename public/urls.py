@@ -10,18 +10,21 @@ app_name = "public"
 
 urlpatterns = [
     path("", views.home, name="home"),
-    # Combined single-step registration flow (VERB-24).
+    # Two-step registration flow (VERB-131): a role chooser followed by a
+    # role-hardwired form. "register/" is a small back-compat redirect (kept
+    # under the "register" name so every existing {% url 'public:register' %}
+    # link keeps working); it lands on the chooser unless a valid ?role= is
+    # present, in which case it forwards straight to that role's form.
+    #
+    # Ordering matters: every static "register/..." route must be declared
+    # before the "register/<slug:role>/" catch-all so it is not shadowed.
     path("register/", views.register, name="register"),
+    path("register/role/", views.register_role, name="register_role"),
     path("register/sent/", views.register_email_sent, name="register_email_sent"),
     path(
         "register/confirm/<str:token>/",
         views.register_confirm,
         name="register_confirm",
-    ),
-    path(
-        "register/details/form/",
-        views.register_details_form,
-        name="register_details_form",
     ),
     # NB: the survey submit route must be declared before the <slug:role>
     # pattern below — otherwise "survey" matches as a role slug first and
@@ -49,6 +52,9 @@ urlpatterns = [
         views.register_payment_cancelled,
         name="register_payment_cancelled",
     ),
+    # The role-hardwired form itself — declared LAST among the "register/..."
+    # routes so it does not shadow any of the static routes above.
+    path("register/<slug:role>/", views.register_form, name="register_form"),
     # Standalone tip (voluntary contribution) page (VERB-110) — built in
     # isolation, not yet mounted in any journey; not linked from any nav.
     path("tip/", views.tip_page, name="tip_page"),

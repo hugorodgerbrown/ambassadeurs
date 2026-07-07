@@ -1,12 +1,21 @@
-# Public-facing views: the landing page, the single-step registration flow
-# (VERB-24), and the match accept/decline/report-no-show flow (VERB-19/VERB-21).
+# Public-facing views: the landing page, the two-step registration flow
+# (VERB-24, split into a chooser + role-hardwired forms by VERB-131), and the
+# match accept/decline/report-no-show flow (VERB-19/VERB-21).
 #
-# Registration flow (VERB-24): the homepage role buttons open a combined form
-# directly — no login required. The form includes an email field. On submit,
-# a Registration is created with status UNVERIFIED and a signed confirmation
-# link is emailed. Clicking the link transitions UNVERIFIED → VERIFIED, triggers
-# matching, logs the user in, and redirects to register_done. allauth has been
-# removed (VERB-46); login uses Django's ModelBackend directly.
+# Registration flow (VERB-131): registration is a two-step journey. Step one,
+# register_role, asks a single yes/no eligibility question and links to the
+# matching role form — no login required. Step two, register_form, is a
+# role-hardwired form (deep-linkable at /register/<role>/, no in-page role
+# toggle) that carries a hidden role field; the view treats the URL's role
+# kwarg as authoritative and 404s on any mismatch with the posted value. The
+# bare register view is kept, under its original name, purely as a redirect
+# that preserves every existing {% url 'public:register' %} link: it forwards
+# a recognised ?role= straight to that role's form, and anything else to the
+# chooser. The form includes an email field. On submit, a Registration is
+# created with status UNVERIFIED and a signed confirmation link is emailed.
+# Clicking the link transitions UNVERIFIED → VERIFIED, triggers matching, logs
+# the user in, and redirects to register_done. allauth has been removed
+# (VERB-46); login uses Django's ModelBackend directly.
 #
 # Match flow (VERB-19): a signed email link carries the participant to
 # /match/<token>/ where they can accept or decline. No @login_required — the
@@ -61,10 +70,10 @@
 # (which carries no "purpose" key) unchanged.
 #
 # Page access permissions (VERB-115): an already-registered, logged-in user
-# hitting either enrolment surface — register (GET/POST) or
-# register_details_form (HTMX partial) — receives a plain 403
-# (register_forbidden.html) instead of a locked/disabled form. This replaces
-# the earlier locked-form and defensive-authenticated-POST behaviour.
+# hitting either enrolment surface — register_role (GET) or register_form
+# (GET/POST) — receives a plain 403 (register_forbidden.html) instead of a
+# locked/disabled form. This replaces the earlier locked-form and defensive-
+# authenticated-POST behaviour.
 #
 # PostHog analytics (VERB-124): download_application_form fires a best-effort
 # form_downloaded event; the anonymous registration success path in register()
@@ -211,17 +220,55 @@ def service_worker(request: HttpRequest) -> HttpResponse:
     return HttpResponse(_SERVICE_WORKER_BODY, content_type="application/javascript")
 
 
+def register(request: HttpRequest) -> HttpResponse:
+    """Back-compat redirect preserving every existing ``public:register`` link.
+
+    A recognised ``?role=`` forwards straight to that role's hardwired form
+    (``register_form``); anything else — including no ``?role=`` at all —
+    redirects to the chooser (``register_role``). Carries no form logic of its
+    own; the two destination views apply their own already-registered guard.
+    """
+    role_slug = request.GET.get("role")
+    role_value = ROLE_BY_SLUG.get(role_slug) if role_slug is not None else None
+    if role_value is not None:
+        return redirect("public:register_form", role=role_slug)
+    return redirect("public:register_role")
+
+
+def register_role(request: HttpRequest) -> HttpResponse:
+    """Render the role chooser — the first step of registration (VERB-131).
+
+    Asks a single yes/no eligibility question ("Have you had a 4 Vallées
+    season pass in the last two years?"); each answer links to the matching
+    role's hardwired form. FAQ / "how do I know my role?" copy links here.
+
+    An already-registered, logged-in user (any Registration status) receives
+    a 403 (``register_forbidden.html``) instead of the chooser — they have
+    already enrolled (VERB-115).
+    """
+    if not is_registration_open():
+        return render(request, "public/register_closed.html")
+
+    already_registered = _authenticated_registration(request)
+    if already_registered is not None:
+        return render(request, "public/register_forbidden.html", status=403)
+
+    return render(request, "public/register_role.html")
+
+
 @ratelimit(key="ip", rate="30/h", method="POST", block=False)  # type: ignore[untyped-decorator]  # django-ratelimit has no type stubs
 @ratelimit(key="post:email", rate="5/h", method="POST", block=False)  # type: ignore[untyped-decorator]  # django-ratelimit has no type stubs
-def register(request: HttpRequest) -> HttpResponse:
-    """Combined registration form — no login required.
+def register_form(request: HttpRequest, role: str) -> HttpResponse:
+    """Role-hardwired registration form — no login required (VERB-131).
 
-    GET: render the form themed for ``?role=``. Absent or unrecognised
-        ``?role=`` renders a neutral state — muted palette, closed role
-        selector, disabled form — prompting the visitor to choose a role.
+    GET: render the form themed for the URL's ``role`` slug. Unknown role
+        404s.
     POST (anonymous): validate, create an UNVERIFIED registration (or resend if
         one already exists for the email), send a confirmation email, redirect
-        to ``register_email_sent``.
+        to ``register_email_sent``. The form carries a hidden ``role`` field
+        that mirrors the URL; the URL is authoritative — a POST whose hidden
+        ``role`` does not match the URL kwarg 404s, closing the tampered-body
+        path (Invariant 2's spirit).
 
     An already-registered, logged-in user (any Registration status) hitting
     this view — GET or POST — receives a 403 (``register_forbidden.html``)
@@ -233,6 +280,10 @@ def register(request: HttpRequest) -> HttpResponse:
     from the POST param; an absent ``email`` field is treated as an empty
     string by django-ratelimit and does not trigger the per-email limit.
     """
+    role_value = ROLE_BY_SLUG.get(role)
+    if role_value is None:
+        raise Http404("Unknown registration role.")
+
     if not is_registration_open():
         return render(request, "public/register_closed.html")
 
@@ -240,38 +291,16 @@ def register(request: HttpRequest) -> HttpResponse:
     if already_registered is not None:
         return render(request, "public/register_forbidden.html", status=403)
 
-    role_slug = request.GET.get("role")
-    role_value = ROLE_BY_SLUG.get(role_slug) if role_slug is not None else None
-
     if request.method == "GET":
         # After is_authenticated, Django stubs narrow request.user to User.
         anon_user: User | None = request.user if request.user.is_authenticated else None
-
-        if role_value is None:
-            # Neutral state: no valid role chosen yet. Build the form for
-            # field shape only (role choice is arbitrary here) and disable it
-            # so nothing can be submitted before a role is picked.
-            form = RegistrationForm(role=Registration.Role.AMBASSADOR, user=anon_user)
-            for field in form.fields.values():
-                field.disabled = True
-            return render(
-                request,
-                "public/register_details.html",
-                {
-                    "form": form,
-                    "role": "",
-                    "role_value": None,
-                },
-            )
-
-        role_slug = SLUG_BY_ROLE[role_value]
         form = RegistrationForm(role=role_value, user=anon_user)
         return render(
             request,
             "public/register_details.html",
             {
                 "form": form,
-                "role": role_slug,
+                "role": role,
                 "role_value": role_value,
             },
         )
@@ -280,11 +309,11 @@ def register(request: HttpRequest) -> HttpResponse:
     if getattr(request, "limited", False):
         return rate_limited_response(request)
 
-    role_slug = request.POST.get("role", "")
-    post_role_value = ROLE_BY_SLUG.get(role_slug)
-    if post_role_value is None:
-        raise Http404("Unknown registration role.")
-    role_value = post_role_value
+    posted_role_slug = request.POST.get("role", "")
+    if posted_role_slug != role:
+        # The URL is authoritative — a mismatched (or missing) hidden role
+        # field means a tampered body, not a legitimate alternate submission.
+        raise Http404("Registration role does not match the submitted form.")
 
     # Resolve geolocation once, before the anon path, so the register_participant
     # call receives the caller's country and region. The raw IP is discarded
@@ -298,7 +327,7 @@ def register(request: HttpRequest) -> HttpResponse:
         return render(
             request,
             "public/register_details.html",
-            {"form": form, "role": role_slug, "role_value": role_value},
+            {"form": form, "role": role, "role_value": role_value},
         )
 
     data = form.cleaned_data
@@ -897,48 +926,6 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
             )
 
     return HttpResponse(status=200)
-
-
-@require_htmx
-def register_details_form(request: HttpRequest) -> HttpResponse:
-    """Return the themed registration surface for a role (HTMX, role swap).
-
-    Drives the yes/no eligibility question (VERB-131): answering "Yes" (held a
-    prior-season pass) resolves to the Ambassador role, "No" to the Referee
-    role, swapping the whole ``#reg-surface`` so the eyebrow, lead copy,
-    eligibility callout, form and submit button all re-tone to the derived role.
-
-    No login required for a first-time visitor. An already-registered,
-    logged-in user hitting this endpoint receives a full-page 403
-    (``register_forbidden.html``, no swap fragment) rather than a themed
-    surface — they have already enrolled (VERB-115). The ``@require_htmx``
-    guard (Invariant 7) is checked first, so a non-HTMX request still gets a
-    400 regardless of registration state.
-    """
-    if not is_registration_open():
-        raise Http404("Registration is closed.")
-    role = request.GET.get("role", "")
-    role_value = ROLE_BY_SLUG.get(role)
-    if role_value is None:
-        raise Http404("Unknown registration role.")
-
-    already_registered = _authenticated_registration(request)
-    if already_registered is not None:
-        return render(request, "public/register_forbidden.html", status=403)
-
-    # After is_authenticated, Django stubs narrow request.user to User.
-    htmx_user: User | None = request.user if request.user.is_authenticated else None
-    form = RegistrationForm(role=role_value, user=htmx_user)
-    return render(
-        request,
-        "public/partials/register_surface.html",
-        {
-            "form": form,
-            "role": role,
-            "role_value": role_value,
-            "is_htmx": True,
-        },
-    )
 
 
 # ---------------------------------------------------------------------------

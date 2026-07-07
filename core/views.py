@@ -31,8 +31,13 @@ def robots_txt(request: HttpRequest) -> HttpResponse:
     """Serve /robots.txt as plain text.
 
     Allows all public content pages (home, how-it-works, faq, legal) and
-    disallows authenticated / partial routes so crawlers do not index private
-    or machine-facing endpoints.
+    disallows authenticated / partial routes, plus transactional pages that
+    set no meta description and have no standalone search value, so crawlers
+    do not index private or machine-facing endpoints.
+
+    Disallow (rather than a ``noindex`` meta tag) is the deliberate mechanism
+    for these paths, consistent with the existing entries: a Disallow'd URL
+    is never crawled, so a ``noindex`` meta on it would never be read anyway.
 
     The Sitemap line uses ``request.build_absolute_uri`` so the host is always
     correct regardless of the deployment environment.
@@ -51,6 +56,10 @@ def robots_txt(request: HttpRequest) -> HttpResponse:
         "Disallow: /admin/\n"
         "Disallow: /match/\n"
         "Disallow: /register/confirm/\n"
+        "Disallow: /register/sent/\n"
+        "Disallow: /register/done/\n"
+        "Disallow: /register/pay/\n"
+        "Disallow: /tip/\n"
         f"Sitemap: {sitemap_url}\n"
     )
     return HttpResponse(body, content_type="text/plain")

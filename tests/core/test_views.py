@@ -56,6 +56,38 @@ def test_robots_txt_disallows_register_confirm() -> None:
 
 
 @pytest.mark.django_db
+def test_robots_txt_disallows_register_sent() -> None:
+    """The robots.txt body contains a Disallow directive for /register/sent/."""
+    client = Client()
+    response = client.get("/robots.txt")
+    assert b"Disallow: /register/sent/" in response.content
+
+
+@pytest.mark.django_db
+def test_robots_txt_disallows_register_done() -> None:
+    """The robots.txt body contains a Disallow directive for /register/done/."""
+    client = Client()
+    response = client.get("/robots.txt")
+    assert b"Disallow: /register/done/" in response.content
+
+
+@pytest.mark.django_db
+def test_robots_txt_disallows_register_pay() -> None:
+    """The robots.txt body contains a Disallow directive for /register/pay/."""
+    client = Client()
+    response = client.get("/robots.txt")
+    assert b"Disallow: /register/pay/" in response.content
+
+
+@pytest.mark.django_db
+def test_robots_txt_disallows_tip() -> None:
+    """The robots.txt body contains a Disallow directive for /tip/."""
+    client = Client()
+    response = client.get("/robots.txt")
+    assert b"Disallow: /tip/" in response.content
+
+
+@pytest.mark.django_db
 def test_robots_txt_sitemap_line() -> None:
     """The robots.txt body contains a Sitemap line ending with /sitemap.xml."""
     client = Client()

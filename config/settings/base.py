@@ -8,10 +8,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from csp.constants import NONCE, NONE, SELF
 from decouple import config
+from django.utils.translation import gettext_lazy as _
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -254,6 +255,70 @@ def _referees() -> QuerySet[Any]:
 CUSTOM_NOTIFICATION_GROUPS: dict[str, Callable[[], QuerySet[Any]]] = {
     "ambassadors": _ambassadors,
     "referees": _referees,
+}
+
+# --- Notification designs (VERB-123) ---------------------------------------
+# NOTIFICATION_DESIGNS backs Notification.design: each key is a free-form
+# string validated against this dict in core.admin.NotificationForm.clean()
+# (never a model-level `choices=`, since Django evaluates those at import
+# time, before settings are guaranteed configured — mirrors the
+# CUSTOM_NOTIFICATION_GROUPS precedent above). Editing this dict is a code
+# change, not a UI feature: adding, renaming, or removing a design is a
+# settings edit with no model/migration change, and staff pick a design from
+# the admin dropdown it populates. label/description are staff-facing copy
+# (translated); css_classes/css_styles are developer-authored CSS injected
+# verbatim into the banner's class="…"/style="…" attributes — not display
+# copy, so they are not wrapped for translation.
+
+
+class NotificationDesign(NamedTuple):
+    """One selectable look for the notification strip banner.
+
+    ``css_classes`` is injected into the banner's ``class="…"`` attribute and
+    ``css_styles`` into its ``style="…"`` attribute (see
+    ``templates/includes/notification_strip.html``). Both are plain strings
+    authored by developers, not by end users, so Django's normal
+    auto-escaping when rendering them is sufficient (Invariant 4 is not
+    implicated).
+    """
+
+    label: str
+    description: str
+    css_classes: str
+    css_styles: str
+
+
+# The four seed entries reproduce the four looks previously hard-coded as
+# Notification.Priority (NEUTRAL/LOW/NORMAL/HIGH) and
+# .notification-banner[data-priority="…"] in src/css/main.css. Historical
+# priority -> design key mapping (see the core.migrations data migration
+# that ports existing rows): 0 NEUTRAL -> INFO, 1 LOW -> MUTED,
+# 2 NORMAL -> NOTICE, 3 HIGH -> URGENT.
+NOTIFICATION_DESIGNS: dict[str, NotificationDesign] = {
+    "INFO": NotificationDesign(
+        _("Info"),
+        _("Calm, neutral tone for routine announcements."),
+        "",
+        "background: var(--color-surface-2); color: var(--color-body);",
+    ),
+    "MUTED": NotificationDesign(
+        _("Muted"),
+        _("Low-key tone for background/secondary information."),
+        "",
+        "background: var(--color-secondary-tint); color: var(--color-secondary-ink);",
+    ),
+    "NOTICE": NotificationDesign(
+        _("Notice"),
+        _("Standard tone for notices worth a second look."),
+        "",
+        "background: var(--color-notice-tint); color: var(--color-notice-ink);",
+    ),
+    "URGENT": NotificationDesign(
+        _("Urgent"),
+        _("Attention-grabbing tone for urgent/critical notices."),
+        "",
+        "background: var(--color-danger-tint); color: var(--color-danger-ink);",
+    ),
 }
 
 # --- Logging --------------------------------------------------------------

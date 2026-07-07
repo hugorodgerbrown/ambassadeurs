@@ -1,12 +1,13 @@
 # Tests for the matching service functions.
 
 from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 
 import pytest
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import mail
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
@@ -713,6 +714,138 @@ def test_register_participant_existing_user_matching_names_no_update() -> None:
     # Should not raise; user is unchanged.
     user.refresh_from_db()
     assert user.first_name == "Ada"
+
+
+# ---------------------------------------------------------------------------
+# Analytics events (VERB-124)
+# ---------------------------------------------------------------------------
+
+
+def test_register_participant_fires_registration_event() -> None:
+    """register_participant sends a 'registration' event with role/status/prior_pass.
+
+    Deferred via transaction.on_commit — captureOnCommitCallbacks(execute=True)
+    runs it here, mirroring the notification-email assertions elsewhere in
+    this module.
+    """
+    with (
+        patch("matching.services.capture_event") as mock_capture,
+        TestCase.captureOnCommitCallbacks(execute=True),
+    ):
+        registration = register_participant(
+            role=Registration.Role.AMBASSADOR,
+            first_name="Ada",
+            last_name="Lovelace",
+            email="ada-analytics@example.com",
+            prior_pass=Registration.PriorPass.SEASONAL,
+            accepted_terms=_AMBASSADOR_STATEMENTS,
+        )
+
+    mock_capture.assert_called_once_with(
+        str(registration.user.pk),
+        "registration",
+        {
+            "role": Registration.Role.AMBASSADOR,
+            "prior_pass": Registration.PriorPass.SEASONAL,
+            "status": Registration.Status.VERIFIED,
+        },
+    )
+    # No PII (email/phone) in the event payload.
+    _, _, properties = mock_capture.call_args[0]
+    assert "ada-analytics@example.com" not in str(properties)
+
+
+def test_register_participant_does_not_fire_event_on_rollback() -> None:
+    """A rolled-back registration attempt never sends the analytics event."""
+    with (
+        patch("matching.services.capture_event") as mock_capture,
+        pytest.raises(IntegrityError),
+        transaction.atomic(),
+    ):
+        register_participant(
+            role=Registration.Role.AMBASSADOR,
+            first_name="Ada",
+            last_name="Lovelace",
+            email="ada-rollback@example.com",
+            prior_pass=Registration.PriorPass.SEASONAL,
+            accepted_terms=_AMBASSADOR_STATEMENTS,
+        )
+        # Force a rollback by violating the OneToOne constraint on Registration.
+        Registration.objects.create(
+            user=User.objects.get(email="ada-rollback@example.com"),
+            role=Registration.Role.REFEREE,
+            prior_pass=Registration.PriorPass.NONE,
+        )
+
+    mock_capture.assert_not_called()
+
+
+def test_confirm_registration_fires_email_verified_event() -> None:
+    """confirm_registration sends an 'email_verified' event with the role."""
+    registration = RegistrationFactory.create(status=Registration.Status.UNVERIFIED)
+
+    with (
+        patch("matching.services.capture_event") as mock_capture,
+        TestCase.captureOnCommitCallbacks(execute=True),
+    ):
+        confirm_registration(registration)
+
+    mock_capture.assert_called_once_with(
+        str(registration.user.pk),
+        "email_verified",
+        {"role": registration.role},
+    )
+
+
+def test_confirm_registration_noop_does_not_fire_event() -> None:
+    """confirm_registration's no-op path (already VERIFIED) fires no event."""
+    registration = RegistrationFactory.create(status=Registration.Status.VERIFIED)
+
+    with (
+        patch("matching.services.capture_event") as mock_capture,
+        TestCase.captureOnCommitCallbacks(execute=True),
+    ):
+        confirm_registration(registration)
+
+    mock_capture.assert_not_called()
+
+
+def test_accept_match_fires_match_accepted_then_match_confirmed_events() -> None:
+    """The first accept fires match_accepted; the mutual accept fires match_confirmed.
+
+    No PII (email/phone) is present in either event's properties.
+    """
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    with patch("matching.side_effects.capture_event") as mock_capture:
+        with TestCase.captureOnCommitCallbacks(execute=True):
+            accept_match(match, ambassador_reg)
+
+    mock_capture.assert_called_once_with(
+        str(ambassador_reg.user.pk),
+        "match_accepted",
+        {"role": ambassador_reg.role},
+    )
+    mock_capture.reset_mock()
+
+    with patch("matching.side_effects.capture_event") as mock_capture:
+        with TestCase.captureOnCommitCallbacks(execute=True):
+            accept_match(match, referee_reg)
+
+    mock_capture.assert_called_once_with(
+        str(referee_reg.user.pk),
+        "match_confirmed",
+        {"role": referee_reg.role},
+    )
+    # No PII (email/phone) in the event payload.
+    _, _, properties = mock_capture.call_args[0]
+    assert ambassador_reg.user.email not in str(properties)
+    assert referee_reg.phone not in str(properties)
 
 
 def test_propose_match_skips_ineligible_referee() -> None:

@@ -13,7 +13,8 @@ import { Mailbox } from "./mail";
 
 export const ROUTES = {
   home: "/",
-  register: (role: "ambassador" | "referee") => `/register/?role=${role}`,
+  registerRole: "/register/role/",
+  register: (role: "ambassador" | "referee") => `/register/${role}/`,
   registerSent: "/register/sent/",
   howItWorks: "/how-it-works/",
   faq: "/faq/",

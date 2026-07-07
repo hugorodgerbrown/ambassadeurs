@@ -97,7 +97,7 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
                     {% translate "Find your season-pass match" %}
                 </h1>
                 <p class="lowbrow py-1 px-2 text-white/80">
-                    {% translate "Free for early registrations" %}
+                    {% translate "Free to use" %}
                 </p>
             </div>
             <div>
@@ -191,7 +191,7 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
                 <div>
                     <p class="mb-1 font-semibold text-ink">&rarr; {% translate "You accept" %}</p>
                     <p class="text-sm text-body">
-                        {% translate "Both sides confirm they're happy to share contact details." %}
+                        {% translate "Both sides confirm they're happy to proceed." %}
                     </p>
                 </div>
             </div>
@@ -200,7 +200,7 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
                     04
                 </div>
                 <div>
-                    <p class="mb-1 font-semibold text-ink">&larr; {% translate "We share contact details" %}</p>
+                    <p class="mb-1 font-semibold text-ink">&larr; {% translate "We reveal contact details" %}</p>
                     <p class="text-sm text-body">
                         {% translate "We only reveal contact details once both sides have agreed to do so." %}
                     </p>
@@ -240,8 +240,8 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
                 <h3 class="mb-3 text-h3 text-ink">{% translate "I'm an Ambassador" %}</h3>
                 <p class="mb-6 grow text-body">
                     {% blocktranslate trimmed %}
-                        You held a 4 Vallées seasonal or annual pass in a recent season and want to refer a new holder.
-                        You're the returning holder.
+                        You held a 4 Vallées seasonal or annual pass in one of the previous two seasons and want to
+                        refer a new holder. You're the returning holder.
                     {% endblocktranslate %}
                 </p>
                 <a href="{% url 'public:register' %}?role=ambassador" class="btn btn--primary btn--block">

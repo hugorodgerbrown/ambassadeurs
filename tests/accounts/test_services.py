@@ -14,7 +14,7 @@ import pytest
 import stripe
 from django.contrib.auth.models import User
 from django.core import mail
-from django.test import RequestFactory, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 
 from accounts.services import (
     delete_account,
@@ -445,17 +445,25 @@ def test_delete_account_admin_user_with_no_registration_deletes_cleanly(
 def test_delete_account_fires_account_deleted_event_with_role(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """delete_account sends an 'account_deleted' event with the registration's role."""
+    """delete_account sends an 'account_deleted' event with the registration's role.
+
+    Deferred via transaction.on_commit — captureOnCommitCallbacks(execute=True)
+    runs it here, mirroring the on-commit assertions elsewhere in the codebase.
+    """
     _mock_refund_create(monkeypatch)
     registration = RegistrationFactory.create()
     user = registration.user
     user_pk = user.pk
+    role = registration.role
 
-    with patch("accounts.services.capture_event") as mock_capture:
+    with (
+        patch("accounts.services.capture_event") as mock_capture,
+        TestCase.captureOnCommitCallbacks(execute=True),
+    ):
         delete_account(user)
 
     mock_capture.assert_called_once_with(
-        str(user_pk), "account_deleted", {"role": registration.role}
+        str(user_pk), "account_deleted", {"role": role}
     )
     # No PII (email) in the event payload.
     _, _, properties = mock_capture.call_args[0]
@@ -470,12 +478,30 @@ def test_delete_account_admin_with_no_registration_fires_event_with_none_role(
     user = UserFactory.create()
     user_pk = user.pk
 
-    with patch("accounts.services.capture_event") as mock_capture:
+    with (
+        patch("accounts.services.capture_event") as mock_capture,
+        TestCase.captureOnCommitCallbacks(execute=True),
+    ):
         delete_account(user)
 
     mock_capture.assert_called_once_with(
         str(user_pk), "account_deleted", {"role": None}
     )
+
+
+def test_delete_account_does_not_fire_event_before_commit() -> None:
+    """Without captureOnCommitCallbacks, the deferred event has not fired yet.
+
+    Pins the ghost-event fix: the event must be registered via
+    transaction.on_commit, not sent eagerly before the delete's atomic block.
+    """
+    registration = RegistrationFactory.create()
+    user = registration.user
+
+    with patch("accounts.services.capture_event") as mock_capture:
+        delete_account(user)
+
+    mock_capture.assert_not_called()
 
 
 def test_delete_account_refunds_exactly_once(

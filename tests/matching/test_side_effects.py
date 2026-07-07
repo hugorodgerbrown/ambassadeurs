@@ -9,6 +9,7 @@
 # label fires (or does not fire) — decoupled from the email body.
 
 from datetime import UTC, datetime
+from unittest.mock import patch
 
 import pytest
 from django.core import mail
@@ -31,6 +32,8 @@ from matching.side_effects import (
     MATCH_EXPIRED,
     MATCH_NO_SHOW,
     MATCH_PROPOSED,
+    track_match_accepted,
+    track_match_confirmed,
 )
 from tests.matching.factories import MatchFactory, RegistrationFactory
 
@@ -90,6 +93,64 @@ def test_record_acceptance_second_accept_fires_match_accepted() -> None:
         record_acceptance(match, match.referee_registration)
 
     assert events == [MATCH_ACCEPTED]
+
+
+# ---------------------------------------------------------------------------
+# track_match_accepted / track_match_confirmed guard clauses (VERB-124)
+#
+# Called directly (not via record_acceptance) so each handler's own
+# match.status guard is pinned in isolation, independent of the dispatch
+# wiring already covered above and the end-to-end happy path covered in
+# tests/matching/test_services.py.
+# ---------------------------------------------------------------------------
+
+
+def test_track_match_accepted_noops_when_match_is_accepted() -> None:
+    """track_match_accepted only fires on PENDING; ACCEPTED is a no-op."""
+    match = MatchFactory.create(accepted=True)
+
+    with patch("matching.side_effects.capture_event") as mock_capture:
+        track_match_accepted(match, match.ambassador_registration)
+
+    mock_capture.assert_not_called()
+
+
+def test_track_match_accepted_fires_when_match_is_pending() -> None:
+    """track_match_accepted fires on the PENDING (first-accept) status."""
+    match = MatchFactory.create(pending=True)
+
+    with patch("matching.side_effects.capture_event") as mock_capture:
+        track_match_accepted(match, match.ambassador_registration)
+
+    mock_capture.assert_called_once_with(
+        str(match.ambassador_registration.user.pk),
+        "match_accepted",
+        {"role": match.ambassador_registration.role},
+    )
+
+
+def test_track_match_confirmed_noops_when_match_is_pending() -> None:
+    """track_match_confirmed only fires on ACCEPTED; PENDING is a no-op."""
+    match = MatchFactory.create(pending=True)
+
+    with patch("matching.side_effects.capture_event") as mock_capture:
+        track_match_confirmed(match, match.referee_registration)
+
+    mock_capture.assert_not_called()
+
+
+def test_track_match_confirmed_fires_when_match_is_accepted() -> None:
+    """track_match_confirmed fires on the ACCEPTED (mutual-accept) status."""
+    match = MatchFactory.create(accepted=True)
+
+    with patch("matching.side_effects.capture_event") as mock_capture:
+        track_match_confirmed(match, match.referee_registration)
+
+    mock_capture.assert_called_once_with(
+        str(match.referee_registration.user.pk),
+        "match_confirmed",
+        {"role": match.referee_registration.role},
+    )
 
 
 def test_record_decline_fires_match_declined() -> None:

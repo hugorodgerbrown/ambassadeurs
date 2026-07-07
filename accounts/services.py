@@ -21,7 +21,9 @@
 # guard naturally gives the "no refund for accepted/suspended" behaviour.
 #
 # delete_account also fires a best-effort ``account_deleted`` analytics event
-# (VERB-124) before the user is deleted (core.observability.capture_event).
+# (VERB-124), deferred to transaction.on_commit inside the delete's atomic
+# block (core.observability.capture_event) so a failed delete never sends a
+# ghost event.
 
 from __future__ import annotations
 
@@ -214,8 +216,11 @@ def delete_account(user: User) -> None:
     benign race, since the money is already on its way back; we log it and
     proceed with deletion rather than 500 the user (who is mid-logout).
 
-    The ``account_deleted`` analytics event (VERB-124) is sent before deletion,
-    while ``registration`` is still available for a ``role`` property — a
+    The ``account_deleted`` analytics event (VERB-124) is captured into a
+    local before the ``role`` (read from ``registration``, still available
+    here) is gone, then deferred to ``transaction.on_commit`` inside the
+    atomic block — the same deferral pattern used for ``registration`` /
+    ``email_verified`` — so a failed delete does not send a ghost event. A
     user with no registration (e.g. an admin) is tracked with ``role=None``.
     """
     user_pk = user.pk
@@ -232,11 +237,10 @@ def delete_account(user: User) -> None:
                     deposit.pk,
                     user_pk,
                 )
-    capture_event(
-        str(user_pk),
-        "account_deleted",
-        {"role": registration.role if registration is not None else None},
-    )
+    role = registration.role if registration is not None else None
     with transaction.atomic():
         user.delete()
+        transaction.on_commit(
+            lambda: capture_event(str(user_pk), "account_deleted", {"role": role})
+        )
     logger.info("Deleted account for user pk=%s", user_pk)

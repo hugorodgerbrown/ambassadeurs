@@ -299,15 +299,17 @@ def track_match_accepted(
 
     No-ops unless ``match.status`` is PENDING (one-sided accept) — the mutual-
     accept case is tracked as ``match_confirmed`` below. ``registration`` is
-    the accepting party. No PII (email/phone) in the event properties —
-    role/side only (VERB-124).
+    the accepting party; its ``role`` is read directly (no ``match.side_of``
+    lookup, which would raise if ``registration`` were ever not a party on the
+    match — every other handler in this module is fault-tolerant, so this one
+    should be too). No PII (email/phone) in the event properties (VERB-124).
     """
     if match.status != Match.Status.PENDING:
         return
     capture_event(
         str(registration.user.pk),
         "match_accepted",
-        {"role": registration.role, "side": match.side_of(registration)},
+        {"role": registration.role},
     )
 
 
@@ -318,15 +320,16 @@ def track_match_confirmed(
     """Send the ``match_confirmed`` analytics event on mutual accept.
 
     No-ops unless ``match.status`` is ACCEPTED. ``registration`` is the acting
-    party (the second side to accept). No PII (email/phone) in the event
-    properties — role/side only (VERB-124).
+    party (the second side to accept); its ``role`` is read directly (no
+    ``match.side_of`` lookup — see ``track_match_accepted``). No PII
+    (email/phone) in the event properties (VERB-124).
     """
     if match.status != Match.Status.ACCEPTED:
         return
     capture_event(
         str(registration.user.pk),
         "match_confirmed",
-        {"role": registration.role, "side": match.side_of(registration)},
+        {"role": registration.role},
     )
 
 

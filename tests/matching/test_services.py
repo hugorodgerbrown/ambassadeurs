@@ -829,7 +829,7 @@ def test_accept_match_fires_match_accepted_then_match_confirmed_events() -> None
     mock_capture.assert_called_once_with(
         str(ambassador_reg.user.pk),
         "match_accepted",
-        {"role": ambassador_reg.role, "side": Match.Side.AMBASSADOR},
+        {"role": ambassador_reg.role},
     )
     mock_capture.reset_mock()
 
@@ -840,7 +840,7 @@ def test_accept_match_fires_match_accepted_then_match_confirmed_events() -> None
     mock_capture.assert_called_once_with(
         str(referee_reg.user.pk),
         "match_confirmed",
-        {"role": referee_reg.role, "side": Match.Side.REFEREE},
+        {"role": referee_reg.role},
     )
     # No PII (email/phone) in the event payload.
     _, _, properties = mock_capture.call_args[0]

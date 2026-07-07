@@ -172,8 +172,8 @@ def test_notification_str_delegates_to_to_string() -> None:
     assert str(notification) == notification.to_string()
 
 
-def test_notification_default_ordering_is_newest_first_within_priority() -> None:
-    """Equal-priority notifications fall back to -created_at (newest first)."""
+def test_notification_default_ordering_is_newest_first_within_weight() -> None:
+    """Equal-weight notifications fall back to -created_at (newest first)."""
     first = NotificationFactory.create()
     second = NotificationFactory.create()
     qs = list(Notification.objects.all())
@@ -181,42 +181,60 @@ def test_notification_default_ordering_is_newest_first_within_priority() -> None
     assert qs[1].pk == first.pk
 
 
-def test_notification_ordering_puts_higher_priority_first() -> None:
-    """Meta.ordering is -priority first: a HIGH sorts above an earlier NEUTRAL."""
-    neutral = NotificationFactory.create(priority=Notification.Priority.NEUTRAL)
-    high = NotificationFactory.create(priority=Notification.Priority.HIGH)
+def test_notification_ordering_puts_higher_weight_first() -> None:
+    """Meta.ordering is -weight first: weight=1 sorts above an earlier weight=0."""
+    low_weight = NotificationFactory.create(weight=0)
+    high_weight = NotificationFactory.create(weight=1)
     qs = list(Notification.objects.all())
-    # high was created second but outranks neutral on priority.
-    assert qs[0].pk == high.pk
-    assert qs[1].pk == neutral.pk
+    # high_weight was created second but outranks low_weight on weight.
+    assert qs[0].pk == high_weight.pk
+    assert qs[1].pk == low_weight.pk
 
 
 # ---------------------------------------------------------------------------
-# Notification.priority / enabled
+# Notification.design / weight / enabled
 # ---------------------------------------------------------------------------
 
+_TEST_DESIGNS = {
+    "INFO": mock.Mock(
+        label="Info",
+        description="Calm tone.",
+        css_classes="cls-info",
+        css_styles="color: blue;",
+    ),
+}
 
-def test_notification_priority_defaults_to_normal() -> None:
-    """A notification defaults to NORMAL priority."""
+
+def test_notification_design_defaults_to_notice() -> None:
+    """A notification defaults to the NOTICE design."""
     notification = NotificationFactory.create()
-    assert notification.priority == Notification.Priority.NORMAL
+    assert notification.design == "NOTICE"
 
 
-@pytest.mark.parametrize(
-    ("priority", "tone"),
-    [
-        (Notification.Priority.NEUTRAL, "neutral"),
-        (Notification.Priority.LOW, "low"),
-        (Notification.Priority.NORMAL, "normal"),
-        (Notification.Priority.HIGH, "high"),
-    ],
-)
-def test_notification_priority_tone_maps_priority_to_token(
-    priority: int, tone: str
-) -> None:
-    """priority_tone returns the CSS tone token for each priority."""
-    notification = NotificationFactory.create(priority=priority)
-    assert notification.priority_tone == tone
+def test_notification_weight_defaults_to_zero() -> None:
+    """A notification defaults to weight 0."""
+    notification = NotificationFactory.create()
+    assert notification.weight == 0
+
+
+@override_settings(NOTIFICATION_DESIGNS=_TEST_DESIGNS)
+def test_notification_design_accessors_return_configured_values() -> None:
+    """design_label/description/classes/styles look design up in settings."""
+    notification = NotificationFactory.create(design="INFO")
+    assert notification.design_label == "Info"
+    assert notification.design_description == "Calm tone."
+    assert notification.design_classes == "cls-info"
+    assert notification.design_styles == "color: blue;"
+
+
+@override_settings(NOTIFICATION_DESIGNS=_TEST_DESIGNS)
+def test_notification_design_accessors_fall_back_safely_for_unknown_key() -> None:
+    """An unknown design key returns empty strings rather than raising."""
+    notification = NotificationFactory.create(design="DOES-NOT-EXIST")
+    assert notification.design_label == ""
+    assert notification.design_description == ""
+    assert notification.design_classes == ""
+    assert notification.design_styles == ""
 
 
 def test_notification_enabled_defaults_true() -> None:

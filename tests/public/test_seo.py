@@ -12,6 +12,8 @@
 #   - register      (public:register)
 #   - legal/privacy (public:legal, page="privacy")
 
+import re
+
 import pytest
 from django.test import Client
 from django.urls import reverse
@@ -169,6 +171,21 @@ def test_legal_privacy_has_canonical_link() -> None:
     """The privacy-policy legal page emits a <link rel="canonical"> element."""
     content = _get(reverse("public:legal", kwargs={"page": "privacy"}))
     assert b'rel="canonical"' in content
+
+
+def test_register_canonical_link_strips_query_string() -> None:
+    """The canonical <link> for /register/?role=ambassador drops the query string.
+
+    VERB-128: the canonical URL must be path-only so /register/,
+    /register/?role=ambassador and /register/?role=referee all declare the
+    same canonical, rather than each self-declaring a distinct one.
+    """
+    content = _get(f"{reverse('public:register')}?role=ambassador").decode()
+    match = re.search(r'rel="canonical"\s+href="([^"]+)"', content, re.DOTALL)
+    assert match is not None
+    href = match.group(1)
+    assert href.endswith(reverse("public:register"))
+    assert "role=" not in href
 
 
 # ---------------------------------------------------------------------------

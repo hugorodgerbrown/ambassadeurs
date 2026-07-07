@@ -114,7 +114,7 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
                         {% endblocktranslate %}</em>
                 </p>
                 <div class="mb-2 flex flex-wrap gap-3">
-                    <a href="{% url 'public:register' %}" class="btn btn--primary">
+                    <a href="{% url 'public:register_role' %}" class="btn btn--primary">
                         {% translate "Get started" %}
                         <svg
                             width="17"
@@ -244,7 +244,7 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
                         You're the returning holder.
                     {% endblocktranslate %}
                 </p>
-                <a href="{% url 'public:register' %}?role=ambassador" class="btn btn--primary btn--block">
+                <a href="{% url 'public:register_form' role='ambassador' %}" class="btn btn--primary btn--block">
                     {% translate "Register as an Ambassador" %}
                     <svg
                         width="17"
@@ -286,7 +286,7 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
                         — and need an Ambassador to refer you.
                     {% endblocktranslate %}
                 </p>
-                <a href="{% url 'public:register' %}?role=referee" class="btn btn--secondary btn--block">
+                <a href="{% url 'public:register_form' role='referee' %}" class="btn btn--secondary btn--block">
                     {% translate "Register as a Referee" %}
                     <svg
                         width="17"

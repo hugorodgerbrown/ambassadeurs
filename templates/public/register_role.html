@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block page_title %}{% translate "Register" %}{% endblock %}
+
+{% block meta %}
+    {% blocktranslate trimmed asvar page_description %}
+        Register for the Ski Parrainage 4 Vallées Ambassadors partner-matching service.
+    {% endblocktranslate %}
+    {% blocktranslate trimmed asvar page_title %}
+        Register — Ski Parrainage
+    {% endblocktranslate %}
+    {% with meta_title=page_title meta_description=page_description %}
+        {% include "includes/_meta.html" %}
+    {% endwith %}
+{% endblock %}
+
+{% block topband %}
+    <div id="topband" class="role-theme role-theme--neutral">
+        <div class="role-band"></div>
+    </div>
+{% endblock %}
+
+{% block content %}
+    <section class="role-theme role-theme--neutral">
+        <p class="eyebrow mb-3 text-role">{% translate "Registration" %}</p>
+        <h1 class="mb-2 text-ink">{% translate "Register" %}</h1>
+        <p class="mb-6 text-lead text-body">
+            {% blocktranslate trimmed %}
+                Answer the question below to start your registration.
+            {% endblocktranslate %}
+        </p>
+
+        <div class="mb-6">
+            <p class="label mb-2">{% translate "Have you had a 4 Vallées season pass in the last two years?" %}</p>
+
+            <div class="overflow-hidden rounded-control border border-line-strong bg-surface">
+                <a
+                    href="{% url 'public:register_form' role='ambassador' %}"
+                    class="role-select__option"
+                >
+                    <span class="role-select__option-badge role-select__option-badge--amb">
+                        <svg
+                            width="17"
+                            height="17"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <circle cx="12" cy="12" r="9" />
+                            <path d="m8.5 12 2.5 2.5 4.5-5" />
+                        </svg>
+                    </span>
+                    <span class="role-select__option-body">
+                        <span class="role-select__option-title">
+                            {% translate "Yes - I had a season pass in 2024/25 or 2025/26" %}
+                        </span>
+                        <span class="role-select__option-desc">
+                            {% translate "You will be registered as an Ambassador." %}
+                        </span>
+                    </span>
+                </a>
+                <a
+                    href="{% url 'public:register_form' role='referee' %}"
+                    class="role-select__option"
+                >
+                    <span class="role-select__option-badge role-select__option-badge--ref">
+                        <svg
+                            width="17"
+                            height="17"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <circle cx="12" cy="12" r="9" />
+                            <path d="M12 8v8M8 12h8" />
+                        </svg>
+                    </span>
+                    <span class="role-select__option-body">
+                        <span class="role-select__option-title">
+                            {% translate "No - I did not have a season pass in either 2024/25 or 2025/26" %}
+                        </span>
+                        <span class="role-select__option-desc">
+                            {% translate "You will be registered as a Referee." %}
+                        </span>
+                    </span>
+                </a>
+            </div>
+        </div>
+
+        <p class="mt-5 text-center text-small text-meta">
+            {% translate "Independent project — not affiliated with the 4 Vallées pass operator." %}
+        </p>
+    </section>
+{% endblock %}

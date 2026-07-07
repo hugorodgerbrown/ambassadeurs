@@ -1738,6 +1738,35 @@ def test_how_it_works_link_in_footer() -> None:
     assert how_it_works_url in response.content
 
 
+# ---------------------------------------------------------------------------
+# Colophon page
+# ---------------------------------------------------------------------------
+
+
+def test_colophon_renders_for_anonymous_user() -> None:
+    """The colophon page returns 200 with the correct template (anonymous)."""
+    response = Client().get(reverse("public:colophon"))
+    assert response.status_code == 200
+    assert "public/colophon.html" in [t.name for t in response.templates]
+
+
+def test_colophon_lists_tech_stack() -> None:
+    """The colophon names the core frameworks, hosting, and fonts."""
+    response = Client().get(reverse("public:colophon"))
+    content = response.content
+    assert b"Django" in content
+    assert b"Tailwind CSS" in content
+    assert b"htmx" in content
+    assert b"Render" in content
+    assert b"Space Grotesk" in content
+
+
+def test_colophon_link_in_footer() -> None:
+    """The footer includes the colophon link."""
+    response = Client().get(reverse("public:colophon"))
+    assert reverse("public:colophon").encode() in response.content
+
+
 def test_footer_language_selector_renders_both_languages() -> None:
     """The footer language selector posts to set_language and offers EN and FR
     (VERB-48). The current language is marked with aria-current.

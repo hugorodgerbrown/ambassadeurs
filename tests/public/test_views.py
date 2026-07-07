@@ -145,16 +145,19 @@ def test_register_get_neutral_submit_button_disabled() -> None:
     assert re.search(r'<button[^>]*type="submit"[^>]*\bdisabled\b', content)
 
 
-def test_register_get_neutral_renders_eligibility_question_not_role_label() -> None:
-    """The neutral state asks the yes/no eligibility question, not a role picker."""
+def test_register_get_neutral_renders_eligibility_question_and_answers() -> None:
+    """The neutral state asks the prior-pass question with Yes/No answers.
+
+    The role selector is reframed (VERB-131) as a yes/no eligibility question —
+    Yes derives the Ambassador role, No the Referee — rendered in the existing
+    role-select dropdown.
+    """
     response = Client().get(reverse("public:register"))
     assert response.status_code == 200
     content = response.content.decode()
-    assert (
-        "Did you hold a season or annual pass with the 4 Vallées in 2024/25" in content
-    )
-    assert "Your role" not in content
-    assert "Select your role" not in content
+    assert "Have you had a recent season pass" in content
+    assert "Yes - I had a season pass in 2024/25 or 2025/26" in content
+    assert "No, I did not hold a season pass in 2024/25 or 2025/26" in content
 
 
 @override_settings(

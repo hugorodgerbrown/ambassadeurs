@@ -51,6 +51,17 @@ export const FIELD = {
   termsAccepted: "#id_terms_accepted",
 } as const;
 
+/**
+ * Role-chooser Y/N radios (register_role.html). The two season questions
+ * derive the role server-side: at least one "yes" → ambassador, both "no" →
+ * referee. Keyed by season + value; the native radios are visually hidden
+ * inside the segmented control, so callers check them with `{ force: true }`.
+ */
+export const CHOOSER = {
+  pass2024: (v: "yes" | "no") => `input[name="pass_2024_25"][value="${v}"]`,
+  pass2025: (v: "yes" | "no") => `input[name="pass_2025_26"][value="${v}"]`,
+} as const;
+
 /** Match-action forms, keyed on their `action` suffix. */
 export const ACTION = {
   accept: 'form[action$="/accept/"] button[type="submit"]',
@@ -98,9 +109,32 @@ async function selectFirstReal(page: Page, selector: string): Promise<void> {
 }
 
 /**
- * Fill and submit the registration form, then confirm via the emailed link so
- * the participant ends VERIFIED and in the pool. This is the real user path —
- * no debug shortcut.
+ * Walk the two-phase role chooser (register_role) and land on the role form.
+ *
+ * Phase one is the season-pass matrix: answer both Y/N questions so the server
+ * derives the role — at least one "yes" → ambassador, both "no" → referee —
+ * then submit. The submit is server-authoritative (Continue POSTs the two
+ * answers and the view derives + redirects), so there is no need to wait on the
+ * HTMX statement/button swap: clicking submit routes correctly either way.
+ * Asserts the resulting URL is that role's form.
+ */
+export async function chooseRole(
+  page: Page,
+  role: "ambassador" | "referee",
+): Promise<void> {
+  const [a2024, a2025] =
+    role === "ambassador" ? (["yes", "no"] as const) : (["no", "no"] as const);
+  await page.goto(ROUTES.registerRole);
+  await page.check(CHOOSER.pass2024(a2024), { force: true });
+  await page.check(CHOOSER.pass2025(a2025), { force: true });
+  await page.click('#role-derived button[type="submit"]');
+  await expect(page).toHaveURL(new RegExp(`/register/${role}/`));
+}
+
+/**
+ * Register through the real two-phase journey — chooser → role form → email
+ * confirmation — so the participant ends VERIFIED and in the pool. No debug
+ * shortcut.
  *
  * NOTE: following the confirmation link logs the user in (register_confirm calls
  * django.contrib.auth.login), so on return the `page` holds an authenticated
@@ -112,7 +146,7 @@ export async function registerVerified(
   mailbox: Mailbox,
   p: Participant,
 ): Promise<void> {
-  await page.goto(ROUTES.register(p.role));
+  await chooseRole(page, p.role);
   await page.fill(FIELD.firstName, p.firstName);
   await page.fill(FIELD.lastName, p.lastName);
   await page.fill(FIELD.email, p.email);

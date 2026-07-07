@@ -9,10 +9,12 @@ request's audience, enabled kill switch, and display window, and ordered
 highest priority first then newest.
 
 Each banner's look comes from its design (VERB-123): design_classes is
-appended to the banner's class, and design_styles is rendered as its inline
-style. Both are looked up from settings.NOTIFICATION_DESIGNS via the
-Notification model's design_classes/design_styles properties, so the set of
-available looks is a settings edit, not a template/model change.
+appended to the banner's class and names a component class defined in
+src/css/main.css. Looked up from settings.NOTIFICATION_DESIGNS via the
+Notification model's design_classes property, so the set of available looks
+is a settings edit, not a template/model change. Deliberately no inline
+style="…" — production's CSP style-src has no 'unsafe-inline', so an
+element-level style attribute would be silently dropped by the browser.
 
 Each notification's content_sanitised was sanitised once at save() via
 core.services.sanitise_notification_html (nh3 allow-list) — this is the one
@@ -32,7 +34,6 @@ hidden by this script.
             <div
                 data-notification-id="{{ notification.pk }}"
                 class="notification-banner flex items-center justify-between gap-4 px-4 py-2.5 text-sm sm:px-10 lg:px-16 {{ notification.design_classes }}"
-                style="{{ notification.design_styles }}"
             >
                 <div class="notification-banner__content">{{ notification.content_sanitised|safe }}</div>
                 {% if notification.is_dismissible %}

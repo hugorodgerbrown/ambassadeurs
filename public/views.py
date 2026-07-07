@@ -3,19 +3,26 @@
 # match accept/decline/report-no-show flow (VERB-19/VERB-21).
 #
 # Registration flow (VERB-131): registration is a two-step journey. Step one,
-# register_role, asks a single yes/no eligibility question and links to the
-# matching role form — no login required. Step two, register_form, is a
-# role-hardwired form (deep-linkable at /register/<role>/, no in-page role
-# toggle) that carries a hidden role field; the view treats the URL's role
-# kwarg as authoritative and 404s on any mismatch with the posted value. The
-# bare register view is kept, under its original name, purely as a redirect
-# that preserves every existing {% url 'public:register' %} link: it forwards
-# a recognised ?role= straight to that role's form, and anything else to the
-# chooser. The form includes an email field. On submit, a Registration is
-# created with status UNVERIFIED and a signed confirmation link is emailed.
-# Clicking the link transitions UNVERIFIED → VERIFIED, triggers matching, logs
-# the user in, and redirects to register_done. allauth has been removed
-# (VERB-46); login uses Django's ModelBackend directly.
+# register_role, is a two-question matrix chooser — "Did you have a 4 Vallées
+# season pass in 2024/25?" / "… in 2025/26?" — with a live "You will be
+# registering as …" statement (HTMX-refreshed via register_role_derive) and
+# an explicit Continue button. The two answers are transient, used only to
+# derive the role server-side (_derive_role_from_seasons: any yes → Ambassador,
+# both no → Referee); they are never persisted. Continue POSTs both answers
+# back to register_role, which re-derives and redirects to the matching
+# role's form — no login required, and the client never posts a role
+# directly. Step two, register_form, is a role-hardwired form (deep-linkable
+# at /register/<role>/, no in-page role toggle) that carries a hidden role
+# field; the view treats the URL's role kwarg as authoritative and 404s on
+# any mismatch with the posted value. The form includes an email field. On
+# submit, a Registration is created with status UNVERIFIED and a signed
+# confirmation link is emailed. Clicking the link transitions
+# UNVERIFIED → VERIFIED, triggers matching, logs the user in, and redirects
+# to register_done. allauth has been removed (VERB-46); login uses Django's
+# ModelBackend directly. The bare register view is kept, under its original
+# name, purely as a redirect that preserves every existing
+# {% url 'public:register' %} link: it forwards a recognised ?role= straight
+# to that role's form, and anything else to the chooser.
 #
 # Match flow (VERB-19): a signed email link carries the participant to
 # /match/<token>/ where they can accept or decline. No @login_required — the
@@ -235,16 +242,43 @@ def register(request: HttpRequest) -> HttpResponse:
     return redirect("public:register_role")
 
 
-def register_role(request: HttpRequest) -> HttpResponse:
-    """Render the role chooser — the first step of registration (VERB-131).
+def _derive_role_from_seasons(a: str, b: str) -> str | None:
+    """Derive the registration role slug from the two season pass answers.
 
-    Asks a single yes/no eligibility question ("Have you had a 4 Vallées
-    season pass in the last two years?"); each answer links to the matching
-    role's hardwired form. FAQ / "how do I know my role?" copy links here.
+    ``a`` and ``b`` are each expected to be ``"yes"`` or ``"no"`` (one per
+    recent season). Returns ``"ambassador"`` if either is ``"yes"``,
+    ``"referee"`` if both are ``"no"``, or ``None`` if either argument is
+    missing or holds an unrecognised value. This is the single source of the
+    routing rule, shared by ``register_role`` (POST) and
+    ``register_role_derive`` (the live-statement HTMX partial).
+    """
+    valid = {"yes", "no"}
+    if a not in valid or b not in valid:
+        return None
+    if a == "yes" or b == "yes":
+        return "ambassador"
+    return "referee"
+
+
+def register_role(request: HttpRequest) -> HttpResponse:
+    """Render or process the role chooser — step one of registration (VERB-131).
+
+    A two-question matrix ("Did you have a 4 Vallées season pass in 2024/25?"
+    / "… in 2025/26?"), each answered Y/N, with a live derived-role statement
+    and an explicit Continue button (no auto-navigation). The two answers are
+    transient — used only to derive the role for routing, never persisted.
+
+    GET: render the matrix form.
+    POST: read ``pass_2024_25`` and ``pass_2025_26``. If either is
+        missing/invalid, re-render the form (200) with a validation message
+        and no redirect. Otherwise derive the role via
+        ``_derive_role_from_seasons`` and redirect to that role's
+        ``register_form`` — the server derives the role; the client never
+        posts one directly (invariant 2's spirit).
 
     An already-registered, logged-in user (any Registration status) receives
-    a 403 (``register_forbidden.html``) instead of the chooser — they have
-    already enrolled (VERB-115).
+    a 403 (``register_forbidden.html``) instead of the chooser on either
+    method — they have already enrolled (VERB-115).
     """
     if not is_registration_open():
         return render(request, "public/register_closed.html")
@@ -253,7 +287,44 @@ def register_role(request: HttpRequest) -> HttpResponse:
     if already_registered is not None:
         return render(request, "public/register_forbidden.html", status=403)
 
+    if request.method == "POST":
+        pass_2024_25 = request.POST.get("pass_2024_25", "")
+        pass_2025_26 = request.POST.get("pass_2025_26", "")
+        role_slug = _derive_role_from_seasons(pass_2024_25, pass_2025_26)
+        if role_slug is None:
+            return render(
+                request,
+                "public/register_role.html",
+                {
+                    "error": True,
+                    "pass_2024_25": pass_2024_25,
+                    "pass_2025_26": pass_2025_26,
+                },
+            )
+        return redirect("public:register_form", role=role_slug)
+
     return render(request, "public/register_role.html")
+
+
+@require_htmx
+def register_role_derive(request: HttpRequest) -> HttpResponse:
+    """HTMX GET: render the live "You will be registering as …" statement.
+
+    Guarded by ``@require_htmx`` (Invariant 7). Reads ``pass_2024_25`` and
+    ``pass_2025_26`` from the query string, derives the role via
+    ``_derive_role_from_seasons``, and renders
+    ``public/partials/register_role_derived.html``. No side effects, no DB
+    writes — purely a presentational re-render of the chooser's live
+    statement as the visitor answers each question.
+    """
+    pass_2024_25 = request.GET.get("pass_2024_25", "")
+    pass_2025_26 = request.GET.get("pass_2025_26", "")
+    derived_role = _derive_role_from_seasons(pass_2024_25, pass_2025_26)
+    return render(
+        request,
+        "public/partials/register_role_derived.html",
+        {"derived_role": derived_role},
+    )
 
 
 @ratelimit(key="ip", rate="30/h", method="POST", block=False)  # type: ignore[untyped-decorator]  # django-ratelimit has no type stubs

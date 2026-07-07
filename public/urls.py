@@ -20,6 +20,12 @@ urlpatterns = [
     # before the "register/<slug:role>/" catch-all so it is not shadowed.
     path("register/", views.register, name="register"),
     path("register/role/", views.register_role, name="register_role"),
+    # Two segments — no collision with "register/<slug:role>/" below.
+    path(
+        "register/role/derive/",
+        views.register_role_derive,
+        name="register_role_derive",
+    ),
     path("register/sent/", views.register_email_sent, name="register_email_sent"),
     path(
         "register/confirm/<str:token>/",

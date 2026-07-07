@@ -51,81 +51,30 @@ Context:
 
     {% comment %}
         ── Role zone — the eligibility question that drives the whole surface's
-        palette (VERB-131). A single dropdown asking "Did you have a season
-        pass in 2024/25 or 2025/26?"; the Yes option derives the Ambassador
-        role, No derives the Referee role, reusing the role-swap HTMX plumbing
-        verbatim (the two options hx-get the same register_details_form
-        endpoint the role dropdown always used).
+        palette (VERB-131). Both answers to "have you had a 4 Vallées season
+        pass in the last two years?" are shown at once (reusing the
+        role-select option card styling, no dropdown): Yes derives the
+        Ambassador role, No the Referee role. Each hx-gets the same
+        register_details_form endpoint the role dropdown always used, so
+        selecting an answer re-tones the whole #reg-surface.
     {% endcomment %}
     <div class="role-zone mb-6">
         <p class="label mb-2">{% translate "Have you had a 4 Vallées season pass in the last two years?" %}</p>
 
-        <details class="role-select">
-            <summary class="role-select__trigger">
-                <span class="role-select__id">
-                    <span class="role-select__badge">
-                        {% if role_value == 'AMBASSADOR' %}
-                            <svg
-                                width="18"
-                                height="18"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            >
-                                <circle cx="12" cy="12" r="9" />
-                                <path d="m8.5 12 2.5 2.5 4.5-5" />
-                            </svg>
-                        {% elif role_value == 'REFEREE' %}
-                            <svg
-                                width="18"
-                                height="18"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            >
-                                <circle cx="12" cy="12" r="9" />
-                                <path d="M12 8v8M8 12h8" />
-                            </svg>
-                        {% else %}
-                            <svg
-                                width="18"
-                                height="18"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            >
-                                <circle cx="12" cy="12" r="9" />
-                            </svg>
-                        {% endif %}
-                    </span>
-                    <span class="role-select__text">
-                        <span class="role-select__name">
-                            {% if role_value == 'AMBASSADOR' %}
-                                {% translate "Yes" %}
-                            {% elif role_value == 'REFEREE' %}
-                                {% translate "No" %}
-                            {% else %}
-                                {% translate "Have you had a recent season pass" %}
-                            {% endif %}
-                        </span>
-                        <span class="role-select__role">
-                            {% translate "This will determine your role in the" %}
-                        </span>
-                    </span>
-                </span>
-                <span class="role-select__caret">
+        <div class="overflow-hidden rounded-control border border-line-strong bg-surface">
+            <button
+                type="button"
+                class="role-select__option"
+                aria-selected="{% if role_value == 'AMBASSADOR' %}true{% else %}false{% endif %}"
+                hx-get="{% url 'public:register_details_form' %}?role=ambassador"
+                hx-target="#reg-surface"
+                hx-swap="outerHTML"
+                hx-push-url="{% url 'public:register' %}?role=ambassador"
+            >
+                <span class="role-select__option-badge role-select__option-badge--amb">
                     <svg
-                        width="20"
-                        height="20"
+                        width="17"
+                        height="17"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -133,112 +82,85 @@ Context:
                         stroke-linecap="round"
                         stroke-linejoin="round"
                     >
-                        <path d="m6 9 6 6 6-6" />
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="m8.5 12 2.5 2.5 4.5-5" />
                     </svg>
                 </span>
-            </summary>
-
-            <div class="role-select__menu">
-                <button
-                    type="button"
-                    class="role-select__option"
-                    aria-selected="{% if role_value == 'AMBASSADOR' %}true{% else %}false{% endif %}"
-                    hx-get="{% url 'public:register_details_form' %}?role=ambassador"
-                    hx-target="#reg-surface"
-                    hx-swap="outerHTML"
-                    hx-push-url="{% url 'public:register' %}?role=ambassador"
-                >
-                    <span class="role-select__option-badge role-select__option-badge--amb">
+                <span class="role-select__option-body">
+                    <span class="role-select__option-title">
+                        {% translate "Yes - I had a season pass in 2024/25 or 2025/26" %}
+                    </span>
+                    <span class="role-select__option-desc">
+                        {% translate "You will be registered as an Ambassador." %}
+                    </span>
+                </span>
+                {% if role_value == 'AMBASSADOR' %}
+                    <span class="role-select__check role-select__check--amb">
                         <svg
-                            width="17"
-                            height="17"
+                            width="18"
+                            height="18"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
-                            stroke-width="2"
+                            stroke-width="2.4"
                             stroke-linecap="round"
                             stroke-linejoin="round"
                         >
-                            <circle cx="12" cy="12" r="9" />
-                            <path d="m8.5 12 2.5 2.5 4.5-5" />
+                            <path d="M20 6 9 17l-5-5" />
                         </svg>
                     </span>
-                    <span class="role-select__option-body">
-                        <span class="role-select__option-title">
-                            {% translate "Yes - I had a season pass in 2024/25 or 2025/26" %}
-                        </span>
-                        <span class="role-select__option-desc">
-                            {% translate "You will be registered as an Ambassador." %}
-                        </span>
+                {% endif %}
+            </button>
+            <button
+                type="button"
+                class="role-select__option"
+                aria-selected="{% if role_value == 'REFEREE' %}true{% else %}false{% endif %}"
+                hx-get="{% url 'public:register_details_form' %}?role=referee"
+                hx-target="#reg-surface"
+                hx-swap="outerHTML"
+                hx-push-url="{% url 'public:register' %}?role=referee"
+            >
+                <span class="role-select__option-badge role-select__option-badge--ref">
+                    <svg
+                        width="17"
+                        height="17"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 8v8M8 12h8" />
+                    </svg>
+                </span>
+                <span class="role-select__option-body">
+                    <span class="role-select__option-title">
+                        {% translate "No - I did not have a season pass in either 2024/25 or 2025/26" %}
                     </span>
-                    {% if role_value == 'AMBASSADOR' %}
-                        <span class="role-select__check role-select__check--amb">
-                            <svg
-                                width="18"
-                                height="18"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2.4"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            >
-                                <path d="M20 6 9 17l-5-5" />
-                            </svg>
-                        </span>
-                    {% endif %}
-                </button>
-                <button
-                    type="button"
-                    class="role-select__option"
-                    aria-selected="{% if role_value == 'REFEREE' %}true{% else %}false{% endif %}"
-                    hx-get="{% url 'public:register_details_form' %}?role=referee"
-                    hx-target="#reg-surface"
-                    hx-swap="outerHTML"
-                    hx-push-url="{% url 'public:register' %}?role=referee"
-                >
-                    <span class="role-select__option-badge role-select__option-badge--ref">
+                    <span class="role-select__option-desc">
+                        {% translate "You will be registered as a Referee." %}
+                    </span>
+                </span>
+                {% if role_value == 'REFEREE' %}
+                    <span class="role-select__check role-select__check--ref">
                         <svg
-                            width="17"
-                            height="17"
+                            width="18"
+                            height="18"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
-                            stroke-width="2"
+                            stroke-width="2.4"
                             stroke-linecap="round"
                             stroke-linejoin="round"
                         >
-                            <circle cx="12" cy="12" r="9" />
-                            <path d="M12 8v8M8 12h8" />
+                            <path d="M20 6 9 17l-5-5" />
                         </svg>
                     </span>
-                    <span class="role-select__option-body">
-                        <span class="role-select__option-title">
-                            {% translate "No, I did not hold a season pass in 2024/25 or 2025/26" %}
-                        </span>
-                        <span class="role-select__option-desc">
-                            {% translate "You will be registered as a Referee." %}
-                        </span>
-                    </span>
-                    {% if role_value == 'REFEREE' %}
-                        <span class="role-select__check role-select__check--ref">
-                            <svg
-                                width="18"
-                                height="18"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2.4"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            >
-                                <path d="M20 6 9 17l-5-5" />
-                            </svg>
-                        </span>
-                    {% endif %}
-                </button>
-            </div>
-        </details>
+                {% endif %}
+            </button>
+        </div>
     </div>
 
     {% if role_value %}

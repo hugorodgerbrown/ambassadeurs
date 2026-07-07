@@ -58,8 +58,13 @@ init_error_monitoring()
 # Report web-request exceptions to PostHog. Prepended (outermost) so its
 # process_exception sees exceptions raised anywhere below it. Crons are covered
 # by enable_exception_autocapture instead (see core.observability).
+#
+# PostHogPageviewMiddleware (VERB-124) sends a best-effort $pageview event for
+# a small allowlist of full-page GET views — production-only, alongside the
+# exception middleware, so local dev and CI never emit page-view traffic.
 MIDDLEWARE = [
     "core.middleware.PostHogExceptionMiddleware",
+    "core.middleware.PostHogPageviewMiddleware",
     *MIDDLEWARE,  # noqa: F405
 ]
 

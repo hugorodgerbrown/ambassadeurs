@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Colophon" %}{% endblock %}
+
+{% block meta %}
+    {% blocktranslate trimmed asvar page_description %}
+        The tools, frameworks, hosting, and typefaces used to build Ski Parrainage.
+    {% endblocktranslate %}
+    {% blocktranslate trimmed asvar page_title %}
+        Colophon — Ski Parrainage
+    {% endblocktranslate %}
+    {% with meta_title=page_title meta_description=page_description %}
+        {% include "includes/_meta.html" %}
+    {% endwith %}
+{% endblock %}
+
+{% comment %}
+Colophon (VERB): a plain credits page listing the technology behind the
+service — frameworks, hosting, and fonts. Version numbers are kept broad
+(major only) so this copy does not go stale on every dependency bump.
+{% endcomment %}
+{% block content %}
+    <article class="space-y-4 text-body">
+        <h1 class="text-ink">{% translate "Colophon" %}</h1>
+
+        <p>
+            {% blocktranslate trimmed %}
+                Ski Parrainage is an independent, non-commercial project. This page records the tools and technology it
+                is built with, in the spirit of the open web.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-ink">{% translate "Backend" %}</h2>
+        <ul class="list-disc space-y-2 pl-5">
+            <li>
+                <span class="text-ink">Django 6</span> —
+                {% translate "the web framework, running on Python 3.14." %}
+            </li>
+            <li>
+                <span class="text-ink">Gunicorn</span> —
+                {% translate "the application server." %}
+            </li>
+            <li>
+                <span class="text-ink">PostgreSQL</span> —
+                {% translate "the database." %}
+            </li>
+            <li>
+                <span class="text-ink">WhiteNoise</span> —
+                {% translate "static-file serving." %}
+            </li>
+        </ul>
+
+        <h2 class="pt-2 text-ink">{% translate "Frontend" %}</h2>
+        <ul class="list-disc space-y-2 pl-5">
+            <li>
+                <span class="text-ink">Tailwind CSS v4</span> —
+                {% translate "styling, compiled to a single stylesheet." %}
+            </li>
+            <li>
+                <span class="text-ink">htmx</span> —
+                {% translate "dynamic page updates without a JavaScript framework, self-hosted." %}
+            </li>
+        </ul>
+
+        <h2 class="pt-2 text-ink">{% translate "Typography" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                Typefaces are served from Google Fonts and loaded without blocking the page render.
+            {% endblocktranslate %}
+        </p>
+        <ul class="list-disc space-y-2 pl-5">
+            <li>
+                <span class="text-ink">Space Grotesk</span> —
+                {% translate "headings and the wordmark." %}
+            </li>
+            <li>
+                <span class="text-ink">Hanken Grotesk</span> —
+                {% translate "body text." %}
+            </li>
+            <li>
+                <span class="text-ink">Space Mono</span> —
+                {% translate "small print and code." %}
+            </li>
+        </ul>
+
+        <h2 class="pt-2 text-ink">{% translate "Hosting and infrastructure" %}</h2>
+        <ul class="list-disc space-y-2 pl-5">
+            <li>
+                <span class="text-ink">Render</span> —
+                {% translate "application hosting and the managed PostgreSQL database." %}
+            </li>
+            <li>
+                <span class="text-ink">Stripe</span> —
+                {% translate "payment processing for optional contributions." %}
+            </li>
+            <li>
+                <span class="text-ink">PostHog</span> —
+                {% translate "privacy-conscious product analytics." %}
+            </li>
+        </ul>
+
+        <h2 class="pt-2 text-ink">{% translate "Internationalisation" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                The interface is available in English and French, using Django's built-in translation system.
+            {% endblocktranslate %}
+        </p>
+    </article>
+{% endblock %}

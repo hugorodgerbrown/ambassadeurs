@@ -43,15 +43,15 @@ const BANNER_CONTENT = ".notification-banner__content";
 const ADMIN_PASSWORD = "e2e-admin-pass-1234"; // throwaway, ephemeral DB only
 
 type Audience = "EVERYONE" | "ANONYMOUS" | "AUTHENTICATED" | "CUSTOM";
-// Notification.Priority integer values (0 NEUTRAL … 3 HIGH).
-type Priority = "0" | "1" | "2" | "3";
+// NOTIFICATION_DESIGNS keys — the settings-driven banner looks (VERB-123).
+type Design = "INFO" | "MUTED" | "NOTICE" | "URGENT";
 
 interface NotificationSpec {
   content: string;
   audience?: Audience;
   dismissible?: boolean;
   customGroupKey?: string;
-  priority?: Priority;
+  design?: Design;
   enabled?: boolean;
 }
 
@@ -92,8 +92,8 @@ async function addNotification(page: Page, spec: NotificationSpec): Promise<void
   if (audience === "CUSTOM") {
     await page.selectOption("#id_custom_group_key", spec.customGroupKey ?? "");
   }
-  if (spec.priority !== undefined) {
-    await page.selectOption("#id_priority", spec.priority);
+  if (spec.design !== undefined) {
+    await page.selectOption("#id_design", spec.design);
   }
   // is_dismissible defaults checked; uncheck to author a permanent notice.
   if (dismissible) {
@@ -222,27 +222,28 @@ test.describe("notifications strip", { tag: "@S15" }, () => {
     await visitor.context().close();
   });
 
-  test("priority sets the banner colour tone and the kill switch hides a notice", async ({
+  test("design sets the banner look and the kill switch hides a notice", async ({
     browser,
     runId,
   }) => {
-    const shown = `high-priority-${runId}`;
+    const shown = `urgent-design-${runId}`;
     const hidden = `killed-${runId}`;
 
     const admin = await openAdmin(browser, runId);
-    // A HIGH-priority notice (Priority.HIGH == 3) and a disabled one.
-    await addNotification(admin, { content: shown, priority: "3" });
+    // An URGENT-design notice and a disabled one.
+    await addNotification(admin, { content: shown, design: "URGENT" });
     await addNotification(admin, { content: hidden, enabled: false });
     await admin.context().close();
 
     const visitor = await openVisitor(browser, ROUTES.home);
 
-    // The HIGH notice renders and carries the "high" colour tone.
+    // The URGENT notice renders and carries its design's component class
+    // (NOTIFICATION_DESIGNS["URGENT"].css_classes == "notification-urgent").
     const banner = visitor.locator("[data-notification-id]").filter({
       hasText: shown,
     });
     await expect(banner).toBeVisible();
-    await expect(banner).toHaveAttribute("data-priority", "high");
+    await expect(banner).toHaveClass(/notification-urgent/);
 
     // The disabled notice never reaches the page (kill switch, window aside).
     await expect(visitor.getByText(hidden)).toHaveCount(0);

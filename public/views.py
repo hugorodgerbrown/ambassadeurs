@@ -182,6 +182,11 @@ def faq(request: HttpRequest) -> HttpResponse:
     return render(request, "public/faq.html")
 
 
+def colophon(request: HttpRequest) -> HttpResponse:
+    """Render the colophon page (technology credits; no queries)."""
+    return render(request, "public/colophon.html")
+
+
 def download_application_form(request: HttpRequest) -> HttpResponse:
     """Record a form download and redirect to the application-form PDF.
 

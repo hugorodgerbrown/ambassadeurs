@@ -193,19 +193,6 @@ class Notification(BaseModel):
         AUTHENTICATED = "AUTHENTICATED", _("Authenticated users only")
         CUSTOM = "CUSTOM", _("Custom group")
 
-    class Priority(models.IntegerChoices):
-        """Visual priority of a notification. Higher priority sorts first.
-
-        Maps to a colour tone in the strip via the ``priority_tone`` property
-        (neutral → grey, low → blue, normal → amber, high → red). The colour
-        for each tone lives in ``src/css/main.css``.
-        """
-
-        NEUTRAL = 0, _("Neutral")
-        LOW = 1, _("Low")
-        NORMAL = 2, _("Normal")
-        HIGH = 3, _("High")
-
     content = models.TextField(
         help_text="Raw HTML/plain text as authored by staff.",
     )
@@ -234,12 +221,20 @@ class Notification(BaseModel):
             "session. Permanent notifications show no dismiss control."
         ),
     )
-    priority = models.IntegerField(
-        choices=Priority.choices,
-        default=Priority.NORMAL,
+    design = models.CharField(
+        max_length=32,
+        default="NOTICE",
         help_text=(
-            "Visual priority: sets the strip colour (neutral grey, low blue, "
-            "normal amber, high red) and sorts higher-priority notices first."
+            "Key into settings.NOTIFICATION_DESIGNS; drives the strip's "
+            "label, description, and CSS class. No model-level choices — "
+            "validated against settings in the admin form (VERB-123)."
+        ),
+    )
+    weight = models.IntegerField(
+        default=0,
+        help_text=(
+            "Stacking order in the strip: higher weight sorts first, "
+            "independent of design (VERB-123)."
         ),
     )
     enabled = models.BooleanField(
@@ -267,9 +262,11 @@ class Notification(BaseModel):
     objects = NotificationQuerySet.as_manager()
 
     class Meta:
-        # Highest priority first, then newest — the strip stacks urgent
-        # notices above calmer ones, equal priorities falling back to recency.
-        ordering = ["-priority", "-created_at"]
+        # Highest weight first, then newest — the strip stacks staff-pinned
+        # notices above calmer ones, equal weights falling back to recency.
+        # Ordering is independent of design (VERB-123): a notice's stacking
+        # position and its visual styling are separate concerns.
+        ordering = ["-weight", "-created_at"]
 
     def __str__(self) -> str:
         """Delegate to to_string."""
@@ -295,20 +292,40 @@ class Notification(BaseModel):
         return f"{preview} [{self.get_audience_display()}]"
 
     @property
-    def priority_tone(self) -> str:
-        """Return the CSS colour tone token for this notification's priority.
+    def design_label(self) -> str:
+        """Return the staff-facing label for this notification's design.
 
-        A semantic string (``"neutral"``/``"low"``/``"normal"``/``"high"``)
-        emitted as the banner's ``data-priority`` attribute;
-        ``src/css/main.css`` maps each tone to its colour so the mapping lives
-        in one place. Derived from own fields → a property (CLAUDE.md).
+        Looks ``self.design`` up in ``settings.NOTIFICATION_DESIGNS``; falls
+        back to an empty string if the key is absent from settings (e.g. a
+        design was renamed/removed after this row was saved) rather than
+        raising. Derived from own fields → a property (CLAUDE.md).
         """
-        return {
-            self.Priority.NEUTRAL: "neutral",
-            self.Priority.LOW: "low",
-            self.Priority.NORMAL: "normal",
-            self.Priority.HIGH: "high",
-        }.get(self.Priority(self.priority), "normal")
+        design = settings.NOTIFICATION_DESIGNS.get(self.design)
+        return design.label if design is not None else ""
+
+    @property
+    def design_description(self) -> str:
+        """Return the staff-facing description for this notification's design.
+
+        Same settings lookup and safe fallback as :attr:`design_label`.
+        """
+        design = settings.NOTIFICATION_DESIGNS.get(self.design)
+        return design.description if design is not None else ""
+
+    @property
+    def design_classes(self) -> str:
+        """Return the CSS class for this notification's design.
+
+        Injected into the banner's ``class="…"`` attribute in
+        ``notification_strip.html`` and names a component class defined in
+        ``src/css/main.css`` — never an inline ``style="…"``, which
+        production's CSP ``style-src`` (no ``'unsafe-inline'``) would strip.
+        Developer-authored, not user input, so Django's normal auto-escaping
+        on render is sufficient (Invariant 4 is not implicated). Falls back
+        to an empty string if the key is absent from settings.
+        """
+        design = settings.NOTIFICATION_DESIGNS.get(self.design)
+        return design.css_classes if design is not None else ""
 
     @property
     def is_active(self) -> bool:

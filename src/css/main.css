@@ -332,16 +332,19 @@
   .status--done   { background: var(--color-success-tint); color: var(--color-success-ink); }
 
   /* ── Notifications strip (VERB-109) ──────────────────────────────────────
-     Staff-authored site-wide banners. Colour is driven by the priority tone
-     emitted as data-priority (see notification_strip.html and
-     Notification.priority_tone), so the tone → colour mapping lives here in
-     one place. Each tone reuses an existing tint/ink token pair, so dark mode
-     inverts for free. The banner sets `color`, which the dismiss button's
+     Staff-authored site-wide banners. Colour is driven by each notification's
+     design (VERB-123): settings.NOTIFICATION_DESIGNS names one of the
+     component classes below via css_classes, appended onto the banner
+     element in notification_strip.html. Deliberately plain component
+     classes, not inline style="…" — production's CSP style-src has no
+     'unsafe-inline', so an element-level style attribute would be silently
+     dropped. Each class reuses an existing tint/ink token pair, so dark mode
+     inverts for free; the banner sets `color`, which the dismiss button's
      currentColor icon inherits. */
-  .notification-banner[data-priority="neutral"] { background: var(--color-surface-2);      color: var(--color-body); }
-  .notification-banner[data-priority="low"]     { background: var(--color-secondary-tint); color: var(--color-secondary-ink); }
-  .notification-banner[data-priority="normal"]  { background: var(--color-notice-tint);    color: var(--color-notice-ink); }
-  .notification-banner[data-priority="high"]    { background: var(--color-danger-tint);    color: var(--color-danger-ink); }
+  .notification-info   { background: var(--color-surface-2);      color: var(--color-body); }
+  .notification-muted  { background: var(--color-secondary-tint); color: var(--color-secondary-ink); }
+  .notification-notice { background: var(--color-notice-tint);    color: var(--color-notice-ink); }
+  .notification-urgent { background: var(--color-danger-tint);    color: var(--color-danger-ink); }
 
   /* Nav + wordmark. border uses --color-line (was --color-border),
      --color-ink (was --color-text-1). */

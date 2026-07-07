@@ -83,6 +83,12 @@ class NotificationForm(forms.ModelForm):
     ``custom_group_key`` is rendered as a dropdown populated from
     ``settings.CUSTOM_NOTIFICATION_GROUPS`` (plus a blank choice) rather than
     free text, since it must name a key that actually exists in code.
+
+    ``design`` is likewise rendered as a dropdown populated from
+    ``settings.NOTIFICATION_DESIGNS`` (VERB-123) — the model field itself is a
+    plain ``CharField`` with no ``choices=``, since Django evaluates
+    model-level choices at import time, before settings are guaranteed
+    configured.
     """
 
     custom_group_key = forms.ChoiceField(
@@ -90,12 +96,19 @@ class NotificationForm(forms.ModelForm):
         choices=(),
         help_text=_("Required when audience is Custom group; ignored otherwise."),
     )
+    design = forms.ChoiceField(
+        choices=(),
+        help_text=_(
+            "Controls the banner's colours; see settings.NOTIFICATION_DESIGNS."
+        ),
+    )
 
     class Meta:
         model = Notification
         fields = [
             "content",
-            "priority",
+            "design",
+            "weight",
             "enabled",
             "starts_at",
             "ends_at",
@@ -105,25 +118,31 @@ class NotificationForm(forms.ModelForm):
         ]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Populate custom_group_key choices from settings at form build time."""
+        """Populate custom_group_key/design choices from settings at build time."""
         super().__init__(*args, **kwargs)
         group_keys = sorted(settings.CUSTOM_NOTIFICATION_GROUPS.keys())
         cast(forms.ChoiceField, self.fields["custom_group_key"]).choices = [
             ("", "—"),
             *[(key, key) for key in group_keys],
         ]
+        design_keys = sorted(settings.NOTIFICATION_DESIGNS.keys())
+        cast(forms.ChoiceField, self.fields["design"]).choices = [
+            (key, key) for key in design_keys
+        ]
 
     def clean(self) -> dict[str, Any]:
-        """Enforce the audience / custom_group_key pairing.
+        """Enforce the audience / custom_group_key pairing and design validity.
 
         When audience is CUSTOM, custom_group_key is required and must name a
         key in settings.CUSTOM_NOTIFICATION_GROUPS. For any other audience,
         custom_group_key is forced blank so a stale key can never silently
-        apply if the audience is later changed away from CUSTOM.
+        apply if the audience is later changed away from CUSTOM. Separately,
+        design must name a key in settings.NOTIFICATION_DESIGNS (VERB-123).
         """
         cleaned_data = super().clean() or {}
         audience = cleaned_data.get("audience")
         custom_group_key = cleaned_data.get("custom_group_key", "")
+        design = cleaned_data.get("design", "")
 
         if audience == Notification.Audience.CUSTOM:
             if not custom_group_key:
@@ -146,6 +165,16 @@ class NotificationForm(forms.ModelForm):
         else:
             cleaned_data["custom_group_key"] = ""
 
+        if design and design not in settings.NOTIFICATION_DESIGNS:
+            raise ValidationError(
+                {
+                    "design": ValidationError(
+                        _("%(key)s is not a configured notification design."),
+                        params={"key": design},
+                    )
+                }
+            )
+
         return cleaned_data
 
 
@@ -156,7 +185,8 @@ class NotificationAdmin(admin.ModelAdmin):
     form = NotificationForm
     list_display = [
         "content_preview",
-        "priority",
+        "design",
+        "weight",
         "enabled",
         "starts_at",
         "ends_at",
@@ -164,8 +194,8 @@ class NotificationAdmin(admin.ModelAdmin):
         "audience",
         "is_active",
     ]
-    list_editable = ["priority", "enabled"]
-    list_filter = ["enabled", "audience", "priority", "is_dismissible"]
+    list_editable = ["design", "weight", "enabled"]
+    list_filter = ["enabled", "audience", "design", "is_dismissible"]
     search_fields = ["content"]
 
     @admin.display(description=_("Content"))

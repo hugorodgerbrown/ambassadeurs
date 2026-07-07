@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-06 22:25+0200\n"
+"POT-Creation-Date: 2026-07-07 20:16+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -76,10 +76,43 @@ msgstr ""
 msgid "4 Vallées Ambassadors — thank-you tip"
 msgstr ""
 
+msgid "Info"
+msgstr ""
+
+msgid "Calm, neutral tone for routine announcements."
+msgstr ""
+
+msgid "Muted"
+msgstr ""
+
+msgid "Low-key tone for background/secondary information."
+msgstr ""
+
+msgid "Notice"
+msgstr ""
+
+msgid "Standard tone for notices worth a second look."
+msgstr ""
+
+msgid "Urgent"
+msgstr ""
+
+msgid "Attention-grabbing tone for urgent/critical notices."
+msgstr ""
+
+msgid "Brand"
+msgstr ""
+
+msgid "Solid alpine-red block with white text — the boldest look."
+msgstr ""
+
 msgid "Target"
 msgstr ""
 
 msgid "Required when audience is Custom group; ignored otherwise."
+msgstr ""
+
+msgid "Controls the banner's colours; see settings.NOTIFICATION_DESIGNS."
 msgstr ""
 
 msgid "A custom group is required when audience is Custom group."
@@ -87,6 +120,10 @@ msgstr ""
 
 #, python-format
 msgid "%(key)s is not a configured custom group."
+msgstr ""
+
+#, python-format
+msgid "%(key)s is not a configured notification design."
 msgstr ""
 
 msgid "Content"
@@ -105,18 +142,6 @@ msgid "Authenticated users only"
 msgstr ""
 
 msgid "Custom group"
-msgstr ""
-
-msgid "Neutral"
-msgstr ""
-
-msgid "Low"
-msgstr ""
-
-msgid "Normal"
-msgstr ""
-
-msgid "High"
 msgstr ""
 
 msgid "Too many attempts. Please wait a moment and try again."
@@ -161,6 +186,12 @@ msgstr ""
 msgid "Export selected cancelled matches as CSV"
 msgstr ""
 
+msgid "I purchased a season or annual pass in 2024/25 or 2025/26."
+msgstr ""
+
+msgid "I did not purchase a season or annual pass in 2024/25 or 2025/26."
+msgstr ""
+
 msgid "Email"
 msgstr ""
 
@@ -177,12 +208,6 @@ msgid "I have read and agree to the Terms of Use"
 msgstr ""
 
 msgid "Prefer not to say"
-msgstr ""
-
-msgid "I purchased a season or annual pass in 2024/25 or 2025/26."
-msgstr ""
-
-msgid "I did not purchase a season or annual pass in 2024/25 or 2025/26."
 msgstr ""
 
 msgid "You are already registered for the current season."
@@ -523,7 +548,7 @@ msgstr ""
 msgid "Register now"
 msgstr ""
 
-msgid "Ski Parrainage &middot; 2026/27"
+msgid "Ski Parrainage"
 msgstr ""
 
 msgid "Skip to main content"
@@ -712,9 +737,6 @@ msgstr ""
 msgid "Your match has expired — rejoin the queue when you're ready"
 msgstr ""
 
-msgid "Ski Parrainage"
-msgstr ""
-
 msgid "Find your season-pass partner for the 4 Vallées Ambassador Offer."
 msgstr ""
 
@@ -760,6 +782,9 @@ msgstr ""
 msgid "FAQ"
 msgstr ""
 
+msgid "Colophon"
+msgstr ""
+
 msgid "Legal"
 msgstr ""
 
@@ -790,6 +815,9 @@ msgstr ""
 msgid "Main navigation"
 msgstr ""
 
+msgid "Ski Parrainage &middot; 2026/27"
+msgstr ""
+
 msgid "Menu"
 msgstr ""
 
@@ -800,9 +828,81 @@ msgid "Dismiss this notification"
 msgstr ""
 
 msgid ""
-"Frequently asked questions about the 4 Vallées Ambassador Offer and the Ski "
-"Parrainage partner-matching service — what they are, who is eligible, how to "
-"apply, how matching works, and what happens after you are matched."
+"The tools, frameworks, hosting, and typefaces used to build Ski Parrainage."
+msgstr ""
+
+msgid "Colophon — Ski Parrainage"
+msgstr ""
+
+msgid ""
+"Ski Parrainage is an independent, non-commercial project. This page records "
+"the tools and technology it is built with, in the spirit of the open web."
+msgstr ""
+
+msgid "Backend"
+msgstr ""
+
+msgid "the web framework, running on Python 3.14."
+msgstr ""
+
+msgid "the application server."
+msgstr ""
+
+msgid "the database."
+msgstr ""
+
+msgid "static-file serving."
+msgstr ""
+
+msgid "Frontend"
+msgstr ""
+
+msgid "styling, compiled to a single stylesheet."
+msgstr ""
+
+msgid "dynamic page updates without a JavaScript framework, self-hosted."
+msgstr ""
+
+msgid "Typography"
+msgstr ""
+
+msgid ""
+"Typefaces are served from Google Fonts and loaded without blocking the page "
+"render."
+msgstr ""
+
+msgid "headings and the wordmark."
+msgstr ""
+
+msgid "body text."
+msgstr ""
+
+msgid "small print and code."
+msgstr ""
+
+msgid "Hosting and infrastructure"
+msgstr ""
+
+msgid "application hosting and the managed PostgreSQL database."
+msgstr ""
+
+msgid "payment processing for optional contributions."
+msgstr ""
+
+msgid "privacy-conscious product analytics."
+msgstr ""
+
+msgid "Internationalisation"
+msgstr ""
+
+msgid ""
+"The interface is available in English and French, using Django's built-in "
+"translation system."
+msgstr ""
+
+msgid ""
+"FAQ for the 4 Vallées Ambassador Offer and Ski Parrainage: what they are, "
+"who is eligible, how to apply, and how partner-matching works."
 msgstr ""
 
 msgid "FAQ — Ski Parrainage"
@@ -1042,7 +1142,7 @@ msgstr ""
 msgid "Find your season-pass match"
 msgstr ""
 
-msgid "Free for early registrations"
+msgid "Free to use"
 msgstr ""
 
 msgid ""
@@ -1074,10 +1174,10 @@ msgstr ""
 msgid "You accept"
 msgstr ""
 
-msgid "Both sides confirm they're happy to share contact details."
+msgid "Both sides confirm they're happy to proceed."
 msgstr ""
 
-msgid "We share contact details"
+msgid "We reveal contact details"
 msgstr ""
 
 msgid "We only reveal contact details once both sides have agreed to do so."
@@ -1099,8 +1199,8 @@ msgid "I'm an Ambassador"
 msgstr ""
 
 msgid ""
-"You held a 4 Vallées seasonal or annual pass in a recent season and want to "
-"refer a new holder. You're the returning holder."
+"You held a 4 Vallées seasonal or annual pass in one of the previous two "
+"seasons and want to refer a new holder. You're the returning holder."
 msgstr ""
 
 msgid "Register as an Ambassador"
@@ -1126,160 +1226,89 @@ msgid ""
 "accent underline\">FAQ</a>."
 msgstr ""
 
-msgid ""
-"A plain-language walkthrough of the Ski Parrainage matchmaking process: your "
-"registration status, how a match is proposed, the contact window, and what "
-"happens after you accept."
+msgid "A plain-language walkthrough of the Ski Parrainage matching process."
 msgstr ""
 
-msgid "How it works — Ski Parrainage"
+msgid "How it works - Ski Parrainage"
 msgstr ""
 
 msgid ""
-"Two things carry a status here, and it helps to keep them apart: your "
-"registration, and a match. You always have exactly one registration — your "
-"own standing in the system. Over a season you might be part of several "
-"matches, since an early one can fall through and you go back in the queue to "
-"be paired again."
-msgstr ""
-
-msgid "Part 1 — Your registration"
-msgstr ""
-
-msgid ""
-"Your registration is your place in the system — the answer to \"am I in the "
-"queue, waiting to be matched?\""
-msgstr ""
-
-msgid "Status"
-msgstr ""
-
-msgid "What it means"
-msgstr ""
-
-msgid "What happens next"
+"Finding a partner for the 4 Vallées Ambassador Offer usually means "
+"scrambling in the Facebook group and hoping the person you find doesn't "
+"disappear before you can meet. This service does the matchmaking - you "
+"register, and we pair you with a partner. After that it's over to you and "
+"the standard Téléverbier application process. This page shows the end-to-end "
+"process."
 msgstr ""
 
 msgid ""
-"You've signed up but haven't confirmed your email address yet. You are not "
-"in the queue."
-msgstr ""
-
-msgid "Click the link in the confirmation email. That moves you to Verified."
-msgstr ""
-
-msgid ""
-"You're active and in the queue, waiting to be matched (or already in an "
-"active match)."
+"Start by choosing the role that fits you. You're an Ambassador if you held a "
+"4 Vallées seasonal or annual pass in one of the previous two seasons and "
+"want to refer a new holder. You're a Referee if you're new to the 4 Vallées "
+"and need an Ambassador to refer you. You register in one role, and you only "
+"ever have one registration."
 msgstr ""
 
 msgid ""
-"The system pairs you with an eligible partner as soon as one is available. "
-"When it does, a match is created."
+"You must confirm your email address before your registration is active. "
+"We'll email you a verification link when you register. Once you've clicked "
+"the link you're active and in the queue - there's nothing else you need to "
+"do."
 msgstr ""
 
 msgid ""
-"You declined a match, or didn't respond in time, so you've been taken out of "
-"the queue. Nothing is lost — your registration is kept."
+"As soon as a suitable partner is available, the system pairs you - one "
+"Ambassador with one Referee. You don't browse or choose; we assign a partner "
+"and email you both. If there are people waiting for a match with your role "
+"(e.g. you register as a Referee, and there are Ambassadors waiting) the "
+"match will be instant."
 msgstr ""
 
 msgid ""
-"Go to your account page and choose \"Rejoin the queue\". That moves you back "
-"to Verified and you'll be matched again."
-msgstr ""
-
-msgid "You chose to leave the programme."
-msgstr ""
-
-msgid "Nothing further. You can register again if you change your mind."
+"From that moment a contact window starts - its length is shown in the match "
+"email. During it, you can see your match partner's first name, but not their "
+"email or phone number. Those contact details stay hidden until you have both "
+"accepted. This is deliberate: it's the core privacy promise of the service."
 msgstr ""
 
 msgid ""
-"You were reported as a no-show after a match was confirmed, so you've been "
-"removed from the pool."
+"Both of you need to accept within the contact window. If your partner "
+"accepts first, you'll see the match waiting on you; once you accept too, "
+"you're through to the final step. Accepting simply means you're happy to go "
+"ahead and share your contact details with each other."
 msgstr ""
 
 msgid ""
-"This is set by programme staff via the report process, not something you "
-"undo yourself. Contact the programme if you think it's a mistake."
+"If you decline, or the window runs out before you respond, the match ends "
+"and you're taken out of the queue for the moment - but nothing is lost. Your "
+"registration is kept, and you can rejoin from your account page whenever "
+"you're ready. The partner who did accept goes back to the front of the "
+"queue, so they're matched again quickly."
 msgstr ""
 
 msgid ""
-"In short: Verified is the healthy, waiting state. Everything else is either "
-"a step before it (Unverified) or a step out of the pool (Paused, Withdrawn, "
-"Suspended). Only Paused has a self-service way back in."
-msgstr ""
-
-msgid "Part 2 — A match"
-msgstr ""
-
-msgid ""
-"Once you're Verified and a suitable partner is available, the system creates "
-"a match — a pairing of one Ambassador and one Referee. You don't choose your "
-"partner; the system assigns one, and both of you are notified. From that "
-"moment there is a contact window — its length is shown in the match email — "
-"in which both of you must accept. Until you both accept, you can each see "
-"the other person's first name, but not their email or phone number: contact "
-"details are revealed only once both sides have accepted. This is deliberate "
-"— it's the core privacy promise of the service."
+"Once you've both accepted, we reveal each other's contact details - and only "
+"then. That's the finish line for us: you can now get in touch and go make "
+"your application together. Filling in the form and buying your passes "
+"happens off the app, directly with the ticket office."
 msgstr ""
 
 msgid ""
-"You've just been paired. Neither of you has accepted yet. You can see your "
-"partner's first name only."
+"If your partner arranges to meet and then doesn't show up, you can report "
+"it. We trust the report straight away: you go back to the front of the queue "
+"to be paired again, and the person who didn't show is removed from the pool."
 msgstr ""
 
 msgid ""
-"Accept within the contact window. If your partner accepts first, you'll see "
-"the match move to Pending."
-msgstr ""
-
-msgid "One of you has accepted; the system is waiting on the other."
-msgstr ""
-
-msgid ""
-"The second person accepts and the match becomes Accepted. If the window runs "
-"out with only one acceptance, it becomes Expired."
+"A match falling through is normal and it doesn't set you back: unless you "
+"were the one who dropped out, you return to the front of the queue and are "
+"matched again. Over a season you might be part of several matches before one "
+"sticks."
 msgstr ""
 
 msgid ""
-"Both of you accepted. Contact details are now revealed. This is the success "
-"state."
-msgstr ""
-
-msgid ""
-"Get in touch with your partner and go make your application together — this "
-"happens off the app."
-msgstr ""
-
-msgid "One of you declined the pairing."
-msgstr ""
-
-msgid ""
-"The match is over. The person who declined is Paused; the other person goes "
-"back to the front of the queue to be matched again quickly."
-msgstr ""
-
-msgid "The contact window ran out before both of you accepted."
-msgstr ""
-
-msgid ""
-"Same as declined: whoever didn't respond is Paused; the one who did accept "
-"goes to the front of the queue."
-msgstr ""
-
-msgid "After a match was accepted, one party reported the other as a no-show."
-msgstr ""
-
-msgid ""
-"The person who showed up goes back to the front of the queue; the reported "
-"person is Suspended."
-msgstr ""
-
-msgid ""
-"In short: Accepted is the goal. Declined, Expired and Cancelled all end the "
-"match — but they don't end you: unless you were the one who dropped out, you "
-"go back to the front of the queue and are matched again."
+"Changed your mind? You can leave the programme at any time, and register "
+"again later if you want to come back."
 msgstr ""
 
 #, python-format
@@ -1295,12 +1324,9 @@ msgid "Cookie Policy"
 msgstr ""
 
 msgid ""
-"Cookie Policy for the 4 Vallées Ambassadors partner-matching service. We use "
-"only strictly-necessary cookies — no analytics, advertising, or third-party "
+"Cookie Policy for the Ski Parrainage partner-matching service. We use only "
+"strictly-necessary cookies — no analytics, advertising, or third-party "
 "tracking."
-msgstr ""
-
-msgid "Cookie Policy — Ski Parrainage"
 msgstr ""
 
 msgid "Last updated"
@@ -1714,51 +1740,19 @@ msgid ""
 "of the 4 Vallées companies in 2024/25 or 2025/26."
 msgstr ""
 
+msgid "Register as Referee"
+msgstr ""
+
+msgid "Register as Ambassador"
+msgstr ""
+
+msgid "Continue"
+msgstr ""
+
 msgid "Registration"
 msgstr ""
 
-msgid "Select your role below to start your registration."
-msgstr ""
-
-msgid ""
-"Once you have completed registration and verified your email we'll start the "
-"matching process."
-msgstr ""
-
-msgid "Select your role"
-msgstr ""
-
-msgid "Returning season pass holder"
-msgstr ""
-
-msgid "New season pass applicant"
-msgstr ""
-
-msgid "Ambassador or Referee"
-msgstr ""
-
-msgid "Returning season pass holder looking for someone to refer."
-msgstr ""
-
-msgid "New season pass applicant looking for an Ambassador."
-msgstr ""
-
-msgid ""
-"\n"
-"                    You held a 4 Vallées pass in 2024/25 or 2025/26 and are "
-"looking for someone to refer this season.\n"
-"                "
-msgstr ""
-
-msgid ""
-"\n"
-"                    You're applying for a 2026/27 season pass and are "
-"looking for a previous season pass holder (in\n"
-"                    2024/25 or 2025/26) to pair up with.\n"
-"                "
-msgstr ""
-
-msgid "Ambassadors had a season pass in 2024/25 or 2025/26; Referees did not."
+msgid "Not your role? Change your answer"
 msgstr ""
 
 msgid "Confirmations"
@@ -1768,15 +1762,6 @@ msgstr ""
 msgid ""
 "I have read and agree to the <a href=\"%(terms_url)s\" target=\"_blank\" "
 "rel=\"noopener\" class=\"text-accent underline\" >Terms of Use</a>."
-msgstr ""
-
-msgid "Select a role to continue"
-msgstr ""
-
-msgid "Register as Ambassador"
-msgstr ""
-
-msgid "Register as Referee"
 msgstr ""
 
 msgid "Help us set the price"
@@ -1817,12 +1802,9 @@ msgid ""
 "to the start of the season."
 msgstr ""
 
-msgid "Register &middot; Ski Parrainage &middot; 2026/27"
-msgstr ""
-
 msgid ""
-"Register for the Ski Parrainage 4 Vallées Ambassadors partner-matching "
-"service."
+"Register with Ski Parrainage to be matched with a partner for the 4 Vallées "
+"Ambassador Offer."
 msgstr ""
 
 msgid "Register — Ski Parrainage"
@@ -1922,7 +1904,42 @@ msgid ""
 "seconds — check your account page shortly, or try again below."
 msgstr ""
 
-msgid "Say thanks &middot; Ski Parrainage"
+msgid "Pre-registration"
+msgstr ""
+
+msgid ""
+"Register for the Ski Parrainage 4 Vallées Ambassadors partner-matching "
+"service."
+msgstr ""
+
+msgid "Pre-registration — Ski Parrainage"
+msgstr ""
+
+msgid "Which role is relevant for you?"
+msgstr ""
+
+msgid "4 Vallées season passes"
+msgstr ""
+
+msgid "Please answer both questions before continuing."
+msgstr ""
+
+msgid "Did you buy a season pass in 2024/25?"
+msgstr ""
+
+msgid "Season pass in 2024/25?"
+msgstr ""
+
+msgid "Yes"
+msgstr ""
+
+msgid "No"
+msgstr ""
+
+msgid "Did you buy a season pass in 2025/26?"
+msgstr ""
+
+msgid "Season pass in 2025/26?"
 msgstr ""
 
 msgid "Say thanks"

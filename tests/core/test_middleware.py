@@ -55,7 +55,8 @@ def test_pageview_fires_for_each_allowlisted_view_name() -> None:
     """A GET/200 to every allowlisted view_name fires exactly one $pageview."""
     allowlisted_view_names = [
         "public:home",
-        "public:register",
+        "public:register_role",
+        "public:register_form",
         "public:register_email_sent",
         "public:register_confirm",
         "public:how_it_works",

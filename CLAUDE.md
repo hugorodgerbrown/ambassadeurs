@@ -319,6 +319,30 @@ and `SITE_ID` are not in use.
   `{# #}` for short (≤50 char), single-line notes. Neither `djangofmt` nor `tox`
   flags a multi-line `{# #}`, so this is on the author.
 
+**Page titles:**
+
+Every page's `<title>` follows one format, composed in `templates/base.html`,
+never re-typed in full per page (VERB-126):
+
+```django
+<title>{% block title %}{% block page_title %}{% endblock %} &middot; {% translate "Ski Parrainage" %}{% endblock %}</title>
+```
+
+- **Interior pages** override `page_title` only — a short, translated
+  page-name fragment (`{% block page_title %}{% translate "FAQ" %}{% endblock %}`)
+  — and inherit the ` &middot; Ski Parrainage` brand suffix. Result:
+  `FAQ · Ski Parrainage`.
+- **The homepage** overrides the whole `title` block with the brand-first form,
+  `Ski Parrainage &middot; 2026/27` (the season lives on the homepage only).
+- **Separator** is the `&middot;` entity everywhere — never a literal `·`, never
+  an em-dash. It stays in the template, not inside the `{% translate %}` msgid,
+  so translator strings hold only the page name.
+- **Exceptions** (documented, intentional): `templates/500.html` hard-codes its
+  title (Django context can be unavailable during a server error) and
+  `templates/debug/components.html` is dev-only. Both still use `&middot;`.
+- Do not reintroduce per-page full titles or inline brand/season suffixes — that
+  is the drift this convention exists to prevent.
+
 ## Internationalisation
 
 The UI ships in **English (default) and French**. Wrap all user-facing strings in

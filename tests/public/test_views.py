@@ -88,8 +88,8 @@ def test_register_role_get_renders_matrix_and_continue() -> None:
     assert response.status_code == 200
     assert "public/register_role.html" in [t.name for t in response.templates]
     content = response.content.decode()
-    assert "Did you have a 4 Vallées season pass in 2024/25?" in content
-    assert "Did you have a 4 Vallées season pass in 2025/26?" in content
+    assert "Did you buy a season pass in 2024/25?" in content
+    assert "Did you buy a season pass in 2025/26?" in content
     assert "Continue" in content
     assert 'name="pass_2024_25"' in content
     assert 'name="pass_2025_26"' in content

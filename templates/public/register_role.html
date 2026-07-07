@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block page_title %}{% translate "Register" %}{% endblock %}
+{% block page_title %}{% translate "Pre-registration" %}{% endblock %}
 
 {% block meta %}
     {% blocktranslate trimmed asvar page_description %}
         Register for the Ski Parrainage 4 Vallées Ambassadors partner-matching service.
     {% endblocktranslate %}
     {% blocktranslate trimmed asvar page_title %}
-        Register — Ski Parrainage
+        Pre-registration — Ski Parrainage
     {% endblocktranslate %}
     {% with meta_title=page_title meta_description=page_description %}
         {% include "includes/_meta.html" %}
@@ -24,10 +24,10 @@
 {% block content %}
     <section class="role-theme role-theme--neutral">
         <p class="eyebrow mb-3 text-role">{% translate "Registration" %}</p>
-        <h1 class="mb-2 text-ink">{% translate "Register" %}</h1>
+        <h1 class="mb-2 text-ink">{% translate "Pre-registration" %}</h1>
         <p class="mb-6 text-lead text-body">
             {% blocktranslate trimmed %}
-                Answer the following two questions to determine which role is relevant.
+                Which role is relevant for you?
             {% endblocktranslate %}
         </p>
 
@@ -36,7 +36,7 @@
 
             <div class="card">
                 <h2 class="mb-5 text-lg font-semibold text-ink">
-                    {% translate "Your role" %}
+                    {% translate "4 Vallées season passes" %}
                 </h2>
 
                 {% if error %}
@@ -48,7 +48,7 @@
                 <div class="yn-matrix mb-6">
                     <div class="yn-matrix__row">
                         <p class="yn-matrix__question">
-                            {% translate "Did you have a 4 Vallées season pass in 2024/25?" %}
+                            {% translate "Did you buy a season pass in 2024/25?" %}
                         </p>
                         <div class="yn-matrix__control" role="radiogroup" aria-label="{% translate 'Season pass in 2024/25?' %}">
                             <label class="yn-matrix__option">
@@ -117,7 +117,7 @@
 
                     <div class="yn-matrix__row">
                         <p class="yn-matrix__question">
-                            {% translate "Did you have a 4 Vallées season pass in 2025/26?" %}
+                            {% translate "Did you buy a season pass in 2025/26?" %}
                         </p>
                         <div class="yn-matrix__control" role="radiogroup" aria-label="{% translate 'Season pass in 2025/26?' %}">
                             <label class="yn-matrix__option">

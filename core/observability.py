@@ -32,15 +32,21 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import posthog
 from decouple import config
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.http import HttpRequest
 
 from core.geo import get_client_ip
+
+if TYPE_CHECKING:
+    # Imported for type-checking only. A runtime import here executes at
+    # settings-load time (production.py imports this module), before the app
+    # registry is ready, raising AppRegistryNotReady. The `from __future__
+    # import annotations` above keeps the annotation a string at runtime.
+    from django.contrib.auth.models import User
 
 logger = logging.getLogger(__name__)
 

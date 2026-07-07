@@ -47,7 +47,6 @@ export const FIELD = {
   preferredLanguage: "#id_preferred_language",
   nationality: "#id_nationality",
   priorPass: "#id_prior_pass",
-  priorPassAttestation: "#id_prior_pass_attestation",
   termsAccepted: "#id_terms_accepted",
 } as const;
 
@@ -131,7 +130,6 @@ export async function registerVerified(
   if (p.role === "ambassador") {
     await page.selectOption(FIELD.priorPass, "SEASONAL");
   }
-  await page.check(FIELD.priorPassAttestation);
   await page.check(FIELD.termsAccepted);
   await page.click('button[type="submit"]');
 

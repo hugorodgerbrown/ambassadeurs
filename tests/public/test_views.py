@@ -136,13 +136,25 @@ def test_register_get_neutral_form_is_disabled() -> None:
 
 
 def test_register_get_neutral_submit_button_disabled() -> None:
-    """The neutral-state submit button is disabled and prompts a role choice."""
+    """The neutral-state submit button is disabled and prompts an answer."""
     response = Client().get(reverse("public:register"))
     assert response.status_code == 200
     content = response.content.decode()
-    assert "Select a role to continue" in content
+    assert "Answer the question to continue" in content
     # The submit button element itself must be disabled.
     assert re.search(r'<button[^>]*type="submit"[^>]*\bdisabled\b', content)
+
+
+def test_register_get_neutral_renders_eligibility_question_not_role_label() -> None:
+    """The neutral state asks the yes/no eligibility question, not a role picker."""
+    response = Client().get(reverse("public:register"))
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert (
+        "Did you hold a season or annual pass with the 4 Vallées in 2024/25" in content
+    )
+    assert "Your role" not in content
+    assert "Select your role" not in content
 
 
 @override_settings(
@@ -168,7 +180,6 @@ def _valid_ambassador_post() -> dict[str, object]:
         "last_name": "Lovelace",
         "email": "ada@example.com",
         "prior_pass": Registration.PriorPass.SEASONAL,
-        "prior_pass_attestation": True,
         "terms_accepted": True,
     }
 
@@ -180,7 +191,6 @@ def _valid_referee_post() -> dict[str, object]:
         "first_name": "Grace",
         "last_name": "Hopper",
         "email": "grace@example.com",
-        "prior_pass_attestation": True,
         "terms_accepted": True,
     }
 
@@ -222,9 +232,12 @@ def test_register_post_pending_not_matched() -> None:
 
 
 def test_register_post_invalid_redisplays_form() -> None:
-    """An invalid POST (missing attestation) re-renders the form and creates nothing."""
+    """An invalid POST (missing terms acceptance) re-renders the form.
+
+    No Registration is created.
+    """
     payload = _valid_referee_post()
-    del payload["prior_pass_attestation"]
+    del payload["terms_accepted"]
     response = Client().post(reverse("public:register"), payload)
     assert response.status_code == 200
     assert not Registration.objects.exists()
@@ -1095,7 +1108,6 @@ def test_register_post_already_registered_returns_403() -> None:
             "first_name": "Jane",
             "last_name": "Doe",
             "prior_pass": Registration.PriorPass.SEASONAL,
-            "prior_pass_attestation": "on",
             "terms_accepted": "on",
         },
     )
@@ -2901,7 +2913,6 @@ def test_register_post_stores_geo_country_and_region() -> None:
                 "phone": "+41790001234",
                 "preferred_language": "en",
                 "preferred_location": "",
-                "prior_pass_attestation": True,
                 "terms_accepted": True,
             },
         )
@@ -2940,7 +2951,6 @@ def test_register_post_geo_empty_when_private_ip() -> None:
                 "phone": "+41790005678",
                 "preferred_language": "en",
                 "preferred_location": "",
-                "prior_pass_attestation": True,
                 "terms_accepted": True,
             },
         )
@@ -2972,7 +2982,6 @@ def test_register_post_skips_geolocate_when_no_client_ip() -> None:
                 "phone": "+41790009012",
                 "preferred_language": "en",
                 "preferred_location": "",
-                "prior_pass_attestation": True,
                 "terms_accepted": True,
             },
         )
@@ -3069,7 +3078,6 @@ def test_register_form_error_has_role_alert() -> None:
             "phone": "",
             "preferred_language": "",
             "preferred_location": "",
-            "prior_pass_attestation": "",
             "terms_accepted": "",
         },
     )

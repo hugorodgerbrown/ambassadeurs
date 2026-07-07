@@ -66,7 +66,6 @@ def _ambassador_payload(email: str) -> dict[str, object]:
         "email": email,
         "phone": "+41791112233",
         "prior_pass": Registration.PriorPass.SEASONAL,
-        "prior_pass_attestation": True,
         "terms_accepted": True,
     }
 
@@ -84,7 +83,6 @@ def _referee_payload(email: str) -> dict[str, object]:
         "last_name": "Hopper",
         "email": email,
         "phone": "+41794445566",
-        "prior_pass_attestation": True,
         "terms_accepted": True,
     }
 

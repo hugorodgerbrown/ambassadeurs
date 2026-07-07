@@ -26,7 +26,6 @@ test.describe("states & admin", () => {
     await page.fill("#id_last_name", p.lastName);
     await page.fill("#id_email", p.email);
     await page.fill("#id_phone", p.phone);
-    await page.check("#id_prior_pass_attestation");
     await page.check("#id_terms_accepted");
     await page.click('button[type="submit"]');
     // Paid tier confirms via email then diverts to the deposit funnel.

@@ -345,6 +345,23 @@
   .notification-muted  { background: var(--color-secondary-tint); color: var(--color-secondary-ink); }
   .notification-notice { background: var(--color-notice-tint);    color: var(--color-notice-ink); }
   .notification-urgent { background: var(--color-danger-tint);    color: var(--color-danger-ink); }
+  /* Solid alpine-red block with white text — the boldest look, reusing the
+     accent/on-accent pair from .btn--primary and the .lowbrow badge. Unlike
+     the tint-backed designs above it is a filled brand block, so dark mode
+     flips the text via --color-on-accent rather than inverting a tint. Carries
+     the full .lowbrow badge typography (mono, eyebrow size, tracking,
+     uppercase) so the strip reads as the "FREE TO USE"-style badge. The one
+     .lowbrow declaration deliberately dropped is `width: fit-content`: the
+     strip is a full-width flex row, and shrink-wrapping it would collapse the
+     banner and break the dismiss-button justify-between layout. */
+  .notification-brand {
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+    font-family: var(--font-mono);
+    font-size: var(--text-eyebrow);
+    letter-spacing: var(--text-eyebrow--letter-spacing);
+    text-transform: uppercase;
+  }
 
   /* Nav + wordmark. border uses --color-line (was --color-border),
      --color-ink (was --color-text-1). */

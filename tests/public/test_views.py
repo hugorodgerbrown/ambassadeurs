@@ -1772,6 +1772,42 @@ def test_download_application_form_redirects_to_configured_url() -> None:
     assert response.url == settings.APPLICATION_FORM_URL
 
 
+def test_download_application_form_fires_form_downloaded_event() -> None:
+    """The download view sends a best-effort 'form_downloaded' analytics event."""
+    with patch("public.views.capture_event") as mock_capture:
+        Client().get(reverse("public:application_form"))
+
+    mock_capture.assert_called_once()
+    args, _ = mock_capture.call_args
+    assert args[1] == "form_downloaded"
+
+
+# ---------------------------------------------------------------------------
+# Registration analytics — alias_identities (VERB-124)
+# ---------------------------------------------------------------------------
+
+
+def test_register_post_aliases_anonymous_identity_onto_new_user() -> None:
+    """A brand-new anonymous registration aliases the visitor onto the new user."""
+    with patch("public.views.alias_identities") as mock_alias:
+        Client().post(reverse("public:register"), _valid_referee_post())
+
+    mock_alias.assert_called_once()
+    registration = Registration.objects.get()
+    args, _ = mock_alias.call_args
+    assert args[1] == registration.user
+
+
+def test_register_post_resend_does_not_alias_again() -> None:
+    """Resending for an existing UNVERIFIED registration does not re-alias."""
+    Client().post(reverse("public:register"), _valid_referee_post())
+
+    with patch("public.views.alias_identities") as mock_alias:
+        Client().post(reverse("public:register"), _valid_referee_post())
+
+    mock_alias.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # Miscellaneous
 # ---------------------------------------------------------------------------

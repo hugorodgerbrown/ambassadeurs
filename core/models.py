@@ -226,9 +226,8 @@ class Notification(BaseModel):
         default="NOTICE",
         help_text=(
             "Key into settings.NOTIFICATION_DESIGNS; drives the strip's "
-            "label, description, CSS classes, and inline styles. No "
-            "model-level choices — validated against settings in the admin "
-            "form (VERB-123)."
+            "label, description, and CSS class. No model-level choices — "
+            "validated against settings in the admin form (VERB-123)."
         ),
     )
     weight = models.IntegerField(
@@ -315,28 +314,18 @@ class Notification(BaseModel):
 
     @property
     def design_classes(self) -> str:
-        """Return the CSS utility classes for this notification's design.
+        """Return the CSS class for this notification's design.
 
         Injected into the banner's ``class="…"`` attribute in
-        ``notification_strip.html``. Developer-authored, not user input, so
-        Django's normal auto-escaping on render is sufficient (Invariant 4 is
-        not implicated). Falls back to an empty string if the key is absent
-        from settings.
+        ``notification_strip.html`` and names a component class defined in
+        ``src/css/main.css`` — never an inline ``style="…"``, which
+        production's CSP ``style-src`` (no ``'unsafe-inline'``) would strip.
+        Developer-authored, not user input, so Django's normal auto-escaping
+        on render is sufficient (Invariant 4 is not implicated). Falls back
+        to an empty string if the key is absent from settings.
         """
         design = settings.NOTIFICATION_DESIGNS.get(self.design)
         return design.css_classes if design is not None else ""
-
-    @property
-    def design_styles(self) -> str:
-        """Return the inline CSS for this notification's design.
-
-        Injected into the banner's ``style="…"`` attribute in
-        ``notification_strip.html``. Same provenance and escaping notes as
-        :attr:`design_classes`. Falls back to an empty string if the key is
-        absent from settings.
-        """
-        design = settings.NOTIFICATION_DESIGNS.get(self.design)
-        return design.css_styles if design is not None else ""
 
     @property
     def is_active(self) -> bool:

@@ -55,7 +55,7 @@
                                 hx-get="{% url 'public:register_role_derive' %}"
                                 hx-trigger="change"
                                 hx-target="#role-derived"
-                                hx-include="closest form"
+                                hx-include="[name='pass_2024_25'],[name='pass_2025_26']"
                                 hx-swap="innerHTML"
                             >
                             <span>
@@ -85,7 +85,7 @@
                                 hx-get="{% url 'public:register_role_derive' %}"
                                 hx-trigger="change"
                                 hx-target="#role-derived"
-                                hx-include="closest form"
+                                hx-include="[name='pass_2024_25'],[name='pass_2025_26']"
                                 hx-swap="innerHTML"
                             >
                             <span>
@@ -124,7 +124,7 @@
                                 hx-get="{% url 'public:register_role_derive' %}"
                                 hx-trigger="change"
                                 hx-target="#role-derived"
-                                hx-include="closest form"
+                                hx-include="[name='pass_2024_25'],[name='pass_2025_26']"
                                 hx-swap="innerHTML"
                             >
                             <span>
@@ -154,7 +154,7 @@
                                 hx-get="{% url 'public:register_role_derive' %}"
                                 hx-trigger="change"
                                 hx-target="#role-derived"
-                                hx-include="closest form"
+                                hx-include="[name='pass_2024_25'],[name='pass_2025_26']"
                                 hx-swap="innerHTML"
                             >
                             <span>
@@ -181,7 +181,7 @@
             </div>
 
             <div id="role-derived" class="mb-6">
-                {% include "public/partials/register_role_derived.html" with derived_role=None %}
+                {% include "public/partials/register_role_derived.html" %}
             </div>
 
             <button type="submit" class="btn btn--role btn--block">

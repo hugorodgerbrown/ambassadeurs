@@ -565,6 +565,15 @@
   .yn-matrix__option:has(input:checked) .yn-matrix__icon--yes { color: var(--color-success); }
   .yn-matrix__option:has(input:checked) .yn-matrix__icon--no  { color: var(--color-danger); }
 
+  /* Selected segment's border matches its icon colour (green Yes / red No).
+     An inset ring avoids layout shift and draws over the shared divider. */
+  .yn-matrix__option:has(.yn-matrix__icon--yes):has(input:checked) span {
+    box-shadow: inset 0 0 0 1px var(--color-success);
+  }
+  .yn-matrix__option:has(.yn-matrix__icon--no):has(input:checked) span {
+    box-shadow: inset 0 0 0 1px var(--color-danger);
+  }
+
   /* Live derived-role statement below the matrix. */
   .role-derived { font-size: 0.95rem; font-weight: 600; padding: 12px 16px; border-radius: var(--radius-control); }
   .role-derived--prompt { color: var(--color-meta); background: var(--color-surface-2); }

@@ -211,6 +211,17 @@ def test_register_role_derive_htmx_get_incomplete_shows_prompt() -> None:
     assert "Answer both questions to continue." in response.content.decode()
 
 
+def test_register_role_derive_htmx_get_garbage_values_shows_prompt() -> None:
+    """Unexpected answer values derive no role and render the prompt, not a 500."""
+    response = Client().get(
+        reverse("public:register_role_derive"),
+        {"pass_2024_25": "banana", "pass_2025_26": "yes"},
+        headers={"HX-Request": "true"},
+    )
+    assert response.status_code == 200
+    assert "Answer both questions to continue." in response.content.decode()
+
+
 # ---------------------------------------------------------------------------
 # Bare /register/ redirect (back-compat)
 # ---------------------------------------------------------------------------

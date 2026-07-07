@@ -299,6 +299,12 @@ def register_role(request: HttpRequest) -> HttpResponse:
                     "error": True,
                     "pass_2024_25": pass_2024_25,
                     "pass_2025_26": pass_2025_26,
+                    # Derived from the (incomplete) answers, so the server render
+                    # matches the re-checked radios rather than hard-coding the
+                    # prompt. With both answers required this is None, but keeping
+                    # it derive-consistent avoids a misleading statement if the
+                    # rule ever relaxes.
+                    "derived_role": role_slug,
                 },
             )
         return redirect("public:register_form", role=role_slug)

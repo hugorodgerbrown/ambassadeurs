@@ -25,17 +25,46 @@ from tests.accounts.factories import UserFactory
 # ---------------------------------------------------------------------------
 
 
-def test_scrub_pii_redacts_email() -> None:
-    """Email addresses are replaced with a placeholder."""
-    event = {"message": "failed for ada@example.com while matching"}
-    assert scrub_pii(event) == {"message": "failed for [email redacted] while matching"}
+def test_scrub_pii_redacts_email_in_properties() -> None:
+    """Email addresses inside event properties are replaced with a placeholder."""
+    event = {
+        "event": "$exception",
+        "properties": {"message": "failed for ada@example.com while matching"},
+    }
+    scrubbed = scrub_pii(event)
+    assert (
+        scrubbed["properties"]["message"]
+        == "failed for [email redacted] while matching"
+    )
 
 
-def test_scrub_pii_redacts_phone() -> None:
-    """Phone numbers (including the Swiss +41 form) are replaced."""
-    scrubbed = scrub_pii("call +41 79 000 88 88 now")
-    assert "+41" not in scrubbed
-    assert "[phone redacted]" in scrubbed
+def test_scrub_pii_redacts_phone_in_properties() -> None:
+    """Phone numbers (including the Swiss +41 form) inside properties are replaced."""
+    event = {"event": "$exception", "properties": {"note": "call +41 79 000 88 88 now"}}
+    scrubbed = scrub_pii(event)
+    assert "+41" not in scrubbed["properties"]["note"]
+    assert "[phone redacted]" in scrubbed["properties"]["note"]
+
+
+def test_scrub_pii_preserves_envelope_fields() -> None:
+    """The SDK envelope (event name, distinct_id, ISO timestamp) is left intact.
+
+    Regression test for the ingestion failure where the broad phone pattern
+    matched the date and time digit runs of an ISO-8601 ``timestamp``,
+    corrupting it into ``[phone redacted]T…`` so PostHog rejected the whole
+    batch ("non-engage request missing event name attribute").
+    """
+    event = {
+        "event": "registration",
+        "distinct_id": "42",
+        "timestamp": "2026-07-07T11:08:10.123456+00:00",
+        "properties": {"role": "AMBASSADOR"},
+    }
+    scrubbed = scrub_pii(event)
+    assert scrubbed["event"] == "registration"
+    assert scrubbed["distinct_id"] == "42"
+    assert scrubbed["timestamp"] == "2026-07-07T11:08:10.123456+00:00"
+    assert scrubbed["properties"]["role"] == "AMBASSADOR"
 
 
 def test_scrub_pii_walks_nested_structures() -> None:

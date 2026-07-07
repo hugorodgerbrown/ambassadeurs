@@ -202,26 +202,30 @@ def test_register_role_derive_htmx_get_both_no_shows_referee_button() -> None:
     assert "role-theme--referee" in content
 
 
-def test_register_role_derive_htmx_get_incomplete_shows_prompt() -> None:
-    """An HTMX GET with a missing answer shows the 'answer both' prompt."""
+def test_register_role_derive_htmx_get_incomplete_shows_continue_button() -> None:
+    """An HTMX GET with a missing answer shows the neutral Continue button."""
     response = Client().get(
         reverse("public:register_role_derive"),
         {"pass_2024_25": "yes"},
         headers={"HX-Request": "true"},
     )
     assert response.status_code == 200
-    assert "Answer both questions to continue." in response.content.decode()
+    content = response.content.decode()
+    assert "Continue" in content
+    assert "Register as" not in content
 
 
-def test_register_role_derive_htmx_get_garbage_values_shows_prompt() -> None:
-    """Unexpected answer values derive no role and render the prompt, not a 500."""
+def test_register_role_derive_htmx_get_garbage_values_shows_continue_button() -> None:
+    """Unexpected answer values derive no role and render Continue, not a 500."""
     response = Client().get(
         reverse("public:register_role_derive"),
         {"pass_2024_25": "banana", "pass_2025_26": "yes"},
         headers={"HX-Request": "true"},
     )
     assert response.status_code == 200
-    assert "Answer both questions to continue." in response.content.decode()
+    content = response.content.decode()
+    assert "Continue" in content
+    assert "Register as" not in content
 
 
 # ---------------------------------------------------------------------------

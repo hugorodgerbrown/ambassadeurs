@@ -4,10 +4,10 @@ Live derived-role affordance for the role-chooser matrix (VERB-131).
 Rendered inline on the initial register_role.html GET and re-rendered in
 place via HTMX (register_role_derive) on every Y/N change. Contains the
 form's submit button so the label and colour reflect the derived role:
-Ambassador (accent) / Referee (secondary), or a neutral "Continue" with the
-"answer both questions" prompt while either question is unanswered. The
-button stays enabled in every state so the no-JS path still submits (the
-server re-validates and derives the role).
+Ambassador (accent) / Referee (secondary), or a neutral "Continue" while
+either question is unanswered. The button stays enabled in every state so
+the no-JS path still submits — the server re-validates and, if either
+answer is missing, re-renders the chooser with the "answer both" error.
 
 Context:
   derived_role — "ambassador" / "referee" / None (either question unanswered)
@@ -36,9 +36,6 @@ Context:
         </button>
     </div>
 {% else %}
-    <p class="role-derived role-derived--prompt mb-4" role="status">
-        {% translate "Answer both questions to continue." %}
-    </p>
     <button type="submit" class="btn btn--role btn--block">
         {% translate "Continue" %}
         <svg

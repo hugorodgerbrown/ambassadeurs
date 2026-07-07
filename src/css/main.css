@@ -582,8 +582,6 @@
   }
 
   /* Live derived-role statement below the matrix. */
-  .role-derived { font-size: 0.95rem; font-weight: 600; padding: 12px 16px; border-radius: var(--radius-control); }
-  .role-derived--prompt { color: var(--color-meta); background: var(--color-surface-2); }
 
   /* ── Eligibility callout (numbered, editorial) ──────────────────────────
      The pre-form "what you'll need to qualify" gate. A white card with a role

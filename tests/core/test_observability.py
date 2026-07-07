@@ -1,15 +1,24 @@
-# Tests for core.observability — PostHog error monitoring (VERB-65).
+# Tests for core.observability — PostHog error monitoring (VERB-65) and
+# product analytics (VERB-124).
 #
 # No django_db marker: these exercise pure helpers and mocked PostHog calls;
 # they never touch the ORM.
 
 from unittest.mock import patch
 
+from django.contrib.auth.models import AnonymousUser
+from django.test import RequestFactory
+
 from core.observability import (
+    alias_identities,
+    anonymous_distinct_id,
+    capture_event,
     capture_exception,
+    distinct_id_for,
     init_error_monitoring,
     scrub_pii,
 )
+from tests.accounts.factories import UserFactory
 
 # ---------------------------------------------------------------------------
 # scrub_pii — the before_send PII redaction hook
@@ -94,3 +103,140 @@ def test_capture_exception_swallows_reporting_errors() -> None:
     ):
         # Must not raise.
         capture_exception(ValueError("boom"))
+
+
+# ---------------------------------------------------------------------------
+# capture_event (VERB-124)
+# ---------------------------------------------------------------------------
+
+
+def test_capture_event_sends_event_with_distinct_id_and_properties() -> None:
+    """capture_event forwards the event, distinct_id, and properties to PostHog."""
+    with patch("core.observability.posthog.capture") as mock_capture:
+        capture_event("42", "registration", {"role": "AMBASSADOR"})
+
+    mock_capture.assert_called_once_with(
+        "registration", distinct_id="42", properties={"role": "AMBASSADOR"}
+    )
+
+
+def test_capture_event_defaults_properties_to_empty_dict() -> None:
+    """With no properties given, capture_event passes an empty dict, not None."""
+    with patch("core.observability.posthog.capture") as mock_capture:
+        capture_event("42", "form_downloaded")
+
+    mock_capture.assert_called_once_with(
+        "form_downloaded", distinct_id="42", properties={}
+    )
+
+
+def test_capture_event_swallows_reporting_errors() -> None:
+    """A failure in the PostHog client must not propagate into the caller."""
+    with patch(
+        "core.observability.posthog.capture",
+        side_effect=RuntimeError("network down"),
+    ):
+        # Must not raise.
+        capture_event("42", "registration")
+
+
+# ---------------------------------------------------------------------------
+# anonymous_distinct_id
+# ---------------------------------------------------------------------------
+
+
+def test_anonymous_distinct_id_is_deterministic_for_equal_ip_and_ua() -> None:
+    """Two requests with the same IP and user-agent yield the same hash."""
+    request_one = RequestFactory().get(
+        "/", REMOTE_ADDR="1.2.3.4", HTTP_USER_AGENT="Mozilla/5.0"
+    )
+    request_two = RequestFactory().get(
+        "/", REMOTE_ADDR="1.2.3.4", HTTP_USER_AGENT="Mozilla/5.0"
+    )
+    assert anonymous_distinct_id(request_one) == anonymous_distinct_id(request_two)
+
+
+def test_anonymous_distinct_id_differs_when_ip_differs() -> None:
+    """A different IP (same user-agent) yields a different hash."""
+    request_one = RequestFactory().get(
+        "/", REMOTE_ADDR="1.2.3.4", HTTP_USER_AGENT="Mozilla/5.0"
+    )
+    request_two = RequestFactory().get(
+        "/", REMOTE_ADDR="5.6.7.8", HTTP_USER_AGENT="Mozilla/5.0"
+    )
+    assert anonymous_distinct_id(request_one) != anonymous_distinct_id(request_two)
+
+
+def test_anonymous_distinct_id_differs_when_user_agent_differs() -> None:
+    """A different user-agent (same IP) yields a different hash."""
+    request_one = RequestFactory().get(
+        "/", REMOTE_ADDR="1.2.3.4", HTTP_USER_AGENT="Mozilla/5.0"
+    )
+    request_two = RequestFactory().get(
+        "/", REMOTE_ADDR="1.2.3.4", HTTP_USER_AGENT="curl/8.0"
+    )
+    assert anonymous_distinct_id(request_one) != anonymous_distinct_id(request_two)
+
+
+def test_anonymous_distinct_id_never_contains_raw_ip() -> None:
+    """The returned hash never leaks the raw IP address."""
+    request = RequestFactory().get(
+        "/", REMOTE_ADDR="203.0.113.42", HTTP_USER_AGENT="Mozilla/5.0"
+    )
+    result = anonymous_distinct_id(request)
+    assert "203.0.113.42" not in result
+    assert result.startswith("anon:")
+
+
+# ---------------------------------------------------------------------------
+# distinct_id_for
+# ---------------------------------------------------------------------------
+
+
+def test_distinct_id_for_returns_pk_for_authenticated_user(db: None) -> None:
+    """An authenticated user is identified by their User.pk."""
+    user = UserFactory.create()
+    request = RequestFactory().get("/")
+    request.user = user
+    assert distinct_id_for(request) == str(user.pk)
+
+
+def test_distinct_id_for_returns_anonymous_hash_for_anonymous_user() -> None:
+    """An anonymous visitor is identified by the anonymous hash."""
+    request = RequestFactory().get(
+        "/", REMOTE_ADDR="1.2.3.4", HTTP_USER_AGENT="Mozilla/5.0"
+    )
+    request.user = AnonymousUser()
+    assert distinct_id_for(request) == anonymous_distinct_id(request)
+
+
+# ---------------------------------------------------------------------------
+# alias_identities
+# ---------------------------------------------------------------------------
+
+
+def test_alias_identities_calls_posthog_alias_with_correct_ids(db: None) -> None:
+    """alias_identities calls posthog.alias with the anon hash and the user pk."""
+    user = UserFactory.create()
+    request = RequestFactory().get(
+        "/", REMOTE_ADDR="1.2.3.4", HTTP_USER_AGENT="Mozilla/5.0"
+    )
+
+    with patch("core.observability.posthog.alias") as mock_alias:
+        alias_identities(request, user)
+
+    mock_alias.assert_called_once_with(
+        previous_id=anonymous_distinct_id(request), distinct_id=str(user.pk)
+    )
+
+
+def test_alias_identities_swallows_reporting_errors(db: None) -> None:
+    """A failure in the PostHog client must not propagate into the caller."""
+    user = UserFactory.create()
+    request = RequestFactory().get("/")
+
+    with patch(
+        "core.observability.posthog.alias", side_effect=RuntimeError("network down")
+    ):
+        # Must not raise.
+        alias_identities(request, user)

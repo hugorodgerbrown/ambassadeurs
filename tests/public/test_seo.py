@@ -183,12 +183,13 @@ def test_register_form_canonical_link_is_role_specific() -> None:
     and ``/register/referee/`` are genuinely different pages, so each
     correctly self-declares its own canonical rather than sharing one.
     """
-    ambassador_url = reverse("public:register_form", kwargs={"role": "ambassador"})
-    content = _get(ambassador_url).decode()
-    match = re.search(r'rel="canonical"\s+href="([^"]+)"', content, re.DOTALL)
-    assert match is not None
-    href = match.group(1)
-    assert href.endswith(ambassador_url)
+    for role in ("ambassador", "referee"):
+        role_url = reverse("public:register_form", kwargs={"role": role})
+        content = _get(role_url).decode()
+        match = re.search(r'rel="canonical"\s+href="([^"]+)"', content, re.DOTALL)
+        assert match is not None, role
+        href = match.group(1)
+        assert href.endswith(role_url), (role, href)
 
 
 # ---------------------------------------------------------------------------

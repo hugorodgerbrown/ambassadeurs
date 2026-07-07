@@ -26,9 +26,9 @@ urlpatterns = [
         views.register_confirm,
         name="register_confirm",
     ),
-    # NB: the survey submit route must be declared before the <slug:role>
-    # pattern below — otherwise "survey" matches as a role slug first and
-    # register_done 404s on the unknown role.
+    # NB: the survey submit route must be declared before the
+    # register/done/<slug:role>/ pattern below — otherwise "survey" matches as
+    # a role slug for register_done first and that view 404s on the unknown role.
     path(
         "register/done/survey/",
         views.register_survey_submit,

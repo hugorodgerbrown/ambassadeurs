@@ -558,6 +558,14 @@
     cursor: pointer;
   }
   .yn-matrix__option + .yn-matrix__option span { border-left: 1px solid var(--color-line-strong); }
+  /* Round the outer corners of the end segments so the selected inset ring
+     follows the control's radius instead of being clipped square. */
+  .yn-matrix__option:first-child span {
+    border-top-left-radius: var(--radius-control); border-bottom-left-radius: var(--radius-control);
+  }
+  .yn-matrix__option:last-child span {
+    border-top-right-radius: var(--radius-control); border-bottom-right-radius: var(--radius-control);
+  }
   .yn-matrix__option:has(input:checked) span { background: var(--role-tint); color: var(--role); }
   .yn-matrix__option:has(input:focus-visible) span { outline: 2px solid var(--role); outline-offset: -2px; }
 

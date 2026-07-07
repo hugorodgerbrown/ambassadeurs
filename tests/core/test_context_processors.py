@@ -62,7 +62,7 @@ def test_notifications_includes_authenticated_notification_for_authenticated() -
 
 
 def test_notifications_returns_newest_first() -> None:
-    """Equal-priority active notifications are returned newest first."""
+    """Equal-weight active notifications are returned newest first."""
     first = NotificationFactory.create(audience=Notification.Audience.EVERYONE)
     second = NotificationFactory.create(audience=Notification.Audience.EVERYONE)
     request = RequestFactory().get("/")
@@ -71,20 +71,23 @@ def test_notifications_returns_newest_first() -> None:
     assert [n.pk for n in result["active_notifications"]] == [second.pk, first.pk]
 
 
-def test_notifications_orders_higher_priority_first() -> None:
-    """A HIGH-priority notification is returned above an earlier NEUTRAL one."""
-    neutral = NotificationFactory.create(
+def test_notifications_orders_higher_weight_first() -> None:
+    """A higher-weight notification is returned above an earlier lower-weight one."""
+    low_weight = NotificationFactory.create(
         audience=Notification.Audience.EVERYONE,
-        priority=Notification.Priority.NEUTRAL,
+        weight=0,
     )
-    high = NotificationFactory.create(
+    high_weight = NotificationFactory.create(
         audience=Notification.Audience.EVERYONE,
-        priority=Notification.Priority.HIGH,
+        weight=1,
     )
     request = RequestFactory().get("/")
     request.user = AnonymousUser()
     result = notifications(request)
-    assert [n.pk for n in result["active_notifications"]] == [high.pk, neutral.pk]
+    assert [n.pk for n in result["active_notifications"]] == [
+        high_weight.pk,
+        low_weight.pk,
+    ]
 
 
 def test_notifications_excludes_disabled_notification() -> None:

@@ -301,16 +301,11 @@ def test_expected_notification_count() -> None:
     assert len(_seeded_notifications()) == 11
 
 
-def test_seeded_notifications_cover_every_priority() -> None:
-    """The sentinel set exercises all four priority colours."""
+def test_seeded_notifications_cover_every_design() -> None:
+    """The sentinel set exercises all four seed designs."""
     _run()
-    priorities = {n.priority for n in _seeded_notifications()}
-    assert priorities == {
-        Notification.Priority.NEUTRAL,
-        Notification.Priority.LOW,
-        Notification.Priority.NORMAL,
-        Notification.Priority.HIGH,
-    }
+    designs = {n.design for n in _seeded_notifications()}
+    assert designs == {"INFO", "MUTED", "NOTICE", "URGENT"}
 
 
 def test_seeded_notifications_include_a_disabled_kill_switch_example() -> None:

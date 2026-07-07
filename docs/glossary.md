@@ -41,3 +41,6 @@ implement it. Add a row when a term gains a symbol.
 | Keep a deposit (successful match) | `billing.services.payments.capture` | `billing/services/payments.py` |
 | Refund a deposit (via Stripe) | `billing.services.payments.refund` | `billing/services/payments.py` |
 | Forfeit a deposit (post-accept no-show) | `billing.services.payments.forfeit` | `billing/services/payments.py` |
+| Site-wide notification banner | `core.models.Notification` | `core/models.py` |
+| Notification banner look (label/description/CSS) | `settings.NOTIFICATION_DESIGNS` (`Notification.design`) | `config/settings/base.py` |
+| Notification stacking order | `Notification.weight` | `core/models.py` |

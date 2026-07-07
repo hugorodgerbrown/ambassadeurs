@@ -47,15 +47,26 @@ _AMBASSADOR_PRIOR_PASS_CHOICES = [
     (Registration.PriorPass.MONT4, Registration.PriorPass.MONT4.label),
 ]
 
+# Role-derived eligibility statements recorded in Registration.accepted_terms
+# (VERB-131). The role is now chosen via a yes/no question on the registration
+# page rather than a self-select dropdown plus a separate attestation
+# checkbox, but the underlying eligibility fact the participant is confirming
+# is unchanged, so the exact wording is retained here.
+_AMBASSADOR_ELIGIBILITY_STATEMENT = _(
+    "I purchased a season or annual pass in 2024/25 or 2025/26."
+)
+_REFEREE_ELIGIBILITY_STATEMENT = _(
+    "I did not purchase a season or annual pass in 2024/25 or 2025/26."
+)
+
 
 class RegistrationForm(forms.Form):
     """Collect the participant details needed to enrol them in the pool.
 
-    Built with ``role`` (Registration.Role). Two required checkboxes are
-    rendered at submission:
+    Built with ``role`` (Registration.Role), derived on the registration page
+    from a yes/no eligibility question rather than a self-select dropdown
+    (VERB-131). A single required checkbox is rendered at submission:
 
-    - ``prior_pass_attestation``: a role-specific eligibility declaration
-      (ambassador or referee wording, set in ``__init__``).
     - ``terms_accepted``: acceptance of the Terms of Use.
 
     For ambassadors, a ``prior_pass`` select is rendered (SEASONAL / ANNUAL /
@@ -63,6 +74,8 @@ class RegistrationForm(forms.Form):
 
     ``accepted_statements()`` returns the ordered list of resolved consent
     statement texts, ready to be persisted on ``Registration.accepted_terms``.
+    The first is the role-derived eligibility statement (the fact the yes/no
+    question already established); the second is the Terms of Use label.
     """
 
     first_name = forms.CharField(
@@ -109,11 +122,6 @@ class RegistrationForm(forms.Form):
         required=False,
         widget=forms.Select(attrs={"class": _SELECT_CLASSES}),
     )
-    prior_pass_attestation = forms.BooleanField(
-        # Label is role-specific; set in __init__.
-        required=True,
-        widget=forms.CheckboxInput(attrs={"class": _CHECKBOX_CLASSES}),
-    )
     terms_accepted = forms.BooleanField(
         # Label displayed in the template via {% blocktranslate %} with an inline link.
         label=_("I have read and agree to the Terms of Use"),
@@ -150,16 +158,6 @@ class RegistrationForm(forms.Form):
             *list(countries),
         ]
 
-        # Set the role-specific eligibility declaration label.
-        if role == Registration.Role.AMBASSADOR:
-            self.fields["prior_pass_attestation"].label = _(
-                "I purchased a season or annual pass in 2024/25 or 2025/26."
-            )
-        else:
-            self.fields["prior_pass_attestation"].label = _(
-                "I did not purchase a season or annual pass in 2024/25 or 2025/26."
-            )
-
         if role != Registration.Role.AMBASSADOR:
             # Referees do not choose a prior pass; it resolves to NONE in clean.
             del self.fields["prior_pass"]
@@ -173,11 +171,15 @@ class RegistrationForm(forms.Form):
         """Return the ordered list of consent statement texts the participant accepted.
 
         Resolves lazy translation strings to plain ``str`` under the active language.
-        The eligibility declaration comes first; the T&C acceptance comes second.
-        The labels are set in ``__init__`` and do not depend on ``cleaned_data``,
+        The role-derived eligibility statement comes first (chosen by ``self.role``,
+        which the registration page's yes/no question resolved before the form was
+        built); the T&C acceptance comes second. Neither depends on ``cleaned_data``,
         so this is safe to call at any point after construction.
         """
-        eligibility_label = str(self.fields["prior_pass_attestation"].label)
+        if self.role == Registration.Role.AMBASSADOR:
+            eligibility_label = str(_AMBASSADOR_ELIGIBILITY_STATEMENT)
+        else:
+            eligibility_label = str(_REFEREE_ELIGIBILITY_STATEMENT)
         terms_label = str(self.fields["terms_accepted"].label)
         return [eligibility_label, terms_label]
 

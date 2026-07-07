@@ -17,7 +17,6 @@ def _valid_ambassador_data(**overrides: object) -> dict[str, object]:
         "last_name": "Lovelace",
         "email": "ada@example.com",
         "prior_pass": Registration.PriorPass.SEASONAL,
-        "prior_pass_attestation": True,
         "terms_accepted": True,
     }
     data.update(overrides)
@@ -30,7 +29,6 @@ def _valid_referee_data(**overrides: object) -> dict[str, object]:
         "first_name": "Grace",
         "last_name": "Hopper",
         "email": "grace@example.com",
-        "prior_pass_attestation": True,
         "terms_accepted": True,
     }
     data.update(overrides)
@@ -47,16 +45,6 @@ def test_valid_ambassador_form_lowercases_email() -> None:
     assert form.cleaned_data["email"] == "ada@example.com"
 
 
-def test_prior_pass_attestation_is_required() -> None:
-    """The eligibility declaration checkbox must be ticked."""
-    form = RegistrationForm(
-        role=Registration.Role.AMBASSADOR,
-        data=_valid_ambassador_data(prior_pass_attestation=False),
-    )
-    assert not form.is_valid()
-    assert "prior_pass_attestation" in form.errors
-
-
 def test_terms_accepted_is_required() -> None:
     """The Terms of Use acceptance checkbox must be ticked."""
     form = RegistrationForm(
@@ -67,8 +55,8 @@ def test_terms_accepted_is_required() -> None:
     assert "terms_accepted" in form.errors
 
 
-def test_both_checkboxes_present_makes_form_valid() -> None:
-    """The form is valid when both confirmation checkboxes are ticked."""
+def test_terms_checkbox_present_makes_form_valid() -> None:
+    """The form is valid when the terms confirmation checkbox is ticked."""
     form = RegistrationForm(
         role=Registration.Role.AMBASSADOR,
         data=_valid_ambassador_data(),
@@ -76,8 +64,8 @@ def test_both_checkboxes_present_makes_form_valid() -> None:
     assert form.is_valid(), form.errors
 
 
-def test_referee_both_checkboxes_present_makes_form_valid() -> None:
-    """The referee form is valid when both confirmation checkboxes are ticked."""
+def test_referee_terms_checkbox_present_makes_form_valid() -> None:
+    """The referee form is valid when the terms confirmation checkbox is ticked."""
     form = RegistrationForm(
         role=Registration.Role.REFEREE,
         data=_valid_referee_data(),
@@ -125,7 +113,6 @@ def test_authenticated_duplicate_registration_rejected() -> None:
             "first_name": "Ada",
             "last_name": "Lovelace",
             "prior_pass": Registration.PriorPass.SEASONAL,
-            "prior_pass_attestation": True,
             "terms_accepted": True,
         },
     )

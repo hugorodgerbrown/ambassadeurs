@@ -1560,13 +1560,6 @@ def test_home_contains_no_facebook_login() -> None:
     assert b"/accounts/facebook" not in content
 
 
-def test_how_it_works_contains_no_facebook_reference() -> None:
-    """The how-it-works page must not mention Facebook."""
-    response = Client().get(reverse("public:how_it_works"))
-    assert b"Facebook" not in response.content
-    assert b"facebook" not in response.content
-
-
 def test_register_form_contains_no_facebook_reference() -> None:
     """The combined registration form must not mention Facebook."""
     response = Client().get(reverse("public:register"))
@@ -1678,16 +1671,18 @@ def test_home_menu_links_to_faq_and_how_it_works() -> None:
 
 
 def test_how_it_works_contains_section_markers() -> None:
-    """The how-it-works page renders its process-narrative section headings and
-    representative registration/match status names.
+    """The how-it-works page renders its four process-narrative step headings.
+
+    The reworked page (#130) tells the story as four steps — register, match,
+    accept, reveal — in plain language, deliberately exposing no internal
+    state-machine vocabulary.
     """
     response = Client().get(reverse("public:how_it_works"))
     content = response.content
-    assert b"Your registration" in content
-    assert b"A match" in content
-    assert b"Verified" in content
-    assert b"Proposed" in content
-    assert b"Accepted" in content
+    assert b"You register with us" in content
+    assert b"We match you" in content
+    assert b"You accept" in content
+    assert b"We reveal contact details" in content
 
 
 def test_how_it_works_links_to_faq() -> None:

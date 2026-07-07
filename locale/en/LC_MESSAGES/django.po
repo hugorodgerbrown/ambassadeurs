@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-04 19:17+0200\n"
+"POT-Creation-Date: 2026-07-06 22:25+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -1042,6 +1042,9 @@ msgstr ""
 msgid "Find your season-pass match"
 msgstr ""
 
+msgid "Free for early registrations"
+msgstr ""
+
 msgid ""
 "No more last minute search in the Facebook group. We automatically match you "
 "with a partner - for free*."
@@ -1056,31 +1059,34 @@ msgstr ""
 msgid "Registration opens soon — check back closer to the start of the season."
 msgstr ""
 
-msgid "Register in the role that fits you"
+msgid "You register with us"
 msgstr ""
 
-msgid "Ambassador or Referee — whichever describes you."
+msgid "Select the role that applies - Ambassador or Referee."
 msgstr ""
 
-msgid "We match you automatically"
+msgid "We match you"
 msgstr ""
 
-msgid "We add you to the queue and pair you up. You don't pick each other."
+msgid "We pair you with the first available match."
 msgstr ""
 
-msgid "We email you when matched"
+msgid "You accept"
 msgstr ""
 
+msgid "Both sides confirm they're happy to share contact details."
+msgstr ""
+
+msgid "We share contact details"
+msgstr ""
+
+msgid "We only reveal contact details once both sides have agreed to do so."
+msgstr ""
+
+#, python-format
 msgid ""
-"You'll have a limited time to accept the match — the current window is shown "
-"in the match email."
-msgstr ""
-
-msgid "Meet and apply together"
-msgstr ""
-
-msgid ""
-"Once you both accept, we share contact details so you can apply together."
+"Want the full picture? Read the <a href=\"%(how_it_works_url)s\" "
+"class=\"text-accent underline\" >step-by-step walkthrough</a>."
 msgstr ""
 
 msgid "Which role are you?"
@@ -1112,6 +1118,12 @@ msgid ""
 msgstr ""
 
 msgid "Register as a Referee"
+msgstr ""
+
+#, python-format
+msgid ""
+"Not sure which one you are? Check the <a href=\"%(faq_url)s\" class=\"text-"
+"accent underline\">FAQ</a>."
 msgstr ""
 
 msgid ""
@@ -1543,8 +1555,8 @@ msgid "Accept match"
 msgstr ""
 
 msgid ""
-"Declining will remove your registration. You can re-register at any time. "
-"Are you sure?"
+"Declining will pause your registration. You can rejoin the queue from your "
+"account at any time. Are you sure?"
 msgstr ""
 
 msgid "Decline"

@@ -30,11 +30,81 @@ pytestmark = pytest.mark.django_db
 
 
 def _run(**kwargs: object) -> str:
-    """Run seed_test_data with DEBUG=True and return stdout."""
+    """Run seed_test_data with DEBUG=True and return stdout.
+
+    Defaults to loading every dataset (``--all``) so existing assertions about
+    users, matches, and notifications hold; pass ``all=False`` with ``data=[...]``
+    to exercise a subset.
+    """
+    kwargs.setdefault("all", True)
     stdout = StringIO()
     with override_settings(DEBUG=True):
         call_command("seed_test_data", stdout=stdout, **kwargs)
     return stdout.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# Dataset selection
+# ---------------------------------------------------------------------------
+
+
+def test_no_selection_lists_datasets_and_loads_nothing() -> None:
+    """With neither --data nor --all, the command lists datasets and writes no rows."""
+    stdout = StringIO()
+    with override_settings(DEBUG=True):
+        call_command("seed_test_data", stdout=stdout)
+    output = stdout.getvalue()
+    assert "Available datasets:" in output
+    assert "users" in output
+    assert "notifications" in output
+    assert not User.objects.filter(email__endswith=f"@{SEED_EMAIL_DOMAIN}").exists()
+    assert not Notification.objects.filter(
+        content__startswith=SEED_NOTIFICATION_MARKER
+    ).exists()
+
+
+def test_data_users_loads_only_users() -> None:
+    """--data users seeds users/matches but not notifications."""
+    _run(all=False, data=["users"])
+    assert User.objects.filter(email__endswith=f"@{SEED_EMAIL_DOMAIN}").exists()
+    assert not Notification.objects.filter(
+        content__startswith=SEED_NOTIFICATION_MARKER
+    ).exists()
+
+
+def test_data_notifications_loads_only_notifications() -> None:
+    """--data notifications seeds notifications but not users."""
+    _run(all=False, data=["notifications"])
+    assert Notification.objects.filter(
+        content__startswith=SEED_NOTIFICATION_MARKER
+    ).exists()
+    assert not User.objects.filter(email__endswith=f"@{SEED_EMAIL_DOMAIN}").exists()
+
+
+def test_all_loads_every_dataset() -> None:
+    """--all seeds both users and notifications."""
+    _run()  # defaults to all=True
+    assert User.objects.filter(email__endswith=f"@{SEED_EMAIL_DOMAIN}").exists()
+    assert Notification.objects.filter(
+        content__startswith=SEED_NOTIFICATION_MARKER
+    ).exists()
+
+
+def test_wipe_is_scoped_to_selected_datasets() -> None:
+    """Reloading one dataset leaves the other's seeded rows untouched."""
+    _run()  # seed everything
+    # Reload only users; the previously-seeded notifications must survive.
+    _run(all=False, data=["users"])
+    assert Notification.objects.filter(
+        content__startswith=SEED_NOTIFICATION_MARKER
+    ).exists()
+
+
+def test_invalid_dataset_name_is_rejected() -> None:
+    """An unknown --data value raises rather than silently loading nothing."""
+    with override_settings(DEBUG=True):
+        with pytest.raises(CommandError):
+            call_command("seed_test_data", "--data", "bogus")
 
 
 # ---------------------------------------------------------------------------
@@ -46,7 +116,7 @@ def test_raises_command_error_when_debug_false() -> None:
     """Command raises CommandError when DEBUG=False and --force is not passed."""
     with override_settings(DEBUG=False):
         with pytest.raises(CommandError, match="DEBUG is False"):
-            call_command("seed_test_data")
+            call_command("seed_test_data", all=True)
 
 
 def test_force_flag_runs_when_debug_false() -> None:
@@ -54,7 +124,7 @@ def test_force_flag_runs_when_debug_false() -> None:
     stdout = StringIO()
     with override_settings(DEBUG=False):
         # Should not raise.
-        call_command("seed_test_data", force=True, stdout=stdout)
+        call_command("seed_test_data", all=True, force=True, stdout=stdout)
     assert User.objects.filter(email__endswith=f"@{SEED_EMAIL_DOMAIN}").exists()
 
 

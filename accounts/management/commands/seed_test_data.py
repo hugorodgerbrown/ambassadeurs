@@ -4,6 +4,12 @@
 # every Registration.Status and Match.Status so developers can explore all UI states
 # without setting up fixtures by hand.
 #
+# Selecting what to load: the data is grouped into named datasets (see _DATASETS).
+# Pass --data to load a subset (`seed_test_data --data users notifications`) or
+# --all to load everything. With no dataset selection the command lists the
+# available datasets and loads nothing — so a developer who only wants users,
+# not notifications, can say so.
+#
 # Safety: refuses to run unless settings.DEBUG is True (or --force is passed).
 # All writes happen inside a single transaction; a partial run cannot leave the
 # database in a half-seeded state.
@@ -33,6 +39,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
+from typing import cast
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -218,9 +225,14 @@ class Command(BaseCommand):
     All seeded rows share the ``seed.test`` email domain for easy identification
     and cleanup.
 
+    The data is grouped into named datasets (``_DATASETS``): select a subset with
+    ``--data users notifications`` or load everything with ``--all``. With neither,
+    the command lists the available datasets and loads nothing.
+
     Refuses to run unless settings.DEBUG is True (or --force is passed). Running
-    the command a second time wipes the previous seed data and rebuilds it from
-    scratch (idempotent / deterministic). Pass --keep to skip the wipe.
+    the command a second time wipes the previously-seeded rows for the selected
+    datasets and rebuilds them from scratch (idempotent / deterministic). Pass
+    --keep to skip the wipe.
 
     The seeded active matches lapse CONTACT_WINDOW_HOURS after seeding (see the
     module header); re-run the command to refresh them.
@@ -228,8 +240,37 @@ class Command(BaseCommand):
 
     help = "Seed the local database with deterministic test data (DEBUG only)."
 
+    # Ordered registry of seedable datasets: name -> one-line description. The
+    # names are the accepted --data choices and drive the "load nothing" listing.
+    _DATASETS: dict[str, str] = {
+        "users": (
+            "Loginable users, registrations, and matches covering every "
+            "Registration.Status and Match.Status."
+        ),
+        "notifications": (
+            "Site notifications covering every audience, design, dismissibility "
+            "and display-window state."
+        ),
+    }
+
     def add_arguments(self, parser: CommandParser) -> None:
         """Register command-line arguments."""
+        parser.add_argument(
+            "--data",
+            nargs="+",
+            choices=list(self._DATASETS),
+            metavar="DATASET",
+            default=[],
+            help=(
+                "Datasets to load (space-separated). "
+                f"Choices: {', '.join(self._DATASETS)}."
+            ),
+        )
+        parser.add_argument(
+            "--all",
+            action="store_true",
+            help="Load every dataset.",
+        )
         parser.add_argument(
             "--force",
             action="store_true",
@@ -242,9 +283,23 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args: object, **options: object) -> None:
-        """Validate safety guard then delegate to _seed inside a transaction."""
+        """Resolve the dataset selection, then seed inside a transaction.
+
+        With no selection (neither --data nor --all) the command lists the
+        available datasets and exits without writing anything.
+        """
         force: bool = bool(options["force"])
         keep: bool = bool(options["keep"])
+        load_all: bool = bool(options["all"])
+        data: list[str] = cast("list[str]", options["data"] or [])
+
+        if not load_all and not data:
+            self._list_datasets()
+            return
+
+        # --all wins over an explicit --data list; dedupe while keeping the
+        # registry order so the output is stable regardless of argument order.
+        selected = [name for name in self._DATASETS if load_all or name in data]
 
         if not settings.DEBUG and not force:
             raise CommandError(
@@ -252,38 +307,76 @@ class Command(BaseCommand):
                 "Pass --force to override (dangerous in production)."
             )
 
+        rows: list[dict[str, str]] | None = None
+        notifications: list[dict[str, str]] | None = None
+
         with transaction.atomic():
             if not keep:
-                self._wipe_seed_data()
-            rows = self._create_seed_data()
-            notifications = self._create_notifications()
+                self._wipe_seed_data(selected)
+            if "users" in selected:
+                rows = self._create_seed_data()
+            if "notifications" in selected:
+                notifications = self._create_notifications()
 
-        self._print_summary(rows)
-        self._print_notification_summary(notifications)
+        if rows is not None:
+            self._print_summary(rows)
+        if notifications is not None:
+            self._print_notification_summary(notifications)
+
+    # ------------------------------------------------------------------
+    # Dataset listing
+    # ------------------------------------------------------------------
+
+    def _list_datasets(self) -> None:
+        """List the available datasets without loading anything (the default)."""
+        self.stdout.write("")
+        self.stdout.write("No dataset selected — nothing was loaded.")
+        self.stdout.write("")
+        self.stdout.write("Available datasets:")
+        col = max(len(name) for name in self._DATASETS)
+        for name, description in self._DATASETS.items():
+            self.stdout.write(f"  {name:<{col}}  {description}")
+        self.stdout.write("")
+        self.stdout.write(
+            f"Load a subset:   seed_test_data --data {' '.join(self._DATASETS)}"
+        )
+        self.stdout.write("Load everything: seed_test_data --all")
+        self.stdout.write("")
 
     # ------------------------------------------------------------------
     # Wipe
     # ------------------------------------------------------------------
 
-    def _wipe_seed_data(self) -> None:
-        """Delete all rows previously created by this command.
+    def _wipe_seed_data(self, selected: list[str]) -> None:
+        """Delete previously-seeded rows for the ``selected`` datasets only.
 
-        Deletion order:
+        Only the datasets being reloaded are wiped, so ``--data users`` never
+        disturbs seeded notifications and vice versa.
+
+        For the ``users`` dataset the deletion order matters:
         1. Match rows that reference a seed Registration (FK is SET_NULL so we
            must do this before deleting Users, otherwise the FK becomes NULL and
            the Match row is orphaned with no way to identify it as seeded).
         2. User rows whose email ends with ``@seed.test`` (cascades to
            Registration via OneToOneField).
+
+        Args:
+            selected: The dataset names being (re)loaded this run.
         """
-        seed_registrations = Registration.objects.filter(
-            user__email__endswith=f"@{SEED_EMAIL_DOMAIN}"
-        )
-        Match.objects.filter(ambassador_registration__in=seed_registrations).delete()
-        Match.objects.filter(referee_registration__in=seed_registrations).delete()
-        User.objects.filter(email__endswith=f"@{SEED_EMAIL_DOMAIN}").delete()
-        Notification.objects.filter(
-            content__startswith=SEED_NOTIFICATION_MARKER
-        ).delete()
+        if "users" in selected:
+            seed_registrations = Registration.objects.filter(
+                user__email__endswith=f"@{SEED_EMAIL_DOMAIN}"
+            )
+            Match.objects.filter(
+                ambassador_registration__in=seed_registrations
+            ).delete()
+            Match.objects.filter(referee_registration__in=seed_registrations).delete()
+            User.objects.filter(email__endswith=f"@{SEED_EMAIL_DOMAIN}").delete()
+
+        if "notifications" in selected:
+            Notification.objects.filter(
+                content__startswith=SEED_NOTIFICATION_MARKER
+            ).delete()
 
     # ------------------------------------------------------------------
     # Create

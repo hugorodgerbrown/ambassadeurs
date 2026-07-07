@@ -540,6 +540,66 @@
   .role-select__check--amb { color: var(--color-accent); }
   .role-select__check--ref { color: var(--color-secondary); }
 
+  /* ── Yes/No matrix (role chooser) ───────────────────────────────────────
+     Two season-pass questions, each a row with the question left and a
+     segmented Y/N control right (VERB-131). The radios are visually hidden;
+     the sibling <span> is styled per state via the :has() selector so no JS
+     is needed to reflect the checked option. Selected state follows --role
+     (the chooser sits in .role-theme--neutral, so --role/--role-tint resolve
+     to the neutral tone until a role is derived). Each option's icon
+     (.yn-matrix__icon--yes / --no) stays a muted neutral colour until its
+     radio is checked, at which point it switches to --color-success (Yes) or
+     --color-danger (No) — independent of --role, which theming the row
+     wouldn't otherwise convey (a "Yes" answer isn't always the Ambassador
+     role once both questions combine). */
+  .yn-matrix__row {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 16px 0;
+  }
+  .yn-matrix__question { flex: 1; font-size: 0.95rem; font-weight: 500; color: var(--color-ink); }
+
+  .yn-matrix__control {
+    flex: none; display: inline-flex;
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-control); overflow: hidden;
+  }
+  .yn-matrix__option { position: relative; display: block; }
+  .yn-matrix__option input {
+    position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer;
+  }
+  .yn-matrix__option span {
+    display: flex; align-items: center; gap: 6px; padding: 8px 18px;
+    font-size: 0.9rem; font-weight: 600; color: var(--color-body);
+    background: var(--color-surface);
+    cursor: pointer;
+  }
+  .yn-matrix__option + .yn-matrix__option span { border-left: 1px solid var(--color-line-strong); }
+  /* Round the outer corners of the end segments so the selected inset ring
+     follows the control's radius instead of being clipped square. */
+  .yn-matrix__option:first-child span {
+    border-top-left-radius: var(--radius-control); border-bottom-left-radius: var(--radius-control);
+  }
+  .yn-matrix__option:last-child span {
+    border-top-right-radius: var(--radius-control); border-bottom-right-radius: var(--radius-control);
+  }
+  .yn-matrix__option:has(input:checked) span { background: var(--role-tint); color: var(--role); }
+  .yn-matrix__option:has(input:focus-visible) span { outline: 2px solid var(--role); outline-offset: -2px; }
+
+  .yn-matrix__icon { flex: none; color: var(--color-text-disabled); }
+  .yn-matrix__option:has(input:checked) .yn-matrix__icon--yes { color: var(--color-success); }
+  .yn-matrix__option:has(input:checked) .yn-matrix__icon--no  { color: var(--color-danger); }
+
+  /* Selected segment's border matches its icon colour (green Yes / red No).
+     An inset ring avoids layout shift and draws over the shared divider. */
+  .yn-matrix__option:has(.yn-matrix__icon--yes):has(input:checked) span {
+    box-shadow: inset 0 0 0 1px var(--color-success);
+  }
+  .yn-matrix__option:has(.yn-matrix__icon--no):has(input:checked) span {
+    box-shadow: inset 0 0 0 1px var(--color-danger);
+  }
+
+  /* Live derived-role statement below the matrix. */
+
   /* ── Eligibility callout (numbered, editorial) ──────────────────────────
      The pre-form "what you'll need to qualify" gate. A white card with a role
      top-accent and mono numbering — the calmer sibling of the tinted,

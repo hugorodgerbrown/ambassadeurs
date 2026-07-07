@@ -5,12 +5,31 @@
 import { test, expect } from "../fixtures";
 import {
   ROUTES,
+  chooseRole,
   makeParticipant,
   registerVerified,
   loginViaMagicLink,
 } from "../helpers/app";
 
 test.describe("registration & account", () => {
+  test("chooser: a prior season pass derives the Ambassador form", { tag: "@S3" }, async ({
+    page,
+  }) => {
+    // Phase one: answering "yes" to either season routes to the ambassador
+    // form, which alone carries the prior-pass select.
+    await chooseRole(page, "ambassador");
+    await expect(page.locator("#id_prior_pass")).toBeVisible();
+  });
+
+  test("chooser: no prior season pass derives the Referee form", { tag: "@S3" }, async ({
+    page,
+  }) => {
+    // Phase one: "no" to both seasons routes to the referee form, which has no
+    // prior-pass select (referees are always prior_pass NONE).
+    await chooseRole(page, "referee");
+    await expect(page.locator("#id_prior_pass")).toHaveCount(0);
+  });
+
   test("register (referee) → confirm → verified", { tag: "@S3" }, async ({
     page,
     mailbox,

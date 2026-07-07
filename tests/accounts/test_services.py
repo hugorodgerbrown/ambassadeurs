@@ -8,6 +8,7 @@
 # module makes a real network call.
 
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 import stripe
@@ -439,6 +440,42 @@ def test_delete_account_admin_user_with_no_registration_deletes_cleanly(
 
     assert calls == []
     assert not User.objects.filter(pk=user_pk).exists()
+
+
+def test_delete_account_fires_account_deleted_event_with_role(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """delete_account sends an 'account_deleted' event with the registration's role."""
+    _mock_refund_create(monkeypatch)
+    registration = RegistrationFactory.create()
+    user = registration.user
+    user_pk = user.pk
+
+    with patch("accounts.services.capture_event") as mock_capture:
+        delete_account(user)
+
+    mock_capture.assert_called_once_with(
+        str(user_pk), "account_deleted", {"role": registration.role}
+    )
+    # No PII (email) in the event payload.
+    _, _, properties = mock_capture.call_args[0]
+    assert user.email not in str(properties)
+
+
+def test_delete_account_admin_with_no_registration_fires_event_with_none_role(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A User with no Registration is tracked with role=None, not omitted."""
+    _mock_refund_create(monkeypatch)
+    user = UserFactory.create()
+    user_pk = user.pk
+
+    with patch("accounts.services.capture_event") as mock_capture:
+        delete_account(user)
+
+    mock_capture.assert_called_once_with(
+        str(user_pk), "account_deleted", {"role": None}
+    )
 
 
 def test_delete_account_refunds_exactly_once(

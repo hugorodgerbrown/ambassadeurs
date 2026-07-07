@@ -6,11 +6,11 @@ inside {% block meta %}).
 
 Expected context variables (all optional — sensible defaults apply):
   meta_title       — page title for og:title / twitter:title.
-                     Default: "4 Vallées Ambassadors".
+                     Default: "Ski Parrainage".
   meta_description — short description (~150 chars).
                      Default: site-wide tagline defined below.
   canonical_url    — absolute canonical URL.
-                     Default: request.build_absolute_uri (current page URL).
+                     Default: current page URL, query string stripped.
 
 All values must be static translated strings or safe computed values.
 Never pass user-supplied content here (Invariant 4 — no mark_safe).
@@ -30,10 +30,14 @@ omitted rather than raising VariableDoesNotExist.
         content="{{ resolved_desc }}"
     >
     {% if request %}
-        <link
-            rel="canonical"
-            href="{{ canonical_url|default:request.build_absolute_uri }}"
-        >
+        {% with default_canonical=request.scheme|add:"://"|add:request.get_host|add:request.path %}
+            {% with resolved_canonical=canonical_url|default:default_canonical %}
+                <link
+                    rel="canonical"
+                    href="{{ resolved_canonical }}"
+                >
+            {% endwith %}
+        {% endwith %}
     {% endif %}
     {# Open Graph #}
     <meta
@@ -53,10 +57,14 @@ omitted rather than raising VariableDoesNotExist.
         content="{{ resolved_desc }}"
     >
     {% if request %}
-        <meta
-            property="og:url"
-            content="{{ canonical_url|default:request.build_absolute_uri }}"
-        >
+        {% with default_canonical=request.scheme|add:"://"|add:request.get_host|add:request.path %}
+            {% with resolved_canonical=canonical_url|default:default_canonical %}
+                <meta
+                    property="og:url"
+                    content="{{ resolved_canonical }}"
+                >
+            {% endwith %}
+        {% endwith %}
         <meta
             property="og:image"
             content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/hero-1280.jpg' %}"

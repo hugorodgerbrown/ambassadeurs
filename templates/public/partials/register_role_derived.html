@@ -1,0 +1,22 @@
+{% load i18n %}
+{% comment %}
+Live "You will be registering as …" statement for the role-chooser matrix
+(VERB-131). Rendered inline on the initial register_role.html GET and
+re-rendered in place via HTMX (register_role_derive) on every Y/N change.
+
+Context:
+  derived_role — "ambassador" / "referee" / None (either question unanswered)
+{% endcomment %}
+{% if derived_role == "ambassador" %}
+    <p class="role-derived role-derived--amb" role="status">
+        {% translate "You will be registering as an Ambassador." %}
+    </p>
+{% elif derived_role == "referee" %}
+    <p class="role-derived role-derived--ref" role="status">
+        {% translate "You will be registering as a Referee." %}
+    </p>
+{% else %}
+    <p class="role-derived role-derived--prompt" role="status">
+        {% translate "Answer both questions to continue." %}
+    </p>
+{% endif %}

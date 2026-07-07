@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block page_title %}{% translate "Pre-registration" %}{% endblock %}
+
+{% block meta %}
+    {% blocktranslate trimmed asvar page_description %}
+        Register for the Ski Parrainage 4 Vallées Ambassadors partner-matching service.
+    {% endblocktranslate %}
+    {% blocktranslate trimmed asvar page_title %}
+        Pre-registration — Ski Parrainage
+    {% endblocktranslate %}
+    {% with meta_title=page_title meta_description=page_description %}
+        {% include "includes/_meta.html" %}
+    {% endwith %}
+{% endblock %}
+
+{% block topband %}
+    <div id="topband" class="role-theme role-theme--neutral">
+        <div class="role-band"></div>
+    </div>
+{% endblock %}
+
+{% block content %}
+    <section class="role-theme role-theme--neutral">
+        <p class="eyebrow mb-3 text-role">{% translate "Registration" %}</p>
+        <h1 class="mb-2 text-ink">{% translate "Pre-registration" %}</h1>
+        <p class="mb-6 text-lead text-body">
+            {% blocktranslate trimmed %}
+                Which role is relevant for you?
+            {% endblocktranslate %}
+        </p>
+
+        <form method="post" action="{% url 'public:register_role' %}">
+            {% csrf_token %}
+
+            <div class="card">
+                <h2 class="mb-5 text-lg font-semibold text-ink">
+                    {% translate "4 Vallées season passes" %}
+                </h2>
+
+                {% if error %}
+                    <div class="mb-4 rounded-control border border-danger bg-danger-tint p-3 text-sm text-danger-ink">
+                        <p>{% translate "Please answer both questions before continuing." %}</p>
+                    </div>
+                {% endif %}
+
+                <div class="yn-matrix mb-6">
+                    <div class="yn-matrix__row">
+                        <p class="yn-matrix__question">
+                            {% translate "Did you buy a season pass in 2024/25?" %}
+                        </p>
+                        <div class="yn-matrix__control" role="radiogroup" aria-label="{% translate 'Season pass in 2024/25?' %}">
+                            <label class="yn-matrix__option">
+                                <input
+                                    type="radio"
+                                    name="pass_2024_25"
+                                    value="yes"
+                                    {% if pass_2024_25 == "yes" %}checked{% endif %}
+                                    hx-get="{% url 'public:register_role_derive' %}"
+                                    hx-trigger="change"
+                                    hx-target="#role-derived"
+                                    hx-include="[name='pass_2024_25'],[name='pass_2025_26']"
+                                    hx-swap="innerHTML"
+                                >
+                                <span>
+                                    <svg
+                                        class="yn-matrix__icon yn-matrix__icon--yes"
+                                        width="17"
+                                        height="17"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2.4"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        aria-hidden="true"
+                                    >
+                                        <path d="M20 6 9 17l-5-5" />
+                                    </svg>
+                                    {% translate "Yes" %}
+                                </span>
+                            </label>
+                            <label class="yn-matrix__option">
+                                <input
+                                    type="radio"
+                                    name="pass_2024_25"
+                                    value="no"
+                                    {% if pass_2024_25 == "no" %}checked{% endif %}
+                                    hx-get="{% url 'public:register_role_derive' %}"
+                                    hx-trigger="change"
+                                    hx-target="#role-derived"
+                                    hx-include="[name='pass_2024_25'],[name='pass_2025_26']"
+                                    hx-swap="innerHTML"
+                                >
+                                <span>
+                                    <svg
+                                        class="yn-matrix__icon yn-matrix__icon--no"
+                                        width="17"
+                                        height="17"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2.4"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        aria-hidden="true"
+                                    >
+                                        <path d="M18 6 6 18" />
+                                        <path d="M6 6l12 12" />
+                                    </svg>
+                                    {% translate "No" %}
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="yn-matrix__row">
+                        <p class="yn-matrix__question">
+                            {% translate "Did you buy a season pass in 2025/26?" %}
+                        </p>
+                        <div class="yn-matrix__control" role="radiogroup" aria-label="{% translate 'Season pass in 2025/26?' %}">
+                            <label class="yn-matrix__option">
+                                <input
+                                    type="radio"
+                                    name="pass_2025_26"
+                                    value="yes"
+                                    {% if pass_2025_26 == "yes" %}checked{% endif %}
+                                    hx-get="{% url 'public:register_role_derive' %}"
+                                    hx-trigger="change"
+                                    hx-target="#role-derived"
+                                    hx-include="[name='pass_2024_25'],[name='pass_2025_26']"
+                                    hx-swap="innerHTML"
+                                >
+                                <span>
+                                    <svg
+                                        class="yn-matrix__icon yn-matrix__icon--yes"
+                                        width="17"
+                                        height="17"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2.4"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        aria-hidden="true"
+                                    >
+                                        <path d="M20 6 9 17l-5-5" />
+                                    </svg>
+                                    {% translate "Yes" %}
+                                </span>
+                            </label>
+                            <label class="yn-matrix__option">
+                                <input
+                                    type="radio"
+                                    name="pass_2025_26"
+                                    value="no"
+                                    {% if pass_2025_26 == "no" %}checked{% endif %}
+                                    hx-get="{% url 'public:register_role_derive' %}"
+                                    hx-trigger="change"
+                                    hx-target="#role-derived"
+                                    hx-include="[name='pass_2024_25'],[name='pass_2025_26']"
+                                    hx-swap="innerHTML"
+                                >
+                                <span>
+                                    <svg
+                                        class="yn-matrix__icon yn-matrix__icon--no"
+                                        width="17"
+                                        height="17"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2.4"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        aria-hidden="true"
+                                    >
+                                        <path d="M18 6 6 18" />
+                                        <path d="M6 6l12 12" />
+                                    </svg>
+                                    {% translate "No" %}
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="role-derived">
+                    {% include "public/partials/register_role_derived.html" %}
+                </div>
+            </div>
+        </form>
+
+        <p class="mt-5 text-center text-small text-meta">
+            {% translate "Independent project — not affiliated with the 4 Vallées pass operator." %}
+        </p>
+    </section>
+{% endblock %}

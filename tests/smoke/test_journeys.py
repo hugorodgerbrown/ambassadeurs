@@ -66,7 +66,6 @@ def _ambassador_payload(email: str) -> dict[str, object]:
         "email": email,
         "phone": "+41791112233",
         "prior_pass": Registration.PriorPass.SEASONAL,
-        "prior_pass_attestation": True,
         "terms_accepted": True,
     }
 
@@ -84,7 +83,6 @@ def _referee_payload(email: str) -> dict[str, object]:
         "last_name": "Hopper",
         "email": email,
         "phone": "+41794445566",
-        "prior_pass_attestation": True,
         "terms_accepted": True,
     }
 
@@ -93,8 +91,9 @@ def _register_and_confirm(client: Client, payload: dict[str, object]) -> Registr
     """POST the registration form, then consume the confirm link.
 
     Drives the two-step registration flow end-to-end:
-      1. POST ``payload`` to the registration endpoint (no follow). Asserts
-         a 302 redirect to the email-sent page.
+      1. POST ``payload`` to the role-hardwired registration form (the URL
+         role kwarg is read from ``payload["role"]``; no follow). Asserts a
+         302 redirect to the email-sent page.
       2. Reads the confirm URL stashed by the view in
          ``client.session["debug_verify_url"]`` (only available under
          ``DEBUG=True`` — guard with ``@override_settings(DEBUG=True)`` at
@@ -104,7 +103,10 @@ def _register_and_confirm(client: Client, payload: dict[str, object]) -> Registr
 
     Returns the ``Registration`` freshly read from the database.
     """
-    response = client.post(reverse("public:register"), payload)
+    role = str(payload["role"])
+    response = client.post(
+        reverse("public:register_form", kwargs={"role": role}), payload
+    )
     assert response.status_code == 302, (
         f"Expected 302 from registration POST, got {response.status_code}"
     )
@@ -148,7 +150,7 @@ def test_ambassador_registration_journey() -> None:
     """An ambassador can register, confirm their email, and see a verified account.
 
     Journey:
-      - GET the registration form with the ambassador role hint → 200.
+      - GET the ambassador's hardwired registration form → 200.
       - Confirm the email is initially unverified.
       - Submit and confirm the registration via the signed link.
       - GET the account detail page on the now-logged-in client → 200,
@@ -161,7 +163,9 @@ def test_ambassador_registration_journey() -> None:
     client = Client()
 
     # GET the form — must render without login.
-    response = client.get(reverse("public:register") + "?role=ambassador")
+    response = client.get(
+        reverse("public:register_form", kwargs={"role": "ambassador"})
+    )
     assert response.status_code == 200
 
     # Before registration, no Registration exists; email is not verified.

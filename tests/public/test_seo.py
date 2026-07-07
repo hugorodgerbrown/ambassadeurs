@@ -9,7 +9,9 @@
 #   - home          (public:home)
 #   - how-it-works  (public:how_it_works)
 #   - faq           (public:faq)
-#   - register      (public:register)
+#   - register      (public:register_role — the role chooser; the bare
+#                    public:register name is now a redirect view with no
+#                    metadata of its own, VERB-131)
 #   - legal/privacy (public:legal, page="privacy")
 
 import re
@@ -58,7 +60,7 @@ def test_faq_has_meta_description() -> None:
 
 def test_register_has_meta_description() -> None:
     """The register page emits a <meta name="description"> tag."""
-    content = _get(reverse("public:register"))
+    content = _get(reverse("public:register_role"))
     assert b'name="description"' in content
 
 
@@ -93,7 +95,7 @@ def test_faq_has_og_title() -> None:
 
 def test_register_has_og_title() -> None:
     """The register page emits an og:title Open Graph tag."""
-    content = _get(reverse("public:register"))
+    content = _get(reverse("public:register_role"))
     assert b'property="og:title"' in content
 
 
@@ -128,7 +130,7 @@ def test_faq_has_og_description() -> None:
 
 def test_register_has_og_description() -> None:
     """The register page emits an og:description Open Graph tag."""
-    content = _get(reverse("public:register"))
+    content = _get(reverse("public:register_role"))
     assert b'property="og:description"' in content
 
 
@@ -163,7 +165,7 @@ def test_faq_has_canonical_link() -> None:
 
 def test_register_has_canonical_link() -> None:
     """The register page emits a <link rel="canonical"> element."""
-    content = _get(reverse("public:register"))
+    content = _get(reverse("public:register_role"))
     assert b'rel="canonical"' in content
 
 
@@ -173,19 +175,21 @@ def test_legal_privacy_has_canonical_link() -> None:
     assert b'rel="canonical"' in content
 
 
-def test_register_canonical_link_strips_query_string() -> None:
-    """The canonical <link> for /register/?role=ambassador drops the query string.
+def test_register_form_canonical_link_is_role_specific() -> None:
+    """Each role's hardwired registration form declares its own canonical URL.
 
-    VERB-128: the canonical URL must be path-only so /register/,
-    /register/?role=ambassador and /register/?role=referee all declare the
-    same canonical, rather than each self-declaring a distinct one.
+    VERB-131 replaced the single ``?role=`` query-branched page (VERB-128's
+    dedup concern) with a distinct URL per role — ``/register/ambassador/``
+    and ``/register/referee/`` are genuinely different pages, so each
+    correctly self-declares its own canonical rather than sharing one.
     """
-    content = _get(f"{reverse('public:register')}?role=ambassador").decode()
-    match = re.search(r'rel="canonical"\s+href="([^"]+)"', content, re.DOTALL)
-    assert match is not None
-    href = match.group(1)
-    assert href.endswith(reverse("public:register"))
-    assert "role=" not in href
+    for role in ("ambassador", "referee"):
+        role_url = reverse("public:register_form", kwargs={"role": role})
+        content = _get(role_url).decode()
+        match = re.search(r'rel="canonical"\s+href="([^"]+)"', content, re.DOTALL)
+        assert match is not None, role
+        href = match.group(1)
+        assert href.endswith(role_url), (role, href)
 
 
 # ---------------------------------------------------------------------------

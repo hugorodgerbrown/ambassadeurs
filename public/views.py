@@ -65,6 +65,12 @@
 # register_details_form (HTMX partial) — receives a plain 403
 # (register_forbidden.html) instead of a locked/disabled form. This replaces
 # the earlier locked-form and defensive-authenticated-POST behaviour.
+#
+# PostHog analytics (VERB-124): download_application_form fires a best-effort
+# form_downloaded event; the anonymous registration success path in register()
+# calls alias_identities so pre-registration page-views (anonymous hash) merge
+# into the resulting user in PostHog. Server-side page-view tracking for GET
+# requests lives in core.middleware.PostHogPageviewMiddleware, not here.
 
 from __future__ import annotations
 
@@ -100,6 +106,7 @@ from billing.services.tips import create_tip_checkout_session, record_tip_paid
 from core.decorators import require_htmx
 from core.exceptions import StateTransitionError
 from core.geo import geolocate, get_client_ip
+from core.observability import alias_identities, capture_event, distinct_id_for
 from core.ratelimit import rate_limited_response
 from matching.forms import RegistrationForm
 from matching.models import Match, Registration
@@ -180,9 +187,12 @@ def download_application_form(request: HttpRequest) -> HttpResponse:
 
     Creates one FormDownload row per request (the conversion metric) then
     issues a redirect to the externally-hosted PDF (``APPLICATION_FORM_URL``).
-    No PII is stored.
+    No PII is stored. Additionally sends a best-effort ``form_downloaded``
+    analytics event (VERB-124), attributed to the caller's own distinct_id
+    (user pk if authenticated, else the anonymous hash).
     """
     FormDownload.objects.create()
+    capture_event(distinct_id_for(request), "form_downloaded")
     return redirect(settings.APPLICATION_FORM_URL)
 
 
@@ -337,6 +347,11 @@ def register(request: HttpRequest) -> HttpResponse:
                     registration_country=_geo_country,
                     registration_region=_geo_region,
                 )
+                # Stitch the anonymous visitor's pre-registration page-views
+                # onto the new user in PostHog (VERB-124). Only on this
+                # brand-new-registration path — not the already-enrolled or
+                # resend paths above/below.
+                alias_identities(request, registration.user)
                 confirm_url = send_confirmation_email(request, registration)
     except IntegrityError:
         # A concurrent request created/confirmed a registration for this email

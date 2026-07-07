@@ -19,6 +19,9 @@
 # deleted. A CAPTURED (accepted match) or FORFEITED (suspended) deposit is not
 # HELD, so ``.held().first()`` returns None and no refund happens; that one
 # guard naturally gives the "no refund for accepted/suspended" behaviour.
+#
+# delete_account also fires a best-effort ``account_deleted`` analytics event
+# (VERB-124) before the user is deleted (core.observability.capture_event).
 
 from __future__ import annotations
 
@@ -39,6 +42,7 @@ from accounts.tokens import (
 from billing.models import Payment
 from billing.services.payments import InvalidPaymentTransition, refund
 from core.emails import send_templated_email
+from core.observability import capture_event
 from matching.models import Registration
 
 logger = logging.getLogger(__name__)
@@ -209,6 +213,10 @@ def delete_account(user: User) -> None:
     row lock first), ``refund()`` raises ``InvalidPaymentTransition`` — a
     benign race, since the money is already on its way back; we log it and
     proceed with deletion rather than 500 the user (who is mid-logout).
+
+    The ``account_deleted`` analytics event (VERB-124) is sent before deletion,
+    while ``registration`` is still available for a ``role`` property — a
+    user with no registration (e.g. an admin) is tracked with ``role=None``.
     """
     user_pk = user.pk
     registration = Registration.objects.filter(user=user).first()
@@ -224,6 +232,11 @@ def delete_account(user: User) -> None:
                     deposit.pk,
                     user_pk,
                 )
+    capture_event(
+        str(user_pk),
+        "account_deleted",
+        {"role": registration.role if registration is not None else None},
+    )
     with transaction.atomic():
         user.delete()
     logger.info("Deleted account for user pk=%s", user_pk)

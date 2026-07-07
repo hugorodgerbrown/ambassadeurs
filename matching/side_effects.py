@@ -30,6 +30,12 @@
 # This module imports models, accounts.tokens, and mail helpers only — never
 # matching.services — to avoid an import cycle (services imports the label
 # constants from here).
+#
+# Two handlers bound to MATCH_ACCEPTED (track_match_accepted,
+# track_match_confirmed) additionally send a best-effort PostHog analytics
+# event via core.observability.capture_event (VERB-124), guarded on
+# match.status the same way the notification handlers are. No PII (email or
+# phone) is ever included in an event's properties.
 
 from __future__ import annotations
 
@@ -41,6 +47,7 @@ from side_effects.decorators import is_side_effect_of
 
 from accounts.tokens import make_match_access_token
 from core.emails import send_templated_email
+from core.observability import capture_event
 
 from .models import Match, Registration
 
@@ -282,6 +289,45 @@ def notify_referee_of_confirmation(
     assert match.ambassador_registration is not None
     assert match.referee_registration is not None
     _email_confirmation(match.referee_registration, match.ambassador_registration)
+
+
+@is_side_effect_of(MATCH_ACCEPTED)
+def track_match_accepted(
+    match: Match, registration: Registration, **kwargs: object
+) -> None:
+    """Send the ``match_accepted`` analytics event for the first-side accept.
+
+    No-ops unless ``match.status`` is PENDING (one-sided accept) — the mutual-
+    accept case is tracked as ``match_confirmed`` below. ``registration`` is
+    the accepting party. No PII (email/phone) in the event properties —
+    role/side only (VERB-124).
+    """
+    if match.status != Match.Status.PENDING:
+        return
+    capture_event(
+        str(registration.user.pk),
+        "match_accepted",
+        {"role": registration.role, "side": match.side_of(registration)},
+    )
+
+
+@is_side_effect_of(MATCH_ACCEPTED)
+def track_match_confirmed(
+    match: Match, registration: Registration, **kwargs: object
+) -> None:
+    """Send the ``match_confirmed`` analytics event on mutual accept.
+
+    No-ops unless ``match.status`` is ACCEPTED. ``registration`` is the acting
+    party (the second side to accept). No PII (email/phone) in the event
+    properties — role/side only (VERB-124).
+    """
+    if match.status != Match.Status.ACCEPTED:
+        return
+    capture_event(
+        str(registration.user.pk),
+        "match_confirmed",
+        {"role": registration.role, "side": match.side_of(registration)},
+    )
 
 
 # --- match_declined ------------------------------------------------------------

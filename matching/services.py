@@ -102,6 +102,13 @@
 # deposit HELD and refundable (lenient model, ADR 0013). All three reuse the
 # billing.services.payments transitions; free-tier registrations (fee_chf=0) have
 # no Payment row and are skipped gracefully.
+#
+# Product analytics (VERB-124): register_participant and confirm_registration
+# each fire a best-effort core.observability.capture_event call, deferred to
+# transaction.on_commit so a rolled-back transition never sends an event. The
+# match-acceptance events (match_accepted / match_confirmed) live alongside the
+# notification handlers in matching/side_effects.py, bound to the same
+# MATCH_ACCEPTED label.
 
 from __future__ import annotations
 
@@ -126,6 +133,7 @@ from billing.services.payments import (
 )
 from core.emails import normalise_email
 from core.exceptions import StateTransitionError
+from core.observability import capture_event
 from core.services import record_transition
 
 from .models import Match, Registration
@@ -804,6 +812,17 @@ def register_participant(
         if status == Registration.Status.VERIFIED:
             propose_match(registration)
 
+        # Product analytics (VERB-124): fire only on a successful commit, so a
+        # rolled-back registration attempt never sends an event.
+        registered_user = user
+        transaction.on_commit(
+            lambda: capture_event(
+                str(registered_user.pk),
+                "registration",
+                {"role": role, "prior_pass": prior_pass, "status": status},
+            )
+        )
+
     logger.info("Registered user pk=%s as %s (status=%s)", user.pk, role, status)
     return registration
 
@@ -837,6 +856,16 @@ def confirm_registration(registration: Registration) -> Registration:
         registration.save(update_fields=["status", "updated_at"])
 
         propose_match(registration)
+
+        # Product analytics (VERB-124): fire only on a successful commit.
+        confirmed_registration = registration
+        transaction.on_commit(
+            lambda: capture_event(
+                str(confirmed_registration.user.pk),
+                "email_verified",
+                {"role": confirmed_registration.role},
+            )
+        )
 
     logger.info("Confirmed registration pk=%s: UNVERIFIED → VERIFIED", registration.pk)
     return registration

@@ -1,8 +1,9 @@
-# Server-side error monitoring (PostHog).
+# Server-side error monitoring and product analytics (PostHog).
 #
-# Production-only, server-side exception capture (VERB-65). No client-side
-# tracking script or cookies are used, so this stays consistent with the cookie
-# policy's no-tracking-cookies stance; PostHog is a server-side processor only.
+# Production-only, server-side exception capture (VERB-65), plus a small set of
+# lifecycle product events and page-views (VERB-124). No client-side tracking
+# script or cookies are used, so this stays consistent with the cookie policy's
+# no-tracking-cookies stance; PostHog is a server-side processor only.
 #
 # Two coverage paths, both initialised from init_error_monitoring():
 #   - Web requests: core.middleware.PostHogExceptionMiddleware calls
@@ -12,18 +13,34 @@
 #     exception propagates to the interpreter excepthook, which PostHog's
 #     enable_exception_autocapture hooks.
 #
+# Product events (VERB-124) are sent via capture_event, a best-effort wrapper
+# around posthog.capture mirroring capture_exception's never-raise contract.
+# Anonymous visitors (no cookie is ever set) are identified by a salted hash of
+# their IP and user-agent (anonymous_distinct_id); once they register, that
+# hash and their new user pk are stitched together with alias_identities so
+# pre-registration page-views attribute to the resulting person in PostHog.
+#
 # PII minimisation: email and phone values are redacted from every outbound
 # event by the before_send hook, and local-variable capture is disabled so no
-# stack-frame locals (which could hold PII) are ever sent.
+# stack-frame locals (which could hold PII) are ever sent. Event properties
+# passed to capture_event must themselves be PII-free by construction (role,
+# status, etc.) — the before_send scrub is belt-and-braces, not the primary
+# guarantee.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 from typing import Any
 
 import posthog
 from decouple import config
+from django.conf import settings
+from django.contrib.auth.models import User
+from django.http import HttpRequest
+
+from core.geo import get_client_ip
 
 logger = logging.getLogger(__name__)
 
@@ -98,3 +115,96 @@ def capture_exception(exception: BaseException) -> None:
         posthog.capture_exception(exception)
     except Exception:  # noqa: BLE001 — monitoring must never raise into the caller.
         logger.warning("Failed to report exception to PostHog", exc_info=True)
+
+
+def capture_event(
+    distinct_id: str, event: str, properties: dict[str, object] | None = None
+) -> None:
+    """Send one product event to PostHog, best-effort (VERB-124).
+
+    Mirrors ``capture_exception``: safe to call unconditionally. If monitoring
+    was never initialised (no API key) PostHog drops the event, and any
+    failure in the reporting path is swallowed so analytics never breaks the
+    request it is reporting on.
+
+    Args:
+        distinct_id: The PostHog identity to attribute the event to — a user
+            pk (authenticated) or an anonymous hash (see ``anonymous_distinct_id``).
+        event: The event name (e.g. ``"registration"``, ``"match_accepted"``).
+        properties: Optional event properties. Must be PII-free by
+            construction (the ``before_send`` scrub is belt-and-braces, not
+            the primary guarantee) — never pass email or phone here.
+    """
+    try:
+        posthog.capture(
+            event, distinct_id=str(distinct_id), properties=properties or {}
+        )
+    except Exception:  # noqa: BLE001 — analytics must never raise into the caller.
+        logger.warning("Failed to send event %r to PostHog", event, exc_info=True)
+
+
+def anonymous_distinct_id(request: HttpRequest) -> str:
+    """Return a stable, cookieless identity hash for an anonymous visitor.
+
+    Computed as ``"anon:" + sha256(salt + ip + user_agent)``, salted with
+    ``settings.SECRET_KEY`` so the hash cannot be reversed to recover the raw
+    IP. The IP address is read via ``core.geo.get_client_ip`` and stays a local
+    variable here — it is never returned or persisted (data minimisation).
+
+    Because no cookie is set, the same visitor produces the same hash only
+    while their IP and user-agent are unchanged (e.g. across the registration
+    journey in one sitting) — this is a best-effort stitching identity, not a
+    durable one.
+
+    Args:
+        request: The incoming HTTP request.
+
+    Returns:
+        A stable ``"anon:<hex digest>"`` string.
+    """
+    ip = get_client_ip(request) or ""
+    user_agent = request.META.get("HTTP_USER_AGENT", "")
+    digest = hashlib.sha256(
+        f"{settings.SECRET_KEY}{ip}{user_agent}".encode()
+    ).hexdigest()
+    return f"anon:{digest}"
+
+
+def distinct_id_for(request: HttpRequest) -> str:
+    """Return the PostHog distinct_id to use for the current request.
+
+    An authenticated user is identified by their ``User.pk``; an anonymous
+    visitor by ``anonymous_distinct_id`` (no cookie).
+
+    Args:
+        request: The incoming HTTP request.
+
+    Returns:
+        The distinct_id string to pass to ``capture_event``.
+    """
+    if request.user.is_authenticated:
+        return str(request.user.pk)
+    return anonymous_distinct_id(request)
+
+
+def alias_identities(request: HttpRequest, user: User) -> None:
+    """Stitch an anonymous visitor's identity onto their new user, best-effort.
+
+    Called once, on the anonymous registration success path, so that
+    pre-registration page-views (attributed to the anonymous hash) merge into
+    the same PostHog person as the resulting user. Mirrors
+    ``capture_exception``'s never-raise contract — a failure here must not
+    break registration.
+
+    Args:
+        request: The request that carried the anonymous visitor's IP/user-agent.
+        user: The newly created or reused ``User`` to alias onto.
+    """
+    try:
+        posthog.alias(
+            previous_id=anonymous_distinct_id(request), distinct_id=str(user.pk)
+        )
+    except Exception:  # noqa: BLE001 — analytics must never raise into the caller.
+        logger.warning(
+            "Failed to alias identities for user pk=%s", user.pk, exc_info=True
+        )

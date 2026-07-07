@@ -159,7 +159,7 @@ def test_accepted_statements_returns_ambassador_specific_eligibility_label() -> 
     assert "2024/25 or 2025/26" in statements[0]
     assert "season or annual" in statements[0]
     # The eligibility statement must not contain the referee negation.
-    assert "not held" not in statements[0]
+    assert "did not" not in statements[0]
     assert statements[1] == "I have read and agree to the Terms of Use"
 
 

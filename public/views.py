@@ -903,9 +903,10 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
 def register_details_form(request: HttpRequest) -> HttpResponse:
     """Return the themed registration surface for a role (HTMX, role swap).
 
-    Drives the "Your role" dropdown: selecting a role swaps the whole
-    ``#reg-surface`` so the eyebrow, lead copy, eligibility callout, form and
-    submit button all re-tone to the chosen role.
+    Drives the yes/no eligibility question (VERB-131): answering "Yes" (held a
+    prior-season pass) resolves to the Ambassador role, "No" to the Referee
+    role, swapping the whole ``#reg-surface`` so the eyebrow, lead copy,
+    eligibility callout, form and submit button all re-tone to the derived role.
 
     No login required for a first-time visitor. An already-registered,
     logged-in user hitting this endpoint receives a full-page 403

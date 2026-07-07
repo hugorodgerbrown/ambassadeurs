@@ -26,15 +26,18 @@ def forwards_migrate_priority_to_design_and_weight(apps, schema_editor):
 
     Preserves current stacking order (weight = old priority int) while
     assigning a settings-backed design key equivalent to the row's old
-    visual priority.
+    visual priority. Uses bulk_update rather than per-row save() — this is a
+    schema-migration data step, not model code, so there is no save()
+    side-effect (e.g. content sanitisation) to preserve.
     """
     Notification = apps.get_model("core", "Notification")
-    for notification in Notification.objects.all():
+    rows = list(Notification.objects.all())
+    for notification in rows:
         notification.design = PRIORITY_TO_DESIGN.get(
             notification.priority, PRIORITY_TO_DESIGN[DEFAULT_PRIORITY]
         )
         notification.weight = notification.priority
-        notification.save(update_fields=["design", "weight"])
+    Notification.objects.bulk_update(rows, ["design", "weight"])
 
 
 def backwards_migrate_design_and_weight_to_priority(apps, schema_editor):
@@ -45,11 +48,12 @@ def backwards_migrate_design_and_weight_to_priority(apps, schema_editor):
     settings after this migration ran) falls back to the old NORMAL default.
     """
     Notification = apps.get_model("core", "Notification")
-    for notification in Notification.objects.all():
+    rows = list(Notification.objects.all())
+    for notification in rows:
         notification.priority = DESIGN_TO_PRIORITY.get(
             notification.design, DEFAULT_PRIORITY
         )
-        notification.save(update_fields=["priority"])
+    Notification.objects.bulk_update(rows, ["priority"])
 
 
 class Migration(migrations.Migration):
@@ -65,9 +69,8 @@ class Migration(migrations.Migration):
                 default="NOTICE",
                 help_text=(
                     "Key into settings.NOTIFICATION_DESIGNS; drives the strip's "
-                    "label, description, CSS classes, and inline styles. No "
-                    "model-level choices — validated against settings in the "
-                    "admin form (VERB-123)."
+                    "label, description, and CSS class. No model-level choices "
+                    "— validated against settings in the admin form (VERB-123)."
                 ),
                 max_length=32,
             ),

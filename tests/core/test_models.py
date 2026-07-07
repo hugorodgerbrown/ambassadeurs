@@ -200,7 +200,6 @@ _TEST_DESIGNS = {
         label="Info",
         description="Calm tone.",
         css_classes="cls-info",
-        css_styles="color: blue;",
     ),
 }
 
@@ -219,12 +218,11 @@ def test_notification_weight_defaults_to_zero() -> None:
 
 @override_settings(NOTIFICATION_DESIGNS=_TEST_DESIGNS)
 def test_notification_design_accessors_return_configured_values() -> None:
-    """design_label/description/classes/styles look design up in settings."""
+    """design_label/description/classes look design up in settings."""
     notification = NotificationFactory.create(design="INFO")
     assert notification.design_label == "Info"
     assert notification.design_description == "Calm tone."
     assert notification.design_classes == "cls-info"
-    assert notification.design_styles == "color: blue;"
 
 
 @override_settings(NOTIFICATION_DESIGNS=_TEST_DESIGNS)
@@ -234,7 +232,6 @@ def test_notification_design_accessors_fall_back_safely_for_unknown_key() -> Non
     assert notification.design_label == ""
     assert notification.design_description == ""
     assert notification.design_classes == ""
-    assert notification.design_styles == ""
 
 
 def test_notification_enabled_defaults_true() -> None:

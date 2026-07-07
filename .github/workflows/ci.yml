@@ -5,6 +5,17 @@
 # points config.settings.development at Postgres so backend-specific SQL
 # constraints (e.g. FOR UPDATE + DISTINCT) surface in CI, not just in the
 # Postgres-backed e2e suite.
+#
+# Trigger design (VERB-131):
+#   * push to main has NO paths filter — every merge runs the full suite so a
+#     red main is caught immediately, whatever the merge touched. GitHub does
+#     not re-run a PR's checks against main when main advances between the PR's
+#     last CI run and the merge, so the push run is the only guard against a
+#     merge landing broken code on main.
+#   * pull_request keeps a paths filter but includes templates/**: the tox test
+#     suite renders templates and asserts their content, so a template-only PR
+#     (e.g. #130's how-it-works rework) must run the tests. Omitting templates
+#     let #130 merge with stale template-asserting tests that were never run.
 
 name: Python / Django
 
@@ -12,17 +23,12 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "**/*.py"
-      - "pyproject.toml"
-      - "uv.lock"
-      - "tox.ini"
-      - ".github/workflows/ci.yml"
 
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
       - "**/*.py"
+      - "templates/**"
       - "pyproject.toml"
       - "uv.lock"
       - "tox.ini"

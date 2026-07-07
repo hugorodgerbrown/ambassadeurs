@@ -33,8 +33,8 @@ the strip independently of how it looked.
 - **`Notification.design`** — a free-form `CharField` (no model-level
   `choices=`) naming a key into a new `settings.NOTIFICATION_DESIGNS` dict.
   Each `NotificationDesign` (a `NamedTuple`) carries `label`, `description`
-  (both `gettext_lazy`-wrapped, staff-facing), `css_classes` (appended to the
-  banner's `class="…"`) and `css_styles` (rendered into `style="…"`).
+  (both `gettext_lazy`-wrapped, staff-facing) and `css_classes` — one or more
+  class names appended to the banner's `class="…"` attribute.
 
 This mirrors the existing `settings.CUSTOM_NOTIFICATION_GROUPS` /
 `Notification.custom_group_key` pattern (VERB-109): a `CharField` validated in
@@ -73,9 +73,32 @@ The same migration copies the old `priority` integer into `weight` so
 existing rows keep their current stacking order unchanged. The four seed
 `NOTIFICATION_DESIGNS` entries (`INFO`/`MUTED`/`NOTICE`/`URGENT`) reproduce the
 four colour pairs previously hard-coded in
-`.notification-banner[data-priority="…"]` (now removed from
-`src/css/main.css`), so the migration is a like-for-like visual swap with no
-observable change to any existing notification.
+`.notification-banner[data-priority="…"]`, via four new component classes in
+`src/css/main.css` (`.notification-info`/`-muted`/`-notice`/`-urgent` — see
+"No inline `style=`" below), so the migration is a like-for-like visual swap
+with no observable change to any existing notification.
+
+### No inline `style="…"` — production CSP forbids it
+
+The first version of this change gave each `NotificationDesign` both
+`css_classes` and a `css_styles` string rendered into the banner's
+`style="…"` attribute. This was rejected in review: `CSP_DIRECTIVES["style-src"]`
+in `config/settings/base.py` has no `'unsafe-inline'` (only `SELF`, the Google
+Fonts stylesheet origin, and the `templates/500.html` inline `<style>` block's
+hash), and production enforces the policy (`development.py` only runs it
+report-only, which is why the dev/e2e suite did not catch the problem). An
+element-level `style="…"` attribute is exactly what `style-src` without
+`'unsafe-inline'` exists to block — the browser would have silently dropped
+every notification's colour in production.
+
+`NotificationDesign` therefore carries only `css_classes`; each design names
+one of four new component classes in `src/css/main.css`
+(`.notification-info`, `.notification-muted`, `.notification-notice`,
+`.notification-urgent`), each reproducing one of the four colour pairs. These
+rules are compiled by the normal Tailwind build like any other class in
+`main.css` — no CSP exception, and no Tailwind JIT/content-scan concern, since
+they are plain CSS selectors rather than dynamically generated utility
+classes.
 
 ### Why fresh design keys, not a 1:1 rename
 
@@ -93,12 +116,15 @@ having to fit an urgency scale.
 - **New looks are a settings + review cycle, not a migration.** A developer
   adds an entry to `NOTIFICATION_DESIGNS`; it is immediately selectable in the
   admin `design` dropdown.
-- **`css_classes`/`css_styles` are developer-authored, not translated.**
-  Only `label`/`description` are wrapped in `gettext_lazy`; the CSS strings
-  are rendered as-is (Django's normal auto-escaping applies — Invariant 4 is
-  not implicated, since these strings never originate from user input).
+- **`css_classes` is developer-authored, not translated.** Only
+  `label`/`description` are wrapped in `gettext_lazy`; `css_classes` is
+  rendered as-is (Django's normal auto-escaping applies — Invariant 4 is not
+  implicated, since it never originates from user input).
+- **No inline styling, ever.** Every design's look must be expressible as a
+  CSS class in `src/css/main.css`. This is a hard constraint, not a
+  convenience: production's CSP blocks inline `style="…"` outright.
 - **A design key can go stale.** If a key is removed from
   `NOTIFICATION_DESIGNS` while a `Notification` row still references it, the
-  model's `design_label`/`design_description`/`design_classes`/`design_styles`
-  properties fall back to an empty string rather than raising — the banner
-  renders with no extra classes/styles rather than a 500.
+  model's `design_label`/`design_description`/`design_classes` properties
+  fall back to an empty string rather than raising — the banner renders with
+  no extra class rather than a 500.

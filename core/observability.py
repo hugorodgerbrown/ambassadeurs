@@ -167,7 +167,11 @@ def anonymous_distinct_id(request: HttpRequest) -> str:
     digest = hashlib.sha256(
         f"{settings.SECRET_KEY}{ip}{user_agent}".encode()
     ).hexdigest()
-    return f"anon:{digest}"
+    # nosemgrep below: the SAST scan's Flask "directly-returned-format-string"
+    # XSS rule false-positives here. This is not a Flask view — the value is a
+    # PostHog distinct_id, never an HTTP response — and `digest` is a SHA-256
+    # hex string with no user-controlled markup, so there is no XSS surface.
+    return f"anon:{digest}"  # nosemgrep
 
 
 def distinct_id_for(request: HttpRequest) -> str:

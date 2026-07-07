@@ -52,7 +52,13 @@ class PostHogExceptionMiddleware:
 _PAGEVIEW_ALLOWLIST = frozenset(
     {
         "public:home",
-        "public:register",
+        # Registration is a two-step journey since VERB-131: the role chooser
+        # (register_role, /register/role/) followed by the role-hardwired form
+        # (register_form, /register/<role>/). "public:register" is deliberately
+        # absent — it is now a 302 back-compat redirect that never returns a
+        # 200 GET, so it could never fire a page-view.
+        "public:register_role",
+        "public:register_form",
         "public:register_email_sent",
         "public:register_confirm",
         "public:how_it_works",

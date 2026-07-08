@@ -1,45 +1,23 @@
-"""Root URL configuration.
+"""Root URL configuration — the combined default (admin at ``/admin/``).
 
-Mounts the Django admin, the account login/logout flow, the language switcher,
-the sitemap, and the public site. HTMX fragment routes live under each app's
-``partials/`` prefix. allauth has been removed (VERB-46); login is now
-first-party magic-link under ``accounts/``.
+The default ``ROOT_URLCONF``. Mounts the Django admin at ``/admin/`` alongside
+the full public site — the single-host behaviour used when ``ADMIN_HOST`` is
+unset (local development, the test suite, and any single-host deployment). The
+public routes are reused verbatim from ``config.urls_public`` so the two stay in
+lock-step.
 
-``webhooks/stripe/`` (VERB-86) is mounted here rather than under
-``public.urls`` so it is never nested under a locale prefix or any future
-app-level routing change — Stripe needs one stable, permanent path.
+When ``ADMIN_HOST`` is set, ``core.middleware.AdminHostMiddleware`` overrides
+``request.urlconf`` per request — the admin subdomain is served
+``config.urls_admin`` (admin only) and every other host ``config.urls_public``
+(no admin) — so this combined module is not used. See ADR 0022.
 """
 
 from django.contrib import admin
-from django.contrib.sitemaps.views import sitemap
-from django.urls import include, path
+from django.urls import path
 
-from core.views import healthz, robots_txt
-from public.sitemaps import StaticViewSitemap
-from public.views import stripe_webhook
-
-_sitemaps = {"static": StaticViewSitemap}
+from config.urls_public import urlpatterns as _public_urlpatterns
 
 urlpatterns = [
-    # Liveness probe — unauthenticated, must come before any catch-all route.
-    path("healthz/", healthz, name="healthz"),
     path("admin/", admin.site.urls),
-    # First-party magic-link auth + account self-service (VERB-46).
-    path("account/", include("accounts.urls")),
-    path("i18n/", include("django.conf.urls.i18n")),
-    # Machine-readable sitemap for search engine indexing.
-    path(
-        "sitemap.xml",
-        sitemap,
-        {"sitemaps": _sitemaps},
-        name="django.contrib.sitemaps.views.sitemap",
-    ),
-    # DEBUG-only test-data panel. Always mounted; every view raises Http404
-    # when settings.DEBUG is false (via require_debug decorator).
-    path("debug/", include("debug.urls")),
-    # Search-engine control (VERB-63). Must come before the public catch-all.
-    path("robots.txt", robots_txt, name="robots_txt"),
-    # Stripe checkout.session.completed webhook (VERB-86) — un-prefixed.
-    path("webhooks/stripe/", stripe_webhook, name="stripe_webhook"),
-    path("", include("public.urls")),
+    *_public_urlpatterns,
 ]

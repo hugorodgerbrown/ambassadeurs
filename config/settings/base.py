@@ -53,6 +53,10 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Host-based URLconf routing: confine the Django admin to ADMIN_HOST when
+    # set (ADR 0022). Must precede LocaleMiddleware/CommonMiddleware, which read
+    # request.urlconf. A no-op when ADMIN_HOST is empty.
+    "core.middleware.AdminHostMiddleware",
     "csp.middleware.CSPMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -68,6 +72,15 @@ MIDDLEWARE = [
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
+
+# --- Host routing ----------------------------------------------------------
+# When set (e.g. "admin.skiparrainage.ch"), core.middleware.AdminHostMiddleware
+# serves the Django admin ONLY on this host (config.urls_admin) and the public
+# site with no /admin/ on every other host (config.urls_public). The host must
+# also appear in ALLOWED_HOSTS and (https://) in CSRF_TRUSTED_ORIGINS. Empty
+# default means single-host behaviour: the combined config.urls serves both the
+# admin (at /admin/) and the public site. See ADR 0022.
+ADMIN_HOST: str = config("ADMIN_HOST", default="")
 
 TEMPLATES = [
     {

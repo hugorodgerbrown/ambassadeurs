@@ -9,19 +9,60 @@
 #
 # PostHogPageviewMiddleware sends a server-side $pageview event (VERB-124) for
 # a small allowlist of GET/200 views — cookieless, consistent with the Cookie
-# Policy's no-tracking-cookies stance. Both middlewares are production-only
-# (registered in config/settings/production.py, not base.py).
+# Policy's no-tracking-cookies stance. Both PostHog middlewares are
+# production-only (registered in config/settings/production.py, not base.py).
+#
+# AdminHostMiddleware confines the Django admin to its own subdomain (ADR 0022)
+# by swapping request.urlconf per host. It is registered in base.py (all
+# environments) and is a no-op unless settings.ADMIN_HOST is set.
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Callable
 
+from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 
 from core.observability import capture_event, capture_exception, distinct_id_for
 
 logger = logging.getLogger(__name__)
+
+
+class AdminHostMiddleware:
+    """Route each request to the admin-only or public-only URLconf by hostname.
+
+    When ``settings.ADMIN_HOST`` is set, a request whose host matches it is
+    served ``config.urls_admin`` (the Django admin only) and every other host is
+    served ``config.urls_public`` (the public site, with no ``/admin/``). This
+    is how the admin is confined to its own subdomain (ADR 0022).
+
+    When ``ADMIN_HOST`` is empty — local development, the test suite, any
+    single-host deployment — the middleware is a no-op and the default combined
+    ``ROOT_URLCONF`` (``config.urls``) serves both the admin and the public site.
+
+    ``request.urlconf`` must be set before URL resolution and before
+    ``LocaleMiddleware`` / ``CommonMiddleware`` inspect it, so this middleware is
+    registered early in ``MIDDLEWARE`` (see config/settings/base.py).
+    ``settings.ADMIN_HOST`` is read on every request rather than cached in
+    ``__init__`` so ``@override_settings`` works in tests.
+    """
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        """Store the next handler in the middleware chain."""
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        """Select the per-host URLconf, then defer to the rest of the chain."""
+        admin_host = settings.ADMIN_HOST
+        if admin_host:
+            # get_host() strips nothing itself but validates against
+            # ALLOWED_HOSTS; drop any :port before comparing to ADMIN_HOST.
+            host = request.get_host().split(":", 1)[0]
+            request.urlconf = (
+                "config.urls_admin" if host == admin_host else "config.urls_public"
+            )
+        return self.get_response(request)
 
 
 class PostHogExceptionMiddleware:

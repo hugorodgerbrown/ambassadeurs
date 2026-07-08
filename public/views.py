@@ -204,7 +204,9 @@ def colophon(request: HttpRequest) -> HttpResponse:
 
 
 def about(request: HttpRequest) -> HttpResponse:
-    """Render the About page (who runs the service, why, and future plans; no queries)."""
+    """Render the About page (who runs the service, why, and future plans; no
+    queries).
+    """
     return render(request, "public/about.html")
 
 

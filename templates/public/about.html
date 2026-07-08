@@ -5,7 +5,7 @@
 
 {% block meta %}
     {% blocktranslate trimmed asvar page_description %}
-        Who runs Ski Parrainage, why it exists, and what's planned next.
+        Who is behind Ski Parrainage, why it exists, how it is funded, and what happens to it after the season.
     {% endblocktranslate %}
     {% blocktranslate trimmed asvar page_title %}
         About — Ski Parrainage
@@ -16,33 +16,94 @@
 {% endblock %}
 
 {% comment %}
-About (VERB-132): the body copy below is placeholder text. The site owner
-will replace it with real prose before launch; the section headings are
-final and should not be changed without updating the corresponding tests.
+About (VERB-132): a first-person page from the site owner covering who runs the
+service, why it exists, how it is funded, and what happens to the project after
+the season. Copy is supplied by the owner — keep it first-person.
 {% endcomment %}
 {% block content %}
     <article class="space-y-4 text-body">
         <h1 class="text-ink">{% translate "About" %}</h1>
 
-        <h2 class="pt-2 text-ink">{% translate "Who I am" %}</h2>
+        <h2 class="pt-2 text-ink">{% translate "Who is behind Ski Parrainage?" %}</h2>
         <p>
             {% blocktranslate trimmed %}
-                Placeholder — this section will introduce the person behind Ski Parrainage.
+                I am. My name is Hugo, I live in the UK, have skied in Verbier for a number of years, and have benefited
+                from the Ambassador Offer previously.
             {% endblocktranslate %}
         </p>
 
-        <h2 class="pt-2 text-ink">{% translate "Why I built this" %}</h2>
+        <h2 class="pt-2 text-ink">{% translate "Why did you build Ski Parrainage?" %}</h2>
         <p>
             {% blocktranslate trimmed %}
-                Placeholder — finding a season-pass referral partner in the 4 Vallées used to mean an uncontrolled
-                scramble in a Facebook group. This project exists to bring some order to that.
+                Whilst the application process for the Ambassador Offer is simple enough (if you can find the form),
+                finding someone to pair with is not. The recommended method is to hang out in the Verbier Community
+                Facebook group and ask around as the season approaches. This becomes very chaotic as the season
+                approaches.
+            {% endblocktranslate %}
+        </p>
+        <p>
+            {% blocktranslate trimmed %}
+                The alternative is to pay someone to find you a match — typically a rental agency, as they know who is
+                booked for the season. I believe the going price is CHF 50 (10% of a CHF 500 saving, so not outrageous).
+            {% endblocktranslate %}
+        </p>
+        <p>
+            {% blocktranslate trimmed %}
+                I lost out last year when multiple potential Facebook pairings fell through at the last minute, and I
+                promised myself then that I would fix the problem for the 26/27 season.
             {% endblocktranslate %}
         </p>
 
-        <h2 class="pt-2 text-ink">{% translate "What's next" %}</h2>
+        <h2 class="pt-2 text-ink">{% translate "Who pays for Ski Parrainage?" %}</h2>
         <p>
             {% blocktranslate trimmed %}
-                Placeholder — plans for the service beyond this launch will be described here.
+                I do. I am currently not working, and I wanted to test some AI models' coding abilities — this was a
+                good testbed. It has cost me a few hundred GBP/CHF/EUR to build it, host it, buy the domain name, and so
+                on.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-ink">{% translate "How do you make money?" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                This is not a commercial project, and I am not intending to make money out of it, so it is coming out of
+                my own bank account. That said, if I can cover my costs and pay for my own pass this year, I would
+                consider that a great success.
+            {% endblocktranslate %}
+        </p>
+        <p>
+            {% blocktranslate trimmed %}
+                I will be introducing voluntary donations (tips) if anyone is feeling generous, and I may introduce a
+                charge for latecomers — so if you are registering close to the season start date, there may be
+                something to pay.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-ink">{% translate "What next for Ski Parrainage?" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                At the end of the matching process I will take a look at the data to see if there is anything to learn
+                from it, then I will delete the data and put the website back in the cupboard until next year.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-ink">{% translate "What is your relationship to Téléverbier?" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                I sit on their chairlifts. I have no affiliation with Téléverbier, and they know nothing about this
+                site.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-ink">{% translate "Do you have any other skiing-related projects?" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                Thanks for asking. If you only use the lifts to get to the backcountry, then my other project,
+            {% endblocktranslate %}
+            <a href="https://snowdesk.info" class="underline" target="_blank" rel="noopener"
+            >snowdesk.info</a>{% blocktranslate trimmed %}
+                , may be of interest. At the moment it is just an avalanche bulletin aggregator, but it has a better map
+                than WhiteRisk, and all the same information. More updates coming soon — and suggestions welcome.
             {% endblocktranslate %}
         </p>
     </article>

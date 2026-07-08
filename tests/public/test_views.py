@@ -1841,15 +1841,19 @@ def test_about_renders_for_anonymous_user() -> None:
 
 
 def test_about_contains_section_headings() -> None:
-    """The About page includes the three final section headings."""
+    """The About page renders its owner-supplied Q&A section headings."""
     response = Client().get(reverse("public:about"))
     content = response.content
-    assert b"Who I am" in content
-    assert b"Why I built this" in content
-    # The heading renders with a literal apostrophe ("What's next"); assert the
-    # full phrase so this checks the heading specifically — the word "next"
-    # alone also appears in the page's meta description.
-    assert b"What's next" in content
+    assert b"Who is behind Ski Parrainage?" in content
+    assert b"Why did you build Ski Parrainage?" in content
+    assert b"How do you make money?" in content
+    assert b"What next for Ski Parrainage?" in content
+
+
+def test_about_links_to_snowdesk() -> None:
+    """The About page links out to the owner's other project, snowdesk.info."""
+    response = Client().get(reverse("public:about"))
+    assert b'href="https://snowdesk.info"' in response.content
 
 
 def test_about_link_in_footer() -> None:

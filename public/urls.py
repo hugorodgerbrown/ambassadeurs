@@ -71,6 +71,7 @@ urlpatterns = [
     path("how-it-works/", views.how_it_works, name="how_it_works"),
     path("faq/", views.faq, name="faq"),
     path("colophon/", views.colophon, name="colophon"),
+    path("about/", views.about, name="about"),
     path("application-form/", views.download_application_form, name="application_form"),
     # Match accept/decline flow (VERB-19). No @login_required — the signed
     # token IS the authentication for these views.

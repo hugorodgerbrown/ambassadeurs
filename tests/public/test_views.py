@@ -1828,6 +1828,40 @@ def test_colophon_link_in_footer() -> None:
     assert reverse("public:colophon").encode() in response.content
 
 
+# ---------------------------------------------------------------------------
+# About page
+# ---------------------------------------------------------------------------
+
+
+def test_about_renders_for_anonymous_user() -> None:
+    """The About page returns 200 with the correct template (anonymous)."""
+    response = Client().get(reverse("public:about"))
+    assert response.status_code == 200
+    assert "public/about.html" in [t.name for t in response.templates]
+
+
+def test_about_contains_section_headings() -> None:
+    """The About page renders its owner-supplied Q&A section headings."""
+    response = Client().get(reverse("public:about"))
+    content = response.content
+    assert b"Who is behind Ski Parrainage?" in content
+    assert b"Why did you build Ski Parrainage?" in content
+    assert b"How do you make money?" in content
+    assert b"What next for Ski Parrainage?" in content
+
+
+def test_about_links_to_snowdesk() -> None:
+    """The About page links out to the owner's other project, snowdesk.info."""
+    response = Client().get(reverse("public:about"))
+    assert b'href="https://snowdesk.info"' in response.content
+
+
+def test_about_link_in_footer() -> None:
+    """The footer includes the About link."""
+    response = Client().get(reverse("public:about"))
+    assert reverse("public:about").encode() in response.content
+
+
 def test_footer_language_selector_renders_both_languages() -> None:
     """The footer language selector posts to set_language and offers EN and FR
     (VERB-48). The current language is marked with aria-current.

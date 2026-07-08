@@ -203,6 +203,13 @@ def colophon(request: HttpRequest) -> HttpResponse:
     return render(request, "public/colophon.html")
 
 
+def about(request: HttpRequest) -> HttpResponse:
+    """Render the About page (who runs the service, why, and future plans; no
+    queries).
+    """
+    return render(request, "public/about.html")
+
+
 def download_application_form(request: HttpRequest) -> HttpResponse:
     """Record a form download and redirect to the application-form PDF.
 

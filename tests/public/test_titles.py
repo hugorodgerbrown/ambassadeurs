@@ -40,3 +40,9 @@ def test_home_title_overrides_composed_default() -> None:
     """Home's full title block override wins over the composed default."""
     title = _title(reverse("public:home"))
     assert title == "Ski Parrainage &middot; 2026/27"
+
+
+def test_about_title_composes_with_brand_suffix() -> None:
+    """The About page's page_title fragment is suffixed with the brand."""
+    title = _title(reverse("public:about"))
+    assert title == "About &middot; Ski Parrainage"

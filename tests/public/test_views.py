@@ -1803,7 +1803,7 @@ def test_faq_details_all_have_unique_ids() -> None:
     response = Client().get(reverse("public:faq"))
     html = response.content.decode()
     details_count = html.count("<details")
-    ids = re.findall(r'<details[^>]*\sid="([^"]*)"', html)
+    ids = re.findall(r'<details[^>]*\sid="([^"]+)"', html)
     assert all(ids)
     assert len(ids) == details_count
     assert len(ids) == len(set(ids))

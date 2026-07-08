@@ -1846,7 +1846,10 @@ def test_about_contains_section_headings() -> None:
     content = response.content
     assert b"Who I am" in content
     assert b"Why I built this" in content
-    assert b"next" in content
+    # The heading renders with a literal apostrophe ("What's next"); assert the
+    # full phrase so this checks the heading specifically — the word "next"
+    # alone also appears in the page's meta description.
+    assert b"What's next" in content
 
 
 def test_about_link_in_footer() -> None:

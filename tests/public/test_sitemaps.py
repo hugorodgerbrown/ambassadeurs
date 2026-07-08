@@ -43,6 +43,13 @@ def test_sitemap_contains_faq_url() -> None:
     assert url.encode() in response.content
 
 
+def test_sitemap_contains_about_url() -> None:
+    """The sitemap includes the About page URL."""
+    response = Client().get("/sitemap.xml")
+    url = reverse("public:about")
+    assert url.encode() in response.content
+
+
 def test_sitemap_contains_legal_page_urls() -> None:
     """The sitemap includes all three legal page URLs."""
     response = Client().get("/sitemap.xml")

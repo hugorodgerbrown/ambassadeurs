@@ -1828,6 +1828,33 @@ def test_colophon_link_in_footer() -> None:
     assert reverse("public:colophon").encode() in response.content
 
 
+# ---------------------------------------------------------------------------
+# About page
+# ---------------------------------------------------------------------------
+
+
+def test_about_renders_for_anonymous_user() -> None:
+    """The About page returns 200 with the correct template (anonymous)."""
+    response = Client().get(reverse("public:about"))
+    assert response.status_code == 200
+    assert "public/about.html" in [t.name for t in response.templates]
+
+
+def test_about_contains_section_headings() -> None:
+    """The About page includes the three final section headings."""
+    response = Client().get(reverse("public:about"))
+    content = response.content
+    assert b"Who I am" in content
+    assert b"Why I built this" in content
+    assert b"next" in content
+
+
+def test_about_link_in_footer() -> None:
+    """The footer includes the About link."""
+    response = Client().get(reverse("public:about"))
+    assert reverse("public:about").encode() in response.content
+
+
 def test_footer_language_selector_renders_both_languages() -> None:
     """The footer language selector posts to set_language and offers EN and FR
     (VERB-48). The current language is marked with aria-current.

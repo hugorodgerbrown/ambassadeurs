@@ -64,6 +64,11 @@ class StaticViewSitemap(_SitemapBase):
                 priority=0.8,
                 changefreq="monthly",
             ),
+            _StaticItem(
+                url_name="public:about",
+                priority=0.7,
+                changefreq="monthly",
+            ),
         ]
         for page in self._LEGAL_PAGES:
             entries.append(

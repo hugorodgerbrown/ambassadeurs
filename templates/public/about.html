@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block page_title %}{% translate "About" %}{% endblock %}
+
+{% block meta %}
+    {% blocktranslate trimmed asvar page_description %}
+        Who runs Ski Parrainage, why it exists, and what's planned next.
+    {% endblocktranslate %}
+    {% blocktranslate trimmed asvar page_title %}
+        About — Ski Parrainage
+    {% endblocktranslate %}
+    {% with meta_title=page_title meta_description=page_description %}
+        {% include "includes/_meta.html" %}
+    {% endwith %}
+{% endblock %}
+
+{% comment %}
+About (VERB-132): the body copy below is placeholder text. The site owner
+will replace it with real prose before launch; the section headings are
+final and should not be changed without updating the corresponding tests.
+{% endcomment %}
+{% block content %}
+    <article class="space-y-4 text-body">
+        <h1 class="text-ink">{% translate "About" %}</h1>
+
+        <h2 class="pt-2 text-ink">{% translate "Who I am" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                Placeholder — this section will introduce the person behind Ski Parrainage.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-ink">{% translate "Why I built this" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                Placeholder — finding a season-pass referral partner in the 4 Vallées used to mean an uncontrolled
+                scramble in a Facebook group. This project exists to bring some order to that.
+            {% endblocktranslate %}
+        </p>
+
+        <h2 class="pt-2 text-ink">{% translate "What's next" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                Placeholder — plans for the service beyond this launch will be described here.
+            {% endblocktranslate %}
+        </p>
+    </article>
+{% endblock %}

@@ -11,6 +11,7 @@
 # access to the match page; HTMX partials for accept/decline are guarded by
 # require_htmx; contact PII is only revealed after mutual accept.
 
+import re
 from datetime import UTC, datetime
 from unittest.mock import patch
 
@@ -1790,6 +1791,33 @@ def test_faq_contains_ski_parrainage_section() -> None:
     response = Client().get(reverse("public:faq"))
     content = response.content
     assert b"What is Ski Parrainage?" in content
+
+
+def test_faq_details_all_have_unique_ids() -> None:
+    """Every FAQ <details> accordion has a non-empty, unique id (VERB-133).
+
+    This deep-links each question so it can open expanded and scrolled into
+    view; the count of ids found must match the count of <details> elements
+    so none is left without one.
+    """
+    response = Client().get(reverse("public:faq"))
+    html = response.content.decode()
+    details_count = html.count("<details")
+    ids = re.findall(r'<details[^>]*\sid="([^"]+)"', html)
+    assert all(ids)
+    assert len(ids) == details_count
+    assert len(ids) == len(set(ids))
+
+
+def test_faq_details_ids_have_matching_anchor_links() -> None:
+    """Representative FAQ questions expose a stable id with a matching
+    "#<slug>" anchor link inside their summary (VERB-133).
+    """
+    response = Client().get(reverse("public:faq"))
+    html = response.content.decode()
+    for slug in ("contact-window", "what-is-ski-parrainage"):
+        assert f'id="{slug}"' in html
+        assert f'href="#{slug}"' in html
 
 
 def test_how_it_works_link_in_footer() -> None:

@@ -97,7 +97,7 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
                     {% translate "Find your season-pass match" %}
                 </h1>
                 <p class="lowbrow py-1 px-2 text-white/80">
-                    {% translate "Free to use" %}
+                    {% translate "Register now to beat the queue" %}
                 </p>
             </div>
             <div>
@@ -142,10 +142,6 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
             </div>
         </div>
     </section>
-    {% comment %}Quiet independence disclaimer, just below the hero image.{% endcomment %}
-    <p class="px-6 pb-3 pt-3 border-b border-line text-center text-xs text-meta sm:px-10 lg:px-16">
-        {% translate "Independent project — not affiliated with the 4 Vallées pass operator." %}
-    </p>
     {% if not registration_open %}
         {% comment %}Full-width opens-soon band below the hero (notice tone, not a role colour).{% endcomment %}
         <div class="border-b border-line bg-surface">
@@ -307,8 +303,9 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
         {% url 'public:faq' as faq_url %}
         <p class="mt-6 text-center text-sm text-meta">
             {% blocktranslate trimmed %}
-                Not sure which one you are? Check the <a href="{{ faq_url }}" class="text-accent underline">FAQ</a>.
+                Not sure which one you are? Start
             {% endblocktranslate %}
+            <a href="{% url 'public:register_role' %}" class="text-accent underline">{% translate "here" %}</a>.
         </p>
     </section>
 {% endblock %}

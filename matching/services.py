@@ -109,12 +109,19 @@
 # match-acceptance events (match_accepted / match_confirmed) live alongside the
 # notification handlers in matching/side_effects.py, bound to the same
 # MATCH_ACCEPTED label.
+#
+# queue_snapshot (VERB-145) is a read-only aggregate for the standalone queue
+# visualisation. Per role, "matched" is derived as total − unmatched rather
+# than counted directly, so the two rows are always exact complements of the
+# VERIFIED total for that role — it reuses RegistrationQuerySet.verified() /
+# .ambassadors() / .referees() / ._without_active_match() rather than
+# re-deriving the "active match" definition.
 
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import cast
+from typing import NamedTuple, cast
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -249,6 +256,48 @@ def total_accepted_matches() -> int:
     how many pairs have already been successfully matched.
     """
     return Match.objects.filter(status=Match.Status.ACCEPTED).count()
+
+
+class QueueSnapshot(NamedTuple):
+    """Per-role pool counts for the standalone queue visualisation (VERB-145).
+
+    ``*_unmatched`` and ``*_matched`` are exact complements of the VERIFIED
+    total for that role — see ``queue_snapshot`` for the derivation.
+    """
+
+    ambassadors_unmatched: int
+    ambassadors_matched: int
+    referees_unmatched: int
+    referees_matched: int
+
+
+def queue_snapshot() -> QueueSnapshot:
+    """Return the current pool state, per role, for the queue visualisation.
+
+    Read-only. For each role, "unmatched" is the count of VERIFIED
+    registrations holding no active (PROPOSED/PENDING/ACCEPTED) match — the
+    same eligible-pool definition used elsewhere via
+    ``RegistrationQuerySet._without_active_match()``. "Matched" is derived as
+    the VERIFIED total minus "unmatched" rather than counted directly, so the
+    two rows are always exact complements of that total (a terminal-match
+    registration, e.g. DECLINED/EXPIRED/CANCELLED, counts as unmatched, since
+    it holds no active match).
+    """
+    ambassadors_unmatched = (
+        Registration.objects.verified().ambassadors()._without_active_match().count()
+    )
+    ambassadors_total = Registration.objects.verified().ambassadors().count()
+    referees_unmatched = (
+        Registration.objects.verified().referees()._without_active_match().count()
+    )
+    referees_total = Registration.objects.verified().referees().count()
+
+    return QueueSnapshot(
+        ambassadors_unmatched=ambassadors_unmatched,
+        ambassadors_matched=ambassadors_total - ambassadors_unmatched,
+        referees_unmatched=referees_unmatched,
+        referees_matched=referees_total - referees_unmatched,
+    )
 
 
 def _rank_candidates(

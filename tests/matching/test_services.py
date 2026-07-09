@@ -1092,6 +1092,48 @@ def test_run_matching_respects_priority_then_fifo_order() -> None:
     assert low_priority in Registration.objects.eligible_ambassadors()
 
 
+def test_run_matching_dry_run_matches_commit_with_location_preference() -> None:
+    """The dry-run predicts the commit exactly, including shared-location ranking.
+
+    VERB-137: the simulate path and the live propose_match path share
+    ``_rank_candidates``, so the dry-run count must equal the committed count and
+    the same shared-location preference must decide the pairings. The referee
+    with the earlier ``created_at`` here is in the *other* location, so a naive
+    FIFO would pair it first; the location-aware ranking must instead pair each
+    ambassador with the referee in its own location.
+    """
+    ambassador_thyon = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        preferred_location="thyon",
+    )
+    ambassador_verbier = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        preferred_location="verbier",
+    )
+    # Verbier referee created first (earlier FIFO position) than the Thyon one.
+    referee_verbier = RegistrationFactory.create(
+        referee=True, preferred_location="verbier"
+    )
+    referee_thyon = RegistrationFactory.create(referee=True, preferred_location="thyon")
+
+    dry_proposed, dry_failed = run_matching(commit=False)
+    assert (dry_proposed, dry_failed) == (2, 0)
+    assert Match.objects.count() == 0
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        proposed, failed = run_matching(commit=True)
+
+    # Dry-run count is exactly the committed count.
+    assert (proposed, failed) == (dry_proposed, dry_failed)
+    # Each ambassador paired with the referee in its own location (not FIFO).
+    thyon_match = Match.objects.get(ambassador_registration=ambassador_thyon)
+    assert thyon_match.referee_registration == referee_thyon
+    verbier_match = Match.objects.get(ambassador_registration=ambassador_verbier)
+    assert verbier_match.referee_registration == referee_verbier
+
+
 def test_run_matching_skips_ineligible_pairs() -> None:
     """run_matching never proposes an ineligible pair (no eligible counterpart)."""
     RegistrationFactory.create(

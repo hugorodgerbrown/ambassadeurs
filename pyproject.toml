@@ -111,6 +111,21 @@ ignore_errors = true
 [tool.django-stubs]
 django_settings_module = "config.settings.development"
 
+[tool.pyright]
+# Pyright is used ONLY as the language server behind the reviewer agent's LSP
+# tool (go-to-definition, find-references, hover, call hierarchy) — never as a
+# type gate. mypy + django-stubs (above) remains the sole type authority, run
+# via `tox -e mypy` in CI. Point pyright at the uv venv so Django and its stubs
+# resolve (otherwise every `django.*` import reads as unresolved), and turn
+# type-checking OFF so pyright's own inference — which does not load the
+# django-stubs mypy plugin and so false-positives on TextChoices/ORM typing —
+# cannot surface findings that disagree with mypy. Navigation and hover still
+# work with type-checking off.
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "off"
+exclude = [".claude", "**/.tox", "**/node_modules", ".venv", "**/migrations"]
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.development"
 python_files = ["test_*.py"]

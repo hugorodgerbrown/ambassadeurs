@@ -114,6 +114,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
+from typing import cast
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -480,15 +481,21 @@ def suspend_for_no_show(registration: Registration) -> None:
 
 
 def accept_match(match: Match, registration: Registration) -> Match:
-    """Record an acceptance (VERB-92).
+    """Record an acceptance (VERB-92) — the accept-side service entrypoint.
 
-    Calls ``record_acceptance``, which is decorated with
-    ``@has_side_effects(MATCH_ACCEPTED)`` (VERB-107): on mutual accept
-    (``ACCEPTED``), the PII-reveal confirmation email is sent to both parties;
-    on the first accept (``PENDING``), the party yet to respond is nudged.
-    Both are handled by the ``matching.side_effects`` handlers bound to that
-    label, deferred to ``transaction.on_commit`` so a rolled-back accept never
-    emails anyone.
+    The symmetric counterpart of ``decline_match``, but with no cross-object
+    orchestration of its own: an acceptance neither pauses nor re-queues a
+    registration, and its notifications ride the transition itself.
+    ``record_acceptance`` is decorated with ``@has_side_effects(MATCH_ACCEPTED)``
+    (VERB-107): on mutual accept (``ACCEPTED``) the PII-reveal confirmation email
+    is sent to both parties; on the first accept (``PENDING``) the party yet to
+    respond is nudged. Both are handled by the ``matching.side_effects`` handlers
+    bound to that label, deferred to ``transaction.on_commit`` so a rolled-back
+    accept never emails anyone. This function stays as the view-facing entrypoint
+    (symmetric with ``decline_match``, so callers never reach past the service
+    layer into the ``record_*`` transition) and to re-narrow the return type:
+    ``@has_side_effects`` is untyped (django-side-effects ships no ``py.typed``),
+    so mypy widens ``record_acceptance``'s inferred return to ``Any``.
 
     Args:
         match: The match being accepted.
@@ -501,12 +508,7 @@ def accept_match(match: Match, registration: Registration) -> Match:
         StateTransitionError: propagated from ``record_acceptance`` if match
             is not PROPOSED or PENDING.
     """
-    # record_acceptance is decorated with @has_side_effects, an untyped
-    # decorator (django-side-effects ships no py.typed marker), so mypy
-    # widens its inferred return type to Any — hence the explicit re-typed
-    # local rather than `return record_acceptance(...)` directly.
-    result: Match = record_acceptance(match, registration)
-    return result
+    return cast(Match, record_acceptance(match, registration))
 
 
 def decline_match(match: Match, registration: Registration) -> Match:

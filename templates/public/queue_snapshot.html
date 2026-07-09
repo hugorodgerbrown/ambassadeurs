@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% comment %}
+Standalone queue-visualisation page (VERB-145) — exercises the
+_queue_snapshot.html component in isolation; not linked from any nav or
+journey page, and not wired into the homepage (deferred to a later ticket).
+{% endcomment %}
+
+{% block page_title %}{% translate "Queue" %}{% endblock %}
+
+{% block content %}
+    <section>
+        <p class="eyebrow mb-3">{% translate "Ski Parrainage" %}</p>
+        <h1 class="mb-6 text-ink">{% translate "Queue" %}</h1>
+        {% include "includes/_queue_snapshot.html" with columns=queue.columns %}
+    </section>
+{% endblock %}

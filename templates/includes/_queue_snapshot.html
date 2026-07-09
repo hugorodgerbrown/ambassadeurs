@@ -1,0 +1,31 @@
+{% load i18n %}
+{% comment %}
+Live queue visualisation panel (VERB-145) — a standalone, embeddable
+component showing pool state as two columns (Ambassador, Referee), each with
+a "Registered but unmatched" count and a "Matched" count.
+
+Include contract (single param):
+  columns — a list of two dicts (matching.selectors.QueueColumn), ambassador
+            first then referee: {role_label, unmatched, matched}
+
+The "id" is kept on the outer card so a future hx-get can target it for
+polling — no polling in this ticket.
+{% endcomment %}
+<div class="card" id="queue-snapshot">
+    <h2 class="mb-5 text-h3 text-ink">{% translate "Queue" %}</h2>
+    <div class="grid grid-cols-2 gap-6">
+        {% for column in columns %}
+            <div>
+                <p class="label mb-3">{{ column.role_label }}</p>
+                <div class="mb-4">
+                    <p class="text-h3 text-ink">{{ column.unmatched }}</p>
+                    <p class="text-body">{% translate "Registered but unmatched" %}</p>
+                </div>
+                <div>
+                    <p class="text-h3 text-ink">{{ column.matched }}</p>
+                    <p class="text-body">{% translate "Matched" %}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>

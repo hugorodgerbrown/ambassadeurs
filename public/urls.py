@@ -84,6 +84,9 @@ urlpatterns = [
         views.match_report_no_show,
         name="match_report_no_show",
     ),
+    # Standalone live queue visualisation page (VERB-145) — built in
+    # isolation, not mounted in any journey; not linked from any nav.
+    path("queue/", views.queue_snapshot_page, name="queue_snapshot"),
     # Well-known root requests served to avoid excess 404s (VERB-7).
     path("sw.js", views.service_worker, name="service_worker"),
     path(

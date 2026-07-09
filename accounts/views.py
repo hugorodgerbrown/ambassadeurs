@@ -10,7 +10,7 @@
 #   Registration.Status tracks pool standing (UNVERIFIED, VERIFIED, WITHDRAWN,
 #   SUSPENDED). Match progress is derived from the active Match row.
 #   `match_state ∈ {none, proposed, pending, accepted}` and the rest of the
-#   Match status card's context are built by matching.services.match_status_context
+#   Match status card's context are built by matching.selectors.match_status_context
 #   (VERB-116), shared with public.views.register_done so both surfaces render
 #   the identical component.
 #
@@ -44,7 +44,8 @@ from billing.models import Payment
 from core.emails import normalise_email
 from core.ratelimit import rate_limited_response
 from matching.models import Match, Registration
-from matching.services import match_status_context, rejoin_queue
+from matching.selectors import match_status_context
+from matching.services import rejoin_queue
 from public.views import _render_match_page
 
 from .forms import AccountForm
@@ -174,7 +175,7 @@ def account_detail(request: HttpRequest) -> HttpResponse:
     The Match status card's context (``registration``, ``status_pill``,
     ``match_state``, ``partner_first_name``, ``partner_accepted``,
     ``queue_position``, ``can_rejoin``, ``can_cancel``) is built by
-    ``matching.services.match_status_context`` (VERB-116) — shared with
+    ``matching.selectors.match_status_context`` (VERB-116) — shared with
     ``public.views.register_done`` so both surfaces render the identical
     component.
 

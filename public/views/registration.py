@@ -65,12 +65,11 @@ from core.observability import alias_identities
 from core.ratelimit import rate_limited_response
 from matching.forms import RegistrationForm
 from matching.models import Registration
+from matching.selectors import match_status_context, status_pill_for
 from matching.services import (
     confirm_registration,
     is_registration_open,
-    match_status_context,
     register_participant,
-    status_pill_for,
 )
 from public.forms import SurveyResponseForm
 from public.models import SurveyResponse
@@ -419,7 +418,7 @@ def register_done(request: HttpRequest, role: str) -> HttpResponse:
 
     The full Match status card (``templates/accounts/partials/match_status.html``)
     is rendered on this page too (VERB-116), sharing its context with the
-    account page via ``matching.services.match_status_context`` — the
+    account page via ``matching.selectors.match_status_context`` — the
     registration engine runs synchronously inside ``register_participant``, so
     a user can already hold a PROPOSED (or later) match by the time they reach
     this page, and the card reflects it rather than always showing the

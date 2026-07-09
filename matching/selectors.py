@@ -210,12 +210,32 @@ def match_status_context(user: User) -> MatchStatusContext:
     }
 
 
+# The unit pictograph renders one person icon per registrant. Above this cap
+# the row would wrap into an unreadable block (and bloat the DOM), so the icons
+# are scaled down to a proportional sample of this many while the legend keeps
+# the exact counts. Early-season pools sit well under the cap, so the common
+# case is one-icon-per-person and exact.
+_QUEUE_MAX_ICONS = 40
+
+
 class QueueColumn(TypedDict):
-    """One role's column in the queue visualisation (VERB-145)."""
+    """One role's column in the queue visualisation (VERB-145).
+
+    ``icons`` is the unit-pictograph payload: a list of ``"matched"`` /
+    ``"waiting"`` state strings the template renders as person glyphs (matched
+    first). ``scaled`` is True when the column's ``total`` exceeds
+    ``_QUEUE_MAX_ICONS`` and the icons are a proportional sample rather than
+    one-per-person; ``matched`` / ``unmatched`` / ``total`` stay exact
+    regardless.
+    """
 
     role_label: str
-    unmatched: int
+    is_referee: bool
     matched: int
+    unmatched: int
+    total: int
+    icons: list[str]
+    scaled: bool
 
 
 class QueueSnapshotContext(TypedDict):
@@ -227,26 +247,87 @@ class QueueSnapshotContext(TypedDict):
     columns: list[QueueColumn]
 
 
+def _pictograph(matched: int, total: int) -> tuple[list[str], bool]:
+    """Return ``(icon_states, scaled)`` for a column's unit pictograph.
+
+    Each entry is ``"matched"`` or ``"waiting"`` (matched first). When
+    ``total`` is at or below ``_QUEUE_MAX_ICONS`` the pictograph is exact — one
+    icon per person. Above the cap it is scaled to ``_QUEUE_MAX_ICONS`` icons
+    that preserve the matched proportion (rounded), and ``scaled`` is True; the
+    caller's exact counts remain the source of truth.
+
+    Args:
+        matched: Count of matched registrations in this column.
+        total: Total (matched + waiting) registrations in this column.
+
+    Returns:
+        The list of per-icon state strings and whether it was scaled down.
+    """
+    if total <= 0:
+        return [], False
+    if total <= _QUEUE_MAX_ICONS:
+        return ["matched"] * matched + ["waiting"] * (total - matched), False
+    shown_matched = round(matched / total * _QUEUE_MAX_ICONS)
+    return (
+        ["matched"] * shown_matched + ["waiting"] * (_QUEUE_MAX_ICONS - shown_matched),
+        True,
+    )
+
+
+def _queue_column(
+    role_label: str,
+    is_referee: bool,
+    matched: int,
+    unmatched: int,
+) -> QueueColumn:
+    """Shape one role's counts into a ``QueueColumn`` with its pictograph.
+
+    Args:
+        role_label: The translated role name (``Registration.Role.<X>.label``).
+        is_referee: True for the referee column (drives the template's blue
+            ``role-card--referee`` theming); False for the ambassador column.
+        matched: Count of that role's matched registrations.
+        unmatched: Count of that role's waiting (unmatched) registrations.
+
+    Returns:
+        The fully-shaped column, including the unit-pictograph icon list.
+    """
+    total = matched + unmatched
+    icons, scaled = _pictograph(matched, total)
+    return {
+        "role_label": role_label,
+        "is_referee": is_referee,
+        "matched": matched,
+        "unmatched": unmatched,
+        "total": total,
+        "icons": icons,
+        "scaled": scaled,
+    }
+
+
 def queue_snapshot_context() -> QueueSnapshotContext:
     """Build the render context for the standalone queue visualisation.
 
     Calls ``matching.services.queue_snapshot`` for the counts and shapes them
     into two columns (ambassador, referee, in that order), each carrying its
-    role label (``Registration.Role.<X>.label``, already ``gettext_lazy``) and
-    its unmatched/matched counts. Row labels stay in the template.
+    role label (``Registration.Role.<X>.label``, already ``gettext_lazy``), its
+    matched/waiting counts and total, and a unit-pictograph icon list. The
+    person glyphs and legend labels live in the template.
     """
     snapshot = queue_snapshot()
     return {
         "columns": [
-            {
-                "role_label": str(Registration.Role.AMBASSADOR.label),
-                "unmatched": snapshot.ambassadors_unmatched,
-                "matched": snapshot.ambassadors_matched,
-            },
-            {
-                "role_label": str(Registration.Role.REFEREE.label),
-                "unmatched": snapshot.referees_unmatched,
-                "matched": snapshot.referees_matched,
-            },
+            _queue_column(
+                str(Registration.Role.AMBASSADOR.label),
+                is_referee=False,
+                matched=snapshot.ambassadors_matched,
+                unmatched=snapshot.ambassadors_unmatched,
+            ),
+            _queue_column(
+                str(Registration.Role.REFEREE.label),
+                is_referee=True,
+                matched=snapshot.referees_matched,
+                unmatched=snapshot.referees_unmatched,
+            ),
         ]
     }

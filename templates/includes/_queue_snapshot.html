@@ -1,30 +1,90 @@
 {% load i18n %}
 {% comment %}
 Live queue visualisation panel (VERB-145) — a standalone, embeddable
-component showing pool state as two columns (Ambassador, Referee), each with
-a "Registered but unmatched" count and a "Matched" count.
+component showing pool state as two role-themed cards (Ambassador, Referee).
+Each card is a unit pictograph: one person glyph per registrant, matched
+people filled green, waiting people a grey outline, with the exact counts in
+a legend beneath (people respond to a picture faster than to bare numbers).
 
 Include contract (single param):
   columns — a list of two dicts (matching.selectors.QueueColumn), ambassador
-            first then referee: {role_label, unmatched, matched}
+            first then referee, each:
+              {role_label, is_referee, matched, unmatched, total, icons, scaled}
+            where `icons` is a list of "matched" / "waiting" state strings and
+            `scaled` flags that the pictograph is a proportional sample (large
+            pool) rather than one-icon-per-person.
 
 The "id" is kept on the outer card so a future hx-get can target it for
 polling — no polling in this ticket.
 {% endcomment %}
 <div class="card" id="queue-snapshot">
-    <h2 class="mb-5 text-h3 text-ink">{% translate "Queue" %}</h2>
-    <div class="grid grid-cols-2 gap-6">
+    <h2 class="mb-6 text-h3 text-ink">{% translate "Who's in the queue" %}</h2>
+    <div class="grid gap-6 sm:grid-cols-2">
         {% for column in columns %}
-            <div>
-                <p class="label mb-3">{{ column.role_label }}</p>
-                <div class="mb-4">
-                    <p class="text-h3 text-ink">{{ column.unmatched }}</p>
-                    <p class="text-body">{% translate "Registered but unmatched" %}</p>
+            <div class="role-card {% if column.is_referee %}role-card--referee{% endif %} flex flex-col">
+                <div class="mb-5 flex items-baseline justify-between gap-3">
+                    <p class="label text-role">{{ column.role_label }}</p>
+                    <p class="text-h2 leading-none text-ink" aria-hidden="true">{{ column.total }}</p>
                 </div>
-                <div>
-                    <p class="text-h3 text-ink">{{ column.matched }}</p>
-                    <p class="text-body">{% translate "Matched" %}</p>
-                </div>
+
+                {% if column.total %}
+                    {% blocktranslate count counter=column.total asvar picto_label trimmed %}
+                        {{ counter }} person in the queue
+                    {% plural %}
+                        {{ counter }} people in the queue
+                    {% endblocktranslate %}
+                    <div class="mb-5 flex flex-wrap gap-1.5" role="img" aria-label="{{ picto_label }}">
+                        {% for state in column.icons %}
+                            {% if state == "matched" %}
+                                {% comment %}Matched — a solid person, tinted success green.{% endcomment %}
+                                <svg
+                                    class="h-6 w-6 text-success"
+                                    viewBox="0 0 24 24"
+                                    fill="currentColor"
+                                    aria-hidden="true"
+                                >
+                                    <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.42 0-8 2.69-8 6v1h16v-1c0-3.31-3.58-6-8-6Z" />
+                                </svg>
+                            {% else %}
+                                {% comment %}Waiting — an outline person, muted grey.{% endcomment %}
+                                <svg
+                                    class="h-6 w-6 text-meta"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.6"
+                                    aria-hidden="true"
+                                >
+                                    <circle cx="12" cy="8" r="3.4" />
+                                    <path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" stroke-linecap="round" />
+                                </svg>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% if column.scaled %}
+                        <p class="mb-5 text-sm text-meta">
+                            {% translate "Each icon represents several people." %}
+                        </p>
+                    {% endif %}
+                {% else %}
+                    <p class="mb-5 grow text-body">{% translate "No one in the queue yet." %}</p>
+                {% endif %}
+
+                <dl class="mt-auto space-y-2 border-t border-line pt-4">
+                    <div class="flex items-center gap-2.5">
+                        <span class="inline-block h-3 w-3 shrink-0 rounded-full bg-success" aria-hidden="true"></span>
+                        <dt class="text-body">{% translate "Matched" %}</dt>
+                        <dd class="ml-auto text-h3 leading-none text-ink">{{ column.matched }}</dd>
+                    </div>
+                    <div class="flex items-center gap-2.5">
+                        <span
+                            class="inline-block h-3 w-3 shrink-0 rounded-full border border-meta"
+                            aria-hidden="true"
+                        ></span>
+                        <dt class="text-body">{% translate "Waiting" %}</dt>
+                        <dd class="ml-auto text-h3 leading-none text-ink">{{ column.unmatched }}</dd>
+                    </div>
+                </dl>
             </div>
         {% endfor %}
     </div>

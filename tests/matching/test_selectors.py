@@ -6,6 +6,8 @@ import pytest
 
 from matching.models import Match, Registration
 from matching.selectors import (
+    _QUEUE_MAX_ICONS,
+    _pictograph,
     match_status_context,
     queue_snapshot_context,
     status_pill_for,
@@ -184,11 +186,67 @@ def test_queue_snapshot_context_reflects_pool_counts() -> None:
     ambassador_column, referee_column = context["columns"]
     assert ambassador_column == {
         "role_label": "Ambassador",
-        "unmatched": 1,
+        "is_referee": False,
         "matched": 1,
+        "unmatched": 1,
+        "total": 2,
+        "icons": ["matched", "waiting"],
+        "scaled": False,
     }
     assert referee_column == {
         "role_label": "Referee",
-        "unmatched": 1,
+        "is_referee": True,
         "matched": 1,
+        "unmatched": 1,
+        "total": 2,
+        "icons": ["matched", "waiting"],
+        "scaled": False,
     }
+
+
+def test_queue_snapshot_context_empty_pool_has_no_icons() -> None:
+    """An empty pool yields zero totals, no icons, and unscaled columns."""
+    context = queue_snapshot_context()
+
+    for column in context["columns"]:
+        assert column["total"] == 0
+        assert column["matched"] == 0
+        assert column["unmatched"] == 0
+        assert column["icons"] == []
+        assert column["scaled"] is False
+
+
+def test_queue_snapshot_context_pictograph_is_exact_below_cap() -> None:
+    """Below the icon cap the pictograph is one icon per person, matched first."""
+    # One PROPOSED match (matched ambassador + referee) plus one waiting ambassador.
+    RegistrationFactory.create(status=Registration.Status.VERIFIED)
+    MatchFactory.create()
+
+    ambassador_column = queue_snapshot_context()["columns"][0]
+    assert ambassador_column["total"] == 2
+    assert ambassador_column["icons"] == ["matched", "waiting"]
+    assert ambassador_column["icons"].count("matched") == ambassador_column["matched"]
+    assert ambassador_column["icons"].count("waiting") == ambassador_column["unmatched"]
+
+
+@pytest.mark.parametrize(
+    ("matched", "total"),
+    [(0, 0), (3, 5), (5, 5), (0, 4)],
+)
+def test_pictograph_exact_below_cap(matched: int, total: int) -> None:
+    """Below the cap, _pictograph is one icon per person, matched first, unscaled."""
+    icons, scaled = _pictograph(matched=matched, total=total)
+
+    assert scaled is False
+    assert icons == ["matched"] * matched + ["waiting"] * (total - matched)
+
+
+def test_pictograph_scales_above_cap() -> None:
+    """Above the cap the icon list is capped and proportional; scaled is True."""
+    icons, scaled = _pictograph(matched=50, total=100)
+
+    assert scaled is True
+    assert len(icons) == _QUEUE_MAX_ICONS
+    # 50/100 of the cap is matched — the proportion is preserved.
+    assert icons.count("matched") == _QUEUE_MAX_ICONS // 2
+    assert icons.count("waiting") == _QUEUE_MAX_ICONS // 2

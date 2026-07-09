@@ -3778,10 +3778,27 @@ def test_queue_snapshot_page_renders_labels_and_counts() -> None:
     content = response.content.decode()
     assert "Ambassador" in content
     assert "Referee" in content
-    assert "Registered but unmatched" in content
+    # Legend labels for the two pictograph states.
     assert "Matched" in content
+    assert "Waiting" in content
 
     columns = response.context["queue"]["columns"]
-    assert columns[0] == {"role_label": "Ambassador", "unmatched": 1, "matched": 1}
-    assert columns[1] == {"role_label": "Referee", "unmatched": 1, "matched": 1}
+    assert columns[0] == {
+        "role_label": "Ambassador",
+        "is_referee": False,
+        "matched": 1,
+        "unmatched": 1,
+        "total": 2,
+        "icons": ["matched", "waiting"],
+        "scaled": False,
+    }
+    assert columns[1] == {
+        "role_label": "Referee",
+        "is_referee": True,
+        "matched": 1,
+        "unmatched": 1,
+        "total": 2,
+        "icons": ["matched", "waiting"],
+        "scaled": False,
+    }
     assert Tip.objects.count() == 0

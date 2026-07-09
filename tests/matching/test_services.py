@@ -2813,6 +2813,24 @@ def test_queue_snapshot_cancelled_match_counts_as_unmatched() -> None:
     assert snapshot.referees_matched == 0
 
 
+def test_queue_snapshot_expired_match_counts_as_unmatched() -> None:
+    """An EXPIRED (lapsed, no mutual accept) match's registrations are unmatched.
+
+    No ``expired`` factory trait exists, so the status and a past ``expires_at``
+    are set directly, matching how a real expired match is stored.
+    """
+    MatchFactory.create(
+        status=Match.Status.EXPIRED, expires_at=datetime(2026, 9, 1, tzinfo=UTC)
+    )
+
+    snapshot = queue_snapshot()
+
+    assert snapshot.ambassadors_unmatched == 1
+    assert snapshot.ambassadors_matched == 0
+    assert snapshot.referees_unmatched == 1
+    assert snapshot.referees_matched == 0
+
+
 def test_queue_snapshot_complement_invariant() -> None:
     """unmatched + matched always equals the VERIFIED total, per role.
 

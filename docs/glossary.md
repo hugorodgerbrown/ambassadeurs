@@ -41,6 +41,10 @@ implement it. Add a row when a term gains a symbol.
 | Keep a deposit (successful match) | `billing.services.payments.capture` | `billing/services/payments.py` |
 | Refund a deposit (via Stripe) | `billing.services.payments.refund` | `billing/services/payments.py` |
 | Forfeit a deposit (post-accept no-show) | `billing.services.payments.forfeit` | `billing/services/payments.py` |
+| Voluntary contribution ("tip") | `billing.models.Tip` | `billing/models.py` |
+| Tip lifecycle (paid / refunded) | `billing.models.Tip.Status` | `billing/models.py` |
+| Record a paid tip (idempotent on payment intent id) | `billing.services.tips.record_tip_paid` | `billing/services/tips.py` |
+| Create a tip Stripe Checkout session | `billing.services.tips.create_tip_checkout_session` | `billing/services/tips.py` |
 | Site-wide notification banner | `core.models.Notification` | `core/models.py` |
 | Notification banner look (label/description/CSS) | `settings.NOTIFICATION_DESIGNS` (`Notification.design`) | `config/settings/base.py` |
 | Notification stacking order | `Notification.weight` | `core/models.py` |

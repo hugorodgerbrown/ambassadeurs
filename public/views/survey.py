@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import logging
 
-from django.db import IntegrityError
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
@@ -19,6 +18,7 @@ from django.views.decorators.http import require_POST
 from core.decorators import require_htmx
 from public.forms import SurveyResponseForm
 from public.models import SurveyResponse
+from public.services import record_survey_response
 
 from ._shared import _authenticated_registration
 
@@ -70,17 +70,6 @@ def register_survey_submit(request: HttpRequest) -> HttpResponse:
             {"survey_form": form},
         )
 
-    try:
-        SurveyResponse.objects.create(
-            registration=registration,
-            max_deposit=form.cleaned_data["max_deposit"],
-        )
-    except IntegrityError:
-        # Race backstop: a concurrent submission already created the row.
-        logger.info(
-            "register_survey_submit: IntegrityError for registration pk=%s — "
-            "already responded",
-            registration.pk,
-        )
+    record_survey_response(registration, max_deposit=form.cleaned_data["max_deposit"])
 
     return render(request, "public/partials/wtp_survey_thanks.html")

@@ -41,9 +41,16 @@
 # locked/disabled form. This replaces the earlier locked-form and defensive-
 # authenticated-POST behaviour.
 #
-# PostHog analytics (VERB-124): the anonymous registration success path in
-# register_form calls alias_identities so pre-registration page-views
+# PostHog analytics (VERB-124): the anonymous registration success path
+# (orchestrated by public.services.register_or_resend_participant, called from
+# register_form) calls alias_identities so pre-registration page-views
 # (anonymous hash) merge into the resulting user in PostHog.
+#
+# Signup orchestration (VERB-142): register_form's POST path validates the
+# form, then delegates the enrol-or-resend decision to
+# public.services.register_or_resend_participant, which is request-coupled
+# (absolute URLs, PostHog cookies, session) and so lives in public/services.py
+# rather than a matching/ domain service.
 
 from __future__ import annotations
 
@@ -52,27 +59,20 @@ import logging
 from django.conf import settings
 from django.contrib.auth import login
 from django.contrib.auth.models import User
-from django.db import IntegrityError, transaction
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django_ratelimit.decorators import ratelimit
 
-from accounts.services import send_already_registered_email, send_confirmation_email
 from accounts.tokens import read_registration_confirmation_token
 from core.decorators import require_htmx
-from core.geo import geolocate, get_client_ip
-from core.observability import alias_identities
 from core.ratelimit import rate_limited_response
 from matching.forms import RegistrationForm
 from matching.models import Registration
 from matching.selectors import match_status_context, status_pill_for
-from matching.services import (
-    confirm_registration,
-    is_registration_open,
-    register_participant,
-)
+from matching.services import confirm_registration, is_registration_open
 from public.forms import SurveyResponseForm
 from public.models import SurveyResponse
+from public.services import register_or_resend_participant
 
 from ._shared import _authenticated_registration
 
@@ -254,12 +254,6 @@ def register_form(request: HttpRequest, role: str) -> HttpResponse:
         # field means a tampered body, not a legitimate alternate submission.
         raise Http404("Registration role does not match the submitted form.")
 
-    # Resolve geolocation once, before the anon path, so the register_participant
-    # call receives the caller's country and region. The raw IP is discarded
-    # after the lookup — it is NEVER persisted (data minimisation).
-    _client_ip = get_client_ip(request)
-    _geo_country, _geo_region = geolocate(_client_ip) if _client_ip else ("", "")
-
     # Anonymous path: validate, create UNVERIFIED or resend.
     form = RegistrationForm(role=role_value, data=request.POST)
     if not form.is_valid():
@@ -269,85 +263,7 @@ def register_form(request: HttpRequest, role: str) -> HttpResponse:
             {"form": form, "role": role, "role_value": role_value},
         )
 
-    data = form.cleaned_data
-    email: str = data["email"]
-
-    # Non-enumerating enrolment guard (VERB-72): if this email already has a
-    # non-UNVERIFIED registration, do not reveal that on the form (that would let
-    # an attacker enumerate who is enrolled). Email the owner a sign-in link and
-    # fall through to the same generic "check your email" response shown to a
-    # brand-new registrant.
-    enrolled = (
-        Registration.objects.filter(user__email=email)
-        .exclude(status=Registration.Status.UNVERIFIED)
-        .select_related("user")
-        .first()
-    )
-    if enrolled is not None:
-        login_url = send_already_registered_email(request, enrolled.user)
-        if settings.DEBUG:
-            request.session["debug_verify_url"] = login_url
-        return redirect("public:register_email_sent")
-
-    # Check for an existing UNVERIFIED registration for this email. If one
-    # exists, resend the confirmation link without creating a second row.
-    #
-    # The lookup and create run inside a single atomic block to guard against a
-    # TOCTOU race: if a concurrent request confirms the registration between the
-    # DoesNotExist branch and the register_participant call, the OneToOne
-    # constraint would raise IntegrityError. We catch that and fall back to
-    # resending for whatever row now exists for that email.
-    try:
-        with transaction.atomic():
-            try:
-                pending_reg = Registration.objects.select_for_update().get(
-                    user__email=email, status=Registration.Status.UNVERIFIED
-                )
-                confirm_url = send_confirmation_email(request, pending_reg)
-            except Registration.DoesNotExist:
-                registration = register_participant(
-                    role=role_value,
-                    first_name=data["first_name"],
-                    last_name=data["last_name"],
-                    email=email,
-                    prior_pass=data["prior_pass"],
-                    phone=data.get("phone", ""),
-                    preferred_location=data.get("preferred_location", ""),
-                    preferred_language=data.get("preferred_language", ""),
-                    nationality=data.get("nationality", ""),
-                    accepted_terms=form.accepted_statements(),
-                    status=Registration.Status.UNVERIFIED,
-                    registration_country=_geo_country,
-                    registration_region=_geo_region,
-                )
-                # Stitch the anonymous visitor's pre-registration page-views
-                # onto the new user in PostHog (VERB-124). Only on this
-                # brand-new-registration path — not the already-enrolled or
-                # resend paths above/below.
-                alias_identities(request, registration.user)
-                confirm_url = send_confirmation_email(request, registration)
-    except IntegrityError:
-        # A concurrent request created/confirmed a registration for this email
-        # between our DoesNotExist branch and our create attempt. Resend for
-        # whichever row now exists with an UNVERIFIED status; if none exists (it
-        # was already confirmed), fall through to a generic resend.
-        logger.warning(
-            "IntegrityError on registration create for %s — resending for existing row",
-            email,
-        )
-        try:
-            existing = Registration.objects.get(
-                user__email=email, status=Registration.Status.UNVERIFIED
-            )
-            confirm_url = send_confirmation_email(request, existing)
-        except Registration.DoesNotExist:
-            # The race winner already confirmed: redirect without sending so the
-            # user proceeds to login normally.
-            return redirect("public:register_email_sent")
-
-    if settings.DEBUG:
-        request.session["debug_verify_url"] = confirm_url
-
+    register_or_resend_participant(request, role_value=role_value, form=form)
     return redirect("public:register_email_sent")
 
 

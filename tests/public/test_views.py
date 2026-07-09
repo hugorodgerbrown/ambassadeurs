@@ -3778,9 +3778,9 @@ def test_queue_snapshot_page_renders_labels_and_counts() -> None:
     content = response.content.decode()
     assert "Ambassador" in content
     assert "Referee" in content
-    # Legend labels for the two pictograph states.
-    assert "Matched" in content
-    assert "Waiting" in content
+    # The pictograph's accessible label carries the matched/waiting split
+    # (there is no visible numeric legend).
+    assert "1 matched, 1 waiting" in content
 
     columns = response.context["queue"]["columns"]
     assert columns[0] == {

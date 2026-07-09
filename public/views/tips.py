@@ -20,7 +20,11 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from billing.forms import TipForm
-from billing.services.tips import create_tip_checkout_session, record_tip_paid
+from billing.services.tips import (
+    _parse_tip_amount_chf,
+    create_tip_checkout_session,
+    record_tip_paid,
+)
 from matching.models import Registration
 
 from ._shared import (
@@ -46,30 +50,6 @@ def _free_tier_registration_or_404(request: HttpRequest) -> Registration:
     if registration is None or registration.fee_chf > 0:
         raise Http404("No free-tier registration for this account.")
     return registration
-
-
-def _parse_tip_amount_chf(raw: str | None) -> int | None:
-    """Parse the ``amount_chf`` session metadata value, or None if unusable.
-
-    Metadata is attacker-influenced-adjacent (round-tripped through Stripe,
-    but ultimately sourced from whatever ``create_tip_checkout_session`` was
-    called with) — never trust it to be a clean integer string. Returns None
-    rather than raising so both callers (``tip_return``, ``stripe_webhook``)
-    can degrade gracefully instead of a user-facing 500 / an unhandled
-    exception in the always-200 webhook.
-    """
-    if raw is None:
-        return None
-    try:
-        amount_chf = int(raw)
-    except ValueError:
-        return None
-    # A non-positive amount would fail Tip.amount_chf's Postgres CHECK
-    # constraint inside record_tip_paid, where the IntegrityError would be
-    # misread as an idempotency race — reject it here instead.
-    if amount_chf < 1:
-        return None
-    return amount_chf
 
 
 @login_required

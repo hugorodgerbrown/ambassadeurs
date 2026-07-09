@@ -12,6 +12,10 @@
 # stripe_webhook also dispatches on the "purpose" session metadata key set by
 # tips.tip_start's create_tip_checkout_session call, falling through to the
 # deposit path (which carries no "purpose" key) unchanged (VERB-110).
+#
+# The checkout.session.completed handling itself (VERB-142) lives in
+# billing.services.checkout.handle_checkout_completed — this view only
+# verifies the Stripe signature and dispatches.
 
 from __future__ import annotations
 
@@ -27,21 +31,18 @@ from django.views.decorators.http import require_POST
 from billing.services.checkout import (
     create_checkout_session,
     finalize_paid_registration,
+    handle_checkout_completed,
     verify_webhook,
 )
-from billing.services.tips import record_tip_paid
 from matching.models import Registration
 
 from ._shared import (
     _authenticated_registration,
     _checkout_return_urls,
     _redirect_to_checkout,
-    _session_customer_and_intent,
-    _stripe_metadata_get,
     _verify_return_session,
 )
 from .registration import SLUG_BY_ROLE
-from .tips import _parse_tip_amount_chf
 
 logger = logging.getLogger(__name__)
 
@@ -125,17 +126,15 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
     signature check: ``@csrf_exempt`` because Stripe cannot supply a Django
     CSRF token, ``@require_POST`` because Stripe only ever POSTs here.
 
-    On ``checkout.session.completed`` with a resolvable
-    ``metadata.registration_pk``, calls ``finalize_paid_registration``
-    (idempotent — safe even if ``register_payment_return`` already finalised
-    it). Any other event type is accepted and ignored. Returns 400 on a bad
-    signature so Stripe's retry logic kicks in only for genuine delivery
-    failures, never for a forged payload.
-
-    Dispatches on the ``metadata.purpose`` key (VERB-110): ``"tip"`` sessions
-    (set by ``create_tip_checkout_session``) call ``record_tip_paid``; any
-    other session — including every existing deposit session, which carries
-    no ``purpose`` key — falls through to the deposit path unchanged.
+    On ``checkout.session.completed``, delegates to
+    ``billing.services.checkout.handle_checkout_completed`` (which resolves
+    the registration and dispatches on ``metadata.purpose`` — ``"tip"``
+    sessions call ``record_tip_paid``; deposit sessions call
+    ``finalize_paid_registration``, idempotent — safe even if
+    ``register_payment_return`` already finalised it). Any other event type
+    is accepted and ignored. Returns 400 on a bad signature so Stripe's
+    retry logic kicks in only for genuine delivery failures, never for a
+    forged payload.
     """
     sig_header = request.META.get("HTTP_STRIPE_SIGNATURE", "")
     try:
@@ -145,53 +144,6 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
         return HttpResponse(status=400)
 
     if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
-        registration_pk = _stripe_metadata_get(session, "registration_pk")
-        # Stripe does not create a Customer for payment-mode sessions by
-        # default (and never for TWINT), so session.customer is often absent.
-        # customer_id is optional (Payment.stripe_customer_id is blank); only
-        # the payment_intent is required to finalise — mirrors the return view.
-        customer_id, payment_intent_id = _session_customer_and_intent(session)
-        if registration_pk and payment_intent_id:
-            try:
-                registration = Registration.objects.get(pk=registration_pk)
-            except Registration.DoesNotExist, ValueError:
-                logger.error(
-                    "stripe_webhook: checkout.session.completed for unknown "
-                    "registration pk=%r",
-                    registration_pk,
-                )
-                return HttpResponse(status=200)
-            if _stripe_metadata_get(session, "purpose") == "tip":
-                amount_chf = _parse_tip_amount_chf(
-                    _stripe_metadata_get(session, "amount_chf")
-                )
-                if amount_chf is None:
-                    logger.error(
-                        "stripe_webhook: checkout.session.completed tip session "
-                        "has unusable amount_chf metadata (session id=%s)",
-                        getattr(session, "id", "?"),
-                    )
-                    return HttpResponse(status=200)
-                message = _stripe_metadata_get(session, "message") or ""
-                record_tip_paid(
-                    registration=registration,
-                    amount_chf=amount_chf,
-                    message=message,
-                    stripe_customer_id=customer_id,
-                    stripe_payment_intent_id=payment_intent_id,
-                )
-            else:
-                finalize_paid_registration(
-                    registration,
-                    stripe_customer_id=customer_id,
-                    stripe_payment_intent_id=payment_intent_id,
-                )
-        else:
-            logger.warning(
-                "stripe_webhook: checkout.session.completed missing usable "
-                "metadata/payment_intent (session id=%s)",
-                getattr(session, "id", "?"),
-            )
+        handle_checkout_completed(event)
 
     return HttpResponse(status=200)

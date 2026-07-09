@@ -487,7 +487,7 @@ def test_register_post_race_integrity_error_does_not_500() -> None:
     # passes (no existing row), but the create inside the view raises
     # IntegrityError as if a concurrent request won the race.
     with patch(
-        "public.views.registration.register_participant",
+        "public.services.register_participant",
         side_effect=IntegrityError("unique violation"),
     ):
         # Use an email that has no existing registration so form validation
@@ -1944,7 +1944,7 @@ def test_download_application_form_fires_form_downloaded_event() -> None:
 
 def test_register_post_aliases_anonymous_identity_onto_new_user() -> None:
     """A brand-new anonymous registration aliases the visitor onto the new user."""
-    with patch("public.views.registration.alias_identities") as mock_alias:
+    with patch("public.services.alias_identities") as mock_alias:
         Client().post(_register_url("referee"), _valid_referee_post())
 
     mock_alias.assert_called_once()
@@ -1957,7 +1957,7 @@ def test_register_post_resend_does_not_alias_again() -> None:
     """Resending for an existing UNVERIFIED registration does not re-alias."""
     Client().post(_register_url("referee"), _valid_referee_post())
 
-    with patch("public.views.registration.alias_identities") as mock_alias:
+    with patch("public.services.alias_identities") as mock_alias:
         Client().post(_register_url("referee"), _valid_referee_post())
 
     mock_alias.assert_not_called()
@@ -3018,9 +3018,9 @@ def test_register_post_stores_geo_country_and_region() -> None:
     """An anonymous registration POST resolves geo and stores country + region."""
     url = _register_url("ambassador")
     with (
-        patch("public.views.registration.get_client_ip", return_value="203.0.113.45"),
+        patch("public.services.get_client_ip", return_value="203.0.113.45"),
         patch(
-            "public.views.registration.geolocate",
+            "public.services.geolocate",
             return_value=("Switzerland", "Valais"),
         ),
     ):
@@ -3059,8 +3059,8 @@ def test_register_post_geo_empty_when_private_ip() -> None:
     """A registration from a private IP stores empty strings for geo fields."""
     url = _register_url("ambassador")
     with (
-        patch("public.views.registration.get_client_ip", return_value="127.0.0.1"),
-        patch("public.views.registration.geolocate", return_value=("", "")),
+        patch("public.services.get_client_ip", return_value="127.0.0.1"),
+        patch("public.services.geolocate", return_value=("", "")),
     ):
         response = Client().post(
             url,
@@ -3090,8 +3090,8 @@ def test_register_post_skips_geolocate_when_no_client_ip() -> None:
     """When no client IP is resolvable, geolocate is not called and geo is empty."""
     url = _register_url("ambassador")
     with (
-        patch("public.views.registration.get_client_ip", return_value=None),
-        patch("public.views.registration.geolocate") as mock_geolocate,
+        patch("public.services.get_client_ip", return_value=None),
+        patch("public.services.geolocate") as mock_geolocate,
     ):
         response = Client().post(
             url,

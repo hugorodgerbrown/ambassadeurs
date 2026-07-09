@@ -8,6 +8,11 @@
 # handling shared by the deposit (``payments.py``) and tip (``tips.py``)
 # flows — building redirect URLs, narrowing session fields to plain id
 # strings, and verifying a return-view session belongs to the caller.
+#
+# _stripe_metadata_get and _session_customer_and_intent (VERB-142) are
+# Stripe-generic helpers whose canonical home is now
+# billing.services.checkout (billing must not import from public) — they are
+# re-exported here so the view layer keeps importing them from ``_shared``.
 
 from __future__ import annotations
 
@@ -18,7 +23,15 @@ from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
-from billing.services.checkout import retrieve_checkout_session
+from billing.services.checkout import (
+    _session_customer_and_intent as _session_customer_and_intent,
+)
+from billing.services.checkout import (
+    _stripe_metadata_get as _stripe_metadata_get,
+)
+from billing.services.checkout import (
+    retrieve_checkout_session,
+)
 from matching.models import Registration
 
 logger = logging.getLogger(__name__)
@@ -37,37 +50,6 @@ def _authenticated_registration(request: HttpRequest) -> Registration | None:
         return Registration.objects.get(user=request.user)
     except Registration.DoesNotExist:
         return None
-
-
-def _stripe_metadata_get(obj: object, key: str) -> str | None:
-    """Return the string metadata value ``obj.metadata[key]``, or None.
-
-    Stripe's ``StripeObject`` deliberately has no ``.get()`` method (calling
-    it raises ``AttributeError``) — read defensively via ``getattr`` (which
-    tolerates a missing ``metadata`` attribute) plus membership and subscript
-    access instead of assuming metadata, or the key within it, is present.
-    """
-    metadata = getattr(obj, "metadata", None)
-    if metadata is None or key not in metadata:
-        return None
-    return str(metadata[key])
-
-
-def _session_customer_and_intent(
-    session: stripe.checkout.Session,
-) -> tuple[str, str]:
-    """Return (customer_id, payment_intent_id) as strings, '' when Stripe omits them.
-
-    Stripe does not create a Customer for payment-mode sessions by default (and
-    never for TWINT), and the payment_intent may be an expandable object rather
-    than an id string — so both are narrowed to a plain id string, or '' when
-    absent.
-    """
-    customer_id = session.customer if isinstance(session.customer, str) else ""
-    payment_intent_id = (
-        session.payment_intent if isinstance(session.payment_intent, str) else ""
-    )
-    return customer_id, payment_intent_id
 
 
 def _checkout_return_urls(

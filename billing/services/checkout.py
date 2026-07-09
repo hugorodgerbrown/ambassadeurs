@@ -15,6 +15,16 @@
 #
 # _configure_stripe and to_centimes are reused from billing.services.payments
 # rather than duplicated here.
+#
+# handle_checkout_completed (VERB-142) is the source-of-truth dispatch behind
+# public.views.stripe_webhook: it resolves the registration from the verified
+# event and routes on metadata.purpose to either the tip finaliser
+# (billing.services.tips.record_tip_paid) or the deposit finaliser
+# (finalize_paid_registration) below. _stripe_metadata_get and
+# _session_customer_and_intent live here (rather than in public.views) because
+# they are Stripe-generic helpers the dispatch itself needs; public.views
+# imports them back for the return-view flows that still need to inspect a
+# session directly.
 
 from __future__ import annotations
 
@@ -30,8 +40,40 @@ from matching.services import confirm_registration
 
 from ..models import Payment
 from .payments import _configure_stripe, to_centimes
+from .tips import _parse_tip_amount_chf, record_tip_paid
 
 logger = logging.getLogger(__name__)
+
+
+def _stripe_metadata_get(obj: object, key: str) -> str | None:
+    """Return the string metadata value ``obj.metadata[key]``, or None.
+
+    Stripe's ``StripeObject`` deliberately has no ``.get()`` method (calling
+    it raises ``AttributeError``) — read defensively via ``getattr`` (which
+    tolerates a missing ``metadata`` attribute) plus membership and subscript
+    access instead of assuming metadata, or the key within it, is present.
+    """
+    metadata = getattr(obj, "metadata", None)
+    if metadata is None or key not in metadata:
+        return None
+    return str(metadata[key])
+
+
+def _session_customer_and_intent(
+    session: stripe.checkout.Session,
+) -> tuple[str, str]:
+    """Return (customer_id, payment_intent_id) as strings, '' when Stripe omits them.
+
+    Stripe does not create a Customer for payment-mode sessions by default (and
+    never for TWINT), and the payment_intent may be an expandable object rather
+    than an id string — so both are narrowed to a plain id string, or '' when
+    absent.
+    """
+    customer_id = session.customer if isinstance(session.customer, str) else ""
+    payment_intent_id = (
+        session.payment_intent if isinstance(session.payment_intent, str) else ""
+    )
+    return customer_id, payment_intent_id
 
 
 def create_checkout_session(
@@ -222,3 +264,63 @@ def finalize_paid_registration(
         locked.status,
     )
     return locked
+
+
+def handle_checkout_completed(event: stripe.Event) -> None:
+    """Dispatch a verified checkout.session.completed event to the finaliser.
+
+    The source-of-truth handler behind public.views.stripe_webhook, split out so
+    the view only verifies the signature and returns 200. Resolves the
+    registration from metadata.registration_pk, then routes on metadata.purpose:
+    "tip" → record_tip_paid, anything else (deposit) → finalize_paid_registration.
+    Unknown/absent registration or missing payment_intent is logged and ignored
+    (the webhook must still return 200 so Stripe stops retrying).
+    """
+    session = event["data"]["object"]
+    registration_pk = _stripe_metadata_get(session, "registration_pk")
+    # Stripe does not create a Customer for payment-mode sessions by
+    # default (and never for TWINT), so session.customer is often absent.
+    # customer_id is optional (Payment.stripe_customer_id is blank); only
+    # the payment_intent is required to finalise — mirrors the return view.
+    customer_id, payment_intent_id = _session_customer_and_intent(session)
+    if registration_pk and payment_intent_id:
+        try:
+            registration = Registration.objects.get(pk=registration_pk)
+        except Registration.DoesNotExist, ValueError:
+            logger.error(
+                "stripe_webhook: checkout.session.completed for unknown "
+                "registration pk=%r",
+                registration_pk,
+            )
+            return
+        if _stripe_metadata_get(session, "purpose") == "tip":
+            amount_chf = _parse_tip_amount_chf(
+                _stripe_metadata_get(session, "amount_chf")
+            )
+            if amount_chf is None:
+                logger.error(
+                    "stripe_webhook: checkout.session.completed tip session "
+                    "has unusable amount_chf metadata (session id=%s)",
+                    getattr(session, "id", "?"),
+                )
+                return
+            message = _stripe_metadata_get(session, "message") or ""
+            record_tip_paid(
+                registration=registration,
+                amount_chf=amount_chf,
+                message=message,
+                stripe_customer_id=customer_id,
+                stripe_payment_intent_id=payment_intent_id,
+            )
+        else:
+            finalize_paid_registration(
+                registration,
+                stripe_customer_id=customer_id,
+                stripe_payment_intent_id=payment_intent_id,
+            )
+    else:
+        logger.warning(
+            "stripe_webhook: checkout.session.completed missing usable "
+            "metadata/payment_intent (session id=%s)",
+            getattr(session, "id", "?"),
+        )

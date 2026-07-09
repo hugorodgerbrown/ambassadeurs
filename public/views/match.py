@@ -26,6 +26,9 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from datetime import datetime
+
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -93,101 +96,126 @@ def _resolve_match_token(
     return match, registration, side
 
 
-def _compute_match_display_state(match: Match, side: Match.Side) -> str:
-    """Return the display state for a match page, from the viewer's perspective.
+@dataclass(frozen=True)
+class MatchDisplay:
+    """The match page's presentation projections, derived once from ``(match, side)``.
 
-    Returns one of the module-level ``_STATE_*`` constants.
+    The match page needs three views of the same small state machine — the
+    action-guard state, the design view key, and each side's roster pill — and
+    all three turn on the same two facts: whether an active (PROPOSED/PENDING)
+    match's contact window has lapsed, and whether a given side has accepted.
+    Computing them from one instance (with ``now`` sampled a single time, via
+    ``for_viewer``) writes each of those rules exactly once and removes the risk
+    of the three projections drifting apart.
 
-    PROPOSED and PENDING are both "active" states — neither is terminal. A
-    PENDING match has one acceptance already recorded; if this side accepted, the
-    viewer is in the _STATE_WAITING sub-state (waiting on the partner). If the
-    *other* side accepted (and match is PENDING), this side hasn't responded yet
-    so the viewer is still _STATE_ACTIONABLE.
+    ``side`` is the viewer's side; ``guard_state`` and ``view_key`` are relative
+    to it, while ``side_status`` takes an explicit side so both roster rows read
+    true regardless of who is viewing.
     """
-    if match.status not in (Match.Status.PROPOSED, Match.Status.PENDING):
-        return _STATE_TERMINAL
-    if timezone.now() > match.expires_at:
-        return _STATE_TERMINAL
-    # Active match within the window. Check if this side has accepted.
-    if side == Match.Side.AMBASSADOR and match.ambassador_accepted_at is not None:
-        return _STATE_WAITING
-    if side == Match.Side.REFEREE and match.referee_accepted_at is not None:
-        return _STATE_WAITING
-    return _STATE_ACTIONABLE
 
+    match: Match
+    side: Match.Side
+    now: datetime
 
-def _side_accepted(match: Match, side: Match.Side) -> bool:
-    """Return whether the given side has recorded an acceptance on the match."""
-    if side == Match.Side.AMBASSADOR:
-        return match.ambassador_accepted_at is not None
-    return match.referee_accepted_at is not None
+    @classmethod
+    def for_viewer(cls, match: Match, side: Match.Side) -> MatchDisplay:
+        """Build the projection for ``side``'s view of ``match`` at the current time."""
+        return cls(match=match, side=side, now=timezone.now())
 
+    @property
+    def _active(self) -> bool:
+        """Whether the match is in a non-terminal (PROPOSED or PENDING) status."""
+        return self.match.status in (Match.Status.PROPOSED, Match.Status.PENDING)
 
-def _other_side(side: Match.Side) -> Match.Side:
-    """Return the opposite side of a match."""
-    if side == Match.Side.AMBASSADOR:
-        return Match.Side.REFEREE
-    return Match.Side.AMBASSADOR
+    @property
+    def _window_lapsed(self) -> bool:
+        """Whether an active match's contact window has passed but is unswept."""
+        return self._active and self.now > self.match.expires_at
 
+    def _accepted(self, side: Match.Side) -> bool:
+        """Return whether ``side`` has recorded an acceptance on the match."""
+        if side == Match.Side.AMBASSADOR:
+            return self.match.ambassador_accepted_at is not None
+        return self.match.referee_accepted_at is not None
 
-def _match_view(match: Match, side: Match.Side) -> str:
-    """Return the design view key for the match page, from the viewer's side.
+    @property
+    def guard_state(self) -> str:
+        """Return the action-guard state, one of the ``_STATE_*`` constants.
 
-    One of ``proposed``, ``you_accepted``, ``partner_accepted``, ``confirmed``,
-    ``declined_you``, ``declined_partner``, ``expired``, ``cancelled_you``,
-    ``cancelled_partner``. A PROPOSED or PENDING match whose contact window has
-    lapsed is presented as ``expired`` — both parties re-queue, the same outcome
-    as a swept expiry — so the page need not distinguish the two.
+        PROPOSED and PENDING are both "active"; a lapsed window is terminal. A
+        PENDING match has one acceptance recorded — if the viewer's side is the
+        one that accepted, they are _STATE_WAITING (waiting on the partner);
+        otherwise they have not yet responded and are still _STATE_ACTIONABLE.
+        """
+        if not self._active or self._window_lapsed:
+            return _STATE_TERMINAL
+        if self._accepted(self.side):
+            return _STATE_WAITING
+        return _STATE_ACTIONABLE
 
-    This drives only presentation (header copy + outcome block); the action
-    guards use ``_compute_match_display_state``.
-    """
-    status = match.status
-    if status == Match.Status.ACCEPTED:
-        return "confirmed"
-    if status == Match.Status.DECLINED:
-        return "declined_you" if match.declined_by == side else "declined_partner"
-    if status == Match.Status.EXPIRED:
-        return "expired"
-    if status == Match.Status.CANCELLED:
-        return (
-            "cancelled_you"
-            if match.no_show_reported_by == side
-            else "cancelled_partner"
+    @property
+    def view_key(self) -> str:
+        """Return the design view key for the match page, from the viewer's side.
+
+        One of ``proposed``, ``you_accepted``, ``partner_accepted``,
+        ``confirmed``, ``declined_you``, ``declined_partner``, ``expired``,
+        ``cancelled_you``, ``cancelled_partner``. A PROPOSED or PENDING match
+        whose contact window has lapsed is presented as ``expired`` — both
+        parties re-queue, the same outcome as a swept expiry — so the page need
+        not distinguish the two. This drives only presentation (header copy +
+        outcome block); the action guards use ``guard_state``.
+        """
+        status = self.match.status
+        if status == Match.Status.ACCEPTED:
+            return "confirmed"
+        if status == Match.Status.DECLINED:
+            return (
+                "declined_you"
+                if self.match.declined_by == self.side
+                else "declined_partner"
+            )
+        if status == Match.Status.EXPIRED:
+            return "expired"
+        if status == Match.Status.CANCELLED:
+            return (
+                "cancelled_you"
+                if self.match.no_show_reported_by == self.side
+                else "cancelled_partner"
+            )
+        # PROPOSED or PENDING — distinguish by window and per-side acceptance.
+        if self._window_lapsed:
+            return "expired"
+        if self._accepted(self.side):
+            return "you_accepted"
+        other = (
+            Match.Side.REFEREE
+            if self.side == Match.Side.AMBASSADOR
+            else Match.Side.AMBASSADOR
         )
-    # PROPOSED or PENDING — distinguish by window and per-side acceptance.
-    if timezone.now() > match.expires_at:
-        return "expired"
-    if _side_accepted(match, side):
-        return "you_accepted"
-    if _side_accepted(match, _other_side(side)):
-        return "partner_accepted"
-    return "proposed"
+        if self._accepted(other):
+            return "partner_accepted"
+        return "proposed"
 
+    def side_status(self, side: Match.Side) -> str:
+        """Return the roster pill key for ``side``.
 
-def _side_status_key(match: Match, side: Match.Side) -> str:
-    """Return the roster pill key for one side.
-
-    One of ``accepted`` / ``declined`` / ``no_response`` / ``pending``. Derived
-    from the match alone (viewer-independent) so both roster rows read true.
-    """
-    if match.status == Match.Status.ACCEPTED or _side_accepted(match, side):
-        return "accepted"
-    if match.declined_by == side:
-        return "declined"
-    if match.status == Match.Status.EXPIRED or (
-        match.status in (Match.Status.PROPOSED, Match.Status.PENDING)
-        and timezone.now() > match.expires_at
-    ):
-        return "no_response"
-    return "pending"
+        One of ``accepted`` / ``declined`` / ``no_response`` / ``pending``.
+        Viewer-independent — takes an explicit side so both roster rows read
+        true.
+        """
+        if self.match.status == Match.Status.ACCEPTED or self._accepted(side):
+            return "accepted"
+        if self.match.declined_by == side:
+            return "declined"
+        if self.match.status == Match.Status.EXPIRED or self._window_lapsed:
+            return "no_response"
+        return "pending"
 
 
 def _roster_row(
     registration: Registration | None,
     role_side: Match.Side,
-    viewer_side: Match.Side,
-    match: Match,
+    display: MatchDisplay,
 ) -> dict[str, object]:
     """Build one roster row's display data.
 
@@ -196,7 +224,8 @@ def _roster_row(
     hidden until mutual accept, see Invariant 1). ``registration`` is ``None``
     only when the party's account has since been deleted — a decline no longer
     deletes it (the decliner is paused, VERB-74 / ADR 0013) — in which case the
-    template falls back to a generic label.
+    template falls back to a generic label. ``display`` supplies the viewer side
+    (for ``is_you``) and the per-side roster pill.
     """
     name = ""
     initials = ""
@@ -213,8 +242,8 @@ def _roster_row(
         "initials": initials,
         "nationality": nationality,
         "exists": registration is not None,
-        "is_you": role_side == viewer_side,
-        "status": _side_status_key(match, role_side),
+        "is_you": role_side == display.side,
+        "status": display.side_status(role_side),
     }
 
 
@@ -261,15 +290,16 @@ def _match_context(
     ambassador_reg = _related_registration(match, "ambassador_registration")
     referee_reg = _related_registration(match, "referee_registration")
     counterpart = referee_reg if side == Match.Side.AMBASSADOR else ambassador_reg
-    view = _match_view(match, side)
+    display = MatchDisplay.for_viewer(match, side)
+    view = display.view_key
     context: dict[str, object] = {
         "match": match,
         "registration": registration,
         "side": side,
         "view": view,
         "roster": [
-            _roster_row(ambassador_reg, Match.Side.AMBASSADOR, side, match),
-            _roster_row(referee_reg, Match.Side.REFEREE, side, match),
+            _roster_row(ambassador_reg, Match.Side.AMBASSADOR, display),
+            _roster_row(referee_reg, Match.Side.REFEREE, display),
         ],
         "partner_name": (
             counterpart.user.first_name if counterpart is not None else ""
@@ -335,7 +365,7 @@ def match_detail(request: HttpRequest, token: str) -> HttpResponse:
     if request.method == "POST":
         # POST always uses token authentication (the no-JS form carries the token
         # in the URL). The display_state check is against the token side.
-        display_state = _compute_match_display_state(match, token_side)
+        display_state = MatchDisplay.for_viewer(match, token_side).guard_state
         action = request.POST.get("action")
         if action in ("accept", "decline") and display_state == _STATE_ACTIONABLE:
             try:
@@ -405,7 +435,7 @@ def match_accept(request: HttpRequest, token: str) -> HttpResponse:
         return HttpResponse(status=400)
 
     match, registration, side = resolved
-    display_state = _compute_match_display_state(match, side)
+    display_state = MatchDisplay.for_viewer(match, side).guard_state
 
     if display_state == _STATE_ACTIONABLE:
         try:
@@ -439,7 +469,7 @@ def match_withdraw(request: HttpRequest, token: str) -> HttpResponse:
         return HttpResponse(status=400)
 
     match, registration, side = resolved
-    display_state = _compute_match_display_state(match, side)
+    display_state = MatchDisplay.for_viewer(match, side).guard_state
 
     if display_state == _STATE_WAITING:
         try:
@@ -469,7 +499,7 @@ def match_decline(request: HttpRequest, token: str) -> HttpResponse:
         return HttpResponse(status=400)
 
     match, registration, side = resolved
-    display_state = _compute_match_display_state(match, side)
+    display_state = MatchDisplay.for_viewer(match, side).guard_state
 
     if display_state == _STATE_ACTIONABLE:
         try:

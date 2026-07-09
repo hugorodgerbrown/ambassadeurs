@@ -313,7 +313,7 @@ _PREVIEW_VIEWS: list[tuple[str, str]] = [
 
 
 def _build_preview_match(view_key: str) -> tuple[Match, Registration, Match.Side]:
-    """Build unsaved in-memory objects so ``_match_view`` derives ``view_key``.
+    """Build unsaved in-memory objects so ``MatchDisplay`` derives ``view_key``.
 
     Returns ``(match, registration, side)`` for the Referee's perspective. The
     objects are never saved; they only need the fields the match page reads

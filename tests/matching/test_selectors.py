@@ -5,7 +5,11 @@ from datetime import UTC, datetime
 import pytest
 
 from matching.models import Match, Registration
-from matching.selectors import match_status_context, status_pill_for
+from matching.selectors import (
+    match_status_context,
+    queue_snapshot_context,
+    status_pill_for,
+)
 from tests.accounts.factories import UserFactory
 from tests.matching.factories import MatchFactory, RegistrationFactory
 
@@ -153,3 +157,38 @@ def test_match_status_context_lapsed_proposed_match_returns_none() -> None:
     # still excludes a lapsed-but-unswept match (Invariant 3) — unlike
     # match_state, which uses active_at() and treats it as inactive.
     assert context["queue_position"] is None
+
+
+# ---------------------------------------------------------------------------
+# queue_snapshot_context (VERB-145)
+# ---------------------------------------------------------------------------
+
+
+def test_queue_snapshot_context_two_columns_in_role_order() -> None:
+    """queue_snapshot_context returns ambassador first, then referee."""
+    context = queue_snapshot_context()
+
+    assert len(context["columns"]) == 2
+    assert context["columns"][0]["role_label"] == "Ambassador"
+    assert context["columns"][1]["role_label"] == "Referee"
+
+
+def test_queue_snapshot_context_reflects_pool_counts() -> None:
+    """queue_snapshot_context surfaces the counts from queue_snapshot()."""
+    RegistrationFactory.create(status=Registration.Status.VERIFIED)
+    RegistrationFactory.create(referee=True, status=Registration.Status.VERIFIED)
+    MatchFactory.create()  # PROPOSED — one matched ambassador + one matched referee
+
+    context = queue_snapshot_context()
+
+    ambassador_column, referee_column = context["columns"]
+    assert ambassador_column == {
+        "role_label": "Ambassador",
+        "unmatched": 1,
+        "matched": 1,
+    }
+    assert referee_column == {
+        "role_label": "Referee",
+        "unmatched": 1,
+        "matched": 1,
+    }

@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Use after the implementer agent has written code, or when reviewing a specific file or diff for quality issues. Checks for security vulnerabilities, performance problems, Django anti-patterns, test coverage gaps, and Ambassadeurs convention violations (signed-link tokens, email lowercasing, HTMX guards, i18n). Read-only — never modifies files. Produces a prioritised list of issues for the implementer to address.
-tools: Read, Grep, Glob, Bash, mcp__plugin_context7_context7__resolve-library-id, mcp__plugin_context7_context7__query-docs
+tools: Read, Grep, Glob, Bash, LSP, mcp__plugin_context7_context7__resolve-library-id, mcp__plugin_context7_context7__query-docs
 model: claude-sonnet-4-6
 ---
 
@@ -42,6 +42,35 @@ Use it in particular to:
 Do not use context7 for the project's own conventions (those live in `CLAUDE.md`),
 for pure business-logic review, or for style (ruff owns that). If a finding does
 not hinge on a library's API contract, no lookup is needed.
+
+## Navigating the codebase with the LSP (pyright)
+
+You have the **`LSP`** tool (backed by pyright). Use it for **precise
+code-intelligence** that grep cannot give you reliably — especially before
+raising or clearing a finding about impact or reachability:
+
+- **`findReferences`** — the diff changed a function signature, renamed a symbol,
+  or altered a return type? Find every caller and confirm they still hold. This
+  is the authoritative "does this break callers?" check (grep misses aliases and
+  matches strings/comments).
+- **`goToDefinition`** / **`hover`** — confirm what a symbol actually is and its
+  inferred type at a call site, rather than guessing from the name.
+- **`incomingCalls`** / **`outgoingCalls`** / **`prepareCallHierarchy`** — trace a
+  transition or service through its call graph (e.g. is this catch-all really
+  only reached from a batch sweep?).
+
+**Two hard rules:**
+
+1. **mypy is the type authority, not pyright.** pyright does not load the
+   django-stubs mypy plugin, so its own inference false-positives on Django
+   idioms (TextChoices, ORM managers). Type-checking is turned **off** in its
+   config for exactly this reason. Use the LSP to *navigate and read types*, but
+   never raise a "type error" finding from it — the type verdict comes from
+   `uv run tox -e mypy` (run it via Bash if you need it).
+2. **It is best-effort.** The LSP needs `pyright-langserver` on `PATH`
+   (`npm i -g pyright`). If an `LSP` call errors (server unavailable, e.g. in a
+   fresh CI-like environment), fall back to `Grep`/`Glob` and carry on — a
+   missing language server must never block the review.
 
 ## Review checklist
 

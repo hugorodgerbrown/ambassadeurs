@@ -12,6 +12,11 @@
 # surfaces render the identical Match status component. match_status_context
 # calls matching.services.queue_position, which stays in services.py as a
 # query helper alongside the rest of the matching-engine logic.
+#
+# queue_snapshot_context (VERB-145) shapes matching.services.queue_snapshot
+# into the two-column context templates/includes/_queue_snapshot.html reads;
+# the aggregate counting logic itself stays in services.py (this module never
+# runs its own queries).
 
 from __future__ import annotations
 
@@ -23,7 +28,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from .models import Match, Registration
-from .services import queue_position
+from .services import queue_position, queue_snapshot
 
 
 class StatusPill(TypedDict):
@@ -202,4 +207,46 @@ def match_status_context(user: User) -> MatchStatusContext:
         "queue_position": position,
         "can_rejoin": can_rejoin,
         "can_cancel": can_cancel,
+    }
+
+
+class QueueColumn(TypedDict):
+    """One role's column in the queue visualisation (VERB-145)."""
+
+    role_label: str
+    unmatched: int
+    matched: int
+
+
+class QueueSnapshotContext(TypedDict):
+    """The full render context for ``templates/includes/_queue_snapshot.html``.
+
+    ``columns`` holds exactly two entries, ambassador first then referee.
+    """
+
+    columns: list[QueueColumn]
+
+
+def queue_snapshot_context() -> QueueSnapshotContext:
+    """Build the render context for the standalone queue visualisation.
+
+    Calls ``matching.services.queue_snapshot`` for the counts and shapes them
+    into two columns (ambassador, referee, in that order), each carrying its
+    role label (``Registration.Role.<X>.label``, already ``gettext_lazy``) and
+    its unmatched/matched counts. Row labels stay in the template.
+    """
+    snapshot = queue_snapshot()
+    return {
+        "columns": [
+            {
+                "role_label": str(Registration.Role.AMBASSADOR.label),
+                "unmatched": snapshot.ambassadors_unmatched,
+                "matched": snapshot.ambassadors_matched,
+            },
+            {
+                "role_label": str(Registration.Role.REFEREE.label),
+                "unmatched": snapshot.referees_unmatched,
+                "matched": snapshot.referees_matched,
+            },
+        ]
     }

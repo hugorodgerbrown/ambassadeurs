@@ -119,7 +119,7 @@ from typing import cast
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import Case, IntegerField, Q, Value, When
+from django.db.models import Case, IntegerField, Q, QuerySet, Value, When
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from side_effects.decorators import has_side_effects
@@ -251,6 +251,29 @@ def total_accepted_matches() -> int:
     return Match.objects.filter(status=Match.Status.ACCEPTED).count()
 
 
+def _rank_candidates(
+    candidates: QuerySet[Registration], location: str
+) -> QuerySet[Registration]:
+    """Order counterpart ``candidates`` by the engine's ranking rule.
+
+    The single source of truth for counterpart ordering, shared by the live
+    ``propose_match`` path and the ``run_matching`` dry-run simulation so the two
+    can never drift: a shared ``preferred_location`` first, then ``priority``
+    descending (higher priority = closer to the front), then ``created_at``
+    ascending (FIFO within an equal priority). ``location`` is the proposing
+    party's ``preferred_location``; a candidate matching it is ranked ahead of
+    one that does not. The preference is applied as a 0/1 annotation so it works
+    as the leading ``ORDER BY`` key.
+    """
+    return candidates.annotate(
+        location_match=Case(
+            When(preferred_location=location, then=Value(1)),
+            default=Value(0),
+            output_field=IntegerField(),
+        )
+    ).order_by("-location_match", "-priority", "created_at")
+
+
 @has_side_effects(MATCH_PROPOSED, run_on_exit=lambda match: match is not None)
 def propose_match(registration: Registration) -> Match | None:
     """Attempt to pair ``registration`` with an eligible counterpart.
@@ -315,20 +338,9 @@ def propose_match(registration: Registration) -> Match | None:
     if not candidates.exists():
         return None
 
-    # Rank: shared location first (1), then priority desc, then created_at asc.
-    # We achieve the shared-location preference by annotating with a 0/1 flag.
-    ranked = candidates.annotate(
-        location_match=Case(
-            When(
-                preferred_location=registration.preferred_location,
-                then=Value(1),
-            ),
-            default=Value(0),
-            output_field=IntegerField(),
-        )
-    ).order_by("-location_match", "-priority", "created_at")
-
-    counterpart = ranked.first()
+    # Rank via the engine's shared ordering (see _rank_candidates) so the live
+    # path and the run_matching dry-run can never disagree.
+    counterpart = _rank_candidates(candidates, registration.preferred_location).first()
     if counterpart is None:
         return None
 
@@ -873,47 +885,15 @@ def expire_lapsed_matches(cutoff: datetime) -> int:
     return expired_count
 
 
-def _rank_referees_for(
-    ambassador: Registration, referees: list[Registration]
-) -> list[Registration]:
-    """Rank ``referees`` for ``ambassador`` using the engine's ordering.
-
-    Mirrors the ranking applied inside ``propose_match``: shared
-    ``preferred_location`` first, then ``priority`` descending, then
-    ``created_at`` ascending (FIFO within an equal priority). Used only by the
-    read-only ``run_matching`` dry-run simulation, which cannot lean on the
-    database ``ORDER BY`` because it pairs greedily in Python without writing.
-
-    Args:
-        ambassador: The ambassador whose location drives the shared-location
-            preference.
-        referees: The candidate referees to rank (already filtered to the
-            eligible, unconsumed pool).
-
-    Returns:
-        A new list of the referees ordered best-first.
-    """
-    return sorted(
-        referees,
-        key=lambda referee: (
-            # Negate so that a shared location (1) sorts before a non-shared
-            # one (0), and higher priority sorts before lower priority.
-            -(1 if referee.preferred_location == ambassador.preferred_location else 0),
-            -referee.priority,
-            referee.created_at,
-        ),
-    )
-
-
 def _simulate_run_matching() -> int:
     """Return how many matches ``run_matching`` would propose, writing nothing.
 
     Greedily pairs the eligible ambassador pool (ordered ``-priority,
     created_at`` — the same order the commit path proposes in) against the
     eligible referee pool, consuming each referee as it is taken so no
-    registration is paired twice. Reuses ``_rank_referees_for`` for the
-    per-ambassador counterpart ranking, so the dry-run count matches what a
-    real run would create.
+    registration is paired twice. Each ambassador's counterpart is chosen with
+    ``_rank_candidates`` — the identical ordering the live ``propose_match``
+    uses — so the dry-run count is exactly what a real run would create.
 
     Returns:
         The number of matches that would be proposed.
@@ -921,15 +901,16 @@ def _simulate_run_matching() -> int:
     ambassadors = list(
         Registration.objects.eligible_ambassadors().order_by("-priority", "created_at")
     )
-    referees = list(Registration.objects.eligible_referees())
     consumed: set[int] = set()
     would_propose = 0
 
     for ambassador in ambassadors:
-        available = [ref for ref in referees if ref.pk not in consumed]
-        if not available:
+        counterpart = _rank_candidates(
+            Registration.objects.eligible_referees().exclude(pk__in=consumed),
+            ambassador.preferred_location,
+        ).first()
+        if counterpart is None:
             break
-        counterpart = _rank_referees_for(ambassador, available)[0]
         consumed.add(counterpart.pk)
         would_propose += 1
 

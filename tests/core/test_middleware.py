@@ -1,14 +1,20 @@
-# Tests for core.middleware — PostHog exception reporting (VERB-65) and
-# server-side page-view tracking (VERB-124).
+# Tests for core.middleware — PostHog exception reporting (VERB-65),
+# server-side page-view tracking (VERB-124), and admin-subdomain routing
+# (ADR 0022).
 
 from unittest.mock import patch
 
+import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.http import HttpRequest, HttpResponse
-from django.test import RequestFactory
+from django.test import Client, RequestFactory, override_settings
 from django.urls import ResolverMatch
 
-from core.middleware import PostHogExceptionMiddleware, PostHogPageviewMiddleware
+from core.middleware import (
+    AdminHostMiddleware,
+    PostHogExceptionMiddleware,
+    PostHogPageviewMiddleware,
+)
 
 
 def test_process_exception_reports_and_returns_none() -> None:
@@ -134,3 +140,82 @@ def test_pageview_raising_capture_does_not_break_response() -> None:
         result = middleware(request)
 
     assert result is sentinel
+
+
+# ---------------------------------------------------------------------------
+# AdminHostMiddleware (ADR 0022)
+# ---------------------------------------------------------------------------
+
+_ADMIN_HOST = "admin.example.test"
+_PUBLIC_HOST = "public.example.test"
+
+
+def _urlconf_for(host: str) -> str | None:
+    """Run AdminHostMiddleware for a request from ``host``; return request.urlconf.
+
+    ``get_response`` is a no-op returning an empty response — the middleware sets
+    ``request.urlconf`` on the passed-in request, which we read back afterwards.
+    """
+    request = RequestFactory().get("/")
+    request.META["HTTP_HOST"] = host
+    middleware = AdminHostMiddleware(lambda req: HttpResponse())
+    middleware(request)
+    return getattr(request, "urlconf", None)
+
+
+@override_settings(ADMIN_HOST="", ALLOWED_HOSTS=[_ADMIN_HOST, _PUBLIC_HOST])
+def test_admin_host_unset_leaves_urlconf_untouched() -> None:
+    """With ADMIN_HOST empty the middleware is a no-op — no urlconf override."""
+    assert _urlconf_for(_ADMIN_HOST) is None
+
+
+@override_settings(ADMIN_HOST=_ADMIN_HOST, ALLOWED_HOSTS=[_ADMIN_HOST, _PUBLIC_HOST])
+def test_admin_host_selects_admin_urlconf() -> None:
+    """A request to the admin host is routed to the admin-only URLconf."""
+    assert _urlconf_for(_ADMIN_HOST) == "config.urls_admin"
+
+
+@override_settings(ADMIN_HOST=_ADMIN_HOST, ALLOWED_HOSTS=[_ADMIN_HOST, _PUBLIC_HOST])
+def test_non_admin_host_selects_public_urlconf() -> None:
+    """Any host other than the admin host is routed to the public-only URLconf."""
+    assert _urlconf_for(_PUBLIC_HOST) == "config.urls_public"
+
+
+@override_settings(ADMIN_HOST=_ADMIN_HOST, ALLOWED_HOSTS=[_ADMIN_HOST])
+def test_admin_host_match_ignores_port() -> None:
+    """The host:port form still matches the bare ADMIN_HOST."""
+    assert _urlconf_for(f"{_ADMIN_HOST}:8000") == "config.urls_admin"
+
+
+@override_settings(ADMIN_HOST=_ADMIN_HOST, ALLOWED_HOSTS=[_ADMIN_HOST])
+def test_admin_host_middleware_returns_response() -> None:
+    """The middleware returns the downstream response unchanged."""
+    sentinel = HttpResponse()
+    request = RequestFactory().get("/")
+    request.META["HTTP_HOST"] = _ADMIN_HOST
+    middleware = AdminHostMiddleware(lambda req: sentinel)
+    assert middleware(request) is sentinel
+
+
+@pytest.mark.django_db
+@override_settings(ADMIN_HOST=_ADMIN_HOST, ALLOWED_HOSTS=[_ADMIN_HOST, _PUBLIC_HOST])
+def test_admin_served_at_root_of_admin_host(client: Client) -> None:
+    """On the admin host the admin index is at '/', redirecting anon to login."""
+    response = client.get("/", HTTP_HOST=_ADMIN_HOST)
+    assert response.status_code == 302
+    assert "/login/" in response["Location"]
+
+
+@pytest.mark.django_db
+@override_settings(ADMIN_HOST=_ADMIN_HOST, ALLOWED_HOSTS=[_ADMIN_HOST, _PUBLIC_HOST])
+def test_healthz_reachable_on_admin_host(client: Client) -> None:
+    """healthz is mounted before the admin, so a request to it is not swallowed."""
+    assert client.get("/healthz/", HTTP_HOST=_ADMIN_HOST).status_code == 200
+
+
+@pytest.mark.django_db
+@override_settings(ADMIN_HOST=_ADMIN_HOST, ALLOWED_HOSTS=[_ADMIN_HOST, _PUBLIC_HOST])
+def test_public_host_serves_home_and_hides_admin(client: Client) -> None:
+    """The public host serves the home page and 404s the old /admin/ path."""
+    assert client.get("/", HTTP_HOST=_PUBLIC_HOST).status_code == 200
+    assert client.get("/admin/", HTTP_HOST=_PUBLIC_HOST).status_code == 404

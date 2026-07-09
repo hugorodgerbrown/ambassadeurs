@@ -21,6 +21,13 @@ services:
         sync: false
       - key: CSRF_TRUSTED_ORIGINS
         sync: false
+      # Admin subdomain (ADR 0022). Set to the admin host (e.g.
+      # admin.skiparrainage.ch) to confine the Django admin to that host; it must
+      # also be added to ALLOWED_HOSTS and (https://) CSRF_TRUSTED_ORIGINS, and
+      # registered as a custom domain on this service. Leave unset to keep the
+      # admin at /admin/ on the main domain.
+      - key: ADMIN_HOST
+        sync: false
       # PostHog server-side error monitoring (VERB-65). Set the project API key
       # in the Render dashboard; the crons read it from this web service.
       - key: POSTHOG_API_KEY
@@ -71,6 +78,12 @@ services:
           name: ambassadeurs
           type: web
           envVarKey: CSRF_TRUSTED_ORIGINS
+      # Env parity with the web service (ADR 0022); crons never route HTTP.
+      - key: ADMIN_HOST
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: ADMIN_HOST
       - key: POSTHOG_API_KEY
         fromService:
           name: ambassadeurs
@@ -114,6 +127,12 @@ services:
           name: ambassadeurs
           type: web
           envVarKey: CSRF_TRUSTED_ORIGINS
+      # Env parity with the web service (ADR 0022); crons never route HTTP.
+      - key: ADMIN_HOST
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: ADMIN_HOST
       - key: POSTHOG_API_KEY
         fromService:
           name: ambassadeurs
@@ -158,6 +177,12 @@ services:
           name: ambassadeurs
           type: web
           envVarKey: CSRF_TRUSTED_ORIGINS
+      # Env parity with the web service (ADR 0022); crons never route HTTP.
+      - key: ADMIN_HOST
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: ADMIN_HOST
       - key: POSTHOG_API_KEY
         fromService:
           name: ambassadeurs

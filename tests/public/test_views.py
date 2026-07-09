@@ -3755,4 +3755,33 @@ def test_stripe_webhook_without_purpose_still_drives_deposit_path(
     assert Payment.objects.count() == 1
     payment = Payment.objects.get()
     assert payment.stripe_payment_intent_id == "pi_dep_wh"
+
+
+# ---------------------------------------------------------------------------
+# Standalone live queue visualisation page — unmounted (VERB-145)
+# ---------------------------------------------------------------------------
+
+
+def test_queue_snapshot_page_renders_labels_and_counts() -> None:
+    """The standalone queue page renders both columns with the right counts.
+
+    Asserts English source strings only — the tox/CI test env compiles no
+    message catalogues, so translated (French) strings never appear.
+    """
+    RegistrationFactory.create(status=Registration.Status.VERIFIED)
+    RegistrationFactory.create(referee=True, status=Registration.Status.VERIFIED)
+    MatchFactory.create()  # PROPOSED — one matched ambassador + one matched referee
+
+    response = Client().get(reverse("public:queue_snapshot"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Ambassador" in content
+    assert "Referee" in content
+    assert "Registered but unmatched" in content
+    assert "Matched" in content
+
+    columns = response.context["queue"]["columns"]
+    assert columns[0] == {"role_label": "Ambassador", "unmatched": 1, "matched": 1}
+    assert columns[1] == {"role_label": "Referee", "unmatched": 1, "matched": 1}
     assert Tip.objects.count() == 0

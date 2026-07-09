@@ -24,6 +24,7 @@ from matching.services import (
     pause_registration,
     propose_match,
     queue_position,
+    queue_snapshot,
     record_acceptance,
     record_decline,
     register_participant,
@@ -2712,6 +2713,132 @@ def test_total_accepted_matches_counts_only_accepted() -> None:
     MatchFactory.create(cancelled=True)  # was ACCEPTED, then reported as no-show
 
     assert total_accepted_matches() == 2
+
+
+# ---------------------------------------------------------------------------
+# queue_snapshot (VERB-145)
+# ---------------------------------------------------------------------------
+
+
+def test_queue_snapshot_all_zero_with_no_registrations() -> None:
+    """queue_snapshot returns an all-zero snapshot when the pool is empty."""
+    snapshot = queue_snapshot()
+    assert snapshot.ambassadors_unmatched == 0
+    assert snapshot.ambassadors_matched == 0
+    assert snapshot.referees_unmatched == 0
+    assert snapshot.referees_matched == 0
+
+
+def test_queue_snapshot_counts_only_verified_registrations() -> None:
+    """Only VERIFIED registrations feed the snapshot; other statuses are excluded.
+
+    A non-VERIFIED registration (UNVERIFIED, PAUSED, WITHDRAWN, SUSPENDED) holds
+    no active match, so if it were mistakenly counted it would inflate
+    "unmatched" — asserting the totals stay at 1 per role confirms it is
+    excluded altogether, not miscounted as matched.
+    """
+    RegistrationFactory.create(unverified=True)
+    RegistrationFactory.create(paused=True)
+    RegistrationFactory.create(status=Registration.Status.WITHDRAWN)
+    RegistrationFactory.create(suspended=True)
+    RegistrationFactory.create(status=Registration.Status.VERIFIED)
+
+    RegistrationFactory.create(referee=True, unverified=True)
+    RegistrationFactory.create(referee=True, paused=True)
+    RegistrationFactory.create(referee=True, status=Registration.Status.WITHDRAWN)
+    RegistrationFactory.create(referee=True, suspended=True)
+    RegistrationFactory.create(referee=True, status=Registration.Status.VERIFIED)
+
+    snapshot = queue_snapshot()
+
+    assert snapshot.ambassadors_unmatched == 1
+    assert snapshot.ambassadors_matched == 0
+    assert snapshot.referees_unmatched == 1
+    assert snapshot.referees_matched == 0
+
+
+def test_queue_snapshot_proposed_match_counts_as_matched() -> None:
+    """A PROPOSED match moves both its registrations into "matched"."""
+    MatchFactory.create()  # PROPOSED by default
+
+    snapshot = queue_snapshot()
+
+    assert snapshot.ambassadors_unmatched == 0
+    assert snapshot.ambassadors_matched == 1
+    assert snapshot.referees_unmatched == 0
+    assert snapshot.referees_matched == 1
+
+
+def test_queue_snapshot_pending_match_counts_as_matched() -> None:
+    """A PENDING (one-sided accept) match counts as matched, not unmatched."""
+    MatchFactory.create(pending=True)
+
+    snapshot = queue_snapshot()
+
+    assert snapshot.ambassadors_matched == 1
+    assert snapshot.referees_matched == 1
+
+
+def test_queue_snapshot_accepted_match_counts_as_matched() -> None:
+    """An ACCEPTED (mutual-accept) match counts as matched."""
+    MatchFactory.create(accepted=True)
+
+    snapshot = queue_snapshot()
+
+    assert snapshot.ambassadors_matched == 1
+    assert snapshot.referees_matched == 1
+
+
+def test_queue_snapshot_declined_match_counts_as_unmatched() -> None:
+    """A DECLINED match's registrations are unmatched — it holds no active match."""
+    MatchFactory.create(declined=True)
+
+    snapshot = queue_snapshot()
+
+    assert snapshot.ambassadors_unmatched == 1
+    assert snapshot.ambassadors_matched == 0
+    assert snapshot.referees_unmatched == 1
+    assert snapshot.referees_matched == 0
+
+
+def test_queue_snapshot_cancelled_match_counts_as_unmatched() -> None:
+    """A CANCELLED (post-accept no-show) match's registrations are unmatched."""
+    MatchFactory.create(cancelled=True)
+
+    snapshot = queue_snapshot()
+
+    assert snapshot.ambassadors_unmatched == 1
+    assert snapshot.ambassadors_matched == 0
+    assert snapshot.referees_unmatched == 1
+    assert snapshot.referees_matched == 0
+
+
+def test_queue_snapshot_complement_invariant() -> None:
+    """unmatched + matched always equals the VERIFIED total, per role.
+
+    A mixed pool: one unmatched ambassador/referee pair, one PROPOSED match
+    (matched), and one non-VERIFIED registration per role (excluded entirely).
+    """
+    RegistrationFactory.create(status=Registration.Status.VERIFIED)
+    RegistrationFactory.create(referee=True, status=Registration.Status.VERIFIED)
+    MatchFactory.create()  # PROPOSED — one matched ambassador + one matched referee
+    RegistrationFactory.create(paused=True)
+    RegistrationFactory.create(referee=True, paused=True)
+
+    snapshot = queue_snapshot()
+
+    ambassador_total = Registration.objects.verified().ambassadors().count()
+    referee_total = Registration.objects.verified().referees().count()
+
+    assert (
+        snapshot.ambassadors_unmatched + snapshot.ambassadors_matched
+        == ambassador_total
+    )
+    assert snapshot.referees_unmatched + snapshot.referees_matched == referee_total
+    assert snapshot.ambassadors_unmatched == 1
+    assert snapshot.ambassadors_matched == 1
+    assert snapshot.referees_unmatched == 1
+    assert snapshot.referees_matched == 1
 
 
 # ---------------------------------------------------------------------------

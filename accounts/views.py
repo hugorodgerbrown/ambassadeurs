@@ -185,7 +185,7 @@ def account_detail(request: HttpRequest) -> HttpResponse:
     """
     user = cast(User, request.user)
     status_context = match_status_context(user)
-    registration = cast("Registration | None", status_context["registration"])
+    registration = status_context["registration"]
 
     # Email is considered verified once the registration leaves UNVERIFIED status
     # (i.e. the confirmation link was clicked). Admin users without a registration

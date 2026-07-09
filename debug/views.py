@@ -34,11 +34,11 @@ from django.views.decorators.http import require_POST
 from accounts.services import send_confirmation_email
 from core.decorators import require_debug
 from matching.models import Match, Registration
+from matching.selectors import status_pill_for
 from matching.services import (
     accept_match,
     decline_match,
     register_participant,
-    status_pill_for,
 )
 from public.views import _match_context
 

@@ -119,9 +119,10 @@ addopts = "--cov --cov-report=term-missing"
 
 [tool.coverage.run]
 branch = true
-source = ["core", "accounts", "matching", "public"]
+source = ["core", "accounts", "billing", "matching", "public"]
 omit = ["*/migrations/*", "*/tests/*", "tests/*", "*/apps.py"]
 
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
+fail_under = 90

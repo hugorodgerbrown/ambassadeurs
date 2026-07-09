@@ -156,22 +156,17 @@ def match_status_context(user: User) -> dict[str, object]:
     ):
         position = queue_position(registration)
 
-    # can_rejoin — True when the registration is PAUSED and there is no active
-    # match (the normal case after a decline or expiry).
-    can_rejoin = (
+    # A PAUSED registration with no active match is the recoverable state after
+    # a decline or expiry. It drives both the "Rejoin the queue" and the
+    # "Cancel & refund" (VERB-88) links on the account page — the same
+    # condition, so it is computed once and read into both flags.
+    paused_recoverable = (
         registration is not None
         and registration.status == Registration.Status.PAUSED
         and active_match is None
     )
-
-    # can_cancel — True under the same condition as can_rejoin (PAUSED, no
-    # active match). Drives the "Cancel & refund" link (VERB-88), which sits
-    # alongside "Rejoin the queue" on the account page.
-    can_cancel = (
-        registration is not None
-        and registration.status == Registration.Status.PAUSED
-        and active_match is None
-    )
+    can_rejoin = paused_recoverable
+    can_cancel = paused_recoverable
 
     return {
         "registration": registration,

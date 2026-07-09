@@ -880,6 +880,8 @@ def expire_lapsed_matches(cutoff: datetime) -> int:
         except StateTransitionError as exc:
             logger.debug("Skipping match pk=%s: no longer expirable (%s)", pk, exc)
         except Exception:
+            # Deliberate catch-all: isolate one match's failure so a single bad
+            # row cannot abort the sweep. logger.exception records it for triage.
             logger.exception("Error expiring match pk=%s; skipping", pk)
 
     return expired_count
@@ -974,6 +976,8 @@ def run_matching(*, commit: bool) -> tuple[int, int]:
                 if match is not None:
                     proposed += 1
         except Exception:
+            # Deliberate catch-all: isolate one ambassador's failure so a single
+            # bad row cannot abort the drain. logger.exception records it for triage.
             failed += 1
             logger.exception(
                 "run_matching: error proposing a match for ambassador pk=%s; skipping",
@@ -1394,6 +1398,8 @@ def close_season(*, commit: bool) -> tuple[int, int]:
             )
             continue
         except Exception:
+            # Deliberate catch-all: isolate one payment's failure so a single bad
+            # row cannot abort the refund sweep. logger.exception records it for triage.
             failed += 1
             logger.exception(
                 "close_season: error refunding payment pk=%s; skipping", pk

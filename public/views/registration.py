@@ -68,7 +68,11 @@ from core.decorators import require_htmx
 from core.ratelimit import rate_limited_response
 from matching.forms import RegistrationForm
 from matching.models import Registration
-from matching.selectors import match_status_context, status_pill_for
+from matching.selectors import (
+    MatchStatusContext,
+    match_status_context,
+    status_pill_for,
+)
 from matching.services import confirm_registration, is_registration_open
 from public.forms import SurveyResponseForm
 from public.models import SurveyResponse
@@ -353,6 +357,7 @@ def register_done(request: HttpRequest, role: str) -> HttpResponse:
     if role_value is None:
         raise Http404("Unknown registration role.")
 
+    status_context: MatchStatusContext
     if request.user.is_authenticated:
         status_context = match_status_context(request.user)
     else:

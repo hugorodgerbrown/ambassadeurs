@@ -15,6 +15,8 @@
 
 from __future__ import annotations
 
+from typing import TypedDict
+
 from django.contrib.auth.models import User
 from django.db.models import Q
 from django.utils import timezone
@@ -24,10 +26,33 @@ from .models import Match, Registration
 from .services import queue_position
 
 
+class StatusPill(TypedDict):
+    """The Match status heading pill: a translated label and a tone suffix."""
+
+    label: str
+    tone: str
+
+
+class MatchStatusContext(TypedDict):
+    """The full render context for the Match status card (VERB-116).
+
+    Every key that ``templates/accounts/partials/match_status.html`` reads.
+    """
+
+    registration: Registration | None
+    status_pill: StatusPill
+    match_state: str
+    partner_first_name: str
+    partner_accepted: bool
+    queue_position: int | None
+    can_rejoin: bool
+    can_cancel: bool
+
+
 def status_pill_for(
     registration: Registration | None,
     match_state: str,
-) -> dict[str, str]:
+) -> StatusPill:
     """Return the ``{label, tone}`` for the Match status heading pill.
 
     ``tone`` is the ``.tag-status--<tone>`` suffix; ``label`` is translated.
@@ -69,7 +94,7 @@ def status_pill_for(
     return {"label": str(label), "tone": tone}
 
 
-def match_status_context(user: User) -> dict[str, object]:
+def match_status_context(user: User) -> MatchStatusContext:
     """Build the full render context for the Match status card, for ``user``.
 
     Returns every key ``templates/accounts/partials/match_status.html`` reads:

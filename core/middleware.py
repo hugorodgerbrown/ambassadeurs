@@ -59,9 +59,12 @@ class AdminHostMiddleware:
             # get_host() strips nothing itself but validates against
             # ALLOWED_HOSTS; drop any :port before comparing to ADMIN_HOST.
             host = request.get_host().split(":", 1)[0]
-            request.urlconf = (
+            urlconf = (
                 "config.urls_admin" if host == admin_host else "config.urls_public"
             )
+            # django-stubs omits the dynamic urlconf attribute Django reads
+            # during resolution; the assignment is valid at runtime.
+            request.urlconf = urlconf  # type: ignore[attr-defined]
         return self.get_response(request)
 
 

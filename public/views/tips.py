@@ -15,16 +15,21 @@ import logging
 
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpRequest, HttpResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from billing.forms import TipForm
-from billing.services.checkout import retrieve_checkout_session
 from billing.services.tips import create_tip_checkout_session, record_tip_paid
 from matching.models import Registration
 
-from ._shared import _authenticated_registration, _stripe_metadata_get
+from ._shared import (
+    _authenticated_registration,
+    _checkout_return_urls,
+    _redirect_to_checkout,
+    _stripe_metadata_get,
+    _verify_return_session,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -111,11 +116,11 @@ def tip_start(request: HttpRequest) -> HttpResponse:
             },
         )
 
-    return_url = request.build_absolute_uri(reverse("public:tip_return"))
-    # Stripe substitutes this literal placeholder with the real session id —
-    # it must not be URL-encoded, so it is not built via urlencode.
-    success_url = f"{return_url}?session_id={{CHECKOUT_SESSION_ID}}"
-    cancel_url = request.build_absolute_uri(reverse("public:tip_cancelled"))
+    success_url, cancel_url = _checkout_return_urls(
+        request,
+        return_route="public:tip_return",
+        cancel_route="public:tip_cancelled",
+    )
 
     session = create_tip_checkout_session(
         registration,
@@ -124,17 +129,9 @@ def tip_start(request: HttpRequest) -> HttpResponse:
         success_url=success_url,
         cancel_url=cancel_url,
     )
-    if not session.url:
-        # Defensive: Stripe only omits `.url` for a non-hosted-page session,
-        # which this flow never creates. Log and treat as a cancelled attempt
-        # rather than crashing the redirect.
-        logger.error(
-            "tip_start: Checkout session id=%s for registration pk=%s has no url",
-            session.id,
-            registration.pk,
-        )
-        return render(request, "public/tip_cancelled.html")
-    return redirect(session.url)
+    return _redirect_to_checkout(
+        request, session, registration, cancel_template="public/tip_cancelled.html"
+    )
 
 
 @login_required
@@ -146,49 +143,18 @@ def tip_return(request: HttpRequest) -> HttpResponse:
     own registration and is paid, then calls ``record_tip_paid`` and renders
     the thank-you page.
     """
-    registration = _authenticated_registration(request)
-    if registration is None:
-        raise Http404("No registration for this account.")
-
-    session_id = request.GET.get("session_id", "")
-    if not session_id:
-        return render(request, "public/tip_cancelled.html")
-
-    session = retrieve_checkout_session(session_id)
-
-    # Defence in depth: confirm this session was created for this caller's
-    # own registration, and is actually a tip session, before recording it.
-    metadata_pk = _stripe_metadata_get(session, "registration_pk")
-    if _stripe_metadata_get(session, "purpose") != "tip" or metadata_pk != str(
-        registration.pk
-    ):
-        logger.warning(
-            "tip_return: session id=%s metadata purpose/registration_pk "
-            "does not match caller's registration pk=%s",
-            session_id,
-            registration.pk,
-        )
-        return render(request, "public/tip_cancelled.html")
-
-    if session.payment_status != "paid":
-        return render(request, "public/tip_cancelled.html")
-
-    customer_id = session.customer if isinstance(session.customer, str) else ""
-    payment_intent_id = (
-        session.payment_intent if isinstance(session.payment_intent, str) else ""
+    result = _verify_return_session(
+        request, purpose="tip", on_incomplete="public/tip_cancelled.html"
     )
-    if not payment_intent_id:
-        logger.error(
-            "tip_return: session id=%s is paid but has no payment_intent id",
-            session_id,
-        )
-        return render(request, "public/tip_cancelled.html")
+    if isinstance(result, HttpResponse):
+        return result
+    registration, session, customer_id, payment_intent_id = result
 
     amount_chf = _parse_tip_amount_chf(_stripe_metadata_get(session, "amount_chf"))
     if amount_chf is None:
         logger.error(
             "tip_return: session id=%s has unusable amount_chf metadata",
-            session_id,
+            session.id,
         )
         return render(request, "public/tip_cancelled.html")
 

@@ -55,6 +55,10 @@ matching/        The core domain — Registration, Match, the matching engine
                  (queue + assignment) and the Match state machine
                  (proposed → accepted / declined / expired) and its services
 public/          Public-facing registration + match site (full-page views + HTMX partials)
+billing/         Stripe money flows: deposit (`Payment`, ADR 0014) and voluntary
+                 tips (`Tip`, ADR 0022); Stripe identifiers only, never card data.
+debug/           DEBUG-only test-data / visual-QA helpers, gated by `@require_debug`
+                 (404 when `DEBUG` is false); never active in production.
 templates/       Project-level templates shared across apps
   includes/      Reusable partials (nav.html, _button.html, _card.html, …)
 src/             Tailwind CSS source (css/main.css — not served directly)
@@ -131,7 +135,11 @@ keycard, insurance, consents) belongs to the *off-app* application and must
 **not** be collected here. The app holds only what matching and contact need:
 name, email, phone, role, `prior_pass` attestation, and preferred location.
 Treat email and phone as sensitive (Swiss data protection) and never expose
-them across a match before mutual accept (see Invariants).
+them across a match before mutual accept (see Invariants). The app additionally
+holds refundable-deposit and tip **audit rows** carrying Stripe identifiers
+(customer / payment-intent / refund ids) and amounts — **never card data** —
+see [ADR 0014](docs/decisions/0014-deferred-matching-prepaid-fee.md) (deposit)
+and [ADR 0022](docs/decisions/0022-voluntary-tip-stripe-checkout.md) (tip).
 
 ### Open questions (resolve before building the relevant slice)
 
@@ -497,5 +505,7 @@ feature docs are written:
 | Lighthouse audits (CI, thresholds, baseline) | [`docs/lighthouse.md`](docs/lighthouse.md) |
 | Internationalisation (catalogues compiled at deploy) | [ADR 0015](docs/decisions/0015-compile-message-catalogues-at-deploy.md) |
 | Internationalisation (decoupled catalogue maintenance) | [ADR 0016](docs/decisions/0016-decoupled-catalogue-maintenance.md) |
+| Billing — prepaid deposit (Stripe, capture / refund / forfeit) | [ADR 0014](docs/decisions/0014-deferred-matching-prepaid-fee.md) |
+| Billing — voluntary tips (Stripe Checkout, free-tier gate) | [ADR 0022](docs/decisions/0022-voluntary-tip-stripe-checkout.md) |
 | Deployment (Render single-service) | _to be written_ |
 | Linear workflow (full lifecycle) | _to be written_ |

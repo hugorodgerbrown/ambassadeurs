@@ -62,6 +62,12 @@ polling — no polling in this ticket.
                     {% if queue.ambassadors.scaled %}
                         <p class="mt-3 text-xs text-meta">{% translate "Each icon represents several people." %}</p>
                     {% endif %}
+                {% elif queue.is_open and queue.referees.count %}
+                    {% comment %}Empty side + a queue opposite: the next arrival is matched at once.{% endcomment %}
+                    <p class="text-sm font-medium text-body">{% translate "Instant match*" %}</p>
+                    <p class="mt-2 text-xs text-meta">
+                        {% translate "* Next ambassador will be matched immediately on registration." %}
+                    </p>
                 {% else %}
                     <div class="flex justify-center" role="img" aria-label="{% translate 'No ambassadors waiting' %}">
                         <svg
@@ -172,6 +178,12 @@ polling — no polling in this ticket.
                     {% if queue.referees.scaled %}
                         <p class="mt-3 text-xs text-meta">{% translate "Each icon represents several people." %}</p>
                     {% endif %}
+                {% elif queue.is_open and queue.ambassadors.count %}
+                    {% comment %}Empty side + a queue opposite: the next arrival is matched at once.{% endcomment %}
+                    <p class="text-sm font-medium text-body">{% translate "Instant match*" %}</p>
+                    <p class="mt-2 text-xs text-meta">
+                        {% translate "* Next referee will be matched immediately on registration." %}
+                    </p>
                 {% else %}
                     <div class="flex justify-center" role="img" aria-label="{% translate 'No referees waiting' %}">
                         <svg

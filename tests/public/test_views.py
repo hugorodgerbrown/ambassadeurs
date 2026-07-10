@@ -3783,9 +3783,10 @@ def test_queue_snapshot_page_renders_labels_and_counts() -> None:
     assert "1 ambassador waiting" in content
     # The matched zone reports matched *people* (2 x the single match), not matches.
     assert "2 people matched" in content
-    # The referee side is empty here — it renders the empty-state glyph, which
-    # will be the common live case (the scarce side is matched on registration).
-    assert "No referees waiting" in content
+    # The referee side is empty while matching is open and ambassadors are
+    # queued — so it shows the instant-match message (the common live case).
+    assert "Instant match" in content
+    assert "Next referee will be matched immediately on registration" in content
 
     queue = response.context["queue"]
     assert queue["ambassadors"] == {"count": 1, "glyphs": [0], "scaled": False}
@@ -3813,3 +3814,7 @@ def test_queue_snapshot_page_shows_open_date_before_matching_opens() -> None:
     assert response.context["queue"]["is_open"] is False
     assert "Matching begins on 1st October 2099." in content
     assert "Matching begins in" in content
+    # Pre-open, an empty side falls back to the plain empty-state label — it must
+    # not claim an instant match (matching has not begun).
+    assert "No ambassadors waiting" in content
+    assert "Instant match" not in content

@@ -311,10 +311,19 @@
   /* border uses --color-line (was --color-border). */
   .role-card { --role: var(--color-accent); background: var(--color-surface); border: 1px solid var(--color-line); border-top: 3px solid var(--role); border-radius: var(--radius-card); padding: 30px; }
   .role-card--referee { --role: var(--color-secondary); }
-  /* Neutral variant (VERB-145 queue centre column): a muted top border so the
-     card reads as neither role — used for the matched-pairs column, whose red +
-     blue pair icons carry the colour. */
-  .role-card--neutral { --role: var(--color-meta); }
+
+  /* Rectangular Venn (VERB-145 queue): two overlapping role rectangles whose
+     intersection is the matched-pairs set. Two absolutely-positioned --set boxes
+     sit behind a three-zone content grid (ambassadors-only · matched · referees-
+     only): the ambassador box spans the left two-thirds, the referee box the
+     right two-thirds, so they overlap in the central third — the matched zone.
+     Both boxes carry a translucent role tint, so the overlap reads as a blend. */
+  .venn { position: relative; }
+  .venn__set { position: absolute; top: 0; bottom: 0; border: 2px solid var(--role); border-radius: var(--radius-card); background: color-mix(in srgb, var(--role) 9%, transparent); }
+  .venn__set--amb { --role: var(--color-accent); left: 0; right: 33.333%; }
+  .venn__set--ref { --role: var(--color-secondary); left: 33.333%; right: 0; }
+  .venn__content { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, 1fr); }
+  .venn__zone { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 26px 16px; }
 
   /* Eyebrow + label (mono type). Uses --text-eyebrow (was --text-eyebrow-size),
      --text-eyebrow--letter-spacing (was --text-eyebrow-tracking),

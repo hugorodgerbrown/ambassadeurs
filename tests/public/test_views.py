@@ -3782,6 +3782,9 @@ def test_queue_snapshot_page_renders_labels_and_counts() -> None:
     # Accessible labels on the three pictographs (no visible numeric legend).
     assert "1 ambassador waiting" in content
     assert "1 matched pair" in content
+    # The referee side is empty here — it renders the empty-state glyph, which
+    # will be the common live case (the scarce side is matched on registration).
+    assert "No referees waiting" in content
 
     queue = response.context["queue"]
     assert queue["ambassadors"] == {

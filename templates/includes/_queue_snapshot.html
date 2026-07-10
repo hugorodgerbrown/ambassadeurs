@@ -47,6 +47,21 @@ polling — no polling in this ticket.
                     {% if queue.ambassadors.scaled %}
                         <p class="mt-3 text-xs text-meta">{% translate "Each icon represents several people." %}</p>
                     {% endif %}
+                {% else %}
+                    <div class="flex justify-center" role="img" aria-label="{% translate 'No ambassadors waiting' %}">
+                        <svg
+                            class="h-6 w-6 text-meta opacity-50"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.6"
+                            stroke-dasharray="2.5 2.5"
+                            aria-hidden="true"
+                        >
+                            <circle cx="12" cy="8" r="3.4" />
+                            <path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" stroke-linecap="round" />
+                        </svg>
+                    </div>
                 {% endif %}
             </div>
 
@@ -85,6 +100,35 @@ polling — no polling in this ticket.
                     {% if queue.matches.scaled %}
                         <p class="mt-3 text-xs text-meta">{% translate "Each icon represents several pairs." %}</p>
                     {% endif %}
+                {% else %}
+                    <div class="flex justify-center" role="img" aria-label="{% translate 'No matches yet' %}">
+                        <span class="inline-flex items-center text-meta opacity-50">
+                            <svg
+                                class="h-6 w-6"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.6"
+                                stroke-dasharray="2.5 2.5"
+                                aria-hidden="true"
+                            >
+                                <circle cx="12" cy="8" r="3.4" />
+                                <path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" stroke-linecap="round" />
+                            </svg>
+                            <svg
+                                class="-ml-1.5 h-6 w-6"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.6"
+                                stroke-dasharray="2.5 2.5"
+                                aria-hidden="true"
+                            >
+                                <circle cx="12" cy="8" r="3.4" />
+                                <path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" stroke-linecap="round" />
+                            </svg>
+                        </span>
+                    </div>
                 {% endif %}
             </div>
 
@@ -113,6 +157,21 @@ polling — no polling in this ticket.
                     {% if queue.referees.scaled %}
                         <p class="mt-3 text-xs text-meta">{% translate "Each icon represents several people." %}</p>
                     {% endif %}
+                {% else %}
+                    <div class="flex justify-center" role="img" aria-label="{% translate 'No referees waiting' %}">
+                        <svg
+                            class="h-6 w-6 text-meta opacity-50"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.6"
+                            stroke-dasharray="2.5 2.5"
+                            aria-hidden="true"
+                        >
+                            <circle cx="12" cy="8" r="3.4" />
+                            <path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" stroke-linecap="round" />
+                        </svg>
+                    </div>
                 {% endif %}
             </div>
         </div>

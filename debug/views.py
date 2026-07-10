@@ -601,6 +601,13 @@ def components(request: HttpRequest) -> HttpResponse:
             referees=5,
             matches=3,
         ),
+        _queue_scenario(
+            "Live — large pool (glyphs cap, +N overflow chip)",
+            is_open=True,
+            ambassadors=200,
+            referees=0,
+            matches=60,
+        ),
     ]
     return render(
         request,

@@ -10,6 +10,7 @@ from matching.selectors import (
     _QUEUE_MAX_ICONS,
     _QUEUE_MAX_PAIRS,
     _capped,
+    build_queue_context,
     instant_match_role,
     match_status_context,
     queue_snapshot_context,
@@ -178,8 +179,8 @@ def test_queue_snapshot_context_has_three_columns() -> None:
     context = queue_snapshot_context(_NOW)
 
     assert {"ambassadors", "matches", "referees", "instant_match_role"} <= set(context)
-    assert set(context["ambassadors"]) == {"count", "glyphs", "scaled"}
-    assert set(context["matches"]) == {"count", "people", "glyphs", "scaled"}
+    assert set(context["ambassadors"]) == {"count", "glyphs", "overflow"}
+    assert set(context["matches"]) == {"count", "people", "glyphs", "overflow"}
 
 
 @pytest.mark.parametrize(
@@ -214,24 +215,24 @@ def test_queue_snapshot_context_reflects_pool_counts() -> None:
 
     context = queue_snapshot_context(_NOW)
 
-    assert context["ambassadors"] == {"count": 1, "glyphs": [0], "scaled": False}
-    assert context["referees"] == {"count": 2, "glyphs": [0, 1], "scaled": False}
+    assert context["ambassadors"] == {"count": 1, "glyphs": [0], "overflow": 0}
+    assert context["referees"] == {"count": 2, "glyphs": [0, 1], "overflow": 0}
     assert context["matches"] == {
         "count": 2,
         "people": 4,
         "glyphs": [0, 1],
-        "scaled": False,
+        "overflow": 0,
     }
 
 
 def test_queue_snapshot_context_empty_pool() -> None:
-    """An empty pool yields zero counts, no glyphs, and no scaling anywhere."""
+    """An empty pool yields zero counts, no glyphs, and no overflow anywhere."""
     context = queue_snapshot_context(_NOW)
 
     for column in (context["ambassadors"], context["referees"], context["matches"]):
         assert column["count"] == 0
         assert column["glyphs"] == []
-        assert column["scaled"] is False
+        assert column["overflow"] == 0
     assert context["matches"]["people"] == 0
 
 
@@ -255,21 +256,49 @@ def test_queue_snapshot_context_not_open_counts_down() -> None:
 
 
 @pytest.mark.parametrize(
-    ("count", "cap", "expected_len", "expected_scaled"),
+    ("count", "cap", "expected_glyphs", "expected_overflow"),
     [
-        (0, 40, 0, False),
-        (5, 40, 5, False),
-        (40, 40, 40, False),
-        (41, 40, 40, True),
-        (200, 40, 40, True),
+        (0, 5, 0, 0),
+        (3, 5, 3, 0),
+        (5, 5, 5, 0),  # exactly at the cap — every item drawn, no chip
+        (6, 5, 4, 2),  # over by one — (cap-1) glyphs + the remainder as overflow
+        (200, 5, 4, 196),
     ],
 )
-def test_capped(count: int, cap: int, expected_len: int, expected_scaled: bool) -> None:
-    """_capped draws one glyph per item up to the cap, then flags a capped sample."""
-    glyphs, scaled = _capped(count, cap)
+def test_capped(
+    count: int, cap: int, expected_glyphs: int, expected_overflow: int
+) -> None:
+    """_capped draws every item up to the cap, then (cap-1) glyphs + an overflow."""
+    glyphs, overflow = _capped(count, cap)
 
-    assert glyphs == list(range(expected_len))
-    assert scaled is expected_scaled
+    assert glyphs == list(range(expected_glyphs))
+    assert overflow == expected_overflow
+    # Drawn glyphs and the overflow remainder always reconcile to the true count.
+    assert len(glyphs) + overflow == count
+
+
+def test_build_queue_context_overflows_large_columns() -> None:
+    """A pool past the caps draws capped glyphs plus an exact overflow remainder."""
+    context = build_queue_context(
+        ambassadors_waiting=200,
+        referees_waiting=0,
+        matches=50,
+        is_open=True,
+        opens_at=_NOW,
+        days_until_open=0,
+    )
+
+    ambassadors = context["ambassadors"]
+    assert ambassadors["count"] == 200
+    assert len(ambassadors["glyphs"]) == _QUEUE_MAX_ICONS - 1
+    assert ambassadors["overflow"] == 200 - (_QUEUE_MAX_ICONS - 1)
+    assert len(ambassadors["glyphs"]) + ambassadors["overflow"] == 200
+
+    matches = context["matches"]
+    assert matches["count"] == 50
+    assert matches["people"] == 100
+    assert len(matches["glyphs"]) == _QUEUE_MAX_PAIRS - 1
+    assert matches["overflow"] == 50 - (_QUEUE_MAX_PAIRS - 1)
 
 
 def test_queue_snapshot_context_caps_are_wired() -> None:
@@ -279,11 +308,12 @@ def test_queue_snapshot_context_caps_are_wired() -> None:
     would be slow and add nothing) to confirm the wiring: waiting columns cap at
     ``_QUEUE_MAX_ICONS``, the matches column at ``_QUEUE_MAX_PAIRS``.
     """
+    # count = cap + 5 → (cap - 1) glyphs + an overflow of 6.
     assert _capped(_QUEUE_MAX_ICONS + 5, _QUEUE_MAX_ICONS) == (
-        list(range(_QUEUE_MAX_ICONS)),
-        True,
+        list(range(_QUEUE_MAX_ICONS - 1)),
+        6,
     )
     assert _capped(_QUEUE_MAX_PAIRS + 5, _QUEUE_MAX_PAIRS) == (
-        list(range(_QUEUE_MAX_PAIRS)),
-        True,
+        list(range(_QUEUE_MAX_PAIRS - 1)),
+        6,
     )

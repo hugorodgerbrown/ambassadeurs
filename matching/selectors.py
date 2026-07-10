@@ -212,14 +212,15 @@ def match_status_context(user: User) -> MatchStatusContext:
     }
 
 
-# The pictograph renders one person glyph per waiting registrant (side columns)
-# or one pair-of-people glyph per match (centre column). Above these caps the
-# row would wrap into an unreadable block (and bloat the DOM), so the glyphs are
-# capped and a ``scaled`` flag tells the template to show its "represents several
-# people" caption; the header count stays exact. Early-season pools sit well
-# under the caps, so the common case is one-glyph-per-person / per-pair.
-_QUEUE_MAX_ICONS = 40
-_QUEUE_MAX_PAIRS = 18
+# The pictograph renders one glyph per waiting registrant (side columns) or per
+# match (centre column), one glyph = one person/pair. Past these caps the column
+# would grow unbounded (and bloat the DOM), so it draws (cap - 1) glyphs and a
+# final "+N" overflow chip carrying the remainder: the shown glyphs plus the chip
+# reconcile exactly to the header count, which is always the true figure. The
+# caps are sized to ~3 wrapped rows in a third-width column. Early-season pools
+# sit well under the caps, so the common case is one-glyph-per-person / per-pair.
+_QUEUE_MAX_ICONS = 19
+_QUEUE_MAX_PAIRS = 13
 
 
 class QueueColumn(TypedDict):
@@ -227,15 +228,16 @@ class QueueColumn(TypedDict):
 
     A side column shows only the *waiting* (unmatched) registrations of one role
     — matched people move to the central pairs column. ``glyphs`` is a list the
-    template iterates to draw one person icon each (length capped at
+    template iterates to draw one person icon each (length capped near
     ``_QUEUE_MAX_ICONS``); ``count`` is the exact waiting total and stays the
-    source of truth. ``scaled`` is True when ``count`` exceeds the cap and the
-    glyphs are a sample.
+    source of truth. ``overflow`` is how many people are *not* drawn as glyphs
+    (0 under the cap): the template renders it as a trailing "+N" chip so glyphs
+    + chip reconcile to ``count``.
     """
 
     count: int
     glyphs: list[int]
-    scaled: bool
+    overflow: int
 
 
 class QueueMatches(TypedDict):
@@ -245,14 +247,15 @@ class QueueMatches(TypedDict):
     of active matches (== matched ambassadors == matched referees) and drives the
     pair glyphs; ``people`` is ``2 * count`` — the headline figure, since the
     zone reports matched *people*, not matches. ``glyphs`` is a list the template
-    iterates to draw one pair icon each (length capped at ``_QUEUE_MAX_PAIRS``);
-    ``scaled`` is True when ``count`` exceeds the cap.
+    iterates to draw one pair icon each (length capped near ``_QUEUE_MAX_PAIRS``);
+    ``overflow`` is the number of pairs not drawn (0 under the cap), rendered as a
+    trailing "+N" chip.
     """
 
     count: int
     people: int
     glyphs: list[int]
-    scaled: bool
+    overflow: int
 
 
 class QueueSnapshotContext(TypedDict):
@@ -280,23 +283,25 @@ class QueueSnapshotContext(TypedDict):
     instant_match_role: str
 
 
-def _capped(count: int, cap: int) -> tuple[list[int], bool]:
-    """Return ``(glyphs, scaled)`` for a column of ``count`` items.
+def _capped(count: int, cap: int) -> tuple[list[int], int]:
+    """Return ``(glyphs, overflow)`` for a column of ``count`` items.
 
-    ``glyphs`` is a list the template iterates once per icon — ``range(count)``
-    when ``count`` is at or below ``cap``, otherwise ``range(cap)`` (a capped
-    sample). ``scaled`` is True only in the capped case, so the template can flag
-    that each icon then stands for more than one person/pair. The exact
-    ``count`` is shown regardless.
+    At or below ``cap`` every item is drawn (``glyphs`` has ``count`` entries,
+    ``overflow`` is 0). Above ``cap`` the last slot is reserved for the "+N"
+    chip, so ``glyphs`` has ``cap - 1`` entries and ``overflow`` is the exact
+    remainder — the drawn glyphs plus ``overflow`` always sum to ``count``.
 
     Args:
         count: The exact number of people (or pairs) in this column.
-        cap: The maximum number of glyphs to draw.
+        cap: The maximum number of slots (glyphs plus any overflow chip).
 
     Returns:
-        The list of glyph indices to render and whether it was capped.
+        The list of glyph indices to render and the overflow remainder.
     """
-    return (list(range(min(count, cap))), count > cap)
+    if count <= cap:
+        return list(range(count)), 0
+    shown = cap - 1
+    return list(range(shown)), count - shown
 
 
 def _waiting_column(count: int) -> QueueColumn:
@@ -308,8 +313,8 @@ def _waiting_column(count: int) -> QueueColumn:
     Returns:
         The fully-shaped waiting column.
     """
-    glyphs, scaled = _capped(count, _QUEUE_MAX_ICONS)
-    return {"count": count, "glyphs": glyphs, "scaled": scaled}
+    glyphs, overflow = _capped(count, _QUEUE_MAX_ICONS)
+    return {"count": count, "glyphs": glyphs, "overflow": overflow}
 
 
 def instant_match_role(
@@ -409,14 +414,14 @@ def build_queue_context(
     Returns:
         The full render context.
     """
-    match_glyphs, match_scaled = _capped(matches, _QUEUE_MAX_PAIRS)
+    match_glyphs, match_overflow = _capped(matches, _QUEUE_MAX_PAIRS)
     return {
         "ambassadors": _waiting_column(ambassadors_waiting),
         "matches": {
             "count": matches,
             "people": matches * 2,
             "glyphs": match_glyphs,
-            "scaled": match_scaled,
+            "overflow": match_overflow,
         },
         "referees": _waiting_column(referees_waiting),
         "is_open": is_open,

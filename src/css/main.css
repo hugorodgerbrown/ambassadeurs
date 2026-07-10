@@ -311,6 +311,10 @@
   /* border uses --color-line (was --color-border). */
   .role-card { --role: var(--color-accent); background: var(--color-surface); border: 1px solid var(--color-line); border-top: 3px solid var(--role); border-radius: var(--radius-card); padding: 30px; }
   .role-card--referee { --role: var(--color-secondary); }
+  /* Neutral variant (VERB-145 queue centre column): a muted top border so the
+     card reads as neither role — used for the matched-pairs column, whose red +
+     blue pair icons carry the colour. */
+  .role-card--neutral { --role: var(--color-meta); }
 
   /* Eyebrow + label (mono type). Uses --text-eyebrow (was --text-eyebrow-size),
      --text-eyebrow--letter-spacing (was --text-eyebrow-tracking),

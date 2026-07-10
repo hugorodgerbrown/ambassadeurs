@@ -210,97 +210,98 @@ def match_status_context(user: User) -> MatchStatusContext:
     }
 
 
-# The unit pictograph renders one person icon per registrant. Above this cap
-# the row would wrap into an unreadable block (and bloat the DOM), so the icons
-# are scaled down to a proportional sample of this many while the legend keeps
-# the exact counts. Early-season pools sit well under the cap, so the common
-# case is one-icon-per-person and exact.
+# The pictograph renders one person glyph per waiting registrant (side columns)
+# or one pair-of-people glyph per match (centre column). Above these caps the
+# row would wrap into an unreadable block (and bloat the DOM), so the glyphs are
+# capped and a ``scaled`` flag tells the template to show its "represents several
+# people" caption; the header count stays exact. Early-season pools sit well
+# under the caps, so the common case is one-glyph-per-person / per-pair.
 _QUEUE_MAX_ICONS = 40
+_QUEUE_MAX_PAIRS = 18
 
 
 class QueueColumn(TypedDict):
-    """One role's column in the queue visualisation (VERB-145).
+    """One waiting role column in the queue visualisation (VERB-145).
 
-    ``icons`` is the unit-pictograph payload: a list of ``"matched"`` /
-    ``"waiting"`` state strings the template renders as person glyphs (matched
-    first). ``scaled`` is True when the column's ``total`` exceeds
-    ``_QUEUE_MAX_ICONS`` and the icons are a proportional sample rather than
-    one-per-person; ``matched`` / ``unmatched`` / ``total`` stay exact
-    regardless.
+    A side column shows only the *waiting* (unmatched) registrations of one role
+    — matched people move to the central pairs column. ``glyphs`` is a list the
+    template iterates to draw one person icon each (length capped at
+    ``_QUEUE_MAX_ICONS``); ``count`` is the exact waiting total and stays the
+    source of truth. ``scaled`` is True when ``count`` exceeds the cap and the
+    glyphs are a sample.
     """
 
     role_label: str
     is_referee: bool
-    matched: int
-    unmatched: int
-    total: int
-    icons: list[str]
+    count: int
+    glyphs: list[int]
+    scaled: bool
+
+
+class QueueMatches(TypedDict):
+    """The central matched-pairs column in the queue visualisation (VERB-145).
+
+    Each match is one ambassador paired with one referee, so ``count`` is the
+    number of active matches (== matched ambassadors == matched referees).
+    ``glyphs`` is a list the template iterates to draw one pair icon each (length
+    capped at ``_QUEUE_MAX_PAIRS``); ``scaled`` is True when ``count`` exceeds
+    the cap.
+    """
+
+    count: int
+    glyphs: list[int]
     scaled: bool
 
 
 class QueueSnapshotContext(TypedDict):
     """The full render context for ``templates/includes/_queue_snapshot.html``.
 
-    ``columns`` holds exactly two entries, ambassador first then referee.
+    Three columns, left to right: ambassadors waiting, matched pairs, referees
+    waiting.
     """
 
-    columns: list[QueueColumn]
+    ambassadors: QueueColumn
+    matches: QueueMatches
+    referees: QueueColumn
 
 
-def _pictograph(matched: int, total: int) -> tuple[list[str], bool]:
-    """Return ``(icon_states, scaled)`` for a column's unit pictograph.
+def _capped(count: int, cap: int) -> tuple[list[int], bool]:
+    """Return ``(glyphs, scaled)`` for a column of ``count`` items.
 
-    Each entry is ``"matched"`` or ``"waiting"`` (matched first). When
-    ``total`` is at or below ``_QUEUE_MAX_ICONS`` the pictograph is exact — one
-    icon per person. Above the cap it is scaled to ``_QUEUE_MAX_ICONS`` icons
-    that preserve the matched proportion (rounded), and ``scaled`` is True; the
-    caller's exact counts remain the source of truth.
+    ``glyphs`` is a list the template iterates once per icon — ``range(count)``
+    when ``count`` is at or below ``cap``, otherwise ``range(cap)`` (a capped
+    sample). ``scaled`` is True only in the capped case, so the template can flag
+    that each icon then stands for more than one person/pair. The exact
+    ``count`` is shown regardless.
 
     Args:
-        matched: Count of matched registrations in this column.
-        total: Total (matched + waiting) registrations in this column.
+        count: The exact number of people (or pairs) in this column.
+        cap: The maximum number of glyphs to draw.
 
     Returns:
-        The list of per-icon state strings and whether it was scaled down.
+        The list of glyph indices to render and whether it was capped.
     """
-    if total <= 0:
-        return [], False
-    if total <= _QUEUE_MAX_ICONS:
-        return ["matched"] * matched + ["waiting"] * (total - matched), False
-    shown_matched = round(matched / total * _QUEUE_MAX_ICONS)
-    return (
-        ["matched"] * shown_matched + ["waiting"] * (_QUEUE_MAX_ICONS - shown_matched),
-        True,
-    )
+    return (list(range(min(count, cap))), count > cap)
 
 
-def _queue_column(
-    role_label: str,
-    is_referee: bool,
-    matched: int,
-    unmatched: int,
-) -> QueueColumn:
-    """Shape one role's counts into a ``QueueColumn`` with its pictograph.
+def _waiting_column(role_label: str, is_referee: bool, count: int) -> QueueColumn:
+    """Shape one role's waiting count into a ``QueueColumn``.
 
     Args:
         role_label: The translated role name (``Registration.Role.<X>.label``).
         is_referee: True for the referee column (drives the template's blue
             ``role-card--referee`` theming); False for the ambassador column.
-        matched: Count of that role's matched registrations.
-        unmatched: Count of that role's waiting (unmatched) registrations.
+        count: The exact number of waiting (unmatched) registrations.
 
     Returns:
-        The fully-shaped column, including the unit-pictograph icon list.
+        The fully-shaped waiting column.
     """
-    total = matched + unmatched
-    icons, scaled = _pictograph(matched, total)
+    glyphs, scaled = _capped(count, _QUEUE_MAX_ICONS)
     return {
         "role_label": role_label,
         "is_referee": is_referee,
-        "matched": matched,
-        "unmatched": unmatched,
-        "total": total,
-        "icons": icons,
+        "count": count,
+        "glyphs": glyphs,
         "scaled": scaled,
     }
 
@@ -308,26 +309,32 @@ def _queue_column(
 def queue_snapshot_context() -> QueueSnapshotContext:
     """Build the render context for the standalone queue visualisation.
 
-    Calls ``matching.services.queue_snapshot`` for the counts and shapes them
-    into two columns (ambassador, referee, in that order), each carrying its
-    role label (``Registration.Role.<X>.label``, already ``gettext_lazy``), its
-    matched/waiting counts and total, and a unit-pictograph icon list. The
-    person glyphs and legend labels live in the template.
+    Calls ``matching.services.queue_snapshot`` and shapes it into three columns:
+    ambassadors waiting, matched pairs, referees waiting. The two side columns
+    carry only their waiting (unmatched) counts — matched registrations are
+    represented once each as a pair in the centre column. The match count is the
+    matched-ambassador count, which equals the matched-referee count and the
+    active-match count (an active match always has exactly one VERIFIED
+    ambassador and one VERIFIED referee). The person / pair glyphs live in the
+    template.
     """
     snapshot = queue_snapshot()
+    match_count = snapshot.ambassadors_matched
+    match_glyphs, match_scaled = _capped(match_count, _QUEUE_MAX_PAIRS)
     return {
-        "columns": [
-            _queue_column(
-                str(Registration.Role.AMBASSADOR.label),
-                is_referee=False,
-                matched=snapshot.ambassadors_matched,
-                unmatched=snapshot.ambassadors_unmatched,
-            ),
-            _queue_column(
-                str(Registration.Role.REFEREE.label),
-                is_referee=True,
-                matched=snapshot.referees_matched,
-                unmatched=snapshot.referees_unmatched,
-            ),
-        ]
+        "ambassadors": _waiting_column(
+            str(Registration.Role.AMBASSADOR.label),
+            is_referee=False,
+            count=snapshot.ambassadors_unmatched,
+        ),
+        "matches": {
+            "count": match_count,
+            "glyphs": match_glyphs,
+            "scaled": match_scaled,
+        },
+        "referees": _waiting_column(
+            str(Registration.Role.REFEREE.label),
+            is_referee=True,
+            count=snapshot.referees_unmatched,
+        ),
     }

@@ -7,7 +7,8 @@ import pytest
 from matching.models import Match, Registration
 from matching.selectors import (
     _QUEUE_MAX_ICONS,
-    _pictograph,
+    _QUEUE_MAX_PAIRS,
+    _capped,
     match_status_context,
     queue_snapshot_context,
     status_pill_for,
@@ -166,87 +167,86 @@ def test_match_status_context_lapsed_proposed_match_returns_none() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_queue_snapshot_context_two_columns_in_role_order() -> None:
-    """queue_snapshot_context returns ambassador first, then referee."""
+def test_queue_snapshot_context_has_three_columns() -> None:
+    """queue_snapshot_context returns ambassadors, matches, and referees."""
     context = queue_snapshot_context()
 
-    assert len(context["columns"]) == 2
-    assert context["columns"][0]["role_label"] == "Ambassador"
-    assert context["columns"][1]["role_label"] == "Referee"
+    assert set(context) == {"ambassadors", "matches", "referees"}
+    assert context["ambassadors"]["role_label"] == "Ambassador"
+    assert context["referees"]["role_label"] == "Referee"
 
 
 def test_queue_snapshot_context_reflects_pool_counts() -> None:
-    """queue_snapshot_context surfaces the counts from queue_snapshot()."""
-    RegistrationFactory.create(status=Registration.Status.VERIFIED)
+    """queue_snapshot_context splits the pool into waiting sides + matched pairs.
+
+    Two matched pairs (each an ambassador + referee) plus one extra waiting
+    ambassador and two extra waiting referees.
+    """
+    RegistrationFactory.create(status=Registration.Status.VERIFIED)  # waiting amb.
+    RegistrationFactory.create(referee=True, status=Registration.Status.VERIFIED)
     RegistrationFactory.create(referee=True, status=Registration.Status.VERIFIED)
     MatchFactory.create()  # PROPOSED — one matched ambassador + one matched referee
+    MatchFactory.create(pending=True)  # PENDING — another matched pair
 
     context = queue_snapshot_context()
 
-    ambassador_column, referee_column = context["columns"]
-    assert ambassador_column == {
+    assert context["ambassadors"] == {
         "role_label": "Ambassador",
         "is_referee": False,
-        "matched": 1,
-        "unmatched": 1,
-        "total": 2,
-        "icons": ["matched", "waiting"],
+        "count": 1,
+        "glyphs": [0],
         "scaled": False,
     }
-    assert referee_column == {
+    assert context["referees"] == {
         "role_label": "Referee",
         "is_referee": True,
-        "matched": 1,
-        "unmatched": 1,
-        "total": 2,
-        "icons": ["matched", "waiting"],
+        "count": 2,
+        "glyphs": [0, 1],
         "scaled": False,
     }
+    assert context["matches"] == {"count": 2, "glyphs": [0, 1], "scaled": False}
 
 
-def test_queue_snapshot_context_empty_pool_has_no_icons() -> None:
-    """An empty pool yields zero totals, no icons, and unscaled columns."""
+def test_queue_snapshot_context_empty_pool() -> None:
+    """An empty pool yields zero counts, no glyphs, and no scaling anywhere."""
     context = queue_snapshot_context()
 
-    for column in context["columns"]:
-        assert column["total"] == 0
-        assert column["matched"] == 0
-        assert column["unmatched"] == 0
-        assert column["icons"] == []
+    for column in (context["ambassadors"], context["referees"], context["matches"]):
+        assert column["count"] == 0
+        assert column["glyphs"] == []
         assert column["scaled"] is False
 
 
-def test_queue_snapshot_context_pictograph_is_exact_below_cap() -> None:
-    """Below the icon cap the pictograph is one icon per person, matched first."""
-    # One PROPOSED match (matched ambassador + referee) plus one waiting ambassador.
-    RegistrationFactory.create(status=Registration.Status.VERIFIED)
-    MatchFactory.create()
-
-    ambassador_column = queue_snapshot_context()["columns"][0]
-    assert ambassador_column["total"] == 2
-    assert ambassador_column["icons"] == ["matched", "waiting"]
-    assert ambassador_column["icons"].count("matched") == ambassador_column["matched"]
-    assert ambassador_column["icons"].count("waiting") == ambassador_column["unmatched"]
-
-
 @pytest.mark.parametrize(
-    ("matched", "total"),
-    [(0, 0), (3, 5), (5, 5), (0, 4)],
+    ("count", "cap", "expected_len", "expected_scaled"),
+    [
+        (0, 40, 0, False),
+        (5, 40, 5, False),
+        (40, 40, 40, False),
+        (41, 40, 40, True),
+        (200, 40, 40, True),
+    ],
 )
-def test_pictograph_exact_below_cap(matched: int, total: int) -> None:
-    """Below the cap, _pictograph is one icon per person, matched first, unscaled."""
-    icons, scaled = _pictograph(matched=matched, total=total)
+def test_capped(count: int, cap: int, expected_len: int, expected_scaled: bool) -> None:
+    """_capped draws one glyph per item up to the cap, then flags a capped sample."""
+    glyphs, scaled = _capped(count, cap)
 
-    assert scaled is False
-    assert icons == ["matched"] * matched + ["waiting"] * (total - matched)
+    assert glyphs == list(range(expected_len))
+    assert scaled is expected_scaled
 
 
-def test_pictograph_scales_above_cap() -> None:
-    """Above the cap the icon list is capped and proportional; scaled is True."""
-    icons, scaled = _pictograph(matched=50, total=100)
+def test_queue_snapshot_context_caps_are_wired() -> None:
+    """The waiting and match columns use their respective glyph caps.
 
-    assert scaled is True
-    assert len(icons) == _QUEUE_MAX_ICONS
-    # 50/100 of the cap is matched — the proportion is preserved.
-    assert icons.count("matched") == _QUEUE_MAX_ICONS // 2
-    assert icons.count("waiting") == _QUEUE_MAX_ICONS // 2
+    Drives ``_capped`` at the two module caps directly (creating hundreds of rows
+    would be slow and add nothing) to confirm the wiring: waiting columns cap at
+    ``_QUEUE_MAX_ICONS``, the matches column at ``_QUEUE_MAX_PAIRS``.
+    """
+    assert _capped(_QUEUE_MAX_ICONS + 5, _QUEUE_MAX_ICONS) == (
+        list(range(_QUEUE_MAX_ICONS)),
+        True,
+    )
+    assert _capped(_QUEUE_MAX_PAIRS + 5, _QUEUE_MAX_PAIRS) == (
+        list(range(_QUEUE_MAX_PAIRS)),
+        True,
+    )

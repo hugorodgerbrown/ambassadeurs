@@ -13,6 +13,6 @@ journey page, and not wired into the homepage (deferred to a later ticket).
     <section>
         <p class="eyebrow mb-3">{% translate "Ski Parrainage" %}</p>
         <h1 class="mb-6 text-ink">{% translate "Live queue" %}</h1>
-        {% include "includes/_queue_snapshot.html" with columns=queue.columns %}
+        {% include "includes/_queue_snapshot.html" with queue=queue %}
     </section>
 {% endblock %}

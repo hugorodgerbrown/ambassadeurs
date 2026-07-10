@@ -3768,8 +3768,8 @@ def test_queue_snapshot_page_renders_labels_and_counts() -> None:
     Asserts English source strings only — the tox/CI test env compiles no
     message catalogues, so translated (French) strings never appear.
     """
+    # One extra waiting ambassador on top of the matched pair.
     RegistrationFactory.create(status=Registration.Status.VERIFIED)
-    RegistrationFactory.create(referee=True, status=Registration.Status.VERIFIED)
     MatchFactory.create()  # PROPOSED — one matched ambassador + one matched referee
 
     response = Client().get(reverse("public:queue_snapshot"))
@@ -3778,27 +3778,25 @@ def test_queue_snapshot_page_renders_labels_and_counts() -> None:
     content = response.content.decode()
     assert "Ambassador" in content
     assert "Referee" in content
-    # The pictograph's accessible label carries the matched/waiting split
-    # (there is no visible numeric legend).
-    assert "1 matched, 1 waiting" in content
+    assert "Matched" in content
+    # Accessible labels on the three pictographs (no visible numeric legend).
+    assert "1 ambassador waiting" in content
+    assert "1 matched pair" in content
 
-    columns = response.context["queue"]["columns"]
-    assert columns[0] == {
+    queue = response.context["queue"]
+    assert queue["ambassadors"] == {
         "role_label": "Ambassador",
         "is_referee": False,
-        "matched": 1,
-        "unmatched": 1,
-        "total": 2,
-        "icons": ["matched", "waiting"],
+        "count": 1,
+        "glyphs": [0],
         "scaled": False,
     }
-    assert columns[1] == {
+    assert queue["referees"] == {
         "role_label": "Referee",
         "is_referee": True,
-        "matched": 1,
-        "unmatched": 1,
-        "total": 2,
-        "icons": ["matched", "waiting"],
+        "count": 0,
+        "glyphs": [],
         "scaled": False,
     }
+    assert queue["matches"] == {"count": 1, "glyphs": [0], "scaled": False}
     assert Tip.objects.count() == 0

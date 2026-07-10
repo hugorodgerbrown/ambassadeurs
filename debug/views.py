@@ -602,7 +602,7 @@ def components(request: HttpRequest) -> HttpResponse:
             matches=3,
         ),
         _queue_scenario(
-            "Live — large pool (glyphs cap, +N overflow chip)",
+            "Live — large pool (grid caps, trailing ellipsis)",
             is_open=True,
             ambassadors=200,
             referees=0,

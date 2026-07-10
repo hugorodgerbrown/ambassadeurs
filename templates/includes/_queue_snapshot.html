@@ -28,6 +28,15 @@ polling — no polling in this ticket.
                     Matching begins on {{ d }}.
                 {% endblocktranslate %}
             </p>
+        {% elif queue.instant_match_role == "referee" %}
+            {% comment %}Persistent footnote for the "Instant match*" zone below (on screen most of the season).{% endcomment %}
+            <p class="mt-1 text-body">
+                {% translate "* Next referee will be matched immediately on registration." %}
+            </p>
+        {% elif queue.instant_match_role == "ambassador" %}
+            <p class="mt-1 text-body">
+                {% translate "* Next ambassador will be matched immediately on registration." %}
+            </p>
         {% endif %}
     </div>
     <div class="venn">
@@ -62,12 +71,9 @@ polling — no polling in this ticket.
                     {% if queue.ambassadors.scaled %}
                         <p class="mt-3 text-xs text-meta">{% translate "Each icon represents several people." %}</p>
                     {% endif %}
-                {% elif queue.is_open and queue.referees.count %}
-                    {% comment %}Empty side + a queue opposite: the next arrival is matched at once.{% endcomment %}
+                {% elif queue.instant_match_role == "ambassador" %}
+                    {% comment %}Empty side, queue opposite → next arrival matched at once (footnote is the subheader).{% endcomment %}
                     <p class="text-sm font-medium text-body">{% translate "Instant match*" %}</p>
-                    <p class="mt-2 text-xs text-meta">
-                        {% translate "* Next ambassador will be matched immediately on registration." %}
-                    </p>
                 {% else %}
                     <div class="flex justify-center" role="img" aria-label="{% translate 'No ambassadors waiting' %}">
                         <svg
@@ -178,12 +184,9 @@ polling — no polling in this ticket.
                     {% if queue.referees.scaled %}
                         <p class="mt-3 text-xs text-meta">{% translate "Each icon represents several people." %}</p>
                     {% endif %}
-                {% elif queue.is_open and queue.ambassadors.count %}
-                    {% comment %}Empty side + a queue opposite: the next arrival is matched at once.{% endcomment %}
+                {% elif queue.instant_match_role == "referee" %}
+                    {% comment %}Empty side, queue opposite → next arrival matched at once (footnote is the subheader).{% endcomment %}
                     <p class="text-sm font-medium text-body">{% translate "Instant match*" %}</p>
-                    <p class="mt-2 text-xs text-meta">
-                        {% translate "* Next referee will be matched immediately on registration." %}
-                    </p>
                 {% else %}
                     <div class="flex justify-center" role="img" aria-label="{% translate 'No referees waiting' %}">
                         <svg

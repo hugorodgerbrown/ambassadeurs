@@ -10,6 +10,7 @@ from matching.selectors import (
     _QUEUE_MAX_ICONS,
     _QUEUE_MAX_PAIRS,
     _capped,
+    instant_match_role,
     match_status_context,
     queue_snapshot_context,
     status_pill_for,
@@ -176,9 +177,26 @@ def test_queue_snapshot_context_has_three_columns() -> None:
     """queue_snapshot_context returns the three columns plus the open-date keys."""
     context = queue_snapshot_context(_NOW)
 
-    assert {"ambassadors", "matches", "referees"} <= set(context)
+    assert {"ambassadors", "matches", "referees", "instant_match_role"} <= set(context)
     assert set(context["ambassadors"]) == {"count", "glyphs", "scaled"}
     assert set(context["matches"]) == {"count", "people", "glyphs", "scaled"}
+
+
+@pytest.mark.parametrize(
+    ("is_open", "ambassadors", "referees", "expected"),
+    [
+        (True, 5, 0, "referee"),  # referees empty, ambassadors queue → referee instant
+        (True, 0, 5, "ambassador"),  # ambassadors empty, referees queue → ambassador
+        (True, 5, 5, ""),  # both queued → nobody instant
+        (True, 0, 0, ""),  # empty pool → nobody instant
+        (False, 5, 0, ""),  # matching not open → nobody instant
+    ],
+)
+def test_instant_match_role(
+    is_open: bool, ambassadors: int, referees: int, expected: str
+) -> None:
+    """instant_match_role names the empty side only when open with a queue opposite."""
+    assert instant_match_role(is_open, ambassadors, referees) == expected
 
 
 def test_queue_snapshot_context_reflects_pool_counts() -> None:

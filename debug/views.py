@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import cast
 
 from django.contrib.auth import login
@@ -34,7 +34,7 @@ from django.views.decorators.http import require_POST
 from accounts.services import send_confirmation_email
 from core.decorators import require_debug
 from matching.models import Match, Registration
-from matching.selectors import status_pill_for
+from matching.selectors import build_queue_context, status_pill_for
 from matching.services import (
     accept_match,
     decline_match,
@@ -471,6 +471,43 @@ def _match_status_scenario(
     }
 
 
+def _queue_scenario(
+    label: str,
+    *,
+    is_open: bool,
+    ambassadors: int,
+    referees: int,
+    matches: int,
+    opens_at: datetime | None = None,
+    days_until_open: int = 0,
+) -> dict[str, object]:
+    """Build one labelled synthetic queue-visualisation context for the gallery.
+
+    Delegates to ``build_queue_context`` — the same shaper the live view uses —
+    so the gallery renders the real component, not a mock. ``opens_at`` is only
+    read in the pre-open (``is_open=False``) subheader; a fixed date keeps the
+    gallery deterministic.
+
+    Args:
+        label: The human caption shown above the rendered component.
+        is_open: Whether matching has begun in this scenario.
+        ambassadors: Waiting ambassador count.
+        referees: Waiting referee count.
+        matches: Active-match (pair) count.
+        opens_at: The matching open instant (pre-open scenarios only).
+        days_until_open: Whole-day countdown shown pre-open.
+    """
+    queue = build_queue_context(
+        ambassadors_waiting=ambassadors,
+        referees_waiting=referees,
+        matches=matches,
+        is_open=is_open,
+        opens_at=opens_at or timezone.make_aware(datetime(2026, 10, 1)),
+        days_until_open=days_until_open,
+    )
+    return {"label": label, "queue": queue}
+
+
 @require_debug
 def components(request: HttpRequest) -> HttpResponse:
     """Render the account Match status panel in every combination (DEBUG-only).
@@ -541,8 +578,32 @@ def components(request: HttpRequest) -> HttpResponse:
         _match_status_scenario("Withdrawn", status=Registration.Status.WITHDRAWN),
         _match_status_scenario("Suspended", status=Registration.Status.SUSPENDED),
     ]
+    queue_scenarios = [
+        _queue_scenario(
+            "Pre-match — registration open, matching not started",
+            is_open=False,
+            ambassadors=6,
+            referees=4,
+            matches=0,
+            days_until_open=83,
+        ),
+        _queue_scenario(
+            "Live — referees matched instantly (ambassadors queue)",
+            is_open=True,
+            ambassadors=5,
+            referees=0,
+            matches=3,
+        ),
+        _queue_scenario(
+            "Live — ambassadors matched instantly (referees queue)",
+            is_open=True,
+            ambassadors=0,
+            referees=5,
+            matches=3,
+        ),
+    ]
     return render(
         request,
         "debug/components.html",
-        {"scenarios": scenarios},
+        {"scenarios": scenarios, "queue_scenarios": queue_scenarios},
     )

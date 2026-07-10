@@ -459,3 +459,16 @@ def test_components_renders_every_pill_combination() -> None:
     # Both VERIFIED variants are present (with and without a queue position).
     assert "You are in the queue" in content
     assert "You are number 3 in the queue" in content
+
+
+@override_settings(DEBUG=True)
+def test_components_renders_queue_visualisation_states() -> None:
+    """The gallery renders the queue visualisation in each lifecycle state."""
+    content = Client().get(reverse("debug:components")).content.decode()
+    # Pre-match scenario: the open-date subheader and countdown.
+    assert "Matching begins on 1st October 2026." in content
+    assert "Matching begins in 83 days" in content
+    # Both instant-match scenarios: the hoisted subheaders + the zone label.
+    assert "Next referee will be matched immediately on registration" in content
+    assert "Next ambassador will be matched immediately on registration" in content
+    assert "Instant match" in content

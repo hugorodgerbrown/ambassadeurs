@@ -263,6 +263,12 @@ class QueueSnapshotContext(TypedDict):
     whether matching has begun (VERB-83 open-date gate): before the open date the
     template shows a "matching begins on …" subheader and a countdown in place of
     the (necessarily empty) matched column.
+
+    ``instant_match_role`` is ``"ambassador"`` or ``"referee"`` when matching is
+    open and exactly one side is empty while the other has a queue — i.e. the
+    next arrival on the empty side is matched immediately; ``""`` otherwise. It
+    drives the persistent "next X will be matched immediately" subheader (which
+    is on screen for most of the season, since the scarce side stays empty).
     """
 
     ambassadors: QueueColumn
@@ -271,6 +277,7 @@ class QueueSnapshotContext(TypedDict):
     is_open: bool
     opens_at: datetime
     days_until_open: int
+    instant_match_role: str
 
 
 def _capped(count: int, cap: int) -> tuple[list[int], bool]:
@@ -305,6 +312,33 @@ def _waiting_column(count: int) -> QueueColumn:
     return {"count": count, "glyphs": glyphs, "scaled": scaled}
 
 
+def instant_match_role(
+    is_open: bool, ambassadors_waiting: int, referees_waiting: int
+) -> str:
+    """Return the role whose next arrival is matched immediately, or ``""``.
+
+    When matching is open and exactly one side has an empty queue while the other
+    side has people waiting, the next registrant on the empty side is paired at
+    once. Returns ``"ambassador"`` / ``"referee"`` for that empty side, or ``""``
+    when matching is closed, both sides are empty, or both have a queue.
+
+    Args:
+        is_open: Whether matching has begun.
+        ambassadors_waiting: Count of waiting (unmatched) ambassadors.
+        referees_waiting: Count of waiting (unmatched) referees.
+
+    Returns:
+        ``"ambassador"``, ``"referee"``, or ``""``.
+    """
+    if not is_open:
+        return ""
+    if referees_waiting == 0 and ambassadors_waiting > 0:
+        return "referee"
+    if ambassadors_waiting == 0 and referees_waiting > 0:
+        return "ambassador"
+    return ""
+
+
 def queue_snapshot_context(now: datetime) -> QueueSnapshotContext:
     """Build the render context for the standalone queue visualisation.
 
@@ -330,8 +364,6 @@ def queue_snapshot_context(now: datetime) -> QueueSnapshotContext:
         The full render context, including the open-date keys.
     """
     snapshot = queue_snapshot()
-    match_count = snapshot.ambassadors_matched
-    match_glyphs, match_scaled = _capped(match_count, _QUEUE_MAX_PAIRS)
 
     opens_at = matching_opens_at()
     is_open = now >= opens_at
@@ -340,16 +372,57 @@ def queue_snapshot_context(now: datetime) -> QueueSnapshotContext:
         0,
     )
 
+    return build_queue_context(
+        ambassadors_waiting=snapshot.ambassadors_unmatched,
+        referees_waiting=snapshot.referees_unmatched,
+        matches=snapshot.ambassadors_matched,
+        is_open=is_open,
+        opens_at=opens_at,
+        days_until_open=days_until_open,
+    )
+
+
+def build_queue_context(
+    *,
+    ambassadors_waiting: int,
+    referees_waiting: int,
+    matches: int,
+    is_open: bool,
+    opens_at: datetime,
+    days_until_open: int,
+) -> QueueSnapshotContext:
+    """Shape explicit counts + open-state into a ``QueueSnapshotContext``.
+
+    The single place the render context is assembled, shared by
+    ``queue_snapshot_context`` (live counts) and the DEBUG component gallery
+    (synthetic counts), so the two never drift. Pure — no DB, no clock.
+
+    Args:
+        ambassadors_waiting: Waiting (unmatched) ambassador count.
+        referees_waiting: Waiting (unmatched) referee count.
+        matches: Active-match count (pairs); the matched column shows ``2 *``
+            this as ``people``.
+        is_open: Whether matching has begun.
+        opens_at: The matching open instant (rendered in the pre-open subheader).
+        days_until_open: Whole-day countdown to ``opens_at`` (0 once open).
+
+    Returns:
+        The full render context.
+    """
+    match_glyphs, match_scaled = _capped(matches, _QUEUE_MAX_PAIRS)
     return {
-        "ambassadors": _waiting_column(snapshot.ambassadors_unmatched),
+        "ambassadors": _waiting_column(ambassadors_waiting),
         "matches": {
-            "count": match_count,
-            "people": match_count * 2,
+            "count": matches,
+            "people": matches * 2,
             "glyphs": match_glyphs,
             "scaled": match_scaled,
         },
-        "referees": _waiting_column(snapshot.referees_unmatched),
+        "referees": _waiting_column(referees_waiting),
         "is_open": is_open,
         "opens_at": opens_at,
         "days_until_open": days_until_open,
+        "instant_match_role": instant_match_role(
+            is_open, ambassadors_waiting, referees_waiting
+        ),
     }

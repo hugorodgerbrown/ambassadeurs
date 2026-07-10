@@ -232,6 +232,14 @@ state. Post a comment on the ticket with the PR URL via `save_comment`.
 If the reviewer left non-blocking suggestions earlier, list them again here
 so the user can decide whether to address them in a follow-up.
 
+**Iterating on the output before the PR.** If, once they see the first
+iteration, the user wants to iterate fast on the design / output rather than
+open the PR straight away, that is `/rapid` — a "controls off" mode on this
+same VERB branch (no review, no tox, no tests) followed by `/harden` to put the
+controls back on and open the PR. Point them at it when a `stop-before-push`
+directive was used, or whenever they react to the built feature with design
+changes rather than approval.
+
 Stop. The user takes it from here — review, merge. On merge to `main`, Render
 auto-deploys (`build.sh` runs migrations) and Linear's GitHub integration
 auto-transitions the ticket to Done if the `Closes VERB-NN` line is in the PR

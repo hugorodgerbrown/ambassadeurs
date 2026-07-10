@@ -8,14 +8,20 @@
 # page-views (anonymous hash) merge into the resulting user in PostHog.
 # Server-side page-view tracking for GET requests lives in
 # core.middleware.PostHogPageviewMiddleware, not here.
+#
+# queue_snapshot_page (VERB-145) is a standalone, embeddable component page
+# — no auth, no journey wiring — built in isolation to exercise
+# matching.selectors.queue_snapshot_context in the browser.
 
 from __future__ import annotations
 
 from django.conf import settings
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 
 from core.observability import capture_event, distinct_id_for
+from matching.selectors import queue_snapshot_context
 from matching.services import is_registration_open
 from public.models import FormDownload
 
@@ -84,3 +90,15 @@ _SERVICE_WORKER_BODY = "/* 4 Vallées Ambassadors — intentionally minimal. */\
 def service_worker(request: HttpRequest) -> HttpResponse:
     """Serve a minimal no-op service worker at /sw.js."""
     return HttpResponse(_SERVICE_WORKER_BODY, content_type="application/javascript")
+
+
+def queue_snapshot_page(request: HttpRequest) -> HttpResponse:
+    """Render the standalone live queue visualisation page (VERB-145).
+
+    Public, no login required. Not linked from any nav or journey page.
+    """
+    return render(
+        request,
+        "public/queue_snapshot.html",
+        {"queue": queue_snapshot_context(timezone.now())},
+    )

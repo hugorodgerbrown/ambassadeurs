@@ -29,6 +29,7 @@ from .pages import (
     home,
     how_it_works,
     legal_page,
+    queue_snapshot_page,
     service_worker,
 )
 from .payments import (
@@ -64,6 +65,7 @@ __all__ = [
     "match_detail",
     "match_report_no_show",
     "match_withdraw",
+    "queue_snapshot_page",
     "register",
     "register_confirm",
     "register_done",

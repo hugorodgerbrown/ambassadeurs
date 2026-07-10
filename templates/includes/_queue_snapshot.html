@@ -1,0 +1,240 @@
+{% load i18n %}
+{% comment %}
+Live queue visualisation panel (VERB-145) — a standalone, embeddable
+component showing pool state as a rectangular Venn diagram: an ambassador
+rectangle and a referee rectangle that overlap, with the overlap (the central
+zone) holding the matched pairs. Left zone = ambassadors waiting (red people),
+right zone = referees waiting (blue people), centre overlap = matched pairs
+(one red + one blue person each). Exact totals are the zone numbers; the icons
+carry the read.
+
+Include contract (single param):
+  queue — a matching.selectors.QueueSnapshotContext:
+            {ambassadors, matches, referees, is_open, opens_at,
+             days_until_open, instant_match_role}
+          QueueColumn  = {count, glyphs, truncated}
+          QueueMatches = {count, people, glyphs, truncated}
+          `glyphs` is a list to iterate (one icon each); `truncated` is True when
+          the pool overran the fixed grid, drawing a trailing ellipsis glyph in
+          the last slot (the header carries the exact count).
+          `instant_match_role` drives the subheader and the empty-side
+          "Instant match*" label.
+
+The "id" is kept on the outer card so a future hx-get can target it for
+polling — no polling in this ticket.
+{% endcomment %}
+<div class="card" id="queue-snapshot">
+    <div class="mb-6">
+        <h2 class="text-h3 text-ink">{% translate "Who's in the queue" %}</h2>
+        {% if not queue.is_open %}
+            <p class="mt-1 text-body">
+                {% blocktranslate with d=queue.opens_at|date:"jS F Y" trimmed %}
+                    Matching begins on {{ d }}.
+                {% endblocktranslate %}
+            </p>
+        {% elif queue.instant_match_role == "referee" %}
+            {% comment %}Persistent footnote for the "Instant match*" zone below (on screen most of the season).{% endcomment %}
+            <p class="mt-1 text-body">
+                {% translate "* Next referee will be matched immediately on registration." %}
+            </p>
+        {% elif queue.instant_match_role == "ambassador" %}
+            <p class="mt-1 text-body">
+                {% translate "* Next ambassador will be matched immediately on registration." %}
+            </p>
+        {% endif %}
+    </div>
+    <div class="venn">
+        {% comment %}The two set rectangles sit behind the content; the middle third is their overlap.{% endcomment %}
+        <div class="venn__set venn__set--amb" aria-hidden="true"></div>
+        <div class="venn__set venn__set--ref" aria-hidden="true"></div>
+
+        <div class="venn__content">
+            {% comment %}Ambassadors-only zone (left) — red people waiting.{% endcomment %}
+            <div class="venn__zone">
+                <p class="label text-accent">{% translate "Ambassadors" %}</p>
+                <p class="mb-3 text-h2 leading-none text-ink" aria-hidden="true">{{ queue.ambassadors.count }}</p>
+                {% if queue.ambassadors.count %}
+                    {% blocktranslate count c=queue.ambassadors.count asvar amb_label trimmed %}
+                        {{ c }} ambassador waiting
+                    {% plural %}
+                        {{ c }} ambassadors waiting
+                    {% endblocktranslate %}
+                    <div
+                        class="mx-auto flex w-fit max-w-40 flex-wrap justify-start gap-2"
+                        role="img"
+                        aria-label="{{ amb_label }}"
+                    >
+                        {% for _ in queue.ambassadors.glyphs %}
+                            {% comment %}Waiting person (Font Awesome, CC BY 4.0).{% endcomment %}
+                            <svg
+                                class="h-6 w-6 text-accent"
+                                viewBox="0 0 576 512"
+                                fill="currentColor"
+                                aria-hidden="true"
+                            >
+                                <path d="M416 56a56 56 0 1 1 112 0 56 56 0 1 1 -112 0zM2.7 300.9c6.1-11.8 20.6-16.3 32.4-10.2l197.8 102.7 62.3-87.2-82-92.2c-11-12.4-16.2-27.5-16.2-42.4l111.6 53.4 42.9 48.2c14.9 16.7 16.2 41.6 3.2 59.8l-64.4 90.2 128.3 66.6c13.6 7.1 29.8 7.2 43.6 .3l15.2-7.6c11.9-5.9 26.3-1.1 32.2 10.7s1.1 26.3-10.7 32.2l-15.2 7.6c-27.5 13.7-59.9 13.5-87.2-.7L12.9 333.3C1.2 327.2-3.4 312.7 2.7 300.9zM103 49.6l18 8.7 8.7-17.4c4-7.9 13.6-11.1 21.5-7.2s11.1 13.6 7.2 21.5l-8.5 17 84.8 41 .4-.2 76.1-33.8c31.3-13.9 67.9-.7 83.2 29.9l28.9 57.8 68.7 27.5c16.4 6.6 24.4 25.2 17.8 41.6s-25.2 24.4-41.6 17.8L393.8 224c-10.9-4.4-19.8-12.6-25.1-23.1l-11.5-23.1c-16.4 9.4-25.9 14.8-28.5 16.3l-7.6-3.7-185.6-89.6-9.2 18.3c-4 7.9-13.6 11.1-21.5 7.2s-11.1-13.6-7.2-21.5l9-17.9-17.6-8.5C81.1 74.6 77.8 65 81.6 57S95 45.7 103 49.6z" />
+                            </svg>
+                        {% endfor %}
+                        {% if queue.ambassadors.truncated %}
+                            {% comment %}Grid full — more beyond it (the header holds the exact count).{% endcomment %}
+                            <svg class="h-6 w-6 text-meta" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <circle cx="5" cy="20" r="2" />
+                                <circle cx="12" cy="20" r="2" />
+                                <circle cx="19" cy="20" r="2" />
+                            </svg>
+                        {% endif %}
+                    </div>
+                {% elif queue.instant_match_role == "ambassador" %}
+                    {% comment %}Empty side, queue opposite → next arrival matched at once (footnote is the subheader).{% endcomment %}
+                    <p class="text-sm font-medium text-body">{% translate "Instant match*" %}</p>
+                {% else %}
+                    <div class="flex justify-center" role="img" aria-label="{% translate 'No ambassadors waiting' %}">
+                        <svg
+                            class="h-6 w-6 text-meta opacity-50"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.6"
+                            stroke-dasharray="2.5 2.5"
+                            aria-hidden="true"
+                        >
+                            <circle cx="12" cy="8" r="3.4" />
+                            <path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" stroke-linecap="round" />
+                        </svg>
+                    </div>
+                {% endif %}
+            </div>
+
+            {% comment %}Matched zone (centre overlap) — one red + one blue person per pair.{% endcomment %}
+            <div class="venn__zone">
+                <p class="label text-meta">{% translate "Matched" %}</p>
+                <p class="mb-3 text-h2 leading-none text-ink" aria-hidden="true">{{ queue.matches.people }}</p>
+                {% if not queue.is_open %}
+                    {% comment %}Pre-open: matching cannot have produced pairs yet — show the countdown.{% endcomment %}
+                    <p class="text-sm font-medium text-body">
+                        {% if queue.days_until_open %}
+                            {% blocktranslate count n=queue.days_until_open trimmed %}
+                                Matching begins in {{ n }} day
+                            {% plural %}
+                                Matching begins in {{ n }} days
+                            {% endblocktranslate %}
+                        {% else %}
+                            {% translate "Matching begins today" %}
+                        {% endif %}
+                    </p>
+                {% elif queue.matches.count %}
+                    {% blocktranslate count n=queue.matches.people asvar match_label trimmed %}
+                        {{ n }} person matched
+                    {% plural %}
+                        {{ n }} people matched
+                    {% endblocktranslate %}
+                    <div
+                        class="mx-auto flex w-fit max-w-40 flex-wrap justify-start gap-3"
+                        role="img"
+                        aria-label="{{ match_label }}"
+                    >
+                        {% for _ in queue.matches.glyphs %}
+                            {% comment %}Matched pair — two people with swap arrows (Font Awesome, CC BY 4.0).{% endcomment %}
+                            <svg class="h-7 w-7 text-ink" viewBox="0 0 640 640" fill="currentColor" aria-hidden="true">
+                                <path d="M96 128C96 92.7 124.7 64 160 64C195.3 64 224 92.7 224 128C224 163.3 195.3 192 160 192C124.7 192 96 163.3 96 128zM64 288C64 252.7 92.7 224 128 224L192 224C195.2 224 198.4 224.2 201.5 224.7L157.1 269.1C129 297.2 129 342.8 157.1 370.9L213.1 426.9C216.5 430.3 220.1 433.3 224 435.9L224 528C224 554.5 202.5 576 176 576L144 576C117.5 576 96 554.5 96 528L96 407.4C76.9 396.4 64 375.7 64 352L64 288zM416 128C416 92.7 444.7 64 480 64C515.3 64 544 92.7 544 128C544 163.3 515.3 192 480 192C444.7 192 416 163.3 416 128zM482.9 269.1L438.5 224.7C441.6 224.2 444.8 224 448 224L512 224C547.3 224 576 252.7 576 288L576 352C576 375.7 563.1 396.4 544 407.4L544 528C544 554.5 522.5 576 496 576L464 576C437.5 576 416 554.5 416 528L416 435.9C419.9 433.3 423.5 430.3 426.9 426.9L482.9 370.9C511 342.8 511 297.2 482.9 269.1zM366.8 241.8C375.8 238.1 386.1 240.1 393 247L449 303C458.4 312.4 458.4 327.6 449 336.9L393 392.9C386.1 399.8 375.8 401.8 366.8 398.1C357.8 394.4 352 385.7 352 376L352 352L288 352L288 376C288 385.7 282.2 394.5 273.2 398.2C264.2 401.9 253.9 399.9 247 393L191 337C181.6 327.6 181.6 312.4 191 303.1L247 247.1C253.9 240.2 264.2 238.2 273.2 241.9C282.2 245.6 288 254.3 288 264L288 288L352 288L352 264C352 254.3 357.8 245.5 366.8 241.8z" />
+                            </svg>
+                        {% endfor %}
+                        {% if queue.matches.truncated %}
+                            {% comment %}Grid full — more beyond it (the header holds the exact count).{% endcomment %}
+                            <svg class="h-7 w-7 text-meta" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <circle cx="5" cy="20" r="2" />
+                                <circle cx="12" cy="20" r="2" />
+                                <circle cx="19" cy="20" r="2" />
+                            </svg>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="flex justify-center" role="img" aria-label="{% translate 'No matches yet' %}">
+                        <span class="inline-flex items-center text-meta opacity-50">
+                            <svg
+                                class="h-6 w-6"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.6"
+                                stroke-dasharray="2.5 2.5"
+                                aria-hidden="true"
+                            >
+                                <circle cx="12" cy="8" r="3.4" />
+                                <path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" stroke-linecap="round" />
+                            </svg>
+                            <svg
+                                class="-ml-1.5 h-6 w-6"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.6"
+                                stroke-dasharray="2.5 2.5"
+                                aria-hidden="true"
+                            >
+                                <circle cx="12" cy="8" r="3.4" />
+                                <path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" stroke-linecap="round" />
+                            </svg>
+                        </span>
+                    </div>
+                {% endif %}
+            </div>
+
+            {% comment %}Referees-only zone (right) — blue people waiting.{% endcomment %}
+            <div class="venn__zone">
+                <p class="label text-secondary">{% translate "Referees" %}</p>
+                <p class="mb-3 text-h2 leading-none text-ink" aria-hidden="true">{{ queue.referees.count }}</p>
+                {% if queue.referees.count %}
+                    {% blocktranslate count c=queue.referees.count asvar ref_label trimmed %}
+                        {{ c }} referee waiting
+                    {% plural %}
+                        {{ c }} referees waiting
+                    {% endblocktranslate %}
+                    <div
+                        class="mx-auto flex w-fit max-w-40 flex-wrap justify-start gap-2"
+                        role="img"
+                        aria-label="{{ ref_label }}"
+                    >
+                        {% for _ in queue.referees.glyphs %}
+                            {% comment %}Waiting person (Font Awesome, CC BY 4.0).{% endcomment %}
+                            <svg
+                                class="h-6 w-6 text-secondary"
+                                viewBox="0 0 576 512"
+                                fill="currentColor"
+                                aria-hidden="true"
+                            >
+                                <path d="M416 56a56 56 0 1 1 112 0 56 56 0 1 1 -112 0zM2.7 300.9c6.1-11.8 20.6-16.3 32.4-10.2l197.8 102.7 62.3-87.2-82-92.2c-11-12.4-16.2-27.5-16.2-42.4l111.6 53.4 42.9 48.2c14.9 16.7 16.2 41.6 3.2 59.8l-64.4 90.2 128.3 66.6c13.6 7.1 29.8 7.2 43.6 .3l15.2-7.6c11.9-5.9 26.3-1.1 32.2 10.7s1.1 26.3-10.7 32.2l-15.2 7.6c-27.5 13.7-59.9 13.5-87.2-.7L12.9 333.3C1.2 327.2-3.4 312.7 2.7 300.9zM103 49.6l18 8.7 8.7-17.4c4-7.9 13.6-11.1 21.5-7.2s11.1 13.6 7.2 21.5l-8.5 17 84.8 41 .4-.2 76.1-33.8c31.3-13.9 67.9-.7 83.2 29.9l28.9 57.8 68.7 27.5c16.4 6.6 24.4 25.2 17.8 41.6s-25.2 24.4-41.6 17.8L393.8 224c-10.9-4.4-19.8-12.6-25.1-23.1l-11.5-23.1c-16.4 9.4-25.9 14.8-28.5 16.3l-7.6-3.7-185.6-89.6-9.2 18.3c-4 7.9-13.6 11.1-21.5 7.2s-11.1-13.6-7.2-21.5l9-17.9-17.6-8.5C81.1 74.6 77.8 65 81.6 57S95 45.7 103 49.6z" />
+                            </svg>
+                        {% endfor %}
+                        {% if queue.referees.truncated %}
+                            {% comment %}Grid full — more beyond it (the header holds the exact count).{% endcomment %}
+                            <svg class="h-6 w-6 text-meta" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <circle cx="5" cy="20" r="2" />
+                                <circle cx="12" cy="20" r="2" />
+                                <circle cx="19" cy="20" r="2" />
+                            </svg>
+                        {% endif %}
+                    </div>
+                {% elif queue.instant_match_role == "referee" %}
+                    {% comment %}Empty side, queue opposite → next arrival matched at once (footnote is the subheader).{% endcomment %}
+                    <p class="text-sm font-medium text-body">{% translate "Instant match*" %}</p>
+                {% else %}
+                    <div class="flex justify-center" role="img" aria-label="{% translate 'No referees waiting' %}">
+                        <svg
+                            class="h-6 w-6 text-meta opacity-50"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.6"
+                            stroke-dasharray="2.5 2.5"
+                            aria-hidden="true"
+                        >
+                            <circle cx="12" cy="8" r="3.4" />
+                            <path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" stroke-linecap="round" />
+                        </svg>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>

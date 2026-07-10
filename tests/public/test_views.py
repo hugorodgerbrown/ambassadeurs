@@ -3755,4 +3755,66 @@ def test_stripe_webhook_without_purpose_still_drives_deposit_path(
     assert Payment.objects.count() == 1
     payment = Payment.objects.get()
     assert payment.stripe_payment_intent_id == "pi_dep_wh"
+
+
+# ---------------------------------------------------------------------------
+# Standalone live queue visualisation page — unmounted (VERB-145)
+# ---------------------------------------------------------------------------
+
+
+def test_queue_snapshot_page_renders_labels_and_counts() -> None:
+    """The standalone queue page renders both columns with the right counts.
+
+    Asserts English source strings only — the tox/CI test env compiles no
+    message catalogues, so translated (French) strings never appear.
+    """
+    # One extra waiting ambassador on top of the matched pair.
+    RegistrationFactory.create(status=Registration.Status.VERIFIED)
+    MatchFactory.create()  # PROPOSED — one matched ambassador + one matched referee
+
+    response = Client().get(reverse("public:queue_snapshot"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Ambassadors" in content
+    assert "Referees" in content
+    assert "Matched" in content
+    # Accessible labels on the three pictographs (no visible numeric legend).
+    assert "1 ambassador waiting" in content
+    # The matched zone reports matched *people* (2 x the single match), not matches.
+    assert "2 people matched" in content
+    # The referee side is empty while matching is open and ambassadors are
+    # queued — so it shows the instant-match message (the common live case).
+    assert "Instant match" in content
+    assert "Next referee will be matched immediately on registration" in content
+
+    queue = response.context["queue"]
+    assert queue["ambassadors"] == {"count": 1, "glyphs": [0], "truncated": False}
+    assert queue["referees"] == {"count": 0, "glyphs": [], "truncated": False}
+    assert queue["matches"] == {
+        "count": 1,
+        "people": 2,
+        "glyphs": [0],
+        "truncated": False,
+    }
     assert Tip.objects.count() == 0
+
+
+@override_settings(MATCHING_OPENS_AT="2099-10-01T00:00:00+00:00")
+def test_queue_snapshot_page_shows_open_date_before_matching_opens() -> None:
+    """Before matching opens, the page shows the date subheader and a countdown.
+
+    The matched centre zone cannot hold pairs yet (the open-date gate blocks
+    proposals), so it renders the "Matching begins in … days" countdown instead.
+    """
+    response = Client().get(reverse("public:queue_snapshot"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert response.context["queue"]["is_open"] is False
+    assert "Matching begins on 1st October 2099." in content
+    assert "Matching begins in" in content
+    # Pre-open, an empty side falls back to the plain empty-state label — it must
+    # not claim an instant match (matching has not begun).
+    assert "No ambassadors waiting" in content
+    assert "Instant match" not in content

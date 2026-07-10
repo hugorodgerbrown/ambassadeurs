@@ -3,13 +3,27 @@
 from datetime import UTC, datetime
 
 import pytest
+from django.test import override_settings
 
 from matching.models import Match, Registration
-from matching.selectors import match_status_context, status_pill_for
+from matching.selectors import (
+    _QUEUE_MAX_ICONS,
+    _QUEUE_MAX_PAIRS,
+    _capped,
+    build_queue_context,
+    instant_match_role,
+    match_status_context,
+    queue_snapshot_context,
+    status_pill_for,
+)
 from tests.accounts.factories import UserFactory
 from tests.matching.factories import MatchFactory, RegistrationFactory
 
 pytestmark = pytest.mark.django_db
+
+# A fixed "now" well after the default test MATCHING_OPENS_AT (2020-01-01), so
+# matching reads as open unless a test overrides the setting.
+_NOW = datetime(2026, 7, 10, 12, 0, tzinfo=UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -153,3 +167,150 @@ def test_match_status_context_lapsed_proposed_match_returns_none() -> None:
     # still excludes a lapsed-but-unswept match (Invariant 3) — unlike
     # match_state, which uses active_at() and treats it as inactive.
     assert context["queue_position"] is None
+
+
+# ---------------------------------------------------------------------------
+# queue_snapshot_context (VERB-145)
+# ---------------------------------------------------------------------------
+
+
+def test_queue_snapshot_context_has_three_columns() -> None:
+    """queue_snapshot_context returns the three columns plus the open-date keys."""
+    context = queue_snapshot_context(_NOW)
+
+    assert {"ambassadors", "matches", "referees", "instant_match_role"} <= set(context)
+    assert set(context["ambassadors"]) == {"count", "glyphs", "truncated"}
+    assert set(context["matches"]) == {"count", "people", "glyphs", "truncated"}
+
+
+@pytest.mark.parametrize(
+    ("is_open", "ambassadors", "referees", "expected"),
+    [
+        (True, 5, 0, "referee"),  # referees empty, ambassadors queue → referee instant
+        (True, 0, 5, "ambassador"),  # ambassadors empty, referees queue → ambassador
+        (True, 5, 5, ""),  # both queued → nobody instant
+        (True, 0, 0, ""),  # empty pool → nobody instant
+        (False, 5, 0, ""),  # matching not open → nobody instant
+    ],
+)
+def test_instant_match_role(
+    is_open: bool, ambassadors: int, referees: int, expected: str
+) -> None:
+    """instant_match_role names the empty side only when open with a queue opposite."""
+    assert instant_match_role(is_open, ambassadors, referees) == expected
+
+
+def test_queue_snapshot_context_reflects_pool_counts() -> None:
+    """queue_snapshot_context splits the pool into waiting sides + matched pairs.
+
+    Two matched pairs (each an ambassador + referee) plus one extra waiting
+    ambassador and two extra waiting referees. The matched column reports
+    ``people`` (2 x the two matches = 4), not the number of matches.
+    """
+    RegistrationFactory.create(status=Registration.Status.VERIFIED)  # waiting amb.
+    RegistrationFactory.create(referee=True, status=Registration.Status.VERIFIED)
+    RegistrationFactory.create(referee=True, status=Registration.Status.VERIFIED)
+    MatchFactory.create()  # PROPOSED — one matched ambassador + one matched referee
+    MatchFactory.create(pending=True)  # PENDING — another matched pair
+
+    context = queue_snapshot_context(_NOW)
+
+    assert context["ambassadors"] == {"count": 1, "glyphs": [0], "truncated": False}
+    assert context["referees"] == {"count": 2, "glyphs": [0, 1], "truncated": False}
+    assert context["matches"] == {
+        "count": 2,
+        "people": 4,
+        "glyphs": [0, 1],
+        "truncated": False,
+    }
+
+
+def test_queue_snapshot_context_empty_pool() -> None:
+    """An empty pool yields zero counts, no glyphs, and no truncation anywhere."""
+    context = queue_snapshot_context(_NOW)
+
+    for column in (context["ambassadors"], context["referees"], context["matches"]):
+        assert column["count"] == 0
+        assert column["glyphs"] == []
+        assert column["truncated"] is False
+    assert context["matches"]["people"] == 0
+
+
+@override_settings(MATCHING_OPENS_AT="2020-01-01T00:00:00+00:00")
+def test_queue_snapshot_context_open_has_no_countdown() -> None:
+    """Past the open date, matching reads as open and the countdown is zero."""
+    context = queue_snapshot_context(_NOW)
+
+    assert context["is_open"] is True
+    assert context["days_until_open"] == 0
+
+
+@override_settings(MATCHING_OPENS_AT="2026-10-01T00:00:00+00:00")
+def test_queue_snapshot_context_not_open_counts_down() -> None:
+    """Before the open date, matching is closed and the day countdown is exposed."""
+    context = queue_snapshot_context(_NOW)
+
+    assert context["is_open"] is False
+    # 2026-07-10 → 2026-10-01 is 83 calendar days.
+    assert context["days_until_open"] == 83
+
+
+@pytest.mark.parametrize(
+    ("count", "cap", "expected_glyphs", "expected_truncated"),
+    [
+        (0, 5, 0, False),
+        (3, 5, 3, False),
+        (5, 5, 5, False),  # exactly at the cap — every item drawn, no ellipsis
+        (6, 5, 4, True),  # over by one — (cap-1) glyphs + an ellipsis
+        (200, 5, 4, True),
+    ],
+)
+def test_capped(
+    count: int, cap: int, expected_glyphs: int, expected_truncated: bool
+) -> None:
+    """_capped draws every item up to the cap, then (cap-1) glyphs + an ellipsis."""
+    glyphs, truncated = _capped(count, cap)
+
+    assert glyphs == list(range(expected_glyphs))
+    assert truncated is expected_truncated
+
+
+def test_build_queue_context_truncates_large_columns() -> None:
+    """A pool past the caps draws (cap-1) glyphs plus an ellipsis; count stays exact."""
+    context = build_queue_context(
+        ambassadors_waiting=200,
+        referees_waiting=0,
+        matches=50,
+        is_open=True,
+        opens_at=_NOW,
+        days_until_open=0,
+    )
+
+    ambassadors = context["ambassadors"]
+    assert ambassadors["count"] == 200
+    assert len(ambassadors["glyphs"]) == _QUEUE_MAX_ICONS - 1
+    assert ambassadors["truncated"] is True
+
+    matches = context["matches"]
+    assert matches["count"] == 50
+    assert matches["people"] == 100
+    assert len(matches["glyphs"]) == _QUEUE_MAX_PAIRS - 1
+    assert matches["truncated"] is True
+
+
+def test_queue_snapshot_context_caps_are_wired() -> None:
+    """The waiting and match columns use their respective glyph caps.
+
+    Drives ``_capped`` at the two module caps directly (creating hundreds of rows
+    would be slow and add nothing) to confirm the wiring: waiting columns cap at
+    ``_QUEUE_MAX_ICONS``, the matches column at ``_QUEUE_MAX_PAIRS``.
+    """
+    # count = cap + 5 → (cap - 1) glyphs + a trailing ellipsis.
+    assert _capped(_QUEUE_MAX_ICONS + 5, _QUEUE_MAX_ICONS) == (
+        list(range(_QUEUE_MAX_ICONS - 1)),
+        True,
+    )
+    assert _capped(_QUEUE_MAX_PAIRS + 5, _QUEUE_MAX_PAIRS) == (
+        list(range(_QUEUE_MAX_PAIRS - 1)),
+        True,
+    )

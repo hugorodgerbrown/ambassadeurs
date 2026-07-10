@@ -60,7 +60,7 @@ polling — no polling in this ticket.
                         {{ c }} ambassadors waiting
                     {% endblocktranslate %}
                     <div
-                        class="mx-auto flex max-w-36 flex-wrap justify-center gap-1.5"
+                        class="mx-auto flex max-w-40 flex-wrap justify-center gap-2"
                         role="img"
                         aria-label="{{ amb_label }}"
                     >
@@ -78,9 +78,9 @@ polling — no polling in this ticket.
                         {% if queue.ambassadors.truncated %}
                             {% comment %}Grid full — more beyond it (the header holds the exact count).{% endcomment %}
                             <svg class="h-6 w-6 text-meta" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                <circle cx="5" cy="12" r="2" />
-                                <circle cx="12" cy="12" r="2" />
-                                <circle cx="19" cy="12" r="2" />
+                                <circle cx="5" cy="20" r="2" />
+                                <circle cx="12" cy="20" r="2" />
+                                <circle cx="19" cy="20" r="2" />
                             </svg>
                         {% endif %}
                     </div>
@@ -129,7 +129,7 @@ polling — no polling in this ticket.
                         {{ n }} people matched
                     {% endblocktranslate %}
                     <div
-                        class="mx-auto flex max-w-36 flex-wrap justify-center gap-2.5"
+                        class="mx-auto flex max-w-40 flex-wrap justify-center gap-3"
                         role="img"
                         aria-label="{{ match_label }}"
                     >
@@ -142,9 +142,9 @@ polling — no polling in this ticket.
                         {% if queue.matches.truncated %}
                             {% comment %}Grid full — more beyond it (the header holds the exact count).{% endcomment %}
                             <svg class="h-7 w-7 text-meta" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                <circle cx="5" cy="12" r="2" />
-                                <circle cx="12" cy="12" r="2" />
-                                <circle cx="19" cy="12" r="2" />
+                                <circle cx="5" cy="20" r="2" />
+                                <circle cx="12" cy="20" r="2" />
+                                <circle cx="19" cy="20" r="2" />
                             </svg>
                         {% endif %}
                     </div>
@@ -191,7 +191,7 @@ polling — no polling in this ticket.
                         {{ c }} referees waiting
                     {% endblocktranslate %}
                     <div
-                        class="mx-auto flex max-w-36 flex-wrap justify-center gap-1.5"
+                        class="mx-auto flex max-w-40 flex-wrap justify-center gap-2"
                         role="img"
                         aria-label="{{ ref_label }}"
                     >
@@ -209,9 +209,9 @@ polling — no polling in this ticket.
                         {% if queue.referees.truncated %}
                             {% comment %}Grid full — more beyond it (the header holds the exact count).{% endcomment %}
                             <svg class="h-6 w-6 text-meta" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                <circle cx="5" cy="12" r="2" />
-                                <circle cx="12" cy="12" r="2" />
-                                <circle cx="19" cy="12" r="2" />
+                                <circle cx="5" cy="20" r="2" />
+                                <circle cx="12" cy="20" r="2" />
+                                <circle cx="19" cy="20" r="2" />
                             </svg>
                         {% endif %}
                     </div>

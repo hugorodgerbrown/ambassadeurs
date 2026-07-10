@@ -218,8 +218,11 @@ def match_status_context(user: User) -> MatchStatusContext:
 # slot becomes a muted ellipsis glyph ("and more") while the header keeps the
 # exact count. No number is shown in the grid — the header is the only figure, so
 # there is no drawn-vs-total arithmetic to puzzle over.
+# Waiting columns fill a 5-across × 4-row grid (20 slots). The wider pair glyph
+# fits 4 across, so the matched column caps at 16 (4 × 4) to stand the same
+# 4 rows tall as the side columns.
 _QUEUE_MAX_ICONS = 20
-_QUEUE_MAX_PAIRS = 20
+_QUEUE_MAX_PAIRS = 16
 
 
 class QueueColumn(TypedDict):

@@ -20,6 +20,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TypedDict
 
 from django.contrib.auth.models import User
@@ -28,6 +29,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from .models import Match, Registration
+from .pricing_config import matching_opens_at
 from .services import queue_position, queue_snapshot
 
 
@@ -231,8 +233,6 @@ class QueueColumn(TypedDict):
     glyphs are a sample.
     """
 
-    role_label: str
-    is_referee: bool
     count: int
     glyphs: list[int]
     scaled: bool
@@ -241,14 +241,16 @@ class QueueColumn(TypedDict):
 class QueueMatches(TypedDict):
     """The central matched-pairs column in the queue visualisation (VERB-145).
 
-    Each match is one ambassador paired with one referee, so ``count`` is the
-    number of active matches (== matched ambassadors == matched referees).
-    ``glyphs`` is a list the template iterates to draw one pair icon each (length
-    capped at ``_QUEUE_MAX_PAIRS``); ``scaled`` is True when ``count`` exceeds
-    the cap.
+    Each match is one ambassador paired with one referee. ``count`` is the number
+    of active matches (== matched ambassadors == matched referees) and drives the
+    pair glyphs; ``people`` is ``2 * count`` — the headline figure, since the
+    zone reports matched *people*, not matches. ``glyphs`` is a list the template
+    iterates to draw one pair icon each (length capped at ``_QUEUE_MAX_PAIRS``);
+    ``scaled`` is True when ``count`` exceeds the cap.
     """
 
     count: int
+    people: int
     glyphs: list[int]
     scaled: bool
 
@@ -257,12 +259,18 @@ class QueueSnapshotContext(TypedDict):
     """The full render context for ``templates/includes/_queue_snapshot.html``.
 
     Three columns, left to right: ambassadors waiting, matched pairs, referees
-    waiting.
+    waiting. The ``is_open`` / ``opens_at`` / ``days_until_open`` keys describe
+    whether matching has begun (VERB-83 open-date gate): before the open date the
+    template shows a "matching begins on …" subheader and a countdown in place of
+    the (necessarily empty) matched column.
     """
 
     ambassadors: QueueColumn
     matches: QueueMatches
     referees: QueueColumn
+    is_open: bool
+    opens_at: datetime
+    days_until_open: int
 
 
 def _capped(count: int, cap: int) -> tuple[list[int], bool]:
@@ -284,29 +292,20 @@ def _capped(count: int, cap: int) -> tuple[list[int], bool]:
     return (list(range(min(count, cap))), count > cap)
 
 
-def _waiting_column(role_label: str, is_referee: bool, count: int) -> QueueColumn:
+def _waiting_column(count: int) -> QueueColumn:
     """Shape one role's waiting count into a ``QueueColumn``.
 
     Args:
-        role_label: The translated role name (``Registration.Role.<X>.label``).
-        is_referee: True for the referee column (drives the template's blue
-            ``role-card--referee`` theming); False for the ambassador column.
         count: The exact number of waiting (unmatched) registrations.
 
     Returns:
         The fully-shaped waiting column.
     """
     glyphs, scaled = _capped(count, _QUEUE_MAX_ICONS)
-    return {
-        "role_label": role_label,
-        "is_referee": is_referee,
-        "count": count,
-        "glyphs": glyphs,
-        "scaled": scaled,
-    }
+    return {"count": count, "glyphs": glyphs, "scaled": scaled}
 
 
-def queue_snapshot_context() -> QueueSnapshotContext:
+def queue_snapshot_context(now: datetime) -> QueueSnapshotContext:
     """Build the render context for the standalone queue visualisation.
 
     Calls ``matching.services.queue_snapshot`` and shapes it into three columns:
@@ -315,26 +314,42 @@ def queue_snapshot_context() -> QueueSnapshotContext:
     represented once each as a pair in the centre column. The match count is the
     matched-ambassador count, which equals the matched-referee count and the
     active-match count (an active match always has exactly one VERIFIED
-    ambassador and one VERIFIED referee). The person / pair glyphs live in the
-    template.
+    ambassador and one VERIFIED referee); the matched column reports ``people``
+    (``2 * matches``), not the number of matches.
+
+    ``now`` is passed in (inversion of control, VERB-100) rather than read via
+    ``timezone.now()`` so the open-date countdown is a pure function of its
+    arguments and deterministic in tests. Matching is "open" once ``now`` reaches
+    ``matching_opens_at()``; ``days_until_open`` is the whole-day countdown to
+    that date (0 once open), computed in the active timezone.
+
+    Args:
+        now: The tz-aware instant to evaluate the open-date gate against.
+
+    Returns:
+        The full render context, including the open-date keys.
     """
     snapshot = queue_snapshot()
     match_count = snapshot.ambassadors_matched
     match_glyphs, match_scaled = _capped(match_count, _QUEUE_MAX_PAIRS)
+
+    opens_at = matching_opens_at()
+    is_open = now >= opens_at
+    days_until_open = max(
+        (timezone.localtime(opens_at).date() - timezone.localtime(now).date()).days,
+        0,
+    )
+
     return {
-        "ambassadors": _waiting_column(
-            str(Registration.Role.AMBASSADOR.label),
-            is_referee=False,
-            count=snapshot.ambassadors_unmatched,
-        ),
+        "ambassadors": _waiting_column(snapshot.ambassadors_unmatched),
         "matches": {
             "count": match_count,
+            "people": match_count * 2,
             "glyphs": match_glyphs,
             "scaled": match_scaled,
         },
-        "referees": _waiting_column(
-            str(Registration.Role.REFEREE.label),
-            is_referee=True,
-            count=snapshot.referees_unmatched,
-        ),
+        "referees": _waiting_column(snapshot.referees_unmatched),
+        "is_open": is_open,
+        "opens_at": opens_at,
+        "days_until_open": days_until_open,
     }

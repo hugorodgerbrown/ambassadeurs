@@ -18,6 +18,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 
 from core.observability import capture_event, distinct_id_for
 from matching.selectors import queue_snapshot_context
@@ -99,5 +100,5 @@ def queue_snapshot_page(request: HttpRequest) -> HttpResponse:
     return render(
         request,
         "public/queue_snapshot.html",
-        {"queue": queue_snapshot_context()},
+        {"queue": queue_snapshot_context(timezone.now())},
     )

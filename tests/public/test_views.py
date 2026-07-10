@@ -3776,30 +3776,40 @@ def test_queue_snapshot_page_renders_labels_and_counts() -> None:
 
     assert response.status_code == 200
     content = response.content.decode()
-    assert "Ambassador" in content
-    assert "Referee" in content
+    assert "Ambassadors" in content
+    assert "Referees" in content
     assert "Matched" in content
     # Accessible labels on the three pictographs (no visible numeric legend).
     assert "1 ambassador waiting" in content
-    assert "1 matched pair" in content
+    # The matched zone reports matched *people* (2 x the single match), not matches.
+    assert "2 people matched" in content
     # The referee side is empty here — it renders the empty-state glyph, which
     # will be the common live case (the scarce side is matched on registration).
     assert "No referees waiting" in content
 
     queue = response.context["queue"]
-    assert queue["ambassadors"] == {
-        "role_label": "Ambassador",
-        "is_referee": False,
+    assert queue["ambassadors"] == {"count": 1, "glyphs": [0], "scaled": False}
+    assert queue["referees"] == {"count": 0, "glyphs": [], "scaled": False}
+    assert queue["matches"] == {
         "count": 1,
+        "people": 2,
         "glyphs": [0],
         "scaled": False,
     }
-    assert queue["referees"] == {
-        "role_label": "Referee",
-        "is_referee": True,
-        "count": 0,
-        "glyphs": [],
-        "scaled": False,
-    }
-    assert queue["matches"] == {"count": 1, "glyphs": [0], "scaled": False}
     assert Tip.objects.count() == 0
+
+
+@override_settings(MATCHING_OPENS_AT="2099-10-01T00:00:00+00:00")
+def test_queue_snapshot_page_shows_open_date_before_matching_opens() -> None:
+    """Before matching opens, the page shows the date subheader and a countdown.
+
+    The matched centre zone cannot hold pairs yet (the open-date gate blocks
+    proposals), so it renders the "Matching begins in … days" countdown instead.
+    """
+    response = Client().get(reverse("public:queue_snapshot"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert response.context["queue"]["is_open"] is False
+    assert "Matching begins on 1st October 2099." in content
+    assert "Matching begins in" in content

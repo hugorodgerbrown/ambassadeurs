@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 
 import pytest
+from django.test import override_settings
 
 from matching.models import Match, Registration
 from matching.selectors import (
@@ -17,6 +18,10 @@ from tests.accounts.factories import UserFactory
 from tests.matching.factories import MatchFactory, RegistrationFactory
 
 pytestmark = pytest.mark.django_db
+
+# A fixed "now" well after the default test MATCHING_OPENS_AT (2020-01-01), so
+# matching reads as open unless a test overrides the setting.
+_NOW = datetime(2026, 7, 10, 12, 0, tzinfo=UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -168,19 +173,20 @@ def test_match_status_context_lapsed_proposed_match_returns_none() -> None:
 
 
 def test_queue_snapshot_context_has_three_columns() -> None:
-    """queue_snapshot_context returns ambassadors, matches, and referees."""
-    context = queue_snapshot_context()
+    """queue_snapshot_context returns the three columns plus the open-date keys."""
+    context = queue_snapshot_context(_NOW)
 
-    assert set(context) == {"ambassadors", "matches", "referees"}
-    assert context["ambassadors"]["role_label"] == "Ambassador"
-    assert context["referees"]["role_label"] == "Referee"
+    assert {"ambassadors", "matches", "referees"} <= set(context)
+    assert set(context["ambassadors"]) == {"count", "glyphs", "scaled"}
+    assert set(context["matches"]) == {"count", "people", "glyphs", "scaled"}
 
 
 def test_queue_snapshot_context_reflects_pool_counts() -> None:
     """queue_snapshot_context splits the pool into waiting sides + matched pairs.
 
     Two matched pairs (each an ambassador + referee) plus one extra waiting
-    ambassador and two extra waiting referees.
+    ambassador and two extra waiting referees. The matched column reports
+    ``people`` (2 x the two matches = 4), not the number of matches.
     """
     RegistrationFactory.create(status=Registration.Status.VERIFIED)  # waiting amb.
     RegistrationFactory.create(referee=True, status=Registration.Status.VERIFIED)
@@ -188,33 +194,46 @@ def test_queue_snapshot_context_reflects_pool_counts() -> None:
     MatchFactory.create()  # PROPOSED — one matched ambassador + one matched referee
     MatchFactory.create(pending=True)  # PENDING — another matched pair
 
-    context = queue_snapshot_context()
+    context = queue_snapshot_context(_NOW)
 
-    assert context["ambassadors"] == {
-        "role_label": "Ambassador",
-        "is_referee": False,
-        "count": 1,
-        "glyphs": [0],
-        "scaled": False,
-    }
-    assert context["referees"] == {
-        "role_label": "Referee",
-        "is_referee": True,
+    assert context["ambassadors"] == {"count": 1, "glyphs": [0], "scaled": False}
+    assert context["referees"] == {"count": 2, "glyphs": [0, 1], "scaled": False}
+    assert context["matches"] == {
         "count": 2,
+        "people": 4,
         "glyphs": [0, 1],
         "scaled": False,
     }
-    assert context["matches"] == {"count": 2, "glyphs": [0, 1], "scaled": False}
 
 
 def test_queue_snapshot_context_empty_pool() -> None:
     """An empty pool yields zero counts, no glyphs, and no scaling anywhere."""
-    context = queue_snapshot_context()
+    context = queue_snapshot_context(_NOW)
 
     for column in (context["ambassadors"], context["referees"], context["matches"]):
         assert column["count"] == 0
         assert column["glyphs"] == []
         assert column["scaled"] is False
+    assert context["matches"]["people"] == 0
+
+
+@override_settings(MATCHING_OPENS_AT="2020-01-01T00:00:00+00:00")
+def test_queue_snapshot_context_open_has_no_countdown() -> None:
+    """Past the open date, matching reads as open and the countdown is zero."""
+    context = queue_snapshot_context(_NOW)
+
+    assert context["is_open"] is True
+    assert context["days_until_open"] == 0
+
+
+@override_settings(MATCHING_OPENS_AT="2026-10-01T00:00:00+00:00")
+def test_queue_snapshot_context_not_open_counts_down() -> None:
+    """Before the open date, matching is closed and the day countdown is exposed."""
+    context = queue_snapshot_context(_NOW)
+
+    assert context["is_open"] is False
+    # 2026-07-10 → 2026-10-01 is 83 calendar days.
+    assert context["days_until_open"] == 83
 
 
 @pytest.mark.parametrize(

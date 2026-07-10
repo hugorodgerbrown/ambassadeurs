@@ -20,7 +20,16 @@ The "id" is kept on the outer card so a future hx-get can target it for
 polling — no polling in this ticket.
 {% endcomment %}
 <div class="card" id="queue-snapshot">
-    <h2 class="mb-6 text-h3 text-ink">{% translate "Who's in the queue" %}</h2>
+    <div class="mb-6">
+        <h2 class="text-h3 text-ink">{% translate "Who's in the queue" %}</h2>
+        {% if not queue.is_open %}
+            <p class="mt-1 text-body">
+                {% blocktranslate with d=queue.opens_at|date:"jS F Y" trimmed %}
+                    Matching begins on {{ d }}.
+                {% endblocktranslate %}
+            </p>
+        {% endif %}
+    </div>
     <div class="venn">
         {% comment %}The two set rectangles sit behind the content; the middle third is their overlap.{% endcomment %}
         <div class="venn__set venn__set--amb" aria-hidden="true"></div>
@@ -29,7 +38,7 @@ polling — no polling in this ticket.
         <div class="venn__content">
             {% comment %}Ambassadors-only zone (left) — red people waiting.{% endcomment %}
             <div class="venn__zone">
-                <p class="label text-accent">{{ queue.ambassadors.role_label }}</p>
+                <p class="label text-accent">{% translate "Ambassadors" %}</p>
                 <p class="mb-3 text-h2 leading-none text-ink" aria-hidden="true">{{ queue.ambassadors.count }}</p>
                 {% if queue.ambassadors.count %}
                     {% blocktranslate count c=queue.ambassadors.count asvar amb_label trimmed %}
@@ -68,12 +77,25 @@ polling — no polling in this ticket.
             {% comment %}Matched zone (centre overlap) — one red + one blue person per pair.{% endcomment %}
             <div class="venn__zone">
                 <p class="label text-meta">{% translate "Matched" %}</p>
-                <p class="mb-3 text-h2 leading-none text-ink" aria-hidden="true">{{ queue.matches.count }}</p>
-                {% if queue.matches.count %}
-                    {% blocktranslate count c=queue.matches.count asvar match_label trimmed %}
-                        {{ c }} matched pair
+                <p class="mb-3 text-h2 leading-none text-ink" aria-hidden="true">{{ queue.matches.people }}</p>
+                {% if not queue.is_open %}
+                    {% comment %}Pre-open: matching cannot have produced pairs yet — show the countdown.{% endcomment %}
+                    <p class="text-sm font-medium text-body">
+                        {% if queue.days_until_open %}
+                            {% blocktranslate count n=queue.days_until_open trimmed %}
+                                Matching begins in {{ n }} day
+                            {% plural %}
+                                Matching begins in {{ n }} days
+                            {% endblocktranslate %}
+                        {% else %}
+                            {% translate "Matching begins today" %}
+                        {% endif %}
+                    </p>
+                {% elif queue.matches.count %}
+                    {% blocktranslate count n=queue.matches.people asvar match_label trimmed %}
+                        {{ n }} person matched
                     {% plural %}
-                        {{ c }} matched pairs
+                        {{ n }} people matched
                     {% endblocktranslate %}
                     <div class="flex flex-wrap justify-center gap-2.5" role="img" aria-label="{{ match_label }}">
                         {% for _ in queue.matches.glyphs %}
@@ -134,7 +156,7 @@ polling — no polling in this ticket.
 
             {% comment %}Referees-only zone (right) — blue people waiting.{% endcomment %}
             <div class="venn__zone">
-                <p class="label text-secondary">{{ queue.referees.role_label }}</p>
+                <p class="label text-secondary">{% translate "Referees" %}</p>
                 <p class="mb-3 text-h2 leading-none text-ink" aria-hidden="true">{{ queue.referees.count }}</p>
                 {% if queue.referees.count %}
                     {% blocktranslate count c=queue.referees.count asvar ref_label trimmed %}

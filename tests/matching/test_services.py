@@ -779,6 +779,108 @@ def test_register_participant_does_not_fire_event_on_rollback() -> None:
     mock_capture.assert_not_called()
 
 
+def test_register_participant_merges_marketing_properties_into_event() -> None:
+    """A supplied marketing_properties dict is merged into the event payload
+    (VERB-147, ADR 0023) alongside role/prior_pass/status.
+    """
+    with (
+        patch("matching.services.capture_event") as mock_capture,
+        TestCase.captureOnCommitCallbacks(execute=True),
+    ):
+        registration = register_participant(
+            role=Registration.Role.AMBASSADOR,
+            first_name="Ada",
+            last_name="Lovelace",
+            email="ada-marketing@example.com",
+            prior_pass=Registration.PriorPass.SEASONAL,
+            accepted_terms=_AMBASSADOR_STATEMENTS,
+            marketing_properties={
+                "source": "facebook",
+                "utm_source": "facebook",
+                "utm_medium": "social",
+            },
+        )
+
+    mock_capture.assert_called_once_with(
+        str(registration.user.pk),
+        "registration",
+        {
+            "role": Registration.Role.AMBASSADOR,
+            "prior_pass": Registration.PriorPass.SEASONAL,
+            "status": Registration.Status.VERIFIED,
+            "source": "facebook",
+            "utm_source": "facebook",
+            "utm_medium": "social",
+        },
+    )
+
+
+def test_register_participant_without_marketing_properties_event_unchanged() -> None:
+    """With no marketing_properties argument, the event carries only the
+    original role/prior_pass/status keys (default behaviour preserved).
+    """
+    with (
+        patch("matching.services.capture_event") as mock_capture,
+        TestCase.captureOnCommitCallbacks(execute=True),
+    ):
+        registration = register_participant(
+            role=Registration.Role.AMBASSADOR,
+            first_name="Ada",
+            last_name="Lovelace",
+            email="ada-no-marketing@example.com",
+            prior_pass=Registration.PriorPass.SEASONAL,
+            accepted_terms=_AMBASSADOR_STATEMENTS,
+        )
+
+    _, _, properties = mock_capture.call_args[0]
+    assert set(properties) == {"role", "prior_pass", "status"}
+    assert registration.user.pk is not None
+
+
+def test_register_participant_merges_marketing_properties_verbatim() -> None:
+    """register_participant merges marketing_properties into the event as-is.
+
+    It does no filtering of its own — it trusts the caller to have already
+    derived a click-ID-free payload (that guarantee lives in
+    core.marketing.marketing_event_properties, tested separately). This test
+    pins the transparent-merge contract: whatever keys the caller supplies,
+    including a raw click ID, pass straight through. So the no-raw-click-ID
+    guarantee MUST be enforced upstream, never here.
+    """
+    with (
+        patch("matching.services.capture_event") as mock_capture,
+        TestCase.captureOnCommitCallbacks(execute=True),
+    ):
+        register_participant(
+            role=Registration.Role.AMBASSADOR,
+            first_name="Ada",
+            last_name="Lovelace",
+            email="ada-marketing@example.com",
+            prior_pass=Registration.PriorPass.SEASONAL,
+            accepted_terms=_AMBASSADOR_STATEMENTS,
+            marketing_properties={
+                "source": "facebook",
+                "utm_medium": "social",
+                # A raw click ID a careless caller might smuggle in: it passes
+                # straight through, proving the filtering is not done here.
+                "fbclid": "raw-click-id",
+            },
+        )
+
+    _, _, properties = mock_capture.call_args[0]
+    assert properties["source"] == "facebook"
+    assert properties["utm_medium"] == "social"
+    assert properties["fbclid"] == "raw-click-id"
+    assert set(properties) == {
+        "role",
+        "prior_pass",
+        "status",
+        "source",
+        "utm_medium",
+        "fbclid",
+    }
+
+
 def test_confirm_registration_fires_email_verified_event() -> None:
     """confirm_registration sends an 'email_verified' event with the role."""
     registration = RegistrationFactory.create(status=Registration.Status.UNVERIFIED)

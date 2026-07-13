@@ -18,6 +18,7 @@ from django.http import HttpRequest
 
 from accounts.services import send_already_registered_email, send_confirmation_email
 from core.geo import geolocate, get_client_ip
+from core.marketing import marketing_event_properties
 from core.observability import alias_identities
 from matching.forms import RegistrationForm
 from matching.models import Registration
@@ -117,6 +118,10 @@ def register_or_resend_participant(
                     status=Registration.Status.UNVERIFIED,
                     registration_country=_geo_country,
                     registration_region=_geo_region,
+                    # Marketing attribution (VERB-147): derived source/utm_*
+                    # from this session, so the registration PostHog event
+                    # breaks down by acquisition source.
+                    marketing_properties=marketing_event_properties(request.session),
                 )
                 # Stitch the anonymous visitor's pre-registration page-views
                 # onto the new user in PostHog (VERB-124). Only on this

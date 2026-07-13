@@ -23,6 +23,12 @@
 # AdminHostMiddleware confines the Django admin to its own subdomain (ADR 0022)
 # by swapping request.urlconf per host. It is registered in base.py (all
 # environments) and is a no-op unless settings.ADMIN_HOST is set.
+#
+# MarketingSourceMiddleware normalises and stashes utm_*/click-id querystring
+# params into the session (VERB-147, ADR 0023), replacing the upstream
+# django-utm-tracker UtmSessionMiddleware so click-ID-only visits (e.g. bare
+# "?fbclid=...") get a synthesised utm_source/utm_medium before the library's
+# LeadSourceMiddleware persists them. Registered in base.py (all environments).
 
 from __future__ import annotations
 
@@ -31,7 +37,10 @@ from collections.abc import Callable
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
+from utm_tracker.request import parse_qs
+from utm_tracker.session import stash_utm_params
 
+from core.marketing import normalise_source_params
 from core.observability import capture_event, capture_exception, distinct_id_for
 
 logger = logging.getLogger(__name__)
@@ -73,6 +82,31 @@ class AdminHostMiddleware:
             # django-stubs omits the dynamic urlconf attribute Django reads
             # during resolution; the assignment is valid at runtime.
             request.urlconf = urlconf  # type: ignore[attr-defined]
+        return self.get_response(request)
+
+
+class MarketingSourceMiddleware:
+    """Normalise then stash utm_*/click-id querystring params into the session.
+
+    Combines two steps into one so the session — and therefore the downstream
+    ``LeadSource`` row the library's ``LeadSourceMiddleware`` persists — always
+    carries a ``utm_source``/``utm_medium`` pair, even for a click-ID-only visit
+    (e.g. organic Facebook traffic sharing a bare ``?fbclid=...`` link, our main
+    channel). Without normalisation such a visit would carry a click ID but no
+    ``utm_source`` and the library would silently drop it (VERB-147, ADR 0023).
+
+    This middleware **replaces**
+    ``utm_tracker.middleware.UtmSessionMiddleware`` in the stack — do not
+    register both.
+    """
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        """Store the next handler in the middleware chain."""
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        """Stash the (possibly normalised) querystring params, then continue."""
+        stash_utm_params(request.session, normalise_source_params(parse_qs(request)))
         return self.get_response(request)
 
 

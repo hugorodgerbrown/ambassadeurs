@@ -5,8 +5,9 @@
 
 {% block meta %}
     {% blocktranslate trimmed asvar page_description %}
-        Cookie Policy for the Ski Parrainage partner-matching service. We use only strictly-necessary cookies
-        — no analytics, advertising, or third-party tracking.
+        Cookie Policy for the Ski Parrainage partner-matching service. We use only strictly-necessary cookies, including
+        a session cookie that may record how you found us — no third-party analytics, advertising, or cross-site
+        tracking.
     {% endblocktranslate %}
     {% blocktranslate trimmed asvar page_title %}
         Cookie Policy
@@ -19,7 +20,7 @@
 {% block content %}
     <article class="space-y-4 text-body">
         <h1 class="text-ink">{% translate "Cookie Policy" %}</h1>
-        <p class="text-sm text-meta">{% translate "Last updated" %}: 2026-06-23</p>
+        <p class="text-sm text-meta">{% translate "Last updated" %}: 2026-07-13</p>
 
         <h2 class="pt-2 text-ink">{% translate "What we use" %}</h2>
         <p>
@@ -28,12 +29,22 @@
                 protect forms against cross-site request forgery, and a cookie that remembers your chosen language.
             {% endblocktranslate %}
         </p>
+        <p>
+            {% blocktranslate trimmed %}
+                If you arrive via a link that carries tracking parameters — for example a shared Facebook post — the
+                session cookie also records which channel referred you, so we can see which channels bring genuine
+                sign-ups. This attribution is first-party only: it stays within our own systems and is never shared with
+                Facebook, Google, or any other platform.
+            {% endblocktranslate %}
+        </p>
 
         <h2 class="pt-2 text-ink">{% translate "What we don't use" %}</h2>
         <p>
             {% blocktranslate trimmed %}
-                We do not use analytics, advertising, or third-party tracking cookies, so there is no cookie consent
-                banner to manage.
+                We do not use third-party analytics, advertising, or cross-site tracking cookies, so there is still no
+                cookie consent banner to manage. The session cookie may now be set the moment you arrive — not only
+                once you sign in or submit a form — if your visit carries tracking parameters, but it is never used to
+                track you across other sites.
             {% endblocktranslate %}
         </p>
 

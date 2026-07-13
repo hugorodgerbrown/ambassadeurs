@@ -36,6 +36,7 @@ THIRD_PARTY_APPS = [
     "django_htmx",
     "django_countries",
     "side_effects",
+    "utm_tracker",
 ]
 
 LOCAL_APPS = [
@@ -64,6 +65,14 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Marketing attribution (VERB-147, ADR 0023): normalise-then-stash utm/
+    # click-id querystring params into the session, then let the library
+    # persist a durable LeadSource once the visitor is authenticated. Placed
+    # after AuthenticationMiddleware (LeadSourceMiddleware reads request.user)
+    # and before MessageMiddleware. Registered in base.py (all environments)
+    # so attribution works wherever a visitor first lands.
+    "core.middleware.MarketingSourceMiddleware",
+    "utm_tracker.middleware.LeadSourceMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
@@ -72,6 +81,13 @@ MIDDLEWARE = [
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
+
+# --- Marketing attribution (django-utm-tracker, VERB-147, ADR 0023) -------
+# Custom querystring tags stashed alongside the library's own utm_*/click-id
+# set (see utm_tracker.request.parse_qs). "utm_content" completes the
+# standard UTM quintet (the library only extracts it if listed here);
+# "gad_source" is Google Ads' own click-source tag, distinct from gclid.
+UTM_TRACKER_CUSTOM_TAGS = ["utm_content", "gad_source"]
 
 # --- Host routing ----------------------------------------------------------
 # When set (e.g. "admin.skiparrainage.ch"), core.middleware.AdminHostMiddleware

@@ -1,17 +1,21 @@
 # Tests for core.middleware — PostHog exception reporting (VERB-65),
 # server-side page-view tracking (VERB-124; broadened from an allowlist to a
-# content-type + namespace denylist), and admin-subdomain routing (ADR 0022).
+# content-type + namespace denylist), admin-subdomain routing (ADR 0022), and
+# marketing-source attribution (VERB-147, ADR 0023).
 
 from unittest.mock import patch
 
 import pytest
 from django.contrib.auth.models import AnonymousUser
+from django.contrib.sessions.backends.db import SessionStore
 from django.http import HttpRequest, HttpResponse
 from django.test import Client, RequestFactory, override_settings
 from django.urls import ResolverMatch
+from utm_tracker.session import SESSION_KEY_UTM_PARAMS
 
 from core.middleware import (
     AdminHostMiddleware,
+    MarketingSourceMiddleware,
     PostHogExceptionMiddleware,
     PostHogPageviewMiddleware,
 )
@@ -262,3 +266,60 @@ def test_public_host_serves_home_and_hides_admin(client: Client) -> None:
     """The public host serves the home page and 404s the old /admin/ path."""
     assert client.get("/", HTTP_HOST=_PUBLIC_HOST).status_code == 200
     assert client.get("/admin/", HTTP_HOST=_PUBLIC_HOST).status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# MarketingSourceMiddleware (VERB-147, ADR 0023)
+# ---------------------------------------------------------------------------
+
+
+def _request_with_session(query_string: str = "") -> HttpRequest:
+    """Build a request carrying ``query_string`` and a real in-memory session."""
+    request = RequestFactory().get(f"/?{query_string}" if query_string else "/")
+    request.session = SessionStore()  # type: ignore[attr-defined]
+    return request
+
+
+def test_marketing_source_middleware_stashes_normalised_click_id() -> None:
+    """?fbclid=x stashes utm_source=facebook/utm_medium=social in the session."""
+    request = _request_with_session("fbclid=x")
+    middleware = MarketingSourceMiddleware(lambda req: HttpResponse())
+
+    middleware(request)
+
+    stashed = request.session[SESSION_KEY_UTM_PARAMS]  # type: ignore[attr-defined]
+    assert len(stashed) == 1
+    assert stashed[0]["utm_source"] == "facebook"
+    assert stashed[0]["utm_medium"] == "social"
+    assert stashed[0]["fbclid"] == "x"
+
+
+def test_marketing_source_middleware_stashes_explicit_utm_params_unchanged() -> None:
+    """Explicit utm_* params are stashed as-is (no click-ID normalisation needed)."""
+    request = _request_with_session("utm_source=newsletter&utm_medium=email")
+    middleware = MarketingSourceMiddleware(lambda req: HttpResponse())
+
+    middleware(request)
+
+    stashed = request.session[SESSION_KEY_UTM_PARAMS]  # type: ignore[attr-defined]
+    assert stashed[0]["utm_source"] == "newsletter"
+    assert stashed[0]["utm_medium"] == "email"
+
+
+def test_marketing_source_middleware_no_params_leaves_session_empty() -> None:
+    """A plain visit with no tracking params stashes nothing."""
+    request = _request_with_session()
+    middleware = MarketingSourceMiddleware(lambda req: HttpResponse())
+
+    middleware(request)
+
+    assert SESSION_KEY_UTM_PARAMS not in request.session  # type: ignore[attr-defined]
+
+
+def test_marketing_source_middleware_returns_downstream_response() -> None:
+    """The middleware returns the downstream response unchanged."""
+    sentinel = HttpResponse()
+    request = _request_with_session("fbclid=x")
+    middleware = MarketingSourceMiddleware(lambda req: sentinel)
+
+    assert middleware(request) is sentinel

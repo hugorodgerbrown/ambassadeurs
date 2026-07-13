@@ -779,6 +779,90 @@ def test_register_participant_does_not_fire_event_on_rollback() -> None:
     mock_capture.assert_not_called()
 
 
+def test_register_participant_merges_marketing_properties_into_event() -> None:
+    """A supplied marketing_properties dict is merged into the event payload
+    (VERB-147, ADR 0023) alongside role/prior_pass/status.
+    """
+    with (
+        patch("matching.services.capture_event") as mock_capture,
+        TestCase.captureOnCommitCallbacks(execute=True),
+    ):
+        registration = register_participant(
+            role=Registration.Role.AMBASSADOR,
+            first_name="Ada",
+            last_name="Lovelace",
+            email="ada-marketing@example.com",
+            prior_pass=Registration.PriorPass.SEASONAL,
+            accepted_terms=_AMBASSADOR_STATEMENTS,
+            marketing_properties={
+                "source": "facebook",
+                "utm_source": "facebook",
+                "utm_medium": "social",
+            },
+        )
+
+    mock_capture.assert_called_once_with(
+        str(registration.user.pk),
+        "registration",
+        {
+            "role": Registration.Role.AMBASSADOR,
+            "prior_pass": Registration.PriorPass.SEASONAL,
+            "status": Registration.Status.VERIFIED,
+            "source": "facebook",
+            "utm_source": "facebook",
+            "utm_medium": "social",
+        },
+    )
+
+
+def test_register_participant_without_marketing_properties_event_unchanged() -> None:
+    """With no marketing_properties argument, the event carries only the
+    original role/prior_pass/status keys (default behaviour preserved).
+    """
+    with (
+        patch("matching.services.capture_event") as mock_capture,
+        TestCase.captureOnCommitCallbacks(execute=True),
+    ):
+        registration = register_participant(
+            role=Registration.Role.AMBASSADOR,
+            first_name="Ada",
+            last_name="Lovelace",
+            email="ada-no-marketing@example.com",
+            prior_pass=Registration.PriorPass.SEASONAL,
+            accepted_terms=_AMBASSADOR_STATEMENTS,
+        )
+
+    _, _, properties = mock_capture.call_args[0]
+    assert set(properties) == {"role", "prior_pass", "status"}
+    assert registration.user.pk is not None
+
+
+def test_register_participant_marketing_properties_never_include_raw_click_ids() -> (
+    None
+):
+    """A caller must never pass a raw click ID through — belt-and-braces check
+    that the event payload built by register_participant never smuggles one
+    in via marketing_properties key names it doesn't itself introduce.
+    """
+    with (
+        patch("matching.services.capture_event") as mock_capture,
+        TestCase.captureOnCommitCallbacks(execute=True),
+    ):
+        register_participant(
+            role=Registration.Role.AMBASSADOR,
+            first_name="Ada",
+            last_name="Lovelace",
+            email="ada-no-clickid@example.com",
+            prior_pass=Registration.PriorPass.SEASONAL,
+            accepted_terms=_AMBASSADOR_STATEMENTS,
+            marketing_properties={"source": "facebook", "utm_medium": "social"},
+        )
+
+    _, _, properties = mock_capture.call_args[0]
+    assert "fbclid" not in properties
+    assert "gclid" not in properties
+
+
 def test_confirm_registration_fires_email_verified_event() -> None:
     """confirm_registration sends an 'email_verified' event with the role."""
     registration = RegistrationFactory.create(status=Registration.Status.UNVERIFIED)

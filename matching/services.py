@@ -644,6 +644,7 @@ def register_participant(
     status: str = Registration.Status.VERIFIED,
     registration_country: str = "",
     registration_region: str = "",
+    marketing_properties: dict[str, object] | None = None,
 ) -> Registration:
     """Enrol a participant in the pool and return the Registration.
 
@@ -666,6 +667,14 @@ def register_participant(
     participants). Both default to empty strings when geolocation is unavailable
     (e.g. private/local IP or missing GeoLite2 database). The raw IP must never
     be passed here — resolve it in the view layer and discard it after lookup.
+
+    ``marketing_properties`` (VERB-147, ADR 0023) is an optional dict of derived
+    marketing-attribution properties — typically the output of
+    ``core.marketing.marketing_event_properties`` — merged into the
+    ``registration`` PostHog event. This function has no request access, so the
+    caller (``public.services.register_or_resend_participant``) is responsible
+    for deriving it from the session. Must never carry raw click IDs (fbclid,
+    gclid, ...); only a derived ``source`` and ``utm_*`` values.
 
     After creating a VERIFIED registration, calls ``propose_match`` to attempt
     an immediate pairing. The whole function runs inside a single transaction;
@@ -714,13 +723,20 @@ def register_participant(
             propose_match(registration)
 
         # Product analytics (VERB-124): fire only on a successful commit, so a
-        # rolled-back registration attempt never sends an event.
+        # rolled-back registration attempt never sends an event. Marketing
+        # attribution (VERB-147) is merged in when the caller supplied it —
+        # derived source/utm_* only, never raw click IDs.
         registered_user = user
         transaction.on_commit(
             lambda: capture_event(
                 str(registered_user.pk),
                 "registration",
-                {"role": role, "prior_pass": prior_pass, "status": status},
+                {
+                    "role": role,
+                    "prior_pass": prior_pass,
+                    "status": status,
+                    **(marketing_properties or {}),
+                },
             )
         )
 

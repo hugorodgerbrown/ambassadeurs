@@ -21,6 +21,7 @@ from django.conf import settings
 from django.core import mail
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+from utm_tracker.models import LeadSource
 
 from accounts.tokens import (
     make_match_access_token,
@@ -1961,6 +1962,68 @@ def test_register_post_resend_does_not_alias_again() -> None:
         Client().post(_register_url("referee"), _valid_referee_post())
 
     mock_alias.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Marketing-source attribution — PostHog bridge (VERB-147, ADR 0023)
+# ---------------------------------------------------------------------------
+
+
+def test_register_post_registration_event_carries_derived_source() -> None:
+    """A visitor arriving with a bare ?fbclid= then registering fires the
+    'registration' event with the derived facebook/social source — and no
+    raw click ID key.
+    """
+    client = Client()
+    client.get(reverse("public:home"), {"fbclid": "abc123"})
+
+    with (
+        patch("matching.services.capture_event") as mock_capture,
+        TestCase.captureOnCommitCallbacks(execute=True),
+    ):
+        client.post(_register_url("referee"), _valid_referee_post())
+
+    mock_capture.assert_called_once()
+    _, _, properties = mock_capture.call_args[0]
+    assert properties["source"] == "facebook"
+    assert properties["utm_source"] == "facebook"
+    assert properties["utm_medium"] == "social"
+    assert "fbclid" not in properties
+
+
+def test_register_post_registration_event_unchanged_without_tracking_params() -> None:
+    """A plain visit with no tracking params carries no marketing properties."""
+    client = Client()
+    client.get(reverse("public:home"))
+
+    with (
+        patch("matching.services.capture_event") as mock_capture,
+        TestCase.captureOnCommitCallbacks(execute=True),
+    ):
+        client.post(_register_url("referee"), _valid_referee_post())
+
+    mock_capture.assert_called_once()
+    _, _, properties = mock_capture.call_args[0]
+    assert set(properties) == {"role", "prior_pass", "status"}
+
+
+def test_fbclid_visit_then_login_creates_one_facebook_social_lead_source() -> None:
+    """A bare ?fbclid= visit, followed by authentication, persists exactly one
+    LeadSource with source=facebook, medium=social (VERB-147, ADR 0023) —
+    proving normalisation feeds through to the library's LeadSource.
+    """
+    user = UserFactory.create()
+    client = Client()
+
+    client.get(reverse("public:home"), {"fbclid": "abc123"})
+    client.force_login(user)
+    client.get(reverse("public:home"))
+
+    assert LeadSource.objects.filter(user=user).count() == 1
+    lead_source = LeadSource.objects.get(user=user)
+    assert lead_source.source == "facebook"
+    assert lead_source.medium == "social"
+    assert lead_source.fbclid == "abc123"
 
 
 # ---------------------------------------------------------------------------

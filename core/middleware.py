@@ -8,9 +8,17 @@
 # enable_exception_autocapture (see core.observability).
 #
 # PostHogPageviewMiddleware sends a server-side $pageview event (VERB-124) for
-# a small allowlist of GET/200 views — cookieless, consistent with the Cookie
-# Policy's no-tracking-cookies stance. Both PostHog middlewares are
-# production-only (registered in config/settings/production.py, not base.py).
+# full-page content views — cookieless, consistent with the Cookie Policy's
+# no-tracking-cookies stance. It tracks by default (coverage cannot silently
+# decay as pages are added) and subtracts non-pages centrally: a request is a
+# page-view only when it is a GET that resolved to a 200 *HTML* response, is
+# not an HTMX partial swap, and does not resolve into an excluded namespace
+# (admin / debug). The Content-Type gate does most of the filtering — it drops
+# JSON/API, images, robots.txt and healthz (text/plain), sw.js
+# (application/javascript), sitemap.xml (application/xml) and the redirect-based
+# application-form download without enumerating any of them. Both PostHog
+# middlewares are production-only (registered in config/settings/production.py,
+# not base.py).
 #
 # AdminHostMiddleware confines the Django admin to its own subdomain (ADR 0022)
 # by swapping request.urlconf per host. It is registered in base.py (all
@@ -124,35 +132,43 @@ class PostHogExceptionMiddleware:
         return None
 
 
-# The allowlisted view names for server-side page-view tracking (VERB-124).
-# Deliberately small and explicit — every entry is a genuine content page, not
-# an HTMX partial or a form-processing endpoint.
-_PAGEVIEW_ALLOWLIST = frozenset(
-    {
-        "public:home",
-        # Registration is a two-step journey since VERB-131: the role chooser
-        # (register_role, /register/role/) followed by the role-hardwired form
-        # (register_form, /register/<role>/). "public:register" is deliberately
-        # absent — it is now a 302 back-compat redirect that never returns a
-        # 200 GET, so it could never fire a page-view.
-        "public:register_role",
-        "public:register_form",
-        "public:register_email_sent",
-        "public:register_confirm",
-        "public:how_it_works",
-        "public:faq",
-        "public:legal",
-        "accounts:detail",
-    }
-)
+# URL namespaces whose views are never page-views, even when they return an
+# HTML 200 GET. The Django admin and the DEBUG-only test-data panel are the only
+# HTML-rendering surfaces that would otherwise pass every other gate: everything
+# else non-page (robots.txt, healthz, sw.js, sitemap.xml, the application-form
+# redirect) is already excluded by the Content-Type / status / method gates.
+# `debug` is moot in production (its views 404 when DEBUG is false, and this
+# middleware is production-only) but listed for clarity.
+_PAGEVIEW_DENYLIST_NAMESPACES = frozenset({"admin", "debug"})
+
+
+def _is_trackable_pageview(request: HttpRequest, response: HttpResponse) -> bool:
+    """Return whether this request/response pair is a full-page content view.
+
+    True only for a GET that resolved to a 200 HTML response, is not an HTMX
+    partial swap, and does not resolve into an excluded namespace. See the
+    module header for the rationale behind each gate.
+    """
+    resolver_match = request.resolver_match
+    if (
+        request.method != "GET"
+        or response.status_code != 200
+        or resolver_match is None
+        or "HX-Request" in request.headers
+    ):
+        return False
+    content_type = response.headers.get("Content-Type", "")
+    if not content_type.startswith("text/html"):
+        return False
+    return not _PAGEVIEW_DENYLIST_NAMESPACES.intersection(resolver_match.namespaces)
 
 
 class PostHogPageviewMiddleware:
-    """Send a best-effort server-side $pageview event for allowlisted views.
+    """Send a best-effort server-side $pageview event for full-page views.
 
-    Fires only for a GET request that resolved to a 200 response against one
-    of ``_PAGEVIEW_ALLOWLIST``'s view names — never for a POST, a non-200, or
-    an unlisted view. Cookieless: the visitor is identified via
+    Tracks every GET that resolves to a 200 HTML response, excluding HTMX
+    partial swaps and the admin / debug namespaces (see
+    ``_is_trackable_pageview``). Cookieless: the visitor is identified via
     ``core.observability.distinct_id_for`` (the user pk if authenticated,
     otherwise a salted anonymous hash), consistent with the Cookie Policy's
     no-tracking-cookies stance.
@@ -163,7 +179,7 @@ class PostHogPageviewMiddleware:
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
-        """Pass the request through, then best-effort track an allowlisted view.
+        """Pass the request through, then best-effort track a full-page view.
 
         Always returns the downstream response — a failure while building or
         sending the event must never break the page it is reporting on.
@@ -171,12 +187,7 @@ class PostHogPageviewMiddleware:
         response = self.get_response(request)
 
         try:
-            if (
-                request.method == "GET"
-                and response.status_code == 200
-                and request.resolver_match is not None
-                and request.resolver_match.view_name in _PAGEVIEW_ALLOWLIST
-            ):
+            if _is_trackable_pageview(request, response):
                 capture_event(
                     distinct_id_for(request),
                     "$pageview",

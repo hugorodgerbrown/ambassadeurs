@@ -205,7 +205,7 @@ polling — no polling in this ticket.
                         {% for _ in queue.referees.glyphs %}
                             {% comment %}Referee; the current user's own slot is drawn in the highlight colour (text-notice).{% endcomment %}
                             <svg
-                                class="h-6 w-6 {% if queue.referees.you_glyph == forloop.counter0 %}text-notice{% else %}text-secondary{% endif %}"
+                                class="h-6 w-6 -scale-x-100 {% if queue.referees.you_glyph == forloop.counter0 %}text-notice{% else %}text-secondary{% endif %}"
                                 viewBox="0 0 512 512"
                                 fill="currentColor"
                                 aria-hidden="true"

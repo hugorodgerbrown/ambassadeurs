@@ -210,19 +210,36 @@ def test_how_it_works_has_twitter_card() -> None:
 
 
 # ---------------------------------------------------------------------------
-# og:image — share image uses the hero photograph
+# og:image — share image uses the dedicated Open Graph card (VERB-148)
 # ---------------------------------------------------------------------------
 
 
-def test_home_og_image_references_hero() -> None:
-    """The home page og:image points to the hero photograph."""
+def test_home_og_image_references_card() -> None:
+    """The home page og:image points to the dedicated OG share card."""
     content = _get(reverse("public:home"))
-    assert b"images/hero-1280.jpg" in content
+    assert b"images/og-card.jpg" in content
     assert b'property="og:image"' in content
 
 
-def test_how_it_works_og_image_references_hero() -> None:
-    """The how-it-works page og:image points to the hero photograph."""
+def test_how_it_works_og_image_references_card() -> None:
+    """The how-it-works page og:image points to the dedicated OG share card."""
     content = _get(reverse("public:how_it_works"))
-    assert b"images/hero-1280.jpg" in content
+    assert b"images/og-card.jpg" in content
     assert b'property="og:image"' in content
+
+
+def test_home_og_image_declares_dimensions_and_alt() -> None:
+    """The OG card declares its type, dimensions and alt text.
+
+    Facebook needs the width/height up front to lay the card out on a first
+    share (without them it often renders blank); the alt text is what screen
+    readers announce.
+    """
+    content = _get(reverse("public:home"))
+    assert b'property="og:image:type"' in content
+    assert b'property="og:image:width"' in content
+    assert b'content="1200"' in content
+    assert b'property="og:image:height"' in content
+    assert b'content="630"' in content
+    assert b'property="og:image:secure_url"' in content
+    assert b'property="og:image:alt"' in content

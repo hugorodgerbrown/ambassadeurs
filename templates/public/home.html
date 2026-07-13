@@ -214,11 +214,15 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
 
     {% comment %}
     Live queue snapshot (VERB-149) — pool state + "instant match" nudge, placed
-    before the role choice it informs. Provisional placement; tuned via /rapid.
+    before the role choice it informs. Gated behind SHOW_HOMEPAGE_QUEUE: the
+    view only supplies `queue` when the flag is on, so this section is omitted
+    by default until the queue is switched on for launch.
     {% endcomment %}
-    <section class="mt-12">
-        {% include "includes/_queue_snapshot.html" with queue=queue %}
-    </section>
+    {% if queue %}
+        <section class="mt-12">
+            {% include "includes/_queue_snapshot.html" with queue=queue %}
+        </section>
+    {% endif %}
 
     {% comment %}Which one are you? — the two role cards using fixed red/blue tones.{% endcomment %}
     <section class="mt-12">

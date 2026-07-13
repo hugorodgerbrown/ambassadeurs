@@ -36,16 +36,13 @@ def home(request: HttpRequest) -> HttpResponse:
     Carries the live queue snapshot (VERB-149) so the pool state and the
     "instant match" nudge sit alongside the role choice they inform; the
     context is the same ``queue_snapshot_context`` the standalone ``/queue/``
-    page renders.
+    page renders. The snapshot is gated behind ``SHOW_HOMEPAGE_QUEUE`` (off by
+    default) — when disabled the queue query is skipped and the card is omitted.
     """
-    return render(
-        request,
-        "public/home.html",
-        {
-            "registration_open": is_registration_open(),
-            "queue": queue_snapshot_context(timezone.now()),
-        },
-    )
+    context: dict[str, object] = {"registration_open": is_registration_open()}
+    if settings.SHOW_HOMEPAGE_QUEUE:
+        context["queue"] = queue_snapshot_context(timezone.now())
+    return render(request, "public/home.html", context)
 
 
 def legal_page(request: HttpRequest, page: str) -> HttpResponse:

@@ -79,11 +79,20 @@ def test_home_contains_hero_image() -> None:
     assert b"images/hero-1280.jpg" in response.content
 
 
-def test_home_mounts_queue_snapshot() -> None:
-    """The homepage renders the live queue snapshot card (VERB-149)."""
+@override_settings(SHOW_HOMEPAGE_QUEUE=True)
+def test_home_mounts_queue_snapshot_when_enabled() -> None:
+    """With SHOW_HOMEPAGE_QUEUE on, the homepage renders the queue card (VERB-149)."""
     response = Client().get(reverse("public:home"))
     assert b'id="queue-snapshot"' in response.content
     assert b"Who's in the queue" in response.content
+
+
+@override_settings(SHOW_HOMEPAGE_QUEUE=False)
+def test_home_hides_queue_snapshot_by_default() -> None:
+    """With SHOW_HOMEPAGE_QUEUE off (the default), the queue card is omitted."""
+    response = Client().get(reverse("public:home"))
+    assert b'id="queue-snapshot"' not in response.content
+    assert b"Who's in the queue" not in response.content
 
 
 # ---------------------------------------------------------------------------

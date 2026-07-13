@@ -97,6 +97,7 @@ dependencies = [
     { name = "django-htmx" },
     { name = "django-ratelimit" },
     { name = "django-side-effects" },
+    { name = "django-utm-tracker" },
     { name = "geoip2" },
     { name = "gunicorn" },
     { name = "nh3" },
@@ -133,6 +134,7 @@ requires-dist = [
     { name = "django-htmx", specifier = ">=1.21" },
     { name = "django-ratelimit", specifier = ">=4.1.0" },
     { name = "django-side-effects", specifier = ">=3.2.0" },
+    { name = "django-utm-tracker", specifier = ">=1.5.0" },
     { name = "geoip2", specifier = ">=5.2.0" },
     { name = "gunicorn", specifier = ">=23.0" },
     { name = "nh3", specifier = ">=0.3.6" },
@@ -635,6 +637,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/51/8b/dc3c37cf994836ee09bc07f6a0c0ea840b975449940bd7ff77cc97a732f3/django_stubs_ext-6.0.6.tar.gz", hash = "sha256:e6f09884e48d7c5b250a373dfa22aa3e83bb91b8babbd8d05187f6b92247f232", size = 6674, upload-time = "2026-06-23T08:21:38.355Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f1/e4/7d60a1bdb092807318af34a809dc6674b95cc78ec4d3aaa6027174e7201c/django_stubs_ext-6.0.6-py3-none-any.whl", hash = "sha256:5470c970f61a3ccf5aae7633feef1a097f944f417b955da200c9ac26ecd9134b", size = 10361, upload-time = "2026-06-23T08:21:37.228Z" },
+]
+
+[[package]]
+name = "django-utm-tracker"
+version = "1.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/62/11/216548da46981b20dc21f857df91aa1e88dcf60d2d505014812ee5658070/django_utm_tracker-1.5.0.tar.gz", hash = "sha256:a648efc500d5c4a91ecb5a8ed2ec9d751eadd361c1a6e47aedbb1c07b4d2917e", size = 9895, upload-time = "2026-01-07T17:31:53.653Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cc/9c/d4fe8a0e109f6b7fb65dfc4b89e145a6e283e680650d2f5ab0a1e2b3e527/django_utm_tracker-1.5.0-py3-none-any.whl", hash = "sha256:fbc74b6726578fb5d67835f595a08031229472279df5faddabc3d521031e7ed6", size = 15714, upload-time = "2026-01-07T17:31:51.97Z" },
 ]
 
 [[package]]

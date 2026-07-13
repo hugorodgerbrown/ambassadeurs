@@ -257,6 +257,7 @@ class QueueMatches(TypedDict):
     people: int
     glyphs: list[int]
     truncated: bool
+    you_glyph: int | None
 
 
 class QueueSnapshotContext(TypedDict):
@@ -430,18 +431,26 @@ def build_queue_context(
         The full render context.
     """
     match_glyphs, match_truncated = _capped(matches, _QUEUE_MAX_PAIRS)
+    match_you = (
+        you_index
+        if you_role == "matches"
+        and you_index is not None
+        and 0 <= you_index < len(match_glyphs)
+        else None
+    )
     return {
         "ambassadors": _waiting_column(
-            ambassadors_waiting, you_index if you_role == "ambassador" else None
+            ambassadors_waiting, you_index if you_role == "ambassadors" else None
         ),
         "matches": {
             "count": matches,
             "people": matches * 2,
             "glyphs": match_glyphs,
             "truncated": match_truncated,
+            "you_glyph": match_you,
         },
         "referees": _waiting_column(
-            referees_waiting, you_index if you_role == "referee" else None
+            referees_waiting, you_index if you_role == "referees" else None
         ),
         "is_open": is_open,
         "opens_at": opens_at,

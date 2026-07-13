@@ -615,13 +615,31 @@ def components(request: HttpRequest) -> HttpResponse:
             matches=60,
         ),
         _queue_scenario(
-            "Live — you are in the queue (ambassador, position 3)",
+            "Live — you are waiting (ambassador, position 3)",
             is_open=True,
             ambassadors=6,
             referees=4,
             matches=3,
-            you_role="ambassador",
+            you_role="ambassadors",
             you_index=2,
+        ),
+        _queue_scenario(
+            "Live — you are waiting (referee, position 2)",
+            is_open=True,
+            ambassadors=6,
+            referees=4,
+            matches=3,
+            you_role="referees",
+            you_index=1,
+        ),
+        _queue_scenario(
+            "Live — you are matched (pair 2)",
+            is_open=True,
+            ambassadors=6,
+            referees=4,
+            matches=3,
+            you_role="matches",
+            you_index=1,
         ),
     ]
     return render(

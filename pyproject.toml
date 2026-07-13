@@ -10,7 +10,7 @@ version = "0.1.0"
 description = "Partner matchmaking for the 4 Vallees Ambassadors Program."
 requires-python = ">=3.14"
 dependencies = [
-    "django>=6.0,<6.1",
+    "django>=6.0.7,<6.1",
     "django-htmx>=1.21",
     "python-decouple>=3.8",
     "whitenoise>=6.7",

@@ -12,11 +12,14 @@ Include contract (single param):
   queue — a matching.selectors.QueueSnapshotContext:
             {ambassadors, matches, referees, is_open, opens_at,
              days_until_open, instant_match_role}
-          QueueColumn  = {count, glyphs, truncated}
-          QueueMatches = {count, people, glyphs, truncated}
+          QueueColumn  = {count, glyphs, truncated, you_glyph}
+          QueueMatches = {count, people, glyphs, truncated, you_glyph}
           `glyphs` is a list to iterate (one icon each); `truncated` is True when
           the pool overran the fixed grid, drawing a trailing ellipsis glyph in
           the last slot (the header carries the exact count).
+          `you_glyph` is the index of the current user's own glyph within
+          `glyphs` (or None) — that slot is drawn in the highlight colour so a
+          logged-in user can spot themselves in the pool.
           `instant_match_role` drives the subheader and the empty-side
           "Instant match*" label.
 
@@ -70,8 +73,7 @@ polling — no polling in this ticket.
                                 class="h-6 w-6 {% if queue.ambassadors.you_glyph == forloop.counter0 %}text-notice{% else %}text-accent{% endif %}"
                                 viewBox="0 0 576 512"
                                 fill="currentColor"
-                                aria-hidden="true"
-                                {% if queue.ambassadors.you_glyph == forloop.counter0 %}role="img" aria-label="{% translate 'You' %}"{% endif %}
+                                {% if queue.ambassadors.you_glyph == forloop.counter0 %}role="img" aria-label="{% translate 'You' %}"{% else %}aria-hidden="true"{% endif %}
                             >
                                 <path d="M416 56a56 56 0 1 1 112 0 56 56 0 1 1 -112 0zM2.7 300.9c6.1-11.8 20.6-16.3 32.4-10.2l197.8 102.7 62.3-87.2-82-92.2c-11-12.4-16.2-27.5-16.2-42.4l111.6 53.4 42.9 48.2c14.9 16.7 16.2 41.6 3.2 59.8l-64.4 90.2 128.3 66.6c13.6 7.1 29.8 7.2 43.6 .3l15.2-7.6c11.9-5.9 26.3-1.1 32.2 10.7s1.1 26.3-10.7 32.2l-15.2 7.6c-27.5 13.7-59.9 13.5-87.2-.7L12.9 333.3C1.2 327.2-3.4 312.7 2.7 300.9zM103 49.6l18 8.7 8.7-17.4c4-7.9 13.6-11.1 21.5-7.2s11.1 13.6 7.2 21.5l-8.5 17 84.8 41 .4-.2 76.1-33.8c31.3-13.9 67.9-.7 83.2 29.9l28.9 57.8 68.7 27.5c16.4 6.6 24.4 25.2 17.8 41.6s-25.2 24.4-41.6 17.8L393.8 224c-10.9-4.4-19.8-12.6-25.1-23.1l-11.5-23.1c-16.4 9.4-25.9 14.8-28.5 16.3l-7.6-3.7-185.6-89.6-9.2 18.3c-4 7.9-13.6 11.1-21.5 7.2s-11.1-13.6-7.2-21.5l9-17.9-17.6-8.5C81.1 74.6 77.8 65 81.6 57S95 45.7 103 49.6z" />
                             </svg>
@@ -140,8 +142,7 @@ polling — no polling in this ticket.
                                 class="h-7 w-7 {% if queue.matches.you_glyph == forloop.counter0 %}text-notice{% else %}text-meta{% endif %}"
                                 viewBox="0 0 512 512"
                                 fill="currentColor"
-                                aria-hidden="true"
-                                {% if queue.matches.you_glyph == forloop.counter0 %}role="img" aria-label="{% translate 'You' %}"{% endif %}
+                                {% if queue.matches.you_glyph == forloop.counter0 %}role="img" aria-label="{% translate 'You' %}"{% else %}aria-hidden="true"{% endif %}
                             >
                                 <path d="M288-32a32 32 0 1 1 0 64 32 32 0 1 1 0-64zM160 24a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zM32 288c0-35.3 28.7-64 64-64l136 0 0-96.2-193.4 55.3c-12.7 3.6-26-3.7-29.7-16.5s3.7-26 16.5-29.7l224-64 0 0 224-64c12.7-3.6 26 3.7 29.7 16.5s-3.7 26-16.5 29.7l-206.6 59 0 109.9 136 0c35.3 0 64 28.7 64 64l0 160c0 35.3-28.7 64-64 64L96 512c-35.3 0-64-28.7-64-64l0-160zm80 0c-8.8 0-16 7.2-16 16l0 64c0 8.8 7.2 16 16 16l56 0 0-96-56 0zm184 96l0-96-80 0 0 96 80 0zm48 0l56 0c8.8 0 16-7.2 16-16l0-64c0-8.8-7.2-16-16-16l-56 0 0 96z" />
                             </svg>
@@ -208,8 +209,7 @@ polling — no polling in this ticket.
                                 class="h-6 w-6 -scale-x-100 {% if queue.referees.you_glyph == forloop.counter0 %}text-notice{% else %}text-secondary{% endif %}"
                                 viewBox="0 0 512 512"
                                 fill="currentColor"
-                                aria-hidden="true"
-                                {% if queue.referees.you_glyph == forloop.counter0 %}role="img" aria-label="{% translate 'You' %}"{% endif %}
+                                {% if queue.referees.you_glyph == forloop.counter0 %}role="img" aria-label="{% translate 'You' %}"{% else %}aria-hidden="true"{% endif %}
                             >
                                 <path d="M264.3 24a56 56 0 1 1 112 0 56 56 0 1 1 -112 0zm-8 181.3l-22.6 22.6c-6 6-9.4 14.1-9.4 22.6l0 37.5c0 12.3-7 23-17.2 28.4-.9 4.2-2.4 8.4-4.3 12.3l-69 138.1-.8-.4-27.7 55.3c-9.9 19.8-33.9 27.8-53.7 17.9L14.6 521c-19.8-9.9-27.8-33.9-17.9-53.7L47.3 366.3c9.9-19.8 33.9-27.8 53.7-17.9l30.7 15.3 28.3-56.6c.3-.6 .4-1.2 .4-1.8l0-16.9c0-.2 0-.3 0-.5l0-37.5c0-25.5 10.1-49.9 28.1-67.9l35.1-35.1c22.8-22.8 53.6-35.6 85.8-35.6 36.9 0 71.8 16.8 94.8 45.6L422.1 180c6.1 7.6 15.3 12 25 12l33.2 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-33.2 0c-29.2 0-56.7-13.3-75-36l-3.8-4.7 0 115.2 34.5 29.6c17.7 15.2 29.3 36.2 32.6 59.3L448 507.5c2.5 17.5-9.7 33.7-27.2 36.2s-33.7-9.7-36.2-27.2L372 428.4c-1.1-7.7-5-14.7-10.9-19.8l-71.4-61.2c-21.3-18.2-33.5-44.9-33.5-72.9l0-69.3zm.1 165.8c2.4 2.3 4.8 4.6 7.4 6.8l46 39.4-2.2 7.6c-4.5 15.7-12.9 30-24.4 41.5l-68.3 68.3c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L238 421.1c3.8-3.8 6.6-8.6 8.1-13.8L256.4 371z" />
                             </svg>

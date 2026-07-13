@@ -83,6 +83,14 @@ third-party, advertising, or cross-site tracking cookies.
 - `core.observability.scrub_pii` recursively scrubs the whole `properties` dict,
   including the nested `$set_once`; a long numeric `utm_term`/`utm_campaign`
   could be mangled by the broad phone regex. Accepted as belt-and-braces.
+- The PostHog bridge sends only `source`, `utm_medium` and `utm_campaign`.
+  `utm_content` and the `gad_source` custom tag are captured into the session
+  and the `LeadSource` row but are **not** forwarded to PostHog; adding a
+  content-level funnel breakdown later means extending
+  `marketing_event_properties`. A bare `?gad_source=…` with no `gclid` also
+  produces no `LeadSource` (the library requires `utm_source` + `utm_medium`,
+  and `gad_source` is not in `CLICK_ID_SOURCES`); in practice `gad_source`
+  arrives alongside `gclid`, which is normalised.
 - The Cookie Policy wording is legally sensitive and flagged for review; the
   copy may change without affecting the code.
 - We depend on stable `utm_tracker` internals (`parse_qs`, `stash_utm_params`,

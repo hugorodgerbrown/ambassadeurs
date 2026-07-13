@@ -837,12 +837,15 @@ def test_register_participant_without_marketing_properties_event_unchanged() -> 
     assert registration.user.pk is not None
 
 
-def test_register_participant_marketing_properties_never_include_raw_click_ids() -> (
-    None
-):
-    """A caller must never pass a raw click ID through — belt-and-braces check
-    that the event payload built by register_participant never smuggles one
-    in via marketing_properties key names it doesn't itself introduce.
+def test_register_participant_merges_marketing_properties_verbatim() -> None:
+    """register_participant merges marketing_properties into the event as-is.
+
+    It does no filtering of its own — it trusts the caller to have already
+    derived a click-ID-free payload (that guarantee lives in
+    core.marketing.marketing_event_properties, tested separately). This test
+    pins the transparent-merge contract: whatever keys the caller supplies,
+    including a raw click ID, pass straight through. So the no-raw-click-ID
+    guarantee MUST be enforced upstream, never here.
     """
     with (
         patch("matching.services.capture_event") as mock_capture,
@@ -852,15 +855,30 @@ def test_register_participant_marketing_properties_never_include_raw_click_ids()
             role=Registration.Role.AMBASSADOR,
             first_name="Ada",
             last_name="Lovelace",
-            email="ada-no-clickid@example.com",
+            email="ada-marketing@example.com",
             prior_pass=Registration.PriorPass.SEASONAL,
             accepted_terms=_AMBASSADOR_STATEMENTS,
-            marketing_properties={"source": "facebook", "utm_medium": "social"},
+            marketing_properties={
+                "source": "facebook",
+                "utm_medium": "social",
+                # A raw click ID a careless caller might smuggle in: it passes
+                # straight through, proving the filtering is not done here.
+                "fbclid": "raw-click-id",
+            },
         )
 
     _, _, properties = mock_capture.call_args[0]
-    assert "fbclid" not in properties
-    assert "gclid" not in properties
+    assert properties["source"] == "facebook"
+    assert properties["utm_medium"] == "social"
+    assert properties["fbclid"] == "raw-click-id"
+    assert set(properties) == {
+        "role",
+        "prior_pass",
+        "status",
+        "source",
+        "utm_medium",
+        "fbclid",
+    }
 
 
 def test_confirm_registration_fires_email_verified_event() -> None:

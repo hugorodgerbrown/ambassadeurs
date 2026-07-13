@@ -31,11 +31,20 @@ LEGAL_PAGES = {"privacy", "cookies", "terms"}
 
 
 def home(request: HttpRequest) -> HttpResponse:
-    """Render the public landing page with the two role calls-to-action."""
+    """Render the public landing page with the two role calls-to-action.
+
+    Carries the live queue snapshot (VERB-149) so the pool state and the
+    "instant match" nudge sit alongside the role choice they inform; the
+    context is the same ``queue_snapshot_context`` the standalone ``/queue/``
+    page renders.
+    """
     return render(
         request,
         "public/home.html",
-        {"registration_open": is_registration_open()},
+        {
+            "registration_open": is_registration_open(),
+            "queue": queue_snapshot_context(timezone.now()),
+        },
     )
 
 

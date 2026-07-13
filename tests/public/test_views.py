@@ -79,6 +79,13 @@ def test_home_contains_hero_image() -> None:
     assert b"images/hero-1280.jpg" in response.content
 
 
+def test_home_mounts_queue_snapshot() -> None:
+    """The homepage renders the live queue snapshot card (VERB-149)."""
+    response = Client().get(reverse("public:home"))
+    assert b'id="queue-snapshot"' in response.content
+    assert b"Who's in the queue" in response.content
+
+
 # ---------------------------------------------------------------------------
 # Role chooser (register_role)
 # ---------------------------------------------------------------------------

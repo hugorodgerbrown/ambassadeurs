@@ -507,5 +507,6 @@ feature docs are written:
 | Internationalisation (decoupled catalogue maintenance) | [ADR 0016](docs/decisions/0016-decoupled-catalogue-maintenance.md) |
 | Billing — prepaid deposit (Stripe, capture / refund / forfeit) | [ADR 0014](docs/decisions/0014-deferred-matching-prepaid-fee.md) |
 | Billing — voluntary tips (Stripe Checkout, free-tier gate) | [ADR 0022](docs/decisions/0022-voluntary-tip-stripe-checkout.md) |
+| Marketing-source attribution (django-utm-tracker, derived source → PostHog) | [ADR 0023](docs/decisions/0023-server-side-marketing-attribution.md) |
 | Deployment (Render single-service) | _to be written_ |
 | Linear workflow (full lifecycle) | _to be written_ |

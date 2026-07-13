@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime, timedelta
-from typing import cast
+from typing import Literal, cast
 
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
@@ -480,7 +480,7 @@ def _queue_scenario(
     matches: int,
     opens_at: datetime | None = None,
     days_until_open: int = 0,
-    you_role: str = "",
+    you_role: Literal["", "ambassadors", "referees", "matches"] = "",
     you_index: int | None = None,
 ) -> dict[str, object]:
     """Build one labelled synthetic queue-visualisation context for the gallery.

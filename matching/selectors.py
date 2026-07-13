@@ -239,6 +239,7 @@ class QueueColumn(TypedDict):
     count: int
     glyphs: list[int]
     truncated: bool
+    you_glyph: int | None
 
 
 class QueueMatches(TypedDict):
@@ -303,17 +304,30 @@ def _capped(count: int, cap: int) -> tuple[list[int], bool]:
     return list(range(cap - 1)), True
 
 
-def _waiting_column(count: int) -> QueueColumn:
+def _waiting_column(count: int, you_index: int | None = None) -> QueueColumn:
     """Shape one role's waiting count into a ``QueueColumn``.
 
     Args:
         count: The exact number of waiting (unmatched) registrations.
+        you_index: Zero-based position of the current user among this role's
+            waiting registrations, or ``None`` if the current user is not a
+            waiting member of this role. When it falls within the drawn grid it
+            marks the glyph to highlight as "you"; a position beyond the visible
+            slots is dropped (``you_glyph`` stays ``None``).
 
     Returns:
         The fully-shaped waiting column.
     """
     glyphs, truncated = _capped(count, _QUEUE_MAX_ICONS)
-    return {"count": count, "glyphs": glyphs, "truncated": truncated}
+    you_glyph = (
+        you_index if you_index is not None and 0 <= you_index < len(glyphs) else None
+    )
+    return {
+        "count": count,
+        "glyphs": glyphs,
+        "truncated": truncated,
+        "you_glyph": you_glyph,
+    }
 
 
 def instant_match_role(
@@ -394,6 +408,8 @@ def build_queue_context(
     is_open: bool,
     opens_at: datetime,
     days_until_open: int,
+    you_role: str = "",
+    you_index: int | None = None,
 ) -> QueueSnapshotContext:
     """Shape explicit counts + open-state into a ``QueueSnapshotContext``.
 
@@ -415,14 +431,18 @@ def build_queue_context(
     """
     match_glyphs, match_truncated = _capped(matches, _QUEUE_MAX_PAIRS)
     return {
-        "ambassadors": _waiting_column(ambassadors_waiting),
+        "ambassadors": _waiting_column(
+            ambassadors_waiting, you_index if you_role == "ambassador" else None
+        ),
         "matches": {
             "count": matches,
             "people": matches * 2,
             "glyphs": match_glyphs,
             "truncated": match_truncated,
         },
-        "referees": _waiting_column(referees_waiting),
+        "referees": _waiting_column(
+            referees_waiting, you_index if you_role == "referee" else None
+        ),
         "is_open": is_open,
         "opens_at": opens_at,
         "days_until_open": days_until_open,

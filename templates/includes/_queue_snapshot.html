@@ -65,15 +65,28 @@ polling — no polling in this ticket.
                         aria-label="{{ amb_label }}"
                     >
                         {% for _ in queue.ambassadors.glyphs %}
-                            {% comment %}Waiting person (Font Awesome user, CC BY 4.0).{% endcomment %}
-                            <svg
-                                class="h-6 w-6 text-accent"
-                                viewBox="0 0 448 512"
-                                fill="currentColor"
-                                aria-hidden="true"
-                            >
-                                <path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3 0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0z" />
-                            </svg>
+                            {% if queue.ambassadors.you_glyph == forloop.counter0 %}
+                                {% comment %}Current user — filled role-colour chip so "you" is unmistakable.{% endcomment %}
+                                <span
+                                    class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-accent text-white ring-2 ring-ink"
+                                    role="img"
+                                    aria-label="{% translate 'You' %}"
+                                >
+                                    <svg class="h-4 w-4" viewBox="0 0 448 512" fill="currentColor" aria-hidden="true">
+                                        <path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3 0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0z" />
+                                    </svg>
+                                </span>
+                            {% else %}
+                                {% comment %}Waiting person (Font Awesome user, CC BY 4.0).{% endcomment %}
+                                <svg
+                                    class="h-6 w-6 text-accent"
+                                    viewBox="0 0 448 512"
+                                    fill="currentColor"
+                                    aria-hidden="true"
+                                >
+                                    <path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3 0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0z" />
+                                </svg>
+                            {% endif %}
                         {% endfor %}
                         {% if queue.ambassadors.truncated %}
                             {% comment %}Grid full — more beyond it (the header holds the exact count).{% endcomment %}
@@ -196,15 +209,28 @@ polling — no polling in this ticket.
                         aria-label="{{ ref_label }}"
                     >
                         {% for _ in queue.referees.glyphs %}
-                            {% comment %}Waiting person (Font Awesome user, CC BY 4.0).{% endcomment %}
-                            <svg
-                                class="h-6 w-6 text-secondary"
-                                viewBox="0 0 448 512"
-                                fill="currentColor"
-                                aria-hidden="true"
-                            >
-                                <path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3 0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0z" />
-                            </svg>
+                            {% if queue.referees.you_glyph == forloop.counter0 %}
+                                {% comment %}Current user — filled role-colour chip so "you" is unmistakable.{% endcomment %}
+                                <span
+                                    class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-white ring-2 ring-ink"
+                                    role="img"
+                                    aria-label="{% translate 'You' %}"
+                                >
+                                    <svg class="h-4 w-4" viewBox="0 0 448 512" fill="currentColor" aria-hidden="true">
+                                        <path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3 0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0z" />
+                                    </svg>
+                                </span>
+                            {% else %}
+                                {% comment %}Waiting person (Font Awesome user, CC BY 4.0).{% endcomment %}
+                                <svg
+                                    class="h-6 w-6 text-secondary"
+                                    viewBox="0 0 448 512"
+                                    fill="currentColor"
+                                    aria-hidden="true"
+                                >
+                                    <path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3 0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0z" />
+                                </svg>
+                            {% endif %}
                         {% endfor %}
                         {% if queue.referees.truncated %}
                             {% comment %}Grid full — more beyond it (the header holds the exact count).{% endcomment %}

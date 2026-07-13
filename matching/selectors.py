@@ -21,7 +21,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 from django.contrib.auth.models import User
 from django.db.models import Q
@@ -234,11 +234,15 @@ class QueueColumn(TypedDict):
     ``_QUEUE_MAX_ICONS``); ``count`` is the exact waiting total and stays the
     source of truth. ``truncated`` is True when ``count`` overran the grid, so
     the template draws a trailing ellipsis glyph in the final slot.
+    ``you_glyph`` is the index within ``glyphs`` of the current user's own
+    slot (drawn in the highlight colour), or ``None`` — only non-``None`` when
+    the user's position falls within the drawn (pre-ellipsis) slots.
     """
 
     count: int
     glyphs: list[int]
     truncated: bool
+    you_glyph: int | None
 
 
 class QueueMatches(TypedDict):
@@ -250,12 +254,16 @@ class QueueMatches(TypedDict):
     zone reports matched *people*, not matches. ``glyphs`` is a list the template
     iterates to draw one pair icon each (length capped at ``_QUEUE_MAX_PAIRS``);
     ``truncated`` is True when ``count`` overran the grid (trailing ellipsis).
+    ``you_glyph`` is the index within ``glyphs`` of the current user's own
+    matched pair (drawn in the highlight colour), or ``None`` — only non-``None``
+    when the pair falls within the drawn (pre-ellipsis) slots.
     """
 
     count: int
     people: int
     glyphs: list[int]
     truncated: bool
+    you_glyph: int | None
 
 
 class QueueSnapshotContext(TypedDict):
@@ -303,17 +311,30 @@ def _capped(count: int, cap: int) -> tuple[list[int], bool]:
     return list(range(cap - 1)), True
 
 
-def _waiting_column(count: int) -> QueueColumn:
+def _waiting_column(count: int, you_index: int | None = None) -> QueueColumn:
     """Shape one role's waiting count into a ``QueueColumn``.
 
     Args:
         count: The exact number of waiting (unmatched) registrations.
+        you_index: Zero-based position of the current user among this role's
+            waiting registrations, or ``None`` if the current user is not a
+            waiting member of this role. When it falls within the drawn grid it
+            marks the glyph to highlight as "you"; a position beyond the visible
+            slots is dropped (``you_glyph`` stays ``None``).
 
     Returns:
         The fully-shaped waiting column.
     """
     glyphs, truncated = _capped(count, _QUEUE_MAX_ICONS)
-    return {"count": count, "glyphs": glyphs, "truncated": truncated}
+    you_glyph = (
+        you_index if you_index is not None and 0 <= you_index < len(glyphs) else None
+    )
+    return {
+        "count": count,
+        "glyphs": glyphs,
+        "truncated": truncated,
+        "you_glyph": you_glyph,
+    }
 
 
 def instant_match_role(
@@ -394,6 +415,8 @@ def build_queue_context(
     is_open: bool,
     opens_at: datetime,
     days_until_open: int,
+    you_role: Literal["", "ambassadors", "referees", "matches"] = "",
+    you_index: int | None = None,
 ) -> QueueSnapshotContext:
     """Shape explicit counts + open-state into a ``QueueSnapshotContext``.
 
@@ -409,20 +432,37 @@ def build_queue_context(
         is_open: Whether matching has begun.
         opens_at: The matching open instant (rendered in the pre-open subheader).
         days_until_open: Whole-day countdown to ``opens_at`` (0 once open).
+        you_role: Which section holds the current user — one of
+            ``"ambassadors"``, ``"referees"``, ``"matches"``, or ``""`` (no
+            highlight). Routes ``you_index`` to that section only.
+        you_index: The current user's zero-based position within ``you_role``'s
+            glyphs; highlighted only when it falls within the drawn grid.
 
     Returns:
         The full render context.
     """
     match_glyphs, match_truncated = _capped(matches, _QUEUE_MAX_PAIRS)
+    match_you = (
+        you_index
+        if you_role == "matches"
+        and you_index is not None
+        and 0 <= you_index < len(match_glyphs)
+        else None
+    )
     return {
-        "ambassadors": _waiting_column(ambassadors_waiting),
+        "ambassadors": _waiting_column(
+            ambassadors_waiting, you_index if you_role == "ambassadors" else None
+        ),
         "matches": {
             "count": matches,
             "people": matches * 2,
             "glyphs": match_glyphs,
             "truncated": match_truncated,
+            "you_glyph": match_you,
         },
-        "referees": _waiting_column(referees_waiting),
+        "referees": _waiting_column(
+            referees_waiting, you_index if you_role == "referees" else None
+        ),
         "is_open": is_open,
         "opens_at": opens_at,
         "days_until_open": days_until_open,

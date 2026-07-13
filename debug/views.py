@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime, timedelta
-from typing import cast
+from typing import Literal, cast
 
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
@@ -480,6 +480,8 @@ def _queue_scenario(
     matches: int,
     opens_at: datetime | None = None,
     days_until_open: int = 0,
+    you_role: Literal["", "ambassadors", "referees", "matches"] = "",
+    you_index: int | None = None,
 ) -> dict[str, object]:
     """Build one labelled synthetic queue-visualisation context for the gallery.
 
@@ -496,6 +498,8 @@ def _queue_scenario(
         matches: Active-match (pair) count.
         opens_at: The matching open instant (pre-open scenarios only).
         days_until_open: Whole-day countdown shown pre-open.
+        you_role: Role of the current user for the "you" highlight, or "".
+        you_index: Zero-based position of the current user in that role's column.
     """
     queue = build_queue_context(
         ambassadors_waiting=ambassadors,
@@ -504,6 +508,8 @@ def _queue_scenario(
         is_open=is_open,
         opens_at=opens_at or timezone.make_aware(datetime(2026, 10, 1)),
         days_until_open=days_until_open,
+        you_role=you_role,
+        you_index=you_index,
     )
     return {"label": label, "queue": queue}
 
@@ -607,6 +613,33 @@ def components(request: HttpRequest) -> HttpResponse:
             ambassadors=200,
             referees=0,
             matches=60,
+        ),
+        _queue_scenario(
+            "Live — you are waiting (ambassador, position 3)",
+            is_open=True,
+            ambassadors=6,
+            referees=4,
+            matches=3,
+            you_role="ambassadors",
+            you_index=2,
+        ),
+        _queue_scenario(
+            "Live — you are waiting (referee, position 2)",
+            is_open=True,
+            ambassadors=6,
+            referees=4,
+            matches=3,
+            you_role="referees",
+            you_index=1,
+        ),
+        _queue_scenario(
+            "Live — you are matched (pair 2)",
+            is_open=True,
+            ambassadors=6,
+            referees=4,
+            matches=3,
+            you_role="matches",
+            you_index=1,
         ),
     ]
     return render(

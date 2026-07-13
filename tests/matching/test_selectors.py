@@ -179,8 +179,14 @@ def test_queue_snapshot_context_has_three_columns() -> None:
     context = queue_snapshot_context(_NOW)
 
     assert {"ambassadors", "matches", "referees", "instant_match_role"} <= set(context)
-    assert set(context["ambassadors"]) == {"count", "glyphs", "truncated"}
-    assert set(context["matches"]) == {"count", "people", "glyphs", "truncated"}
+    assert set(context["ambassadors"]) == {"count", "glyphs", "truncated", "you_glyph"}
+    assert set(context["matches"]) == {
+        "count",
+        "people",
+        "glyphs",
+        "truncated",
+        "you_glyph",
+    }
 
 
 @pytest.mark.parametrize(
@@ -215,13 +221,24 @@ def test_queue_snapshot_context_reflects_pool_counts() -> None:
 
     context = queue_snapshot_context(_NOW)
 
-    assert context["ambassadors"] == {"count": 1, "glyphs": [0], "truncated": False}
-    assert context["referees"] == {"count": 2, "glyphs": [0, 1], "truncated": False}
+    assert context["ambassadors"] == {
+        "count": 1,
+        "glyphs": [0],
+        "truncated": False,
+        "you_glyph": None,
+    }
+    assert context["referees"] == {
+        "count": 2,
+        "glyphs": [0, 1],
+        "truncated": False,
+        "you_glyph": None,
+    }
     assert context["matches"] == {
         "count": 2,
         "people": 4,
         "glyphs": [0, 1],
         "truncated": False,
+        "you_glyph": None,
     }
 
 
@@ -314,3 +331,162 @@ def test_queue_snapshot_context_caps_are_wired() -> None:
         list(range(_QUEUE_MAX_PAIRS - 1)),
         True,
     )
+
+
+# ---------------------------------------------------------------------------
+# you_glyph highlighting (VERB-145 follow-up)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("you_index", "expected_you_glyph"),
+    [
+        (0, 0),  # first slot
+        (5, 5),  # mid-grid
+        (_QUEUE_MAX_ICONS - 2, _QUEUE_MAX_ICONS - 2),  # last drawn slot when truncated
+        (_QUEUE_MAX_ICONS - 1, None),  # the ellipsis slot itself — dropped
+        (_QUEUE_MAX_ICONS, None),  # beyond the grid entirely
+        (-1, None),  # negative index
+        (None, None),  # no current user in this column
+    ],
+)
+def test_build_queue_context_waiting_column_you_glyph(
+    you_index: int | None, expected_you_glyph: int | None
+) -> None:
+    """The ambassadors column's ``you_glyph`` reflects ``you_index`` when routed.
+
+    Uses a pool large enough (``_QUEUE_MAX_ICONS + 5``, so truncated) to exercise
+    both the truncated grid's last drawn slot and its ellipsis slot.
+    """
+    context = build_queue_context(
+        ambassadors_waiting=_QUEUE_MAX_ICONS + 5,
+        referees_waiting=0,
+        matches=0,
+        is_open=True,
+        opens_at=_NOW,
+        days_until_open=0,
+        you_role="ambassadors",
+        you_index=you_index,
+    )
+    assert context["ambassadors"]["you_glyph"] == expected_you_glyph
+    # Routing is exclusive — the other columns never see this you_index.
+    assert context["referees"]["you_glyph"] is None
+    assert context["matches"]["you_glyph"] is None
+
+
+def test_build_queue_context_you_role_ambassadors_routes_only_there() -> None:
+    """``you_role="ambassadors"`` sets only the ambassadors column's you_glyph."""
+    context = build_queue_context(
+        ambassadors_waiting=3,
+        referees_waiting=3,
+        matches=3,
+        is_open=True,
+        opens_at=_NOW,
+        days_until_open=0,
+        you_role="ambassadors",
+        you_index=1,
+    )
+    assert context["ambassadors"]["you_glyph"] == 1
+    assert context["referees"]["you_glyph"] is None
+    assert context["matches"]["you_glyph"] is None
+
+
+def test_build_queue_context_you_role_referees_routes_only_there() -> None:
+    """``you_role="referees"`` sets only the referees column's you_glyph."""
+    context = build_queue_context(
+        ambassadors_waiting=3,
+        referees_waiting=3,
+        matches=3,
+        is_open=True,
+        opens_at=_NOW,
+        days_until_open=0,
+        you_role="referees",
+        you_index=2,
+    )
+    assert context["ambassadors"]["you_glyph"] is None
+    assert context["referees"]["you_glyph"] == 2
+    assert context["matches"]["you_glyph"] is None
+
+
+def test_build_queue_context_you_role_matches_routes_only_there() -> None:
+    """``you_role="matches"`` sets only the matches column's you_glyph."""
+    context = build_queue_context(
+        ambassadors_waiting=3,
+        referees_waiting=3,
+        matches=3,
+        is_open=True,
+        opens_at=_NOW,
+        days_until_open=0,
+        you_role="matches",
+        you_index=0,
+    )
+    assert context["ambassadors"]["you_glyph"] is None
+    assert context["referees"]["you_glyph"] is None
+    assert context["matches"]["you_glyph"] == 0
+
+
+def test_build_queue_context_no_you_role_leaves_all_none() -> None:
+    """``you_role=""`` (the default) leaves every column's you_glyph None."""
+    context = build_queue_context(
+        ambassadors_waiting=3,
+        referees_waiting=3,
+        matches=3,
+        is_open=True,
+        opens_at=_NOW,
+        days_until_open=0,
+    )
+    assert context["ambassadors"]["you_glyph"] is None
+    assert context["referees"]["you_glyph"] is None
+    assert context["matches"]["you_glyph"] is None
+
+
+def test_build_queue_context_out_of_range_index_leaves_all_none() -> None:
+    """An out-of-range you_index with no you_role still leaves every column None."""
+    context = build_queue_context(
+        ambassadors_waiting=3,
+        referees_waiting=3,
+        matches=3,
+        is_open=True,
+        opens_at=_NOW,
+        days_until_open=0,
+        you_role="",
+        you_index=100,
+    )
+    assert context["ambassadors"]["you_glyph"] is None
+    assert context["referees"]["you_glyph"] is None
+    assert context["matches"]["you_glyph"] is None
+
+
+def test_build_queue_context_matches_you_glyph_uses_pairs_cap_not_icons_cap() -> None:
+    """``you_role="matches"`` bounds against ``_QUEUE_MAX_PAIRS`` (16), not 20.
+
+    With exactly ``_QUEUE_MAX_PAIRS`` pairs (no truncation), every slot is drawn,
+    so index ``_QUEUE_MAX_PAIRS - 1`` (15) — the last slot — is kept. With more
+    pairs than the cap (truncated), index ``_QUEUE_MAX_PAIRS`` (16) is the
+    ellipsis slot and is dropped, even though it would still fall within
+    ``_QUEUE_MAX_ICONS`` (20) — proving the bound uses the pairs cap, not the
+    icons cap.
+    """
+    context_kept = build_queue_context(
+        ambassadors_waiting=0,
+        referees_waiting=0,
+        matches=_QUEUE_MAX_PAIRS,
+        is_open=True,
+        opens_at=_NOW,
+        days_until_open=0,
+        you_role="matches",
+        you_index=_QUEUE_MAX_PAIRS - 1,
+    )
+    assert context_kept["matches"]["you_glyph"] == _QUEUE_MAX_PAIRS - 1
+
+    context_dropped = build_queue_context(
+        ambassadors_waiting=0,
+        referees_waiting=0,
+        matches=_QUEUE_MAX_PAIRS + 5,
+        is_open=True,
+        opens_at=_NOW,
+        days_until_open=0,
+        you_role="matches",
+        you_index=_QUEUE_MAX_PAIRS,
+    )
+    assert context_dropped["matches"]["you_glyph"] is None

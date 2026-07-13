@@ -3852,13 +3852,24 @@ def test_queue_snapshot_page_renders_labels_and_counts() -> None:
     assert "Next referee will be matched immediately on registration" in content
 
     queue = response.context["queue"]
-    assert queue["ambassadors"] == {"count": 1, "glyphs": [0], "truncated": False}
-    assert queue["referees"] == {"count": 0, "glyphs": [], "truncated": False}
+    assert queue["ambassadors"] == {
+        "count": 1,
+        "glyphs": [0],
+        "truncated": False,
+        "you_glyph": None,
+    }
+    assert queue["referees"] == {
+        "count": 0,
+        "glyphs": [],
+        "truncated": False,
+        "you_glyph": None,
+    }
     assert queue["matches"] == {
         "count": 1,
         "people": 2,
         "glyphs": [0],
         "truncated": False,
+        "you_glyph": None,
     }
     assert Tip.objects.count() == 0
 

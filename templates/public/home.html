@@ -212,6 +212,18 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
         </p>
     </section>
 
+    {% comment %}
+    Live queue snapshot (VERB-149) — pool state + "instant match" nudge, placed
+    before the role choice it informs. Gated behind SHOW_HOMEPAGE_QUEUE: the
+    view only supplies `queue` when the flag is on, so this section is omitted
+    by default until the queue is switched on for launch.
+    {% endcomment %}
+    {% if queue %}
+        <section class="mt-12">
+            {% include "includes/_queue_snapshot.html" with queue=queue %}
+        </section>
+    {% endif %}
+
     {% comment %}Which one are you? — the two role cards using fixed red/blue tones.{% endcomment %}
     <section class="mt-12">
         <h2 class="mb-8 text-center text-h2 text-ink">{% translate "Which role are you?" %}</h2>

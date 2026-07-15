@@ -130,6 +130,14 @@ TEMPLATES = [
 BASE_URL: str = config("BASE_URL", default="http://localhost:8000")
 
 CONTACT_WINDOW_HOURS: int = config("CONTACT_WINDOW_HOURS", default=72, cast=int)
+
+# Homepage queue snapshot (VERB-149): the live "who's in the queue" pictograph
+# is mounted on the public homepage but gated behind this flag, off by default,
+# so it can be switched on for launch without a code change. When false the
+# homepage renders exactly as before and no queue query runs. The standalone
+# /queue/ page is unaffected — it stays available for QA regardless.
+SHOW_HOMEPAGE_QUEUE: bool = config("SHOW_HOMEPAGE_QUEUE", default=False, cast=bool)
+
 # Registration window bounds are dates (YYYY-MM-DD); time and timezone are
 # ignored. Both bounds are inclusive — registration is open on the closing date.
 REGISTRATION_OPENS_AT: str = config("REGISTRATION_OPENS_AT", default="2020-01-01")

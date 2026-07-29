@@ -2,7 +2,8 @@
 
 Mounts everything the public site serves: the liveness probe, the first-party
 magic-link auth + account self-service flow, the language switcher, the sitemap,
-robots, the Stripe webhook, and the public catch-all — but **not** ``/admin/``.
+robots, llms.txt, the Stripe webhook, and the public catch-all — but **not**
+``/admin/``.
 
 On a deployment with ``ADMIN_HOST`` set, ``core.middleware.AdminHostMiddleware``
 selects this URLconf for every host *other* than the admin subdomain, so the
@@ -17,7 +18,7 @@ change — Stripe needs one stable, permanent path.
 from django.contrib.sitemaps.views import sitemap
 from django.urls import include, path
 
-from core.views import healthz, robots_txt
+from core.views import healthz, llms_txt, robots_txt
 from public.sitemaps import StaticViewSitemap
 from public.views import stripe_webhook
 
@@ -41,6 +42,9 @@ urlpatterns = [
     path("debug/", include("debug.urls")),
     # Search-engine control (VERB-63). Must come before the public catch-all.
     path("robots.txt", robots_txt, name="robots_txt"),
+    # Curated Markdown index for LLMs and AI agents, llmstxt.org (SKI-150).
+    # Root-level by convention, like robots.txt — must precede the catch-all.
+    path("llms.txt", llms_txt, name="llms_txt"),
     # Stripe checkout.session.completed webhook (VERB-86) — un-prefixed.
     path("webhooks/stripe/", stripe_webhook, name="stripe_webhook"),
     path("", include("public.urls")),

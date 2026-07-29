@@ -1,7 +1,7 @@
 ---
 name: harden
 description: |
-  Put the controls back on. Takes a VERB branch whose code works but has not
+  Put the controls back on. Takes a SKI branch whose code works but has not
   been reviewed — typically the output of a `/rapid` iteration session — and
   runs the full quality pass, then opens the PR: reviewer + blocker loop, tests
   to the 90% target, security audit, QA scenarios, docs, and the full tox gate,
@@ -34,15 +34,15 @@ git fetch origin
 git diff origin/main...HEAD --stat
 ```
 
-- Must be on a `VERB-NN` branch. If on `main`, stop and ask.
+- Must be on a `SKI-NN` branch. If on `main`, stop and ask.
 - If the tree is dirty, commit the outstanding work first
-  (`chore(VERB-NN): …` or fold it into a sensible commit) — harden reviews
+  (`chore(SKI-NN): …` or fold it into a sensible commit) — harden reviews
   committed state.
 - The **surface to harden** is the branch diff vs `origin/main`
   (`git diff origin/main...HEAD`). Harden does not care which commits were
   `rapid(...)` vs `implement` — it brings the whole diff up to standard.
 - Fetch the ticket for scope / acceptance criteria: Linear MCP `get_issue` on
-  VERB-NN plus its comments (the scope lives in a `scope`-skill comment).
+  SKI-NN plus its comments (the scope lives in a `scope`-skill comment).
 
 Announce the plan in one line: the passes below, in order, then the PR.
 
@@ -123,14 +123,14 @@ git push
 
 Then `gh pr create` with:
 
-- **Title:** `VERB-NN: <short imperative summary>`
+- **Title:** `SKI-NN: <short imperative summary>`
 - **Body:**
   - **What** — one-paragraph summary
   - **Why** — link the ticket, brief context
   - **How** — bullets of the main changes
   - **Testing** — the tests added and the QA doc reference (Step 4)
   - **Security** — any non-blocking findings carried from Step 3, or "clean"
-  - `Closes VERB-NN`
+  - `Closes SKI-NN`
 
 Then move the ticket to **In Review** (Linear MCP `save_issue`) and post the PR
 URL as a comment (`save_comment`).
@@ -141,7 +141,7 @@ not survive to `main`; only do it if the user wants a clean pre-merge history.
 
 ## Step 8 — Report
 
-> "PR opened: <url>. VERB-NN is now In Review. Passes run: review, tests,
+> "PR opened: <url>. SKI-NN is now In Review. Passes run: review, tests,
 > security, QA, docs, tox — all green."
 
 List any non-blocking reviewer / security suggestions so the user can decide

@@ -96,7 +96,7 @@ If the user gave a project alias (e.g. "ambassadeurs"), match case-insensitively
 status set by GitHub integration when a PR merges, and the Linear
 `updatedAt` on the ticket may lag. Cross-check against git.
 
-1. `git log --since='<last update iso date>' --pretty=format:'%h %ad %s' --date=short` — extract every `VERB-xxx` referenced in commit subjects.
+1. `git log --since='<last update iso date>' --pretty=format:'%h %ad %s' --date=short` — extract every `SKI-xxx` referenced in commit subjects.
 2. For each ticket id, fetch the current status via Linear. Include any that are `Done` / canceled-duplicate / otherwise completed.
 3. **Re-read the previous 1–2 status updates** to detect tickets that shipped *before* that update but were missed. If the previous update didn't list a ticket that git shows merged during its window, include it in the current update under a header like "Shipped since last update (including X from the previous window)".
 
@@ -128,7 +128,7 @@ Three more short sections:
 ## Step 5 — Draft the body
 
 Format the body as Markdown. Use Linear issue URLs
-(`https://linear.app/<workspace>/issue/<ID>`), not bare `VERB-43`
+(`https://linear.app/<workspace>/issue/<ID>`), not bare `SKI-43`
 mentions, so every ticket reference is a link.
 
 Start with one short paragraph summarising the window — something the
@@ -204,7 +204,7 @@ flag concerns inside the body's `Still open` / `Risks` section instead.
   prior 1–2 updates against git log. The prior update may have missed
   tickets that merged earlier the same day. **Critical in routine
   mode** — no human will catch the omission.
-* **Bare ticket mentions instead of links.** Every `VERB-NNN`
+* **Bare ticket mentions instead of links.** Every `SKI-NNN`
   reference should be a Markdown link to the Linear issue URL.
 * **Copy-pasting ticket titles as bullets.** The title is context-free;
   rewrite the bullet as one sentence explaining *what changed* for the

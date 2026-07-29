@@ -4,7 +4,7 @@ description: |
   Run a longitudinal whole-codebase review cycle: execute a drift / dead-code /
   pattern-consistency audit against the Ambassadeurs CLAUDE.md conventions and
   invariants, write the dated findings doc `docs/code-reviews/YYYY-MM-DD.md`,
-  land trivial fixes inline, spin off non-trivial findings as Linear VERB
+  land trivial fixes inline, spin off non-trivial findings as Linear SKI
   tickets, run tox, and open a PR. Use when the user says "run a code review
   pass", "do the code review cycle", or "start a new review cycle". Also driven
   by a weekly Routine — when invoked with `routine` (or `weekly` /
@@ -82,7 +82,7 @@ update the existing file rather than creating a second one.
 
 The cadence is **one cycle per Linear ticket**. Each run gets a fresh ticket.
 
-1. Resolve the Ambassadeurs team id via `list_teams` (prefix `VERB-`).
+1. Resolve the Ambassadeurs team id via `list_teams` (prefix `SKI-`).
 2. Create a new issue with `save_issue`:
    - **Team:** Ambassadeurs.
    - **Title:** `Code review pass — YYYY-MM-DD (drift, dead code, pattern consistency)`.
@@ -93,7 +93,7 @@ The cadence is **one cycle per Linear ticket**. Each run gets a fresh ticket.
      equivalent — resolve via `list_issue_labels`).
    - **State:** `In Progress` (resolve the state id via `list_issue_statuses`
      for the team — don't hardcode).
-3. Note the new ticket's `VERB-NNN` identifier and internal `id` — you'll
+3. Note the new ticket's `SKI-NNN` identifier and internal `id` — you'll
    need both for the branch, child tickets, PR, and `Closes`.
 
 If ticket creation fails in routine mode, exit non-zero — there's no cycle
@@ -104,7 +104,7 @@ without a ticket.
 ```bash
 git -C <repo-root> checkout main && \
 git -C <repo-root> pull --ff-only && \
-git -C <repo-root> checkout -b chore/VERB-NNN-code-review-YYYY-MM-DD
+git -C <repo-root> checkout -b chore/SKI-NNN-code-review-YYYY-MM-DD
 ```
 
 Verify the working tree is clean first. If the branch already exists, stop
@@ -149,7 +149,7 @@ For each **spin-off candidate**, before creating anything:
 Ambassadeurs team, open states; use the auditor's `existing-ticket-hint` and a
 keyword query) for an existing open ticket covering the same finding. If one
 exists, **do not** create a duplicate — record it under **Watching** in the
-doc as "tracked by VERB-NN" and move on.
+doc as "tracked by SKI-NN" and move on.
 
 Otherwise create a child ticket with `save_issue`:
 
@@ -170,7 +170,7 @@ single-purpose task — not a research finding. Handle it specially:
 
 - **Dedup harder.** Search for any open ticket titled "Update translation
   catalogues" *and* check for an open update-messages PR / branch. There must be
-  at most one in flight; if one exists, record "tracked by VERB-NN" and skip.
+  at most one in flight; if one exists, record "tracked by SKI-NN" and skip.
 - **Title:** `Update translation catalogues` (stable, so dedup works next cycle).
 - **State:** `Ready for dev` (not triage/backlog) — it needs no scoping; the
   update-messages skill can pick it up as-is.
@@ -187,9 +187,9 @@ Create (or update) `docs/code-reviews/YYYY-MM-DD.md`:
 # Code review — YYYY-MM-DD
 
 **Reviewer:** <name — "Code review Routine" in routine mode, else the user>
-**Branch:** chore/VERB-NNN-code-review-YYYY-MM-DD
+**Branch:** chore/SKI-NNN-code-review-YYYY-MM-DD
 **Tox baseline:** all green (N passed, M skipped, P% coverage) | N failures
-**Previous cycle:** [YYYY-MM-DD](YYYY-MM-DD.md) (VERB-NN) | none (first cycle)
+**Previous cycle:** [YYYY-MM-DD](YYYY-MM-DD.md) (SKI-NN) | none (first cycle)
 
 ## Summary
 One paragraph — overall health, biggest movers since the previous cycle.
@@ -244,21 +244,21 @@ PATH=~/.local/bin:$PATH uv run tox
   to a spin-off. Re-run. **Never** push a red branch — exit non-zero in
   routine mode if it can't be made green.
 
-Stage and commit. Subject: `VERB-NNN: code review pass YYYY-MM-DD`. Include
+Stage and commit. Subject: `SKI-NNN: code review pass YYYY-MM-DD`. Include
 the doc, any README pointer update, and any inline-fix files.
 
 ## Step 10 — Push and open the PR
 
 ```bash
-git -C <repo-root> push -u origin chore/VERB-NNN-code-review-YYYY-MM-DD
+git -C <repo-root> push -u origin chore/SKI-NNN-code-review-YYYY-MM-DD
 ```
 
 Open the PR with `gh pr create`:
 
-- **Title:** `VERB-NNN: code review pass YYYY-MM-DD`.
+- **Title:** `SKI-NNN: code review pass YYYY-MM-DD`.
 - **Body:** what the cycle found (counts: inline-fixed / spun off / watching),
   a link to the dated doc, the tox baseline, the list of child tickets, and
-  the magic line `Closes VERB-NNN` so Linear's GitHub integration closes the
+  the magic line `Closes SKI-NNN` so Linear's GitHub integration closes the
   cycle ticket on merge.
 
 Then move the cycle ticket to `In Review` (`save_issue`) and post the PR URL
@@ -269,7 +269,7 @@ misses.
 ## Step 11 — Report
 
 - **Interactive:** "Cycle YYYY-MM-DD done. PR: <url>. Inline-fixed N, spun off
-  M (tickets …), watching P. VERB-NNN is In Review."
+  M (tickets …), watching P. SKI-NNN is In Review."
 - **Routine:** emit the same summary plus the PR URL to stdout. No user to
   report back to — the PR and the doc are the record.
 
@@ -282,7 +282,7 @@ misses.
   mode — an unattended risky edit is worse than a ticket.
 - **Duplicate tickets every week.** Always dedup against open Linear tickets
   before spinning off; recurring findings go to **Watching** as "tracked by
-  VERB-NN".
+  SKI-NN".
 - **Skipping checklist items.** Every checklist line must appear in the doc,
   even as "✅ no drift found" — the longitudinal record is the value.
 - **Pushing red.** Run `tox` to green before push. Routine mode exits

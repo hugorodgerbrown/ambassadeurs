@@ -9,7 +9,7 @@ description: |
   screenshot", "show me the how-it-works page", "what does the decline screen
   look like", or any similar request to see, render, or share a page — even when
   they don't use the word "screenshot". Also invoke this PROACTIVELY when you are
-  implementing or reviewing a Linear ticket (VERB-xxx) whose description or
+  implementing or reviewing a Linear ticket (SKI-xxx) whose description or
   comments ask to "attach screenshots" (or "add screenshots", "include
   screenshots"): after the UI change is in place, capture the affected page(s)
   and attach them to that ticket. Do NOT use for Figma/design mockups, for
@@ -112,12 +112,12 @@ stop here — do not attach to Linear unless asked or unless a ticket requests i
 
 Attach when the user says so, or when acting on a ticket that requests screenshots.
 
-1. **Identify the ticket.** Prefer an explicit `VERB-xxx` from the user. Otherwise
+1. **Identify the ticket.** Prefer an explicit `SKI-xxx` from the user. Otherwise
    derive it from the branch name:
-   `git rev-parse --abbrev-ref HEAD` → extract the `VERB-\d+`. If you cannot
+   `git rev-parse --abbrev-ref HEAD` → extract the `SKI-\d+`. If you cannot
    determine the ticket, ask rather than guessing.
 2. **Upload via the Linear MCP** (three steps — do not base64 the file):
-   - `prepare_attachment_upload` with `issue` (the `VERB-xxx` identifier), `filename`
+   - `prepare_attachment_upload` with `issue` (the `SKI-xxx` identifier), `filename`
      (e.g. `register-desktop.png`), `contentType: image/png`, and `size` — the exact
      byte count from `wc -c < <path>`.
    - `PUT` the raw bytes to `uploadRequest.url`, sending **every** header in
@@ -135,7 +135,7 @@ Attach when the user says so, or when acting on a ticket that requests screensho
 
 ## When a ticket asks for screenshots
 
-While implementing or reviewing a `VERB-xxx` whose description or comments include
+While implementing or reviewing a `SKI-xxx` whose description or comments include
 "attach screenshots" (or "add/include screenshots"), treat that as a definition-of-
 done item: once the relevant UI is built, work out which page(s) changed, capture
 each (consider both `--viewport desktop` and `--viewport mobile` if the change is

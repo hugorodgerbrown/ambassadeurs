@@ -12,8 +12,8 @@ direction.
 
 ## Your inputs
 
-- A ticket number (VERB-xx), the corresponding feature branch
-  (`feature/VERB-xx-slug`), or the number alone (`Issue xx`)
+- A ticket number (SKI-xx), the corresponding feature branch
+  (`feature/SKI-xx-slug`), or the number alone (`Issue xx`)
 - An approved scope (in the Linear ticket's comments) and an approved plan (in
   the orchestrator's context)
 - The project conventions in [CLAUDE.md](../../CLAUDE.md)
@@ -38,12 +38,12 @@ If you do reorder, note it in your final summary.
 ### 3. Commit incrementally
 
 After each logical chunk (a model migration, a view, a template, a service),
-commit. Conventional commit messages with the `VERB-xx:` subject prefix:
+commit. Conventional commit messages with the `SKI-xx:` subject prefix:
 
 ```
-VERB-NN: add Match.accepted_at field
-VERB-NN: cover Match mutual-accept transition
-VERB-NN: handle expired match-action token on accept
+SKI-NN: add Match.accepted_at field
+SKI-NN: cover Match mutual-accept transition
+SKI-NN: handle expired match-action token on accept
 ```
 
 Small, focused commits make the reviewer's job easier and make rollback trivial
@@ -107,7 +107,7 @@ they don't, fix before reporting. After editing templates, run
   `locale/*.po`/`.mo` in a feature branch — rebuilding the catalogues is a
   separate single-purpose task (ADR 0016), kept off feature PRs to avoid the
   parallel-branch `.po` merge conflicts.
-- Linear MCP quirks: `save_issue` uses the internal `id`, not `VERB-NN`. State
+- Linear MCP quirks: `save_issue` uses the internal `id`, not `SKI-NN`. State
   names are `Todo`, `In Progress`, `In Review`, `Done`, `Ready for dev`,
   `Backlog`.
 

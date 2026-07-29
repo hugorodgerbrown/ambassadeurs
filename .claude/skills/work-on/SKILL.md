@@ -5,9 +5,9 @@ description: |
   needs scoping) and then immediately implement it through to an open PR —
   Todo → Ready for dev → In Progress → In Review, with both approval gates
   intact. The ticket may be referenced as a bare number — every ticket in
-  this project is VERB-prefixed, so "work on 42" means VERB-42. Use when
-  the user says "work on VERB-NN", "work on NN", "take NN through to
-  review", "scope and implement NN", "do VERB-NN end to end", or any
+  this project is SKI-prefixed, so "work on 42" means SKI-42. Use when
+  the user says "work on SKI-NN", "work on NN", "take NN through to
+  review", "scope and implement NN", "do SKI-NN end to end", or any
   phrasing that asks for both scoping and implementation of one ticket in
   one go. Do NOT use for: scoping only (`scope` skill), implementing an
   already-scoped ticket when the user only asks to implement (`implement`
@@ -16,9 +16,9 @@ description: |
 allowed-tools: Skill, mcp__linear
 ---
 
-# Work on VERB-$1
+# Work on SKI-$1
 
-Run the `scope` and `implement` skills back to back so VERB-$1 goes from
+Run the `scope` and `implement` skills back to back so SKI-$1 goes from
 Todo to In Review in one session. This skill is a pure orchestrator: it
 adds state dispatch and the handoff between phases, and nothing else. Each
 phase's own rules — preconditions, approval gates, pause directives, stop
@@ -28,10 +28,10 @@ steps from here; invoke the skill and follow it.
 ## Step 0 — Parse the arguments
 
 - **Ticket:** the canonical form is the bare number (`/work-on 42`), since
-  every ticket in this project carries the `VERB-` prefix. Accept
-  `VERB-42` too, but normalise to the bare number for passing to the
-  sub-skills (they template it as `VERB-$1`).
-- **Pause directive:** any trailing instruction (e.g. *"work on VERB-123
+  every ticket in this project carries the `SKI-` prefix. Accept
+  `SKI-42` too, but normalise to the bare number for passing to the
+  sub-skills (they template it as `SKI-$1`).
+- **Pause directive:** any trailing instruction (e.g. *"work on SKI-123
   but stop before pushing"*) belongs to the implement phase. Hold it and
   pass it through verbatim in step 3 — do not act on it during scoping.
 
@@ -86,7 +86,7 @@ write; do not improvise a scope.
 The implement skill's own final report stands. Add a one-line wrap-up for
 the whole run, e.g.:
 
-> "VERB-NN worked end to end: scoped (or: scope pre-existing), PR opened
+> "SKI-NN worked end to end: scoped (or: scope pre-existing), PR opened
 > at <url>, ticket now In Review."
 
 ## Failure handling

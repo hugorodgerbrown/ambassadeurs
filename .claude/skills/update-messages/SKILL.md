@@ -71,11 +71,11 @@ The project convention is one ticket per branch.
    **"Update translation catalogues"** ticket (the `code-review-pass` audit may
    have already spun one off). Also check for an existing open update-messages
    branch/PR — there must be at most one in flight; if one exists, stop.
-2. If a ticket exists, use its `VERB-NN`. If none exists, create one with
+2. If a ticket exists, use its `SKI-NN`. If none exists, create one with
    `save_issue` (title `Update translation catalogues`, state `Ready for dev`,
-   description referencing ADR 0016), and use the new `VERB-NN`.
+   description referencing ADR 0016), and use the new `SKI-NN`.
 3. From a clean tree on an up-to-date `main`, create
-   `chore/VERB-NN-update-translation-catalogues`. Move the ticket to
+   `chore/SKI-NN-update-translation-catalogues`. Move the ticket to
    `In Progress` (no push yet).
 
 ## Step 3 — Extract and compile
@@ -131,9 +131,9 @@ exit non-zero (routine). Never push a red branch.
 
 - **Stage only `locale/`.** The diff must contain nothing but catalogue changes.
   If `makemessages` picked up unrelated churn, investigate before committing.
-- Commit subject `VERB-NN: update translation catalogues`.
-- Push and open a PR titled `VERB-NN: update translation catalogues`. The body
-  starts with `Closes VERB-NN`, and lists the before/after untranslated counts
+- Commit subject `SKI-NN: update translation catalogues`.
+- Push and open a PR titled `SKI-NN: update translation catalogues`. The body
+  starts with `Closes SKI-NN`, and lists the before/after untranslated counts
   per locale and anything intentionally left untranslated. Reference ADR 0016.
 
 ## Step 8 — Report

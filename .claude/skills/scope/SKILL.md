@@ -3,22 +3,22 @@ name: scope
 description: |
   Scope a Linear ticket: read the description, explore the codebase, produce a
   written scope, post it as a Linear comment, and transition the ticket from
-  Todo to Ready for dev. Use when the user asks to "scope VERB-NN", "let's
-  scope VERB-NN", "work out VERB-NN", "spec VERB-NN", or any phrasing where
+  Todo to Ready for dev. Use when the user asks to "scope SKI-NN", "let's
+  scope SKI-NN", "work out SKI-NN", "spec SKI-NN", or any phrasing where
   they want a Linear ticket turned from a sentence into a proper scope. Do NOT
   use for: starting work on an already-scoped ticket, asking questions about a
   ticket without producing a scope, or any message that doesn't explicitly
-  reference a VERB-NN identifier.
+  reference a SKI-NN identifier.
 allowed-tools: Task, Bash, Read, Grep, Glob, EnterPlanMode, ExitPlanMode, mcp__linear
 ---
 
-# Scope VERB-$1
+# Scope SKI-$1
 
-You are scoping Linear ticket VERB-$1 in the Ambassadeurs codebase.
+You are scoping Linear ticket SKI-$1 in the Ambassadeurs codebase.
 
 ## Step 1 — Verify ticket state
 
-Use the Linear MCP `get_issue` tool to fetch VERB-$1.
+Use the Linear MCP `get_issue` tool to fetch SKI-$1.
 
 **Hard precondition:** the ticket must be in `Todo` state. If it is in
 `Backlog`, tell the user it needs to be prioritised first and stop. If it
@@ -29,7 +29,7 @@ wrong-state ticket.
 ## Step 2 — Delegate scoping to the scoper agent
 
 Invoke the `scoper` subagent via the Task tool. Pass it:
-- The Linear ticket ID (`VERB-$1`)
+- The Linear ticket ID (`SKI-$1`)
 - The Linear ticket git branch name as fetched
 - The ticket title and description as fetched
 - A clear instruction to produce a scope document and return it as the final
@@ -69,8 +69,8 @@ user has approved the scope via the sidebar.
 When the sidebar approval comes through:
 
 1. Post the scope as a comment on the Linear ticket using `save_comment` (the
-   comment's `issueId` is the internal `id` from `get_issue`, NOT the `VERB-NN`
+   comment's `issueId` is the internal `id` from `get_issue`, NOT the `SKI-NN`
    identifier).
 2. Transition the ticket to `Ready for dev` using `save_issue` with the existing
    `id` and the new `stateId`.
-3. Confirm to the user: "Scope posted, VERB-$1 moved to Ready for dev."
+3. Confirm to the user: "Scope posted, SKI-$1 moved to Ready for dev."

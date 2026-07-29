@@ -2,7 +2,7 @@
 name: rapid
 description: |
   Rapid iteration mode — a temporary "controls off" period layered ON TOP of a
-  feature that `implement` has already built. On the existing VERB branch, make
+  feature that `implement` has already built. On the existing SKI branch, make
   fast changes to the design / output with the quality gate suspended: no
   reviewer agent, no tox, no per-change tests, no docs. Keeps the dev server
   running so each change is visible, commits the rough work so nothing is lost,
@@ -19,7 +19,7 @@ allowed-tools: Bash, Read, Edit, Write, Grep, Glob, Skill, mcp__Claude_Preview__
 # /rapid — $ARGUMENTS
 
 Rapid iteration is a **mode, not a feature build**. `implement` has already
-produced a first working iteration on the current VERB branch; `/rapid` drops
+produced a first working iteration on the current SKI branch; `/rapid` drops
 the controls so you can iterate quickly on how it *looks and behaves*. The
 output is the point — the code is allowed to be rough. `/harden` puts the
 controls back on afterwards.
@@ -49,8 +49,8 @@ git branch --show-current
 git status --short
 ```
 
-- The branch **must** be a `VERB-NN` feature branch. If it is `main` or a
-  non-VERB branch, stop and ask — `/rapid` layers on top of in-flight feature
+- The branch **must** be a `SKI-NN` feature branch. If it is `main` or a
+  non-SKI branch, stop and ask — `/rapid` layers on top of in-flight feature
   work, it does not create a branch. (For a fresh sandbox, that's `/spike`; to
   start a ticket, that's `/implement`.)
 - A dirty tree is fine here — uncommitted work from the `implement` run is
@@ -95,7 +95,7 @@ Commit the rough work periodically so nothing is lost, using a marker prefix so
 `/harden` (and the eventual squash-merge) can see what was design iteration:
 
 ```bash
-git add <files> && git commit -m "rapid(VERB-NN): <what changed>"
+git add <files> && git commit -m "rapid(SKI-NN): <what changed>"
 ```
 
 Do not run `tox`, invoke the reviewer, or write tests in this loop. If you spot
@@ -107,7 +107,7 @@ full review cycle mid-flow.
 When the user says they're happy with the output, stop and hand off — do **not**
 run any gate yourself:
 
-> "Output locked in. The branch has `rapid(VERB-NN)` commits with the controls
+> "Output locked in. The branch has `rapid(SKI-NN)` commits with the controls
 > off. Run `/harden` to bring it up to standard — reviewer, tests, security, QA,
 > docs, full tox — and open the PR."
 

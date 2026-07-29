@@ -90,7 +90,7 @@ ASGI_APPLICATION = "config.asgi.application"
 UTM_TRACKER_CUSTOM_TAGS = ["utm_content", "gad_source"]
 
 # --- Host routing ----------------------------------------------------------
-# When set (e.g. "admin.skiparrainage.ch"), core.middleware.AdminHostMiddleware
+# When set (e.g. "admin.skiparrainage.com"), core.middleware.AdminHostMiddleware
 # serves the Django admin ONLY on this host (config.urls_admin) and the public
 # site with no /admin/ on every other host (config.urls_public). The host must
 # also appear in ALLOWED_HOSTS and (https://) in CSRF_TRUSTED_ORIGINS. Empty

@@ -1,6 +1,6 @@
 ---
 name: ticket-implementation-guide
-description: Use when picking up a scoped Linear ticket to implement it — i.e. the user says "implement VERB-xxx" or equivalent. Covers the pickup sequence (fetch issue + comments, verify scoping comment exists, stop if missing), branch naming, the MCP move to In Progress (no push yet), PR title/body format including the `Closes VERB-xxx` magic string, and when to stop and ask rather than push through. Do NOT use when creating or scoping a ticket — use ticket-authoring-guide for that.
+description: Use when picking up a scoped Linear ticket to implement it — i.e. the user says "implement SKI-xxx" or equivalent. Covers the pickup sequence (fetch issue + comments, verify scoping comment exists, stop if missing), branch naming, the MCP move to In Progress (no push yet), PR title/body format including the `Closes SKI-xxx` magic string, and when to stop and ask rather than push through. Do NOT use when creating or scoping a ticket — use ticket-authoring-guide for that.
 ---
 
 # Linear ticket implementation guide
@@ -19,13 +19,13 @@ integration:
   push.
 - **GitHub integration** moves the ticket `In Progress` → `In Review`
   when the PR is opened, and `In Review` → `Done` when the PR is
-  merged. Both triggers require `VERB-xxx` in the branch name or PR
+  merged. Both triggers require `SKI-xxx` in the branch name or PR
   body — get those references right and the post-implementation states
   stay in sync without manual nudging.
 
 ## When this skill applies
 
-- The user says "implement VERB-42" or equivalent.
+- The user says "implement SKI-42" or equivalent.
 - The user asks to continue work on a ticket that's already in progress.
 - Any time the task is executing against an existing, scoped Linear ticket.
 
@@ -58,9 +58,9 @@ anything else.
 
 Naming convention:
 
-- Features: `feature/VERB-xxx-short-kebab-description`
-- Bug fixes: `fix/VERB-xxx-short-kebab-description`
-- Tooling/infra: `chore/VERB-xxx-short-kebab-description`
+- Features: `feature/SKI-xxx-short-kebab-description`
+- Bug fixes: `fix/SKI-xxx-short-kebab-description`
+- Tooling/infra: `chore/SKI-xxx-short-kebab-description`
 
 Keep the slug under ~40 characters. It appears in the branch list and PR
 title, so brevity matters.
@@ -131,13 +131,13 @@ if a test is genuinely flaky, surface it and stop.
 
 This is the first push. Pushing the branch and opening the PR together
 is what triggers the GitHub-driven `In Progress` → `In Review`
-transition (the integration sees `VERB-xxx` in the branch name and PR
+transition (the integration sees `SKI-xxx` in the branch name and PR
 body). See the PR format section below.
 
 ## Branch and commit conventions
 
 - Branch name format above.
-- **Commit subject prefix: `VERB-xxx:`** — keeps the ticket reference in
+- **Commit subject prefix: `SKI-xxx:`** — keeps the ticket reference in
   the git log even after a squash-merge rewrites the PR title. This
   matters for later archaeology.
 - **One ticket per branch.** If implementation reveals work that needs its
@@ -149,15 +149,15 @@ body). See the PR format section below.
 
 ### Title
 
-`VERB-42: short imperative summary`
+`SKI-42: short imperative summary`
 
 Matches the branch minus the slug fluff. Example:
-`VERB-42: Add match-accept flow`.
+`SKI-42: Add match-accept flow`.
 
 ### Body
 
 ```markdown
-Closes VERB-42
+Closes SKI-42
 
 ## What
 One-paragraph summary of the change.
@@ -177,7 +177,7 @@ would otherwise have to reverse-engineer from the diff.
 
 For a change touching a public page, add before/after screenshots.
 
-### The `Closes VERB-xxx` line is mandatory
+### The `Closes SKI-xxx` line is mandatory
 
 It's what closes the Linear ticket on merge. Omit it and the ticket
 dangles in `In Review` forever. Do not omit it.
@@ -185,7 +185,7 @@ dangles in `In Review` forever. Do not omit it.
 ### The `In Review` transition
 
 Triggered automatically by opening a PR whose branch name or body
-references `VERB-xxx`. No manual action needed.
+references `SKI-xxx`. No manual action needed.
 
 ## After merge
 
@@ -221,7 +221,7 @@ stopping:
   triggers `In Review`; pushing earlier just creates a "stale Draft"
   flicker on the remote and doesn't help status. `In Progress` is set
   by the MCP move in step 4, not by the push.
-- **Don't omit `Closes VERB-xxx` from the PR body.** The ticket won't
+- **Don't omit `Closes SKI-xxx` from the PR body.** The ticket won't
   close on merge.
 - **Don't squash unrelated work onto one branch.** One ticket, one branch,
   one PR.

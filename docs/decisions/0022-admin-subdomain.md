@@ -10,7 +10,7 @@
 The Django admin was path-mounted at `/admin/` on the single Render web service
 (`config/urls.py`, `path("admin/", admin.site.urls)`), sharing a hostname with
 the public registration/matching site. We want the staff admin surface served on
-its own subdomain instead — e.g. `admin.skiparrainage.ch` — so it is separated
+its own subdomain instead — e.g. `admin.skiparrainage.com` — so it is separated
 from the public site and `/admin/` is not part of the public URL space at all.
 
 This is a low-risk move for this codebase:
@@ -91,14 +91,14 @@ auto-provisions TLS; `SECURE_HSTS_INCLUDE_SUBDOMAINS = True` already covers it).
 
 ## Consequences
 
-- **True isolation.** With `ADMIN_HOST` set, `skiparrainage.ch/admin/` 404s and
-  the admin answers only on `admin.skiparrainage.ch/`. The public site never
+- **True isolation.** With `ADMIN_HOST` set, `skiparrainage.com/admin/` 404s and
+  the admin answers only on `admin.skiparrainage.com/`. The public site never
   exposes the admin surface.
 - **Sessions are naturally separate.** No `SESSION_COOKIE_DOMAIN` is set, so
   cookies are host-only — an admin-subdomain session is independent of any
   public-site session, which is the desirable isolation here. Cross-subdomain
   SSO is explicitly not wired up (it would require
-  `SESSION_COOKIE_DOMAIN = ".skiparrainage.ch"`).
+  `SESSION_COOKIE_DOMAIN = ".skiparrainage.com"`).
 - **One place to keep in sync.** `config.urls` reuses `config.urls_public`'s
   patterns, so a new public route added to `urls_public` appears on both the
   combined default and the public-only URLconf automatically. Only the admin

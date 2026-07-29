@@ -3,15 +3,15 @@ name: implement
 description: |
   Take a scoped Linear ticket from Ready-for-dev through to an open PR in one
   flow: create the branch, plan, wait for plan approval, implement + review,
-  push, and open the PR. Use when the user says "implement VERB-NN", "implement
-  this", "go on VERB-NN", or just "implement" / "go" / "continue" when a
+  push, and open the PR. Use when the user says "implement SKI-NN", "implement
+  this", "go on SKI-NN", or just "implement" / "go" / "continue" when a
   feature branch is already checked out. Do NOT use for: scoping a ticket
   (`scope` skill), ad-hoc edits unrelated to a ticket, or any message without
-  either a VERB-NN reference or an existing VERB-NN branch checked out.
+  either a SKI-NN reference or an existing SKI-NN branch checked out.
 allowed-tools: Task, Bash, Read, Edit, Write, Grep, Glob, mcp__linear
 ---
 
-# Implement VERB-$1
+# Implement SKI-$1
 
 End-to-end implementation flow. The **only** mandatory stop is plan approval.
 Everything after that runs through to an open PR without prompting the user,
@@ -19,7 +19,7 @@ unless they appended a pause directive to the trigger.
 
 ## Optional pause directives
 
-The user may append a pause directive, e.g. *"implement VERB-123, but stop
+The user may append a pause directive, e.g. *"implement SKI-123, but stop
 before pushing"*. Parse it against the table below and treat the matched
 checkpoint as a hard stop. If the phrasing is ambiguous, ask which checkpoint
 they mean — do not guess.
@@ -42,7 +42,7 @@ Resuming uses the existing branch state. No re-plan, no re-review.
 
 Two entry modes:
 
-- **Fresh ticket mode** — trigger included `VERB-NN`. Run steps 2 onward.
+- **Fresh ticket mode** — trigger included `SKI-NN`. Run steps 2 onward.
 - **Resume mode** — no ticket number in the trigger. Run:
 
   ```bash
@@ -50,7 +50,7 @@ Two entry modes:
   git status --short
   ```
 
-  - Current branch must include `VERB-NN`. If on `main`, stop and ask the user
+  - Current branch must include `SKI-NN`. If on `main`, stop and ask the user
     which ticket they want.
   - Working tree should be clean. If dirty, ask how to proceed.
   - Skip to whichever step the user is resuming from (usually step 4 or 5,
@@ -60,7 +60,7 @@ Two entry modes:
 
 ### 2a. Verify ticket is Ready
 
-Use Linear MCP `get_issue` to fetch VERB-$1.
+Use Linear MCP `get_issue` to fetch SKI-$1.
 
 **Hard precondition:** state must be `Ready for dev`. If it is `Todo` or
 `Backlog`, tell the user the ticket needs scoping first and stop. If it is
@@ -203,13 +203,13 @@ Read:
 
 Produce:
 
-- **Title:** `VERB-NN: <short summary, sentence case, no trailing period>`
+- **Title:** `SKI-NN: <short summary, sentence case, no trailing period>`
 - **Body:** structured as:
   - **What** — one-paragraph summary of the change
   - **Why** — link to the Linear ticket, brief context
   - **How** — bullet list of the main changes
   - **Testing** — what tests cover this, anything to verify manually
-  - `Closes VERB-NN` (Linear's GitHub integration auto-transitions on merge)
+  - `Closes SKI-NN` (Linear's GitHub integration auto-transitions on merge)
 
 Print the title and body to the transcript before opening the PR — purely
 informational, not a gate. The PR can be edited cheaply with `gh pr edit`
@@ -227,7 +227,7 @@ state. Post a comment on the ticket with the PR URL via `save_comment`.
 
 ## Step 6 — Report
 
-> "PR opened: <url>. VERB-NN is now In Review."
+> "PR opened: <url>. SKI-NN is now In Review."
 
 If the reviewer left non-blocking suggestions earlier, list them again here
 so the user can decide whether to address them in a follow-up.
@@ -235,12 +235,12 @@ so the user can decide whether to address them in a follow-up.
 **Iterating on the output before the PR.** If, once they see the first
 iteration, the user wants to iterate fast on the design / output rather than
 open the PR straight away, that is `/rapid` — a "controls off" mode on this
-same VERB branch (no review, no tox, no tests) followed by `/harden` to put the
+same SKI branch (no review, no tox, no tests) followed by `/harden` to put the
 controls back on and open the PR. Point them at it when a `stop-before-push`
 directive was used, or whenever they react to the built feature with design
 changes rather than approval.
 
 Stop. The user takes it from here — review, merge. On merge to `main`, Render
 auto-deploys (`build.sh` runs migrations) and Linear's GitHub integration
-auto-transitions the ticket to Done if the `Closes VERB-NN` line is in the PR
+auto-transitions the ticket to Done if the `Closes SKI-NN` line is in the PR
 body.

@@ -186,11 +186,11 @@ One paragraph: overall health, biggest movers since the previous cycle.
 
 ### Spin-off candidates
 - [<area/file>] <finding> — <why non-trivial; what a ticket would cover> (checklist #<n>)
-  - existing-ticket-hint: <VERB-NN if you spotted an obviously matching open ticket, else "none">
+  - existing-ticket-hint: <SKI-NN if you spotted an obviously matching open ticket, else "none">
 - ...   (or "none")
 
 ### Watching
-- [<file/area>] <pattern> — <why no action this cycle; carry-from VERB-NN if applicable> (checklist #<n>)
+- [<file/area>] <pattern> — <why no action this cycle; carry-from SKI-NN if applicable> (checklist #<n>)
 - ...   (or "none")
 
 ## Checklist results

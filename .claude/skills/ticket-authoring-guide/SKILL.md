@@ -6,7 +6,7 @@ description: Use when creating a new Linear ticket, updating an existing ticket'
 # Linear ticket authoring guide
 
 This skill governs how tickets are **created, scoped, and updated** in the
-Ambassadeurs Linear workspace (team prefix `VERB-`). The narrative lives in
+Ambassadeurs Linear workspace (team prefix `SKI-`). The narrative lives in
 `CLAUDE.md` (Linear workflow section); this skill is the agent-facing rulebook.
 
 Linear is the source of truth. Nothing of substance lives only in a chat
@@ -46,8 +46,8 @@ piece:
 
 After creation, report back a summary like:
 
-> Created VERB-102 (Ready for dev), VERB-103 (Ready for dev),
-> VERB-104 (Todo — needs decision on the contact-window length).
+> Created SKI-102 (Ready for dev), SKI-103 (Ready for dev),
+> SKI-104 (Todo — needs decision on the contact-window length).
 
 ## Decomposition rules
 
@@ -127,9 +127,9 @@ The `blocks` relationship parameter does not reliably accept any known format
 through the current MCP surface. **Don't use it.** Instead, document the
 blocking relationship in the ticket description or a comment:
 
-> Blocks VERB-108 — the match-accept token contract lands here first.
+> Blocks SKI-108 — the match-accept token contract lands here first.
 
-> Blocked by VERB-95 (must ship before this can be picked up).
+> Blocked by SKI-95 (must ship before this can be picked up).
 
 This is a workaround, not a preference. Revisit if the MCP surface changes.
 
@@ -154,7 +154,7 @@ wrong place and breaks the project update feed.
 - **Descriptions are paragraphs, not bullet soup.** A one-paragraph
   description that reads like a human wrote it beats a bullet list of
   fragments.
-- **Link ruthlessly.** Reference related tickets by `VERB-xxx`; Linear
+- **Link ruthlessly.** Reference related tickets by `SKI-xxx`; Linear
   auto-links them.
 - **No chat-window residue.** Don't paste "per our conversation" or
   "as we just discussed" into ticket copy. Write as if the ticket is the

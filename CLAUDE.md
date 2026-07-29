@@ -414,18 +414,24 @@ doesn't reformat on commit.
 
 ## Linear workflow
 
-Linear (team prefix `VERB-`) is the issue source of truth. Chat creates and scopes
+Linear (team prefix `SKI-`) is the issue source of truth. Chat creates and scopes
 tickets through `Ready for dev`; Code moves the ticket to `In Progress` via the
 Linear MCP immediately after creating the local branch (no push at that point). The
 GitHub–Linear integration handles `In Review` (PR opened) and `Done` (PR merged);
-both require `VERB-xxx` in the branch name or PR body.
+both require `SKI-xxx` in the branch name or PR body.
 
-- Branch: `feature/VERB-xxx-short-description` (`fix/VERB-xxx-…` for bugs,
-  `chore/VERB-xxx-…` for tooling/infra). One ticket per branch.
-- Commit subject prefix `VERB-xxx:` — keeps the ticket reference in the git log
+> **The team key was renamed `VERB-` → `SKI-`** (July 2026, at SKI-150). Older
+> tickets, ADRs, code comments, commit messages and merged PRs still say
+> `VERB-xxx`; Linear keeps old identifiers resolving, so `VERB-74` and `SKI-74`
+> reach the same issue. Leave historical references alone — do **not** rewrite
+> them. Use `SKI-` for everything new.
+
+- Branch: `feature/SKI-xxx-short-description` (`fix/SKI-xxx-…` for bugs,
+  `chore/SKI-xxx-…` for tooling/infra). One ticket per branch.
+- Commit subject prefix `SKI-xxx:` — keeps the ticket reference in the git log
   after squash-merge.
-- PR title: `VERB-42: short imperative summary`. The body must start with
-  `Closes VERB-42` — that closes the Linear ticket on merge.
+- PR title: `SKI-42: short imperative summary`. The body must start with
+  `Closes SKI-42` — that closes the Linear ticket on merge.
 - **Stop and ask** if: the scoping comment is missing (scope in Chat first); tests
   fail and the fix isn't obvious; or implementation reveals the scope was wrong
   (comment on the Linear issue first).

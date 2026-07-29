@@ -1,6 +1,6 @@
 ---
 name: scoper
-description: Produces a written scope for an Ambassadeurs Linear ticket (VERB-xxx). Reads the codebase to ground the scope in what actually exists. Returns a scope document, no code changes.
+description: Produces a written scope for an Ambassadeurs Linear ticket (SKI-xxx). Reads the codebase to ground the scope in what actually exists. Returns a scope document, no code changes.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---

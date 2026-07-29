@@ -22,7 +22,7 @@ services:
       - key: CSRF_TRUSTED_ORIGINS
         sync: false
       # Admin subdomain (ADR 0022). Set to the admin host (e.g.
-      # admin.skiparrainage.ch) to confine the Django admin to that host; it must
+      # admin.skiparrainage.com) to confine the Django admin to that host; it must
       # also be added to ALLOWED_HOSTS and (https://) CSRF_TRUSTED_ORIGINS, and
       # registered as a custom domain on this service. Leave unset to keep the
       # admin at /admin/ on the main domain.

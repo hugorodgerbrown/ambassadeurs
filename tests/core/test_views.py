@@ -128,6 +128,28 @@ def test_robots_txt_rejects_post() -> None:
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("path", ["/robots.txt", "/llms.txt", "/healthz/"])
+def test_safe_views_answer_head(path: str) -> None:
+    """HEAD mirrors GET's status and content type on every machine-facing view.
+
+    These endpoints use @require_safe rather than @require_GET (SKI-151): a
+    crawler or uptime monitor that issues HEAD first must not be told 405.
+    """
+    client = Client()
+    head = client.head(path)
+    get = client.get(path)
+    assert head.status_code == 200
+    assert head["Content-Type"] == get["Content-Type"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("path", ["/robots.txt", "/llms.txt", "/healthz/"])
+def test_safe_views_still_reject_post(path: str) -> None:
+    """Widening to HEAD did not make the safe views accept unsafe methods."""
+    assert Client().post(path).status_code == 405
+
+
+@pytest.mark.django_db
 def test_llms_txt_status_and_content_type() -> None:
     """GET /llms.txt returns 200 with a text/markdown content type."""
     response = Client().get("/llms.txt")
@@ -137,7 +159,7 @@ def test_llms_txt_status_and_content_type() -> None:
 
 @pytest.mark.django_db
 def test_llms_txt_rejects_post() -> None:
-    """POST /llms.txt returns 405 (require_GET decorator)."""
+    """POST /llms.txt returns 405 (require_safe decorator)."""
     assert Client().post("/llms.txt").status_code == 405
 
 
@@ -192,6 +214,6 @@ def test_llms_txt_linked_pages_all_resolve() -> None:
 
 @pytest.mark.django_db
 def test_healthz_rejects_post() -> None:
-    """POST /healthz/ returns HTTP 405 (require_GET decorator)."""
+    """POST /healthz/ returns HTTP 405 (require_safe decorator)."""
     response = Client().post(reverse("healthz"))
     assert response.status_code == 405

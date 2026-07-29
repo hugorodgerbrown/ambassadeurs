@@ -16,8 +16,17 @@
 # or read by a human visitor.
 #
 # Provides a cheap liveness probe used by Render's health-check mechanism and
-# any external uptime monitors. The endpoint is unauthenticated, GET-only, and
+# any external uptime monitors. The endpoint is unauthenticated, read-only, and
 # performs a trivial SELECT 1 to confirm the database is reachable.
+#
+# Every view here is decorated with @require_safe, NOT @require_GET (SKI-151).
+# require_GET is require_http_methods(["GET"]) — it rejects HEAD with 405.
+# require_safe is require_http_methods(["GET", "HEAD"]). These are machine-facing
+# endpoints: crawlers, link-checkers, AI agents and uptime monitors routinely
+# issue HEAD before GET to test that a URL exists and what it serves, and a 405
+# reads as "method not supported". RFC 9110 §9.1 also requires general-purpose
+# servers to answer both GET and HEAD; every other method is optional. Django
+# strips the response body for HEAD, so the views need no other change.
 #
 # SSL redirect reasoning: production settings set SECURE_SSL_REDIRECT = True,
 # but also set SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https").
@@ -30,12 +39,12 @@ import logging
 from django.db import OperationalError, connection
 from django.http import HttpRequest, HttpResponse
 from django.template.loader import render_to_string
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_safe
 
 logger = logging.getLogger(__name__)
 
 
-@require_GET
+@require_safe
 def robots_txt(request: HttpRequest) -> HttpResponse:
     """Serve /robots.txt as plain text.
 
@@ -83,7 +92,7 @@ def robots_txt(request: HttpRequest) -> HttpResponse:
     return HttpResponse(body, content_type="text/plain")
 
 
-@require_GET
+@require_safe
 def llms_txt(request: HttpRequest) -> HttpResponse:
     """Serve /llms.txt — the curated Markdown index of the site for LLMs.
 
@@ -120,7 +129,7 @@ def llms_txt(request: HttpRequest) -> HttpResponse:
     return HttpResponse(body, content_type="text/markdown; charset=utf-8")
 
 
-@require_GET
+@require_safe
 def healthz(request: HttpRequest) -> HttpResponse:
     """Return HTTP 200 when the application and database are reachable.
 

@@ -508,5 +508,6 @@ feature docs are written:
 | Billing — prepaid deposit (Stripe, capture / refund / forfeit) | [ADR 0014](docs/decisions/0014-deferred-matching-prepaid-fee.md) |
 | Billing — voluntary tips (Stripe Checkout, free-tier gate) | [ADR 0022](docs/decisions/0022-voluntary-tip-stripe-checkout.md) |
 | Marketing-source attribution (django-utm-tracker, derived source → PostHog) | [ADR 0023](docs/decisions/0023-server-side-marketing-attribution.md) |
+| LLM visibility (robots.txt Content-Signal, llms.txt, what is deferred) | [ADR 0024](docs/decisions/0024-llm-visibility-content-signal-and-llms-txt.md) |
 | Deployment (Render single-service) | _to be written_ |
 | Linear workflow (full lifecycle) | _to be written_ |

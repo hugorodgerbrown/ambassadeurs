@@ -1,0 +1,29 @@
+# Ski Parrainage
+
+> Partner-matching for the 4 Vallées Ambassador Offer (parrainage). An ambassador who held a 4 Vallées season pass in a prior season is matched with a genuinely new holder, so the pair can apply for the referral discount on the 2026/27 season ticket together.
+
+Ski Parrainage does one thing: it finds you a partner. Ambassadors and referees register separately and the system assigns the pair — nobody browses or chooses a partner, and the two do not know each other beforehand. A matched pair has a fixed window to accept; once both have accepted, their contact details are revealed to each other and they arrange to meet. Filling in the application form and buying the pass at the ticket office happen off this site and are unchanged by it.
+
+The service is independent, non-commercial, and runs for one season at a time. Pages are served in English by default and in French by content negotiation; each page has a single URL in both languages.
+
+## Start here
+
+- [Home]({{ base }}{% url 'public:home' %}): What the service is, who it is for, and where to register.
+- [How it works]({{ base }}{% url 'public:how_it_works' %}): The end-to-end process in plain language — register, get matched, accept, meet, apply.
+- [FAQ]({{ base }}{% url 'public:faq' %}): What the Ambassador Offer is, who is eligible, how the discount works, and how partner-matching is handled.
+
+## About the project
+
+- [About]({{ base }}{% url 'public:about' %}): Who runs Ski Parrainage, why it exists, how it is funded, and what happens to it after the season.
+- [Colophon]({{ base }}{% url 'public:colophon' %}): The tools, frameworks, hosting, and typefaces it is built with.
+
+## Legal
+
+- [Privacy Policy]({{ base }}{% url 'public:legal' page='privacy' %}): What personal data is held, why, and for how long.
+- [Cookie Policy]({{ base }}{% url 'public:legal' page='cookies' %}): Strictly-necessary cookies only — no third-party analytics, advertising, or cross-site tracking.
+- [Terms of Use]({{ base }}{% url 'public:legal' page='terms' %}): What the service does and does not promise.
+
+## Notes
+
+- Registration, match, account, and payment pages are transactional. They are excluded from this index and disallowed in [robots.txt]({{ base }}{% url 'robots_txt' %}).
+- A machine-readable [sitemap]({{ base }}/sitemap.xml) is also served, for search engines.

@@ -37,6 +37,7 @@ from collections.abc import Callable
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
+from django.utils.translation import get_language
 from utm_tracker.request import parse_qs
 from utm_tracker.session import stash_utm_params
 
@@ -191,7 +192,17 @@ class PostHogPageviewMiddleware:
                 capture_event(
                     distinct_id_for(request),
                     "$pageview",
-                    {"$current_url": request.build_absolute_uri()},
+                    {
+                        "$current_url": request.build_absolute_uri(),
+                        # Language is implicit in the URL since SKI-153
+                        # (/faq/ vs /fr/faq/), but only as a substring. Sending
+                        # it as its own property makes "how is the French site
+                        # doing?" a one-click breakdown rather than a regex in
+                        # every query. LocaleMiddleware has already resolved it
+                        # from the URL prefix by the time this runs, so it is
+                        # exactly the language the page rendered in. Not PII.
+                        "language": get_language(),
+                    },
                 )
         except Exception:  # noqa: BLE001 — analytics must never break the response.
             logger.warning("Failed to track pageview", exc_info=True)

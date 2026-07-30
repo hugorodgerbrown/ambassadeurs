@@ -11,6 +11,7 @@ from django.contrib.sessions.backends.db import SessionStore
 from django.http import HttpRequest, HttpResponse
 from django.test import Client, RequestFactory, override_settings
 from django.urls import ResolverMatch
+from django.utils import translation
 from utm_tracker.session import SESSION_KEY_UTM_PARAMS
 
 from core.middleware import (
@@ -100,6 +101,24 @@ def test_pageview_fires_for_a_page_absent_from_the_old_allowlist() -> None:
         middleware(request)
 
     mock_capture.assert_called_once()
+
+
+@pytest.mark.parametrize("language", ["en", "fr"])
+def test_pageview_carries_the_active_language(language: str) -> None:
+    """$pageview tags the language the page rendered in (SKI-154).
+
+    Language is implicit in the URL since the SKI-153 prefix, but only as a
+    substring; the explicit property is what makes an EN/FR breakdown possible.
+    """
+    request = _resolved_request("public:faq")
+    middleware = PostHogPageviewMiddleware(lambda req: _html_response())  # type: ignore[arg-type]
+
+    with patch("core.middleware.capture_event") as mock_capture:
+        with translation.override(language):
+            middleware(request)
+
+    _args, _kwargs = mock_capture.call_args
+    assert _args[2]["language"] == language
 
 
 def test_pageview_does_not_fire_for_htmx_partial() -> None:

@@ -6,6 +6,7 @@
 # so /faq/ is English even when the browser asks for French.
 
 import re
+from unittest.mock import patch
 
 import pytest
 from django.conf import settings
@@ -238,6 +239,31 @@ class TestLanguageSwitcher:
         assert response.status_code == 200
         assert response.redirect_chain[-1][0] == "/faq/"
         assert 'lang="en"' in response.content.decode()
+
+
+class TestPageviewLanguageProperty:
+    """The $pageview language property is driven by the URL prefix (SKI-154).
+
+    PostHogPageviewMiddleware is production-only, so it is installed explicitly
+    here. That is the point of the test: the unit test in test_middleware.py
+    sets the language directly, while this one proves the whole chain —
+    URL prefix, LocaleMiddleware, active language, event property.
+    """
+
+    @pytest.mark.django_db
+    @pytest.mark.parametrize(
+        ("path", "expected"), [("/faq/", "en"), ("/fr/faq/", "fr")]
+    )
+    def test_language_property_follows_the_url(self, path: str, expected: str) -> None:
+        """A request to each variant tags the event with that variant's language."""
+        middleware = [*settings.MIDDLEWARE, "core.middleware.PostHogPageviewMiddleware"]
+        with override_settings(MIDDLEWARE=middleware):
+            with patch("core.middleware.capture_event") as mock_capture:
+                assert Client().get(path).status_code == 200
+
+        properties = mock_capture.call_args[0][2]
+        assert properties["language"] == expected
+        assert properties["$current_url"].endswith(path)
 
 
 class TestAdminHostUrlconfSwap:

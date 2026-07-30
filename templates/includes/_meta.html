@@ -1,4 +1,4 @@
-{% load static i18n %}
+{% load static i18n i18n_alternates %}
 {% comment %}
 SEO metadata partial — emits meta description, canonical URL, Open Graph and
 Twitter Card tags. Include once inside <head> (base.html does this by default
@@ -40,6 +40,21 @@ omitted rather than raising VariableDoesNotExist.
             {% endwith %}
         {% endwith %}
     {% endif %}
+    {% comment %}
+    hreflang alternates (SKI-153). One per configured language plus x-default,
+    so a crawler landing on either language variant can find the other — the
+    only signal that makes the French site discoverable, since English and
+    French differ by URL prefix rather than by host or query string. The tag
+    yields nothing when rendered without a request (403/404 handlers, tests).
+    {% endcomment %}
+    {% language_alternates as alternates %}
+    {% for alternate in alternates %}
+        <link
+            rel="alternate"
+            hreflang="{{ alternate.hreflang }}"
+            href="{{ alternate.url }}"
+        >
+    {% endfor %}
     {# Open Graph #}
     <meta
         property="og:type"

@@ -40,9 +40,21 @@ class StaticViewSitemap(_SitemapBase):
     Includes the home page, informational pages, and legal pages.
     Excludes transactional flows (registration, match), account/auth routes,
     admin, and HTMX partial endpoints.
+
+    Internationalised (SKI-153): every item is emitted once per language in
+    ``settings.LANGUAGES``, each carrying ``xhtml:link`` alternates for the
+    other languages plus ``x-default``. Django activates the item's language
+    around the ``location()`` call, so ``reverse()`` returns the prefixed path
+    (``/fr/faq/``) without any change to the methods below.
     """
 
     protocol = "https"
+
+    # Emit one entry per language, with hreflang alternates and an x-default
+    # pointing at the default-language URL. x_default requires alternates.
+    i18n = True
+    alternates = True
+    x_default = True
 
     _LEGAL_PAGES = ("privacy", "cookies", "terms")
 

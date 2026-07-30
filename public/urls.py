@@ -91,6 +91,10 @@ urlpatterns = [
     # literal ".md" suffix means this cannot shadow any other route; the slug
     # is looked up in public.content, so only curated pages resolve.
     path("<path:slug>.md", views.markdown_page, name="markdown_page"),
+    # The whole site as one Markdown document (SKI-156). Inside the language
+    # prefix because it is translated prose, not metadata: /llms-full.txt is
+    # English (the conventional root path) and /fr/llms-full.txt French.
+    path("llms-full.txt", views.llms_full_txt, name="llms_full_txt"),
     # Well-known root requests served to avoid excess 404s (VERB-7).
     path("sw.js", views.service_worker, name="service_worker"),
     path(

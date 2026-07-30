@@ -43,6 +43,32 @@ MARKDOWN_CONTENT_TYPE = "text/markdown; charset=utf-8"
 _BLANK_RUN = re.compile(r"\n{3,}")
 
 
+def _absolutise(fragment: Tag, base_url: str) -> None:
+    """Rewrite every link and image reference in ``fragment`` to an absolute URL.
+
+    A ``.md`` document is fetched and read on its own, often by an agent with no
+    notion of the origin it came from, so ``/how-it-works/`` and
+    ``/static/images/hero.jpg`` are both unresolvable there.
+
+    Fragment-only ``href``s (``#anchor``) are left alone: they are handled in
+    the converter, which needs to still recognise them as in-page links.
+
+    Mutates the fragment in place.
+
+    Args:
+        fragment: The subtree about to be converted.
+        base_url: Absolute origin to resolve against.
+    """
+    for element in fragment.find_all(href=True):
+        href = element["href"]
+        if isinstance(href, str) and not href.startswith("#"):
+            element["href"] = urljoin(base_url, href)
+    for element in fragment.find_all(src=True):
+        src = element["src"]
+        if isinstance(src, str):
+            element["src"] = urljoin(base_url, src)
+
+
 class _ContentConverter(MarkdownConverter):
     """A markdownify converter tuned for this site's content templates.
 
@@ -75,8 +101,6 @@ class _ContentConverter(MarkdownConverter):
         href = el.get("href", "")
         if isinstance(href, str) and href.startswith("#"):
             return "" if text.strip() in {"", "#"} else text
-        if isinstance(href, str) and href:
-            el["href"] = urljoin(self.base_url, href)
         # markdownify defines convert_a at runtime (verified against 1.2.3) but
         # does not declare it in its shipped types, so mypy cannot see it on the
         # base class. The call is correct; only the annotation is missing.
@@ -103,6 +127,21 @@ def html_to_markdown(html: str, base_url: str) -> str:
     if main is None:
         logger.warning("No <main> element found; returning empty Markdown")
         return ""
+
     converter = _ContentConverter(base_url=base_url)
-    markdown = converter.convert_soup(main)
-    return _BLANK_RUN.sub("\n\n", markdown).strip()
+    # The homepage's hero sits outside <main> so it can break out of the layout
+    # column, but it carries the page's h1 and opening pitch. Converting <main>
+    # alone left /index.md headless — missing exactly the sentences an assistant
+    # needs to answer "what is this service?". Any element marked id="hero" is
+    # treated as content and converted first; every other page has none.
+    fragments = [main]
+    hero = soup.find(id="hero")
+    if hero is not None:
+        fragments.insert(0, hero)
+
+    parts = []
+    for fragment in fragments:
+        _absolutise(fragment, base_url)
+        parts.append(converter.convert_soup(fragment))
+
+    return _BLANK_RUN.sub("\n\n", "\n\n".join(parts)).strip()

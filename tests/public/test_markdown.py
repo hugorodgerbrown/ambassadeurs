@@ -218,9 +218,20 @@ class TestRegistryAgreement:
         expected = {CONTENT_PAGES_BY_SLUG[slug].path for slug in PAGE_SLUGS}
         assert expected, "the content registry is empty"
         assert expected <= listed, f"llms.txt is missing {expected - listed}"
-        # Anything else it links must be a machine-facing document, not content.
-        extra = listed - expected
-        assert extra <= {"/robots.txt", "/sitemap.xml"}, f"unexpected links: {extra}"
+        # Anything else it links must be a machine-facing document or a pointer
+        # to another representation — never a content page missing from the
+        # registry, which is the drift this test exists to catch.
+        machine_facing = {
+            "/robots.txt",
+            "/sitemap.xml",
+            "/llms-full.txt",
+        }
+        extra = {
+            path
+            for path in listed - expected
+            if path not in machine_facing and not path.endswith(".md")
+        }
+        assert not extra, f"llms.txt links pages missing from the registry: {extra}"
 
     @pytest.mark.django_db
     def test_sitemap_lists_exactly_the_registry_pages(self) -> None:
@@ -228,3 +239,76 @@ class TestRegistryAgreement:
         body = Client().get("/sitemap.xml").content.decode()
         for page in CONTENT_PAGES:
             assert f"<loc>https://testserver{page.path}</loc>" in body
+
+
+class TestLlmsFullTxt:
+    """The whole site as one Markdown document (SKI-156)."""
+
+    @pytest.mark.django_db
+    def test_served_as_markdown(self) -> None:
+        """The bundle is 200 text/markdown."""
+        response = Client().get("/llms-full.txt")
+        assert response.status_code == 200
+        assert response["Content-Type"].startswith("text/markdown")
+
+    @pytest.mark.django_db
+    def test_contains_every_content_page(self) -> None:
+        """Every registry page contributes a section, labelled by source URL."""
+        body = Client().get("/llms-full.txt").content.decode()
+        for page in CONTENT_PAGES:
+            assert f"<!-- source: http://testserver{page.path} -->" in body
+
+    @pytest.mark.django_db
+    def test_sections_match_the_individual_md_routes(self) -> None:
+        """One conversion path: the bundle says what the .md routes say."""
+        bundle = Client().get("/llms-full.txt").content.decode()
+        faq = Client().get("/faq.md").content.decode()
+        assert faq in bundle
+
+    @pytest.mark.django_db
+    def test_french_edition_differs(self) -> None:
+        """The bundle sits inside the language prefix, so /fr/ is French."""
+        english = Client().get("/llms-full.txt").content.decode()
+        french = Client().get("/fr/llms-full.txt").content.decode()
+        assert french != english
+        assert "<!-- source: http://testserver/fr/faq/ -->" in french
+
+    @pytest.mark.django_db
+    def test_rejects_post(self) -> None:
+        """Safe methods only."""
+        assert Client().post("/llms-full.txt").status_code == 405
+
+    @pytest.mark.django_db
+    def test_llms_txt_advertises_the_bundle(self) -> None:
+        """The index points at the full-text document, or nobody finds it."""
+        body = Client().get("/llms.txt").content.decode()
+        assert "llms-full.txt" in body
+
+
+class TestHomepageHero:
+    """The homepage's hero sits outside <main> but is content, not chrome."""
+
+    @pytest.mark.django_db
+    def test_index_md_leads_with_the_page_heading(self) -> None:
+        """/index.md carries the h1 that lives in the hero block.
+
+        The hero is outside <main> so it can break out of the layout column.
+        Converting <main> alone left the homepage headless — missing exactly the
+        sentences an assistant needs to answer "what is this service?".
+        """
+        body = Client().get("/index.md").content.decode()
+        assert "# Find your season-pass match" in body
+
+    @pytest.mark.django_db
+    def test_index_md_carries_the_opening_pitch(self) -> None:
+        """The lead paragraph beneath the headline survives too."""
+        body = Client().get("/index.md").content.decode()
+        assert "Facebook group" in body
+
+    @pytest.mark.django_db
+    def test_image_sources_are_absolute(self) -> None:
+        """Image references resolve standalone, like links."""
+        body = Client().get("/index.md").content.decode()
+        sources = re.findall(r"!\[[^\]]*\]\(([^)]+)\)", body)
+        assert sources
+        assert all(src.startswith("http") for src in sources)

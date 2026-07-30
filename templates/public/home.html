@@ -46,7 +46,14 @@ Palette: accent = alpine red (#cf3127, Ambassador), secondary = brand blue
 {% endcomment %}
 
 {% block hero %}
-    <section class="relative flex min-h-[90svh] flex-col">
+    {% comment %}
+    id="hero" is a contract with the Markdown conversion (SKI-155), not styling.
+    This section sits outside <main> so it can break out of the layout column,
+    but it holds the page's h1 and opening pitch — the most load-bearing prose
+    on the site. core.markdown includes #hero ahead of <main> so /index.md is
+    not headless. Renaming or removing the id silently truncates that page.
+    {% endcomment %}
+    <section id="hero" class="relative flex min-h-[90svh] flex-col">
         {% comment %}Background photograph{% endcomment %}
         {% comment %}
         LCP image: fetchpriority high so the browser prioritises it; never

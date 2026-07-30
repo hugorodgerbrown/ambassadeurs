@@ -58,9 +58,21 @@ Each was found by converting the real FAQ page, not by reading the markup:
   own, often by an agent with no notion of the origin, so `/how-it-works/` has to
   become a full URL to stay followable.
 
-Only `<main>` is converted. Nav, footer, language switcher and notification
-strip are chrome: repeated on every page and pure noise to a reader who asked
-for the content.
+`<main>` is converted, plus any element marked `id="hero"`. Nav, footer,
+language switcher and notification strip are chrome: repeated on every page and
+pure noise to a reader who asked for the content.
+
+The `#hero` exception is not cosmetic. The homepage's hero sits outside `<main>`
+so it can break out of the layout column, but it holds the page's `<h1>` and
+opening pitch — the sentences an assistant needs to answer "what is this
+service?". Converting `<main>` alone left `/index.md` headless, which was found
+by reading the generated bundle rather than by any test. The id is now a
+documented contract between the template and the converter; renaming it silently
+truncates the homepage.
+
+Links and image sources are absolutised in one pass over each fragment, so both
+`/how-it-works/` and `/static/images/hero.jpg` resolve for a reader who has only
+the file.
 
 ### One registry for the page list
 
@@ -117,7 +129,19 @@ the client controls, with `Vary` declared — how HTTP has worked since 1997.
   silent. The conversion tests pin the FAQ's structure as the canary.
 - `markdownify` and `beautifulsoup4` are now runtime dependencies.
 
-## Still deferred
+## `/llms-full.txt`
 
-`/llms-full.txt` (ADR 0024 step 7) — trivial now that per-page Markdown exists,
-but a separate change.
+Added in SKI-156 on the same conversion path: the eight pages concatenated, each
+section preceded by an HTML comment naming its source URL so a quoted passage can
+be traced back. Roughly 20KB — small enough to be genuine rather than
+performative, which is the objection to bundling a large marketing site.
+
+It sits **inside** the language prefix, unlike `llms.txt`. The line: machine-
+facing metadata is unprefixed (`robots.txt`, `sitemap.xml`, `llms.txt` — indexes
+of links); translated prose is prefixed. So `/llms-full.txt` is English on the
+conventional root path and `/fr/llms-full.txt` is French, which is the point of
+having given French a URL at all.
+
+One request renders every content page — the most expensive endpoint on the
+site. Crawlers fetch it rarely, so the cost is accepted rather than cached, but
+it is the first thing to cache if it ever shows up as a hot path.

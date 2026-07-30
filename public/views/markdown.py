@@ -15,9 +15,27 @@ from django.urls import Resolver404, resolve
 from django.views.decorators.http import require_safe
 
 from core.markdown import MARKDOWN_CONTENT_TYPE, html_to_markdown
-from public.content import CONTENT_PAGES_BY_SLUG, ContentPage
+from public.content import CONTENT_PAGES, CONTENT_PAGES_BY_SLUG, ContentPage
 
 logger = logging.getLogger(__name__)
+
+# Preamble for the concatenated bundle. Machine-facing like llms.txt, and
+# deliberately not translated: it frames the document for a reader that has
+# just fetched a wall of text, and says where the pieces came from.
+_LLMS_FULL_HEADER = """# Ski Parrainage — full site text
+
+> Every public page of Ski Parrainage, concatenated. Ski Parrainage matches
+> partners for the 4 Vallées Ambassador Offer: an ambassador who held a prior
+> season pass is paired with a genuinely new holder so the two can apply for
+> the referral discount together.
+
+Each section below is preceded by an HTML comment naming the page it came
+from, so any passage can be cited back to its source URL. The index version
+of this document, with one line per page, is at /llms.txt.
+
+---
+
+"""
 
 
 def render_page_as_markdown(request: HttpRequest, page: ContentPage) -> str:
@@ -87,3 +105,40 @@ def markdown_page(request: HttpRequest, slug: str) -> HttpResponse:
     response["Link"] = f'<{html_url}>; rel="alternate"; type="text/html"'
     response["Vary"] = "Accept"
     return response
+
+
+@require_safe
+def llms_full_txt(request: HttpRequest) -> HttpResponse:
+    """Serve every content page concatenated into one Markdown document.
+
+    Lets an assistant ingest the whole site in a single fetch rather than eight.
+    Empirically this endpoint draws several times the traffic of ``llms.txt``,
+    which is an index of links rather than the prose itself.
+
+    Each section is labelled with the canonical URL of the page it came from, so
+    a reader quoting a passage can cite where it lives. Sections appear in
+    registry order — the same order ``llms.txt`` lists them in.
+
+    Unlike ``llms.txt``, this route sits **inside** the language prefix: it is
+    translated prose, not machine-facing metadata, so ``/llms-full.txt`` is the
+    English bundle and ``/fr/llms-full.txt`` the French one. English keeps the
+    conventional root path because the prefix omits the default language.
+
+    One request renders every content page. Crawlers fetch this rarely so the
+    cost is accepted rather than cached, but it is the most expensive endpoint
+    on the site and worth caching if it ever appears as a hot path.
+
+    Args:
+        request: The incoming request.
+
+    Returns:
+        A ``text/markdown`` response containing the full site text.
+    """
+    sections: list[str] = []
+    for page in CONTENT_PAGES:
+        url = request.build_absolute_uri(page.path)
+        body = render_page_as_markdown(request, page)
+        sections.append(f"<!-- source: {url} -->\n\n{body}")
+
+    document = _LLMS_FULL_HEADER + "\n\n---\n\n".join(sections) + "\n"
+    return HttpResponse(document, content_type=MARKDOWN_CONTENT_TYPE)

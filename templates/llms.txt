@@ -25,5 +25,7 @@ The service is independent, non-commercial, and runs for one season at a time. P
 
 ## Notes
 
+- Every page above is also served as Markdown at the same path with a `.md` suffix — [{{ base }}/faq.md]({{ base }}/faq.md), and so on. The same content is available by content negotiation, by sending `Accept: text/markdown` to the normal URL.
+- The whole site as a single Markdown document: [llms-full.txt]({{ base }}{% url 'public:llms_full_txt' %}). The French edition is at {{ base }}/fr/llms-full.txt.
 - Registration, match, account, and payment pages are transactional. They are excluded from this index and disallowed in [robots.txt]({{ base }}{% url 'robots_txt' %}).
 - A machine-readable [sitemap]({{ base }}/sitemap.xml) is also served, for search engines.

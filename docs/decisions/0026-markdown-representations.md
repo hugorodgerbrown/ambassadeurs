@@ -74,6 +74,28 @@ Links and image sources are absolutised in one pass over each fragment, so both
 `/how-it-works/` and `/static/images/hero.jpg` resolve for a reader who has only
 the file.
 
+### The visually-hidden pointer is not translated
+
+`templates/base.html` renders one line of prose that is not wrapped in a
+translation function:
+
+```html
+<div class="sr-only" aria-hidden="true">
+  A Markdown version of this page is available at {{ markdown_url }}.
+</div>
+```
+
+This is deliberate, and consistent with `robots.txt`, `llms.txt` and
+`llms-full.txt`: the machine-facing rule is that copy no human reads is authored
+in English like the rest of the codebase. The element is hidden visually *and*
+from screen readers — it exists for the case where someone pastes the URL into
+an assistant that fetches the page but reads no headers and parses no `<link>`
+tags.
+
+It is called out here because it is the one such string that sits **inside a
+page body**, so it reads like an Invariant 8 violation on sight. It is not: the
+invariant governs user-facing display copy, and nothing displays this.
+
 ### One registry for the page list
 
 Three consumers now need "which pages are public content": the sitemap, the

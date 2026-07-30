@@ -115,6 +115,44 @@ reintroduce them:
 - Schema.org / JSON-LD **added for LLM visibility** — controlled experiments
   show ChatGPT, Claude, Perplexity and Gemini ignore it. The site currently has
   none; this is not an instruction to remove structured data added for search.
+- **DNS-AID agent-discovery records** (`_index._agents` / `_a2a._agents` SVCB) —
+  see below. Reported as a finding by `isitagentready.com`; declined.
+
+### DNS-AID, in full
+
+The scanner reports "DNS for AI Discovery (DNS-AID) well-known entrypoint
+records not found" and recommends publishing records of the form:
+
+```
+_a2a._agents.example.com. 3600 IN SVCB 1 agent.example.com. alpn="a2a" port=443
+```
+
+Declined, in order of weight:
+
+1. **There is no agent to advertise.** That record means "connect here and
+   speak A2A". The site hosts no A2A endpoint and no MCP server — it serves
+   HTML and Markdown to humans and crawlers. Publishing the record would point
+   a resolver-following agent at a connection that refuses. An absent record is
+   honest; a dead one is a broken promise. Notably, the publication skill does
+   not specify what must exist at the endpoint at all.
+2. **The draft has no standing.** `draft-mozleywilliams-dnsop-dnsaid` is an
+   individual submission, not adopted by dnsop or any working group, and the
+   datatracker states it is "not endorsed by the IETF" with "no formal
+   standing". It is at version 02, and was previously titled
+   `draft-mozleywilliams-dnsop-**bandaid**`. RFC 9460 (SVCB/HTTPS) *is* a real
+   standard, but that is the record **type**, not this use of it — citing the
+   two together lends the draft borrowed credibility.
+3. It is the same shape as everything else in this list: a proposal exists, a
+   scanner checks for it, and no AI system reads it.
+
+**Revisit if the project ever exposes a real agent surface** — an MCP server
+over the matching queue, say. At that point the record would be true, and
+publishing it would be worth doing.
+
+One correction to the same scan: it also advised signing the zone with DNSSEC.
+`skiparrainage.com` **is already signed** — there is a valid DS record
+(`41374 8 2 01249D75…`) and RRSIGs are returned. That half of the finding is a
+false negative; no action needed.
 
 ## Consequences
 

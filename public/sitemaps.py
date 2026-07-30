@@ -1,35 +1,26 @@
 # Sitemap definitions for the public site.
 #
-# Exposes machine-readable sitemap.xml for search engine indexing. Only
-# static, indexable public pages are listed — transactional flows (register,
-# match), authenticated routes, admin, and HTMX partials are excluded.
+# Exposes machine-readable sitemap.xml for search engine indexing. The page list
+# lives in public.content.CONTENT_PAGES, shared with the .md routes (SKI-155) —
+# transactional flows (register, match), authenticated routes, admin, and HTMX
+# partials are excluded there and so never appear here.
 #
 # django.contrib.sitemaps works without the Sites framework: when the view
 # receives an HttpRequest the host is taken from the request, so no SITE_ID
 # or django.contrib.sites is needed.
 
 import logging
-from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from django.contrib.sitemaps import Sitemap
-from django.urls import reverse
+
+from public.content import CONTENT_PAGES, ContentPage
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
-class _StaticItem:
-    """A single item in the static sitemap."""
-
-    url_name: str
-    kwargs: dict[str, str] = field(default_factory=dict)
-    priority: float = 0.5
-    changefreq: str = "monthly"
-
-
 if TYPE_CHECKING:
-    _SitemapBase = Sitemap[_StaticItem]
+    _SitemapBase = Sitemap[ContentPage]
 else:
     _SitemapBase = Sitemap
 
@@ -56,51 +47,18 @@ class StaticViewSitemap(_SitemapBase):
     alternates = True
     x_default = True
 
-    _LEGAL_PAGES = ("privacy", "cookies", "terms")
-
-    def items(self) -> list[_StaticItem]:
+    def items(self) -> list[ContentPage]:
         """Return the list of items to include in the sitemap."""
-        entries: list[_StaticItem] = [
-            _StaticItem(
-                url_name="public:home",
-                priority=1.0,
-                changefreq="monthly",
-            ),
-            _StaticItem(
-                url_name="public:how_it_works",
-                priority=0.8,
-                changefreq="monthly",
-            ),
-            _StaticItem(
-                url_name="public:faq",
-                priority=0.8,
-                changefreq="monthly",
-            ),
-            _StaticItem(
-                url_name="public:about",
-                priority=0.7,
-                changefreq="monthly",
-            ),
-        ]
-        for page in self._LEGAL_PAGES:
-            entries.append(
-                _StaticItem(
-                    url_name="public:legal",
-                    kwargs={"page": page},
-                    priority=0.5,
-                    changefreq="yearly",
-                )
-            )
-        return entries
+        return list(CONTENT_PAGES)
 
-    def location(self, item: _StaticItem) -> str:
+    def location(self, item: ContentPage) -> str:
         """Return the URL path for a sitemap item."""
-        return reverse(item.url_name, kwargs=item.kwargs)
+        return item.path
 
-    def priority(self, item: _StaticItem) -> float:
+    def priority(self, item: ContentPage) -> float:
         """Return the priority for a sitemap item."""
         return item.priority
 
-    def changefreq(self, item: _StaticItem) -> str:
+    def changefreq(self, item: ContentPage) -> str:
         """Return the change frequency for a sitemap item."""
         return item.changefreq

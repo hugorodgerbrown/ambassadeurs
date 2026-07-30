@@ -55,6 +55,20 @@ omitted rather than raising VariableDoesNotExist.
             href="{{ alternate.url }}"
         >
     {% endfor %}
+    {% comment %}
+    Markdown alternate (SKI-155). Advertised as a <link> here *and* as an HTTP
+    Link header in MarkdownRepresentationMiddleware — a DOM-parsing crawler
+    reads the tag, while a headless fetcher may only ever see the headers.
+    markdown_url is set by the middleware's context only on content pages, so
+    pages without a Markdown twin emit nothing.
+    {% endcomment %}
+    {% if markdown_url %}
+        <link
+            rel="alternate"
+            type="text/markdown"
+            href="{{ markdown_url }}"
+        >
+    {% endif %}
     {# Open Graph #}
     <meta
         property="og:type"

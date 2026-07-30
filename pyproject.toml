@@ -26,6 +26,8 @@ dependencies = [
     "django-side-effects>=3.2.0",
     "nh3>=0.3.6",
     "django-utm-tracker>=1.5.0",
+    "markdownify>=1.2.3",
+    "beautifulsoup4>=4.15.0",
 ]
 
 [dependency-groups]

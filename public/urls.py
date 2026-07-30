@@ -87,6 +87,10 @@ urlpatterns = [
     # Standalone live queue visualisation page (VERB-145) — built in
     # isolation, not mounted in any journey; not linked from any nav.
     path("queue/", views.queue_snapshot_page, name="queue_snapshot"),
+    # Markdown representations of the curated content pages (SKI-155). The
+    # literal ".md" suffix means this cannot shadow any other route; the slug
+    # is looked up in public.content, so only curated pages resolve.
+    path("<path:slug>.md", views.markdown_page, name="markdown_page"),
     # Well-known root requests served to avoid excess 404s (VERB-7).
     path("sw.js", views.service_worker, name="service_worker"),
     path(

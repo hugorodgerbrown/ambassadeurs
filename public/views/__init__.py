@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+from .markdown import markdown_page
 from .match import (
     _match_context,
     _render_match_page,
@@ -60,6 +61,7 @@ __all__ = [
     "home",
     "how_it_works",
     "legal_page",
+    "markdown_page",
     "match_accept",
     "match_decline",
     "match_detail",

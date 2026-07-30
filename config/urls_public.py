@@ -49,10 +49,13 @@ _sitemaps = {"static": StaticViewSitemap}
 urlpatterns = [
     # Liveness probe — unauthenticated, must come before any catch-all route.
     path("healthz/", healthz, name="healthz"),
-    # The language switcher itself must stay outside i18n_patterns: it is posted
-    # to in order to *change* the active language, so prefixing it with the
-    # current one would be circular.
-    path("i18n/", include("django.conf.urls.i18n")),
+    # NB: django.conf.urls.i18n (set_language) is deliberately NOT mounted.
+    # Since the URL carries the language, switching is navigation — the footer
+    # links straight to the other language's URL. With
+    # prefix_default_language=False an unprefixed path is pinned to the default
+    # language regardless of the django_language cookie, so set_language had
+    # nothing left to select. Restore it here if a cookie-driven preference is
+    # ever needed again. See ADR 0025.
     # Machine-readable sitemap for search engine indexing. Emits both language
     # variants with hreflang alternates (see public.sitemaps).
     path(

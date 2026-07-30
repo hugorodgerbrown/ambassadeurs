@@ -58,24 +58,36 @@ test.describe("smoke", { tag: "@S1" }, () => {
 });
 
 test.describe("i18n", { tag: "@S2" }, () => {
-  test("language switch to French persists across pages", async ({ page }) => {
+  // Since SKI-153 the URL carries the language: /faq/ is English and /fr/faq/
+  // is French, whatever the cookie or Accept-Language says. Switching language
+  // is therefore navigation, not a POST, and "persists across pages" means the
+  // in-page links keep the /fr/ prefix rather than a cookie following you.
+  test("the footer link switches language, and navigation stays in it", async ({
+    page,
+  }) => {
     await page.goto(ROUTES.home);
-    // The language form posts to Django's set_language endpoint. Switch to fr
-    // via the API the switcher uses, then assert the cookie + a reload.
-    await page.evaluate(async () => {
-      const body = new URLSearchParams({ language: "fr", next: "/" });
-      await fetch("/i18n/setlang/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "X-CSRFToken":
-            document.cookie.match(/csrftoken=([^;]+)/)?.[1] ?? "",
-        },
-        body,
-      });
-    });
+    expect(await page.getAttribute("html", "lang")).toMatch(/^en/);
+
+    await page.getByRole("link", { name: "FR" }).click();
+
+    await expect(page).toHaveURL(/\/fr\//);
+    expect(await page.getAttribute("html", "lang")).toMatch(/^fr/);
+
+    // Following an ordinary in-page link keeps the language, because {% url %}
+    // reverses under the active one.
+    await page.getByRole("link", { name: /How it works|Comment/ }).first().click();
+    await expect(page).toHaveURL(/\/fr\//);
+    expect(await page.getAttribute("html", "lang")).toMatch(/^fr/);
+  });
+
+  test("an unprefixed URL is English regardless of what came before", async ({
+    page,
+  }) => {
+    await page.goto("/fr/");
+    expect(await page.getAttribute("html", "lang")).toMatch(/^fr/);
+
+    // The URL is authoritative: no cookie or history carries French over.
     await page.goto(ROUTES.howItWorks);
-    const lang = await page.getAttribute("html", "lang");
-    expect(lang).toMatch(/^fr/);
+    expect(await page.getAttribute("html", "lang")).toMatch(/^en/);
   });
 });

@@ -1909,16 +1909,20 @@ def test_about_link_in_footer() -> None:
 
 
 def test_footer_language_selector_renders_both_languages() -> None:
-    """The footer language selector posts to set_language and offers EN and FR
-    (VERB-48). The current language is marked with aria-current.
+    """The footer language selector links to EN and FR (VERB-48, SKI-153).
+
+    It posted to ``set_language`` until the URL began carrying the language:
+    with ``prefix_default_language=False`` the cookie selects nothing, so the
+    form was machinery around a value nothing read. Switching is now navigation.
+    The current language is marked with aria-current.
     """
     response = Client().get(reverse("public:how_it_works"))
     content = response.content.decode()
-    assert reverse("set_language") in content
-    assert 'name="language"' in content
-    assert 'value="en"' in content
-    assert 'value="fr"' in content
-    # Default language is English, so its button is marked current.
+    assert 'hreflang="en"' in content
+    assert 'hreflang="fr"' in content
+    assert reverse("public:how_it_works") in content
+    assert "/fr" + reverse("public:how_it_works") in content
+    # Default language is English, so its link is marked current.
     assert 'aria-current="true"' in content
 
 

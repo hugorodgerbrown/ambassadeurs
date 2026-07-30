@@ -182,7 +182,7 @@ class LanguageAlternate:
 
     Both forms of the location are carried because the two consumers need
     different ones: ``hreflang`` link tags require an absolute URL, while the
-    language switcher posts a root-relative ``next`` to ``set_language``.
+    footer's language switcher links to the root-relative path.
 
     Attributes:
         hreflang: The value for the ``hreflang`` attribute — a language code

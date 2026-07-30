@@ -37,16 +37,12 @@ def _hreflang_pairs(body: str) -> dict[str, str]:
     return dict(_HREFLANG_TAG.findall(body))
 
 
-_SWITCHER_FORM = re.compile(
-    r'name="next"\s+value="([^"]+)"\s*>\s*'
-    r'<input type="hidden" name="language" value="([^"]+)"',
-    re.DOTALL,
-)
+_SWITCHER_LINK = re.compile(r'<a\s+href="([^"]+)"\s+hreflang="([^"]+)"', re.DOTALL)
 
 
 def _switcher_targets(body: str) -> dict[str, str]:
-    """Return {language: next} for each footer language-switcher form."""
-    return {lang: next_url for next_url, lang in _SWITCHER_FORM.findall(body)}
+    """Return {language: href} for each footer language-switcher link."""
+    return {lang: href for href, lang in _SWITCHER_LINK.findall(body)}
 
 
 @pytest.mark.django_db
@@ -184,61 +180,76 @@ class TestLanguageAlternatePaths:
 
 
 class TestLanguageSwitcher:
-    """The footer switcher round-trips between the two prefixes, both ways.
+    """The footer switcher is a link to the other language's URL.
 
-    Each language gets its own form carrying an already-resolved ``next``. That
-    is not decoration: ``set_language`` translates ``next`` with ``translate_url``,
-    which resolves the path under the *active* language — and the POST lands on
-    the unprefixed ``/i18n/setlang/``, where the active language is whatever was
-    negotiated. Handing it a single untranslated ``next`` made the French → English
-    direction silently redirect back to the French URL.
+    Once the URL carries the language, switching *is* navigation. The switcher
+    was a POST to set_language until the cookie was shown to be inert (see
+    TestLanguageCookieIsInert), at which point the form was machinery around a
+    value nothing reads.
     """
 
     @pytest.mark.django_db
+    @pytest.mark.parametrize("page", ["/faq/", "/fr/faq/"])
+    def test_footer_links_to_every_language_variant(self, page: str) -> None:
+        """Both variants are linked from either one, so the set is symmetric."""
+        body = Client().get(page).content.decode()
+        assert _switcher_targets(body) == {"en": "/faq/", "fr": "/fr/faq/"}
+
+    @pytest.mark.django_db
     @pytest.mark.parametrize(
-        ("page", "expected"),
+        ("start", "follow", "expected_lang"),
         [
-            ("/faq/", {"en": "/faq/", "fr": "/fr/faq/"}),
-            ("/fr/faq/", {"en": "/faq/", "fr": "/fr/faq/"}),
+            ("/faq/", "fr", "fr"),
+            ("/fr/faq/", "en", "en"),
         ],
     )
-    def test_footer_offers_the_resolved_destination_per_language(
-        self, page: str, expected: dict[str, str]
+    def test_following_the_link_switches_language(
+        self, start: str, follow: str, expected_lang: str
     ) -> None:
-        """Each language's form carries that language's URL as ``next``."""
-        body = Client().get(page).content.decode()
-        assert _switcher_targets(body) == expected
+        """Following the switcher link renders the other language.
 
-    @pytest.mark.django_db
-    def test_english_to_french_round_trip(self) -> None:
-        """Submitting the FR form from /faq/ lands on the French page."""
-        client = Client()
-        targets = _switcher_targets(client.get("/faq/").content.decode())
-
-        response = client.post(
-            "/i18n/setlang/", {"language": "fr", "next": targets["fr"]}, follow=True
-        )
-
-        assert response.status_code == 200
-        assert response.redirect_chain[-1][0] == "/fr/faq/"
-        assert 'lang="fr"' in response.content.decode()
-
-    @pytest.mark.django_db
-    def test_french_to_english_round_trip(self) -> None:
-        """Submitting the EN form from /fr/faq/ lands back on the English page.
-
-        The direction that was broken before the per-language forms.
+        Both directions: French to English was the one that silently failed
+        under the POST implementation.
         """
         client = Client()
-        targets = _switcher_targets(client.get("/fr/faq/").content.decode())
+        targets = _switcher_targets(client.get(start).content.decode())
 
-        response = client.post(
-            "/i18n/setlang/", {"language": "en", "next": targets["en"]}, follow=True
-        )
+        response = client.get(targets[follow])
 
         assert response.status_code == 200
-        assert response.redirect_chain[-1][0] == "/faq/"
-        assert 'lang="en"' in response.content.decode()
+        assert f'lang="{expected_lang}"' in response.content.decode()
+
+    @pytest.mark.django_db
+    def test_switcher_uses_links_not_a_form(self) -> None:
+        """No CSRF-bearing form is rendered for what is a navigation action."""
+        body = Client().get("/faq/").content.decode()
+        assert "set_language" not in body
+        assert "/i18n/setlang/" not in body
+
+
+class TestLanguageCookieIsInert:
+    """The django_language cookie no longer selects anything.
+
+    Under ``prefix_default_language=False`` an unprefixed path is pinned to the
+    default language, so the cookie cannot override it — which is what retired
+    the POST switcher. Asserted rather than assumed, because the switcher's
+    design depends on it and because the opposite was believed at first.
+    """
+
+    @pytest.mark.django_db
+    @pytest.mark.parametrize("path", ["/", "/how-it-works/", "/faq/"])
+    def test_cookie_does_not_override_an_unprefixed_url(self, path: str) -> None:
+        """A French cookie still gets English on an unprefixed path."""
+        client = Client()
+        client.cookies[settings.LANGUAGE_COOKIE_NAME] = "fr"
+        assert 'lang="en"' in client.get(path).content.decode()
+
+    @pytest.mark.django_db
+    def test_prefix_wins_over_a_conflicting_cookie(self) -> None:
+        """An English cookie still gets French under /fr/."""
+        client = Client()
+        client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
+        assert 'lang="fr"' in client.get("/fr/faq/").content.decode()
 
 
 class TestPageviewLanguageProperty:

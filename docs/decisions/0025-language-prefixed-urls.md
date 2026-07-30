@@ -51,11 +51,9 @@ login links already sitting in people's inboxes.
 
 ### Which routes carry a prefix
 
-*Unprefixed* — `healthz/`, `i18n/`, `sitemap.xml`, `robots.txt`, `llms.txt`,
+*Unprefixed* — `healthz/`, `sitemap.xml`, `robots.txt`, `llms.txt`,
 `webhooks/stripe/`, `debug/`. None render translated content for a human, and
 several are fetched by clients that must find them at a fixed, well-known path.
-The language switcher (`i18n/`) is posted to in order to *change* the language,
-so prefixing it with the current one would be circular.
 
 *Prefixed* — `account/` and the whole `public.urls` catch-all.
 
@@ -100,27 +98,36 @@ English is active.
 The sitemap uses Django's native `i18n` / `alternates` / `x_default` attributes,
 so it emits both variants with `xhtml:link` alternates without custom code.
 
-### The language switcher needs a resolved `next`
+### The language switcher becomes a link, and `set_language` goes away
 
 The footer switcher was one form with a submit button per language, posting a
-single `next="{{ request.path }}"`. That breaks under the prefix, and it breaks
+single `next="{{ request.path }}"`. That broke under the prefix, and it broke
 *silently*: `set_language` translates `next` with `translate_url`, which resolves
 the path under the active language — and the POST lands on the unprefixed
 `/i18n/setlang/`, where the active language is whatever was negotiated. Resolving
-`/fr/faq/` under English fails, `translate_url` returns the path unchanged, and
-the view redirects the user straight back to the page they were trying to leave.
+`/fr/faq/` under English failed, `translate_url` returned the path unchanged, and
+the view redirected the user straight back to the page they were trying to leave.
 French → English did nothing at all.
 
-The footer now renders **one small form per language**, each carrying that
-language's already-resolved path as `next`. The destination is computed by the
-same helper that feeds the `hreflang` tags, so there is one source of truth for
-"where does this page live in language X". `set_language` still runs its own
-`translate_url` over the value, which is either a no-op or a failure that leaves
-the correct URL intact — so the switcher no longer depends on that call
-succeeding.
+The first fix was one form per language, each carrying its own already-resolved
+`next`. That worked, but it was solving the wrong problem. **The
+`django_language` cookie no longer selects anything.** With
+`prefix_default_language=False`, an unprefixed path is pinned to the default
+language, so a French cookie still yields English on `/faq/` — measured, not
+assumed, and asserted in `TestLanguageCookieIsInert`. `set_language`'s only job
+is to set that cookie.
 
-Keeping the POST (rather than making the switcher a plain link to the alternate
-URL) preserves the language cookie, so a returning visitor keeps their choice.
+So the switcher is now **a plain link to the other language's URL**. Once the URL
+carries the language, switching *is* navigation, and a link says exactly that: no
+CSRF token, no form, no redirect, and — usefully — a crawlable path from every
+page to its translation, on top of `hreflang`.
+
+`django.conf.urls.i18n` is no longer mounted, since nothing posts to it. Restore
+it if a cookie-driven preference is ever wanted again.
+
+This was found by CI rather than by design: the Playwright suite (which `tox`
+does not run) had a spec asserting that a language cookie survived across
+pages — the old contract. It failing was correct.
 
 ## Consequences
 
@@ -135,6 +142,10 @@ URL) preserves the language cookie, so a returning visitor keeps their choice.
   `i18n_patterns` to live in the root URLconf. Each swapped-in module is a root
   URLconf for its own request, so this holds — covered by tests rather than
   assumed.
+- **A visitor's language choice does not persist across an unprefixed URL.**
+  Someone who switches to French and later types the bare domain gets English.
+  That is the cost of making the URL authoritative, and it is the right trade
+  while the alternative is French being unreachable to search engines entirely.
 
 ## Alternatives rejected
 

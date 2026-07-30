@@ -13,8 +13,29 @@ combined ``config.urls`` is used instead (admin at ``/admin/``). See ADR 0022.
 ``webhooks/stripe/`` (VERB-86) is mounted here rather than under ``public.urls``
 so it is never nested under a locale prefix or any future app-level routing
 change — Stripe needs one stable, permanent path.
+
+**Language prefixing (SKI-153, ADR 0025).** The patterns split in two:
+
+- *Unprefixed* — machine-facing documents (robots.txt, llms.txt, sitemap.xml),
+  the liveness probe, the Stripe webhook, the language switcher, and the
+  DEBUG-only panel. None of these render translated content for a human, and
+  three of them are fetched by clients that must find them at a fixed, well-known
+  path.
+- *Prefixed* via ``i18n_patterns(..., prefix_default_language=False)`` — every
+  human-facing page. English keeps the existing unprefixed URLs (``/faq/``) and
+  French gains its own (``/fr/faq/``), so no inbound link breaks and French
+  becomes crawlable for the first time.
+
+The signed-token routes (match actions, registration confirmation, magic-link
+login) sit **inside** the prefix on purpose: ``core.emails`` already renders each
+message under ``translation.override(recipient_language)``, so ``reverse()``
+inside that block yields a ``/fr/`` link for a French recipient and the page
+renders in their language regardless of the browser's ``Accept-Language``.
+Tokens issued before this change carry unprefixed URLs, which still resolve as
+English — no link already in an inbox breaks.
 """
 
+from django.conf.urls.i18n import i18n_patterns
 from django.contrib.sitemaps.views import sitemap
 from django.urls import include, path
 
@@ -24,13 +45,19 @@ from public.views import stripe_webhook
 
 _sitemaps = {"static": StaticViewSitemap}
 
+# Unprefixed routes — never carry a language prefix. See the module docstring.
 urlpatterns = [
     # Liveness probe — unauthenticated, must come before any catch-all route.
     path("healthz/", healthz, name="healthz"),
-    # First-party magic-link auth + account self-service (VERB-46).
-    path("account/", include("accounts.urls")),
-    path("i18n/", include("django.conf.urls.i18n")),
-    # Machine-readable sitemap for search engine indexing.
+    # NB: django.conf.urls.i18n (set_language) is deliberately NOT mounted.
+    # Since the URL carries the language, switching is navigation — the footer
+    # links straight to the other language's URL. With
+    # prefix_default_language=False an unprefixed path is pinned to the default
+    # language regardless of the django_language cookie, so set_language had
+    # nothing left to select. Restore it here if a cookie-driven preference is
+    # ever needed again. See ADR 0025.
+    # Machine-readable sitemap for search engine indexing. Emits both language
+    # variants with hreflang alternates (see public.sitemaps).
     path(
         "sitemap.xml",
         sitemap,
@@ -47,5 +74,12 @@ urlpatterns = [
     path("llms.txt", llms_txt, name="llms_txt"),
     # Stripe checkout.session.completed webhook (VERB-86) — un-prefixed.
     path("webhooks/stripe/", stripe_webhook, name="stripe_webhook"),
-    path("", include("public.urls")),
 ]
+
+# Human-facing routes — English unprefixed, French under /fr/.
+urlpatterns += i18n_patterns(
+    # First-party magic-link auth + account self-service (VERB-46).
+    path("account/", include("accounts.urls")),
+    path("", include("public.urls")),
+    prefix_default_language=False,
+)

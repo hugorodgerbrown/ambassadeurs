@@ -76,6 +76,11 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
+    # Markdown representations (SKI-155, ADR 0026): advertises the .md twin of
+    # each content page and serves it when the client's Accept header asks for
+    # it. Last in the list so it sees the fully-rendered HTML response and can
+    # convert it without re-running the view.
+    "core.middleware.MarkdownRepresentationMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -112,6 +117,7 @@ TEMPLATES = [
                 "django.template.context_processors.debug",
                 "debug.context_processors.debug_panel",
                 "core.context_processors.notifications",
+                "core.context_processors.markdown_alternate",
             ],
         },
     },

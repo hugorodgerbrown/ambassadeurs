@@ -1,11 +1,17 @@
-# Translation-catalogue inspection helpers.
+# Internationalisation helpers.
 #
-# Utilities for measuring how much of a gettext ``.po`` catalogue is still
-# untranslated. Used by the ``update_messages`` management command and, through
-# it, by the code-review audit and the update-messages Routine to decide when a
-# catalogue rebuild is worth a dedicated pass (see ADR 0016).
+# Two unrelated concerns share this module because both are i18n plumbing with
+# no better home:
 #
-# The parsing here is deliberately minimal: it understands the subset of the PO
+#   1. Translation-catalogue inspection — measuring how much of a gettext ``.po``
+#      catalogue is still untranslated. Used by the ``update_messages`` command
+#      and, through it, by the code-review audit and the update-messages Routine
+#      to decide when a catalogue rebuild is worth a dedicated pass (ADR 0016).
+#
+#   2. Language alternates — computing the per-language URL variants of a path
+#      for ``hreflang`` link tags (SKI-153, ADR 0025).
+#
+# The PO parsing here is deliberately minimal: it understands the subset of the
 # format that Django's ``makemessages`` emits (single- and multi-line ``msgid`` /
 # ``msgstr``, plural forms, and ``#, fuzzy`` flags) and skips obsolete ``#~``
 # entries and the catalogue header. It is not a general PO parser — ``polib``
@@ -16,6 +22,10 @@ from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
+
+from django.conf import settings
+from django.urls import Resolver404, resolve, translate_url
+from django.utils import translation
 
 
 @dataclass(frozen=True)
@@ -164,6 +174,97 @@ def count_untranslated(po_text: str) -> CatalogueStats:
         elif _msgstr_is_empty(block):
             untranslated += 1
     return CatalogueStats(untranslated=untranslated, fuzzy=fuzzy)
+
+
+@dataclass(frozen=True)
+class LanguageAlternate:
+    """One language variant of a page: the language tag and where it lives.
+
+    Both forms of the location are carried because the two consumers need
+    different ones: ``hreflang`` link tags require an absolute URL, while the
+    footer's language switcher links to the root-relative path.
+
+    Attributes:
+        hreflang: The value for the ``hreflang`` attribute — a language code
+            from ``settings.LANGUAGES``, or the literal ``x-default``.
+        path: The root-relative path serving that language variant.
+        url: The same location as an absolute URL. Empty until a caller with a
+            request fills it in (see the ``language_alternates`` template tag).
+    """
+
+    hreflang: str
+    path: str
+    url: str = ""
+
+
+def _language_matching(path: str) -> str | None:
+    """Return the language code under which ``path`` resolves, or None.
+
+    ``resolve()`` matches ``i18n_patterns`` against the *currently active*
+    language, so ``/fr/faq/`` does not resolve while English is active. This
+    tries each configured language in turn and reports the one that matches.
+
+    Args:
+        path: A root-relative path.
+
+    Returns:
+        The matching language code, or None when the path resolves under no
+        language (a genuine 404, or a route mounted outside the prefix).
+    """
+    for code, _ in settings.LANGUAGES:
+        with translation.override(code):
+            try:
+                resolve(path)
+            except Resolver404:
+                continue
+            return code
+    return None
+
+
+def language_alternate_paths(path: str) -> list[LanguageAlternate]:
+    """Return the ``hreflang`` alternates for a path, one per configured language.
+
+    Under ``i18n_patterns(..., prefix_default_language=False)`` the default
+    language keeps the bare path (``/faq/``) and every other language gains a
+    prefix (``/fr/faq/``). This maps a path in *any* language to the full set,
+    so a page can advertise its own translations — ``/faq/`` and ``/fr/faq/``
+    both produce the same alternate set, which is what makes the tags symmetric.
+
+    A trailing ``x-default`` entry points at the default-language variant. It
+    tells a search engine which URL to serve when no language matches the user,
+    and is the conventional companion to a full alternates set.
+
+    The path is resolved under whichever language matches it (see
+    :func:`_language_matching`) rather than under the active one. In a request
+    those coincide, because ``LocaleMiddleware`` activates the language named by
+    the prefix — but not depending on that keeps the helper correct when called
+    outside the request cycle, and keeps it unit-testable.
+
+    A path that resolves under no language — a 404, or a route mounted outside
+    the prefix such as ``/robots.txt`` — yields the same path for every
+    alternate. Callers that only emit tags for real pages need no special case.
+
+    Args:
+        path: The root-relative path of the current page (``request.path``).
+
+    Returns:
+        One :class:`LanguageAlternate` per entry in ``settings.LANGUAGES``,
+        followed by the ``x-default`` entry.
+    """
+    source_language = _language_matching(path)
+    if source_language is None:
+        return [
+            LanguageAlternate(hreflang=code, path=path)
+            for code, _ in [*settings.LANGUAGES, ("x-default", "")]
+        ]
+    with translation.override(source_language):
+        alternates = [
+            LanguageAlternate(hreflang=code, path=translate_url(path, code))
+            for code, _ in settings.LANGUAGES
+        ]
+        default_path = translate_url(path, settings.LANGUAGE_CODE)
+    alternates.append(LanguageAlternate(hreflang="x-default", path=default_path))
+    return alternates
 
 
 def count_untranslated_file(path: Path) -> CatalogueStats:

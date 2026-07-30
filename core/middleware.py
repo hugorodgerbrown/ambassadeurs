@@ -29,6 +29,12 @@
 # django-utm-tracker UtmSessionMiddleware so click-ID-only visits (e.g. bare
 # "?fbclid=...") get a synthesised utm_source/utm_medium before the library's
 # LeadSourceMiddleware persists them. Registered in base.py (all environments).
+#
+# MarkdownRepresentationMiddleware advertises and serves the .md twin of each
+# content page (SKI-155, ADR 0026). It runs on the *response*, so it can reuse
+# the HTML the view already rendered rather than rendering the page twice.
+# Registered in base.py — unlike the PostHog pair, this one is part of the
+# product surface, not observability, so it must behave identically everywhere.
 
 from __future__ import annotations
 
@@ -37,11 +43,15 @@ from collections.abc import Callable
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
+from django.utils.translation import get_language
 from utm_tracker.request import parse_qs
 from utm_tracker.session import stash_utm_params
 
+from core.markdown import MARKDOWN_CONTENT_TYPE, html_to_markdown
 from core.marketing import normalise_source_params
+from core.negotiation import accepts_nothing_we_serve, prefers_markdown
 from core.observability import capture_event, capture_exception, distinct_id_for
+from public.content import ContentPage, page_for_view
 
 logger = logging.getLogger(__name__)
 
@@ -191,9 +201,96 @@ class PostHogPageviewMiddleware:
                 capture_event(
                     distinct_id_for(request),
                     "$pageview",
-                    {"$current_url": request.build_absolute_uri()},
+                    {
+                        "$current_url": request.build_absolute_uri(),
+                        # Language is implicit in the URL since SKI-153
+                        # (/faq/ vs /fr/faq/), but only as a substring. Sending
+                        # it as its own property makes "how is the French site
+                        # doing?" a one-click breakdown rather than a regex in
+                        # every query. LocaleMiddleware has already resolved it
+                        # from the URL prefix by the time this runs, so it is
+                        # exactly the language the page rendered in. Not PII.
+                        "language": get_language(),
+                    },
                 )
         except Exception:  # noqa: BLE001 — analytics must never break the response.
             logger.warning("Failed to track pageview", exc_info=True)
 
         return response
+
+
+class MarkdownRepresentationMiddleware:
+    """Advertise and serve the Markdown twin of each public content page.
+
+    Two jobs, both on the response side of a content page:
+
+    1. **Advertise.** Add ``Link: <...faq.md>; rel="alternate";
+       type="text/markdown"`` and ``Vary: Accept``. The matching
+       ``<link rel="alternate">`` tag is emitted in the template head — both are
+       needed, because a DOM-parsing crawler reads the tag while a headless
+       fetcher may only ever see the headers.
+
+    2. **Negotiate.** If the client asked for Markdown in preference to HTML,
+       replace the body with the converted Markdown at the *same* URL. If it
+       accepts neither type, return 406 rather than silently handing back
+       something it said it did not want.
+
+    Serving two representations of one resource, with ``Vary: Accept``
+    declared, is ordinary HTTP content negotiation — not cloaking, which is
+    serving crawlers *different content* from users. The Markdown is a
+    conversion of the very bytes the browser would have received.
+
+    Running on the response lets it reuse the HTML the view already produced,
+    so a negotiated request renders the page once, not twice.
+    """
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        """Store the next handler in the middleware chain."""
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        """Add the alternate-representation headers and negotiate the type."""
+        response = self.get_response(request)
+
+        page = self._content_page_for(request)
+        if page is None:
+            return response
+
+        accept = request.headers.get("Accept", "")
+        if accepts_nothing_we_serve(accept):
+            # 406 rather than a silent substitution: a client that excluded both
+            # of our representations has a bug worth surfacing, and guessing on
+            # its behalf hides it.
+            return HttpResponse(status=406)
+
+        markdown_url = request.build_absolute_uri(f"/{page.slug}.md")
+        response["Vary"] = "Accept"
+
+        if not prefers_markdown(accept):
+            response["Link"] = (
+                f'<{markdown_url}>; rel="alternate"; type="text/markdown"'
+            )
+            return response
+
+        markdown = html_to_markdown(
+            response.content.decode(), request.build_absolute_uri("/")
+        )
+        negotiated = HttpResponse(markdown, content_type=MARKDOWN_CONTENT_TYPE)
+        negotiated["Vary"] = "Accept"
+        negotiated["Link"] = (
+            f"<{request.build_absolute_uri(page.path)}>; "
+            'rel="alternate"; type="text/html"'
+        )
+        return negotiated
+
+    def _content_page_for(self, request: HttpRequest) -> ContentPage | None:
+        """Return the content page this request rendered, if it is one.
+
+        Only GET/HEAD requests that resolved to a 200 HTML response qualify. A
+        redirect, an error page, or a POST has no meaningful Markdown twin, and
+        converting one would produce a document that misrepresents the page.
+        """
+        match = request.resolver_match
+        if match is None or request.method not in {"GET", "HEAD"}:
+            return None
+        return page_for_view(match.view_name, match.kwargs)

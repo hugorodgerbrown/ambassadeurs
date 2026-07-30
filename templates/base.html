@@ -102,6 +102,19 @@
         <main id="main" class="mx-auto {% block main_width %}max-w-2xl{% endblock %} px-4 py-10">
             {% block content %}{% endblock %}
         </main>
+        {% comment %}
+        Markdown pointer for LLMs (SKI-155). Targets the "human pastes this URL
+        into ChatGPT" path, where the tool fetches the page but reads no headers
+        and parses no <link> tags. Hidden visually AND from screen readers
+        (aria-hidden) — this sentence is for machines, and a screen-reader user
+        has no use for it. Tailwind's sr-only handles the CSS. Rendered outside
+        <main> so it never appears in the Markdown conversion itself.
+        {% endcomment %}
+        {% if markdown_url %}
+            <div class="sr-only" aria-hidden="true">
+                A Markdown version of this page is available at {{ markdown_url }}.
+            </div>
+        {% endif %}
         {% include "includes/footer.html" %}
         {% if debug %}{% include "debug/panel.html" %}{% endif %}
     </body>

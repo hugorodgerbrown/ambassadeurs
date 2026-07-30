@@ -45,7 +45,8 @@ Target app layout. Create apps as the domain needs them; don't pre-build empty s
 ```
 config/          Django project settings (split base/development/production)
 core/            Shared abstractions (BaseModel; abstract, no concrete tables),
-                 HTTP-layer middleware, shared helpers
+                 HTTP-layer middleware, shared helpers, HTML->Markdown
+                 conversion + Accept negotiation (ADR 0026)
 accounts/        Magic-link (passwordless) login flow; AUTH_USER_MODEL is the
                  default Django model. Participant attributes (phone,
                  preferred_language) live on matching.Registration
@@ -359,6 +360,28 @@ Django's translation functions (`gettext`/`gettext_lazy` in Python, `{% translat
 catalogues live in `locale/en/` and `locale/fr/`. Code, comments, and docs stay
 British English (see Conventions); the i18n rule governs display strings only.
 
+**The URL is authoritative for language** (SKI-153,
+[ADR 0025](docs/decisions/0025-language-prefixed-urls.md)). Human-facing routes
+are wrapped in `i18n_patterns(..., prefix_default_language=False)`: English keeps
+the bare path (`/faq/`) and French gains a prefix (`/fr/faq/`). `/faq/` serves
+English even when the browser sends `Accept-Language: fr` — that is the point, and
+it is what makes the French site indexable and linkable at all.
+
+Three consequences to keep in mind when adding routes or copy:
+
+- **A new public page has two URLs, not one.** Consider both when touching
+  `public/sitemaps.py`, `templates/llms.txt`, or a PostHog funnel.
+- **Machine-facing routes stay unprefixed** — `robots.txt`, `llms.txt`,
+  `sitemap.xml`, `healthz/`, `webhooks/stripe/`, `i18n/`, `debug/`. They are
+  mounted outside `i18n_patterns` in `config/urls_public.py`; keep new ones there.
+- **A URL built for an email needs an explicit language override.**
+  `send_templated_email`'s `translation.override` wraps only the template render;
+  the URL is built by the caller beforehand. Use
+  `matching.side_effects._localised_url` (or the same `translation.override`
+  pattern) so a French recipient gets a `/fr/` link instead of being pinned to
+  English. `accounts/` flows are exempt: they build URLs from the live request,
+  whose language is already the user's.
+
 **Wrapping is required per PR; rebuilding the catalogues is not.** Wrapping a
 string in a translation function is mandatory and enforced per PR (Invariant 8) —
 that is what makes it translatable, and Django serves the English source string
@@ -515,5 +538,7 @@ feature docs are written:
 | Billing — voluntary tips (Stripe Checkout, free-tier gate) | [ADR 0022](docs/decisions/0022-voluntary-tip-stripe-checkout.md) |
 | Marketing-source attribution (django-utm-tracker, derived source → PostHog) | [ADR 0023](docs/decisions/0023-server-side-marketing-attribution.md) |
 | LLM visibility (robots.txt Content-Signal, llms.txt, what is deferred) | [ADR 0024](docs/decisions/0024-llm-visibility-content-signal-and-llms-txt.md) |
+| Language-prefixed URLs (`/fr/`, hreflang, emailed-link language) | [ADR 0025](docs/decisions/0025-language-prefixed-urls.md) |
+| Markdown representations (`.md` routes, Accept negotiation, page registry) | [ADR 0026](docs/decisions/0026-markdown-representations.md) |
 | Deployment (Render single-service) | _to be written_ |
 | Linear workflow (full lifecycle) | _to be written_ |

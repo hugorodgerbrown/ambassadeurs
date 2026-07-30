@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n i18n_alternates %}
 {% comment %}
 Site footer (design handoff). Brand block + link columns + a bottom meta bar.
 The wordmark text stays neutral ink; the peak glyph follows var(--role) (teal on
@@ -91,40 +91,43 @@ the nav.
     <div class="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-2 border-t border-line px-4 py-5 font-mono text-xs text-meta">
         <span>{% translate "Independent project — not affiliated with the 4 Vallées pass operator." %}</span>
         {% comment %}
-        Language selector (VERB-48). One POST form with a submit button per
-        available language, each showing a country flag and the language code.
-        No inline JS (CSP-safe): each button carries name="language" so the
-        clicked option is the value submitted. The current language is marked
-        with aria-current and rendered in ink.
+        Language selector (VERB-48). Plain links, one per available language,
+        each showing a country flag and the language code. The current language
+        is marked with aria-current and rendered in ink.
+
+        Links rather than the POST form this used to be (SKI-153). Once the URL
+        carries the language, set_language has nothing left to do: with
+        prefix_default_language=False an unprefixed path is pinned to the
+        default language, so the django_language cookie no longer selects
+        anything — verified, not assumed. Switching languages IS navigating to
+        the other URL, so a link says exactly that, needs no CSRF token, and is
+        followable by a crawler, which gives every page a second discovery route
+        to its translation on top of hreflang.
         {% endcomment %}
-        <form
-            action="{% url 'set_language' %}"
-            method="post"
+        {% get_current_language as current_lang %}
+        {% language_alternates as alternates %}
+        <nav
             class="flex items-center gap-1"
             aria-label="{% translate 'Change language' %}"
         >
-            {% csrf_token %}
-            <input type="hidden" name="next" value="{{ request.path }}">
-            {% get_current_language as current_lang %}
-            {% get_available_languages as languages %}
-            {% for code, name in languages %}
-                <button
-                    type="submit"
-                    name="language"
-                    value="{{ code }}"
-                    aria-label="{{ name }}"
-                    {% if code == current_lang %}
-                        aria-current="true"
-                    {% endif %}
-                    class="flex cursor-pointer items-center gap-1 rounded-control border-0 bg-transparent px-1.5 py-1 {% if code == current_lang %}text-ink{% else %}text-meta hover:text-ink{% endif %}"
-                >
-                    <span aria-hidden="true">
-                        {% if code == 'fr' %}🇫🇷{% else %}🇬🇧{% endif %}
-                    </span>
-                    {{ code|upper }}
-                </button>
+            {% for alternate in alternates %}
+                {% if alternate.hreflang != 'x-default' %}
+                    <a
+                        href="{{ alternate.path }}"
+                        hreflang="{{ alternate.hreflang }}"
+                        {% if alternate.hreflang == current_lang %}
+                            aria-current="true"
+                        {% endif %}
+                        class="flex items-center gap-1 rounded-control px-1.5 py-1 no-underline {% if alternate.hreflang == current_lang %}text-ink{% else %}text-meta hover:text-ink{% endif %}"
+                    >
+                        <span aria-hidden="true">
+                            {% if alternate.hreflang == 'fr' %}🇫🇷{% else %}🇬🇧{% endif %}
+                        </span>
+                        {{ alternate.hreflang|upper }}
+                    </a>
+                {% endif %}
             {% endfor %}
-        </form>
+        </nav>
         <span>© {% now "Y" %}</span>
     </div>
 </footer>

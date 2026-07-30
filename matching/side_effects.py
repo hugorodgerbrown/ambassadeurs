@@ -43,6 +43,7 @@ import logging
 
 from django.conf import settings
 from django.urls import reverse
+from django.utils import translation
 from side_effects.decorators import is_side_effect_of
 
 from accounts.tokens import make_match_access_token
@@ -70,6 +71,32 @@ MATCH_NO_SHOW = "match_no_show"
 # functions. Each is rendered under the recipient's own preferred_language.
 
 
+def _localised_url(view_name: str, language: str, *args: object) -> str:
+    """Build an absolute URL for a view under a specific language.
+
+    Since SKI-153 the URL itself carries the language: ``reverse()`` returns
+    ``/fr/match/<token>/`` under French and ``/match/<token>/`` under English.
+    The link in an email must therefore be built under the *recipient's*
+    language, not whatever happens to be active on the sending thread — these
+    handlers run from another user's request or from a cron with no request at
+    all, so the ambient language is meaningless here.
+
+    ``send_templated_email`` already renders the message body under the
+    recipient's language, but that override wraps only the template render: the
+    URL is built by the caller and passed in as context, so it needs its own.
+
+    Args:
+        view_name: The URL pattern name to reverse.
+        language: The language code to build the URL under.
+        *args: Positional arguments for the URL pattern.
+
+    Returns:
+        An absolute URL whose path carries the language prefix for ``language``.
+    """
+    with translation.override(language):
+        return settings.BASE_URL + reverse(view_name, args=args)
+
+
 def _email_proposal(registration: Registration, match: Match) -> None:
     """Send the "you've been matched" notification to one recipient.
 
@@ -81,7 +108,7 @@ def _email_proposal(registration: Registration, match: Match) -> None:
     # Mint a per-recipient token that scopes the link to this registration
     # only. The token carries no PII — only the match and registration PKs.
     token = make_match_access_token(match.pk, registration.pk)
-    match_url = settings.BASE_URL + reverse("public:match", args=[token])
+    match_url = _localised_url("public:match", lang, token)
     send_templated_email(
         "match_proposed",
         {"url": match_url},
@@ -105,7 +132,7 @@ def _email_partner_accepted(waiting_registration: Registration, match: Match) ->
     """
     lang = waiting_registration.preferred_language or settings.LANGUAGE_CODE
     token = make_match_access_token(match.pk, waiting_registration.pk)
-    match_url = settings.BASE_URL + reverse("public:match", args=[token])
+    match_url = _localised_url("public:match", lang, token)
     send_templated_email(
         "partner_accepted",
         {"url": match_url},
@@ -166,7 +193,7 @@ def _email_window_expired(registration: Registration) -> None:
     No reporter or partner PII is included (Invariant 1).
     """
     lang = registration.preferred_language or settings.LANGUAGE_CODE
-    account_url = settings.BASE_URL + reverse("accounts:detail")
+    account_url = _localised_url("accounts:detail", lang)
     send_templated_email(
         "window_expired",
         {"url": account_url},

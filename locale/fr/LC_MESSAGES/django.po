@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-07 20:16+0200\n"
+"POT-Creation-Date: 2026-08-24 08:50+0200\n"
 "PO-Revision-Date: 2026-07-02 12:23+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -114,7 +114,8 @@ msgstr ""
 "Obligatoire lorsque l’audience est « Groupe personnalisé » ; ignoré sinon."
 
 msgid "Controls the banner's colours; see settings.NOTIFICATION_DESIGNS."
-msgstr "Contrôle les couleurs de la bannière ; voir settings.NOTIFICATION_DESIGNS."
+msgstr ""
+"Contrôle les couleurs de la bannière ; voir settings.NOTIFICATION_DESIGNS."
 
 msgid "A custom group is required when audience is Custom group."
 msgstr ""
@@ -841,10 +842,77 @@ msgid "Your match has expired — rejoin the queue when you're ready"
 msgstr ""
 "Votre mise en relation a expiré — rejoignez la file quand vous êtes prêt(e)"
 
+msgid "Two skiers shaking hands between 4 Vallées Ambassadors gondolas"
+msgstr "Deux skieurs se serrant la main entre les télécabines des 4 Vallées"
+
 msgid "Find your season-pass partner for the 4 Vallées Ambassador Offer."
 msgstr ""
 "Trouvez votre partenaire d’abonnement de saison pour l’Offre Parrainage des "
 "4 Vallées."
+
+msgid "Who's in the queue"
+msgstr "Qui est dans la file d'attente"
+
+#, python-format
+msgid "Matching begins on %(d)s."
+msgstr "Les mises en relation commencent le %(d)s."
+
+msgid "* Next referee will be matched immediately on registration."
+msgstr "* Le prochain filleul sera mis en relation dès son inscription."
+
+msgid "* Next ambassador will be matched immediately on registration."
+msgstr "* Le prochain parrain sera mis en relation dès son inscription."
+
+msgid "Ambassadors"
+msgstr "Parrains"
+
+#, python-format
+msgid "%(c)s ambassador waiting"
+msgid_plural "%(c)s ambassadors waiting"
+msgstr[0] "%(c)s parrain en attente"
+msgstr[1] "%(c)s parrains en attente"
+
+msgid "You"
+msgstr "Vous"
+
+msgid "Instant match*"
+msgstr "Mise en relation immédiate*"
+
+msgid "No ambassadors waiting"
+msgstr "Aucun parrain en attente"
+
+msgid "Matched"
+msgstr "Mis en relation"
+
+#, python-format
+msgid "Matching begins in %(n)s day"
+msgid_plural "Matching begins in %(n)s days"
+msgstr[0] "Les mises en relation commencent dans %(n)s jour"
+msgstr[1] "Les mises en relation commencent dans %(n)s jours"
+
+msgid "Matching begins today"
+msgstr "Les mises en relation commencent aujourd'hui"
+
+#, python-format
+msgid "%(n)s person matched"
+msgid_plural "%(n)s people matched"
+msgstr[0] "%(n)s personne mise en relation"
+msgstr[1] "%(n)s personnes mises en relation"
+
+msgid "No matches yet"
+msgstr "Aucune mise en relation pour l'instant"
+
+msgid "Referees"
+msgstr "Filleuls"
+
+#, python-format
+msgid "%(c)s referee waiting"
+msgid_plural "%(c)s referees waiting"
+msgstr[0] "%(c)s filleul en attente"
+msgstr[1] "%(c)s filleuls en attente"
+
+msgid "No referees waiting"
+msgstr "Aucun filleul en attente"
 
 msgid "Buy the team a coffee"
 msgstr "Offrez un café à l’équipe"
@@ -895,6 +963,9 @@ msgstr "FAQ"
 msgid "Colophon"
 msgstr "Colophon"
 
+msgid "About"
+msgstr "À propos"
+
 msgid "Legal"
 msgstr "Mentions légales"
 
@@ -938,6 +1009,140 @@ msgstr "Menu du compte"
 
 msgid "Dismiss this notification"
 msgstr "Fermer cette notification"
+
+msgid ""
+"Who is behind Ski Parrainage, why it exists, how it is funded, and what "
+"happens to it after the season."
+msgstr ""
+"Qui est derrière Ski Parrainage, pourquoi le site existe, comment il est "
+"financé et ce qu'il deviendra après la saison."
+
+msgid "About — Ski Parrainage"
+msgstr "À propos — Ski Parrainage"
+
+msgid "Who is behind Ski Parrainage?"
+msgstr "Qui est derrière Ski Parrainage ?"
+
+msgid ""
+"I am. My name is Hugo, I live in the UK, have skied in Verbier for a number "
+"of years, and have benefited from the Ambassador Offer previously."
+msgstr ""
+"Moi. Je m'appelle Hugo, je vis au Royaume-Uni, je skie à Verbier depuis "
+"plusieurs années et j'ai déjà bénéficié de l'Offre Parrainage."
+
+msgid "Why did you build Ski Parrainage?"
+msgstr "Pourquoi avez-vous créé Ski Parrainage ?"
+
+msgid ""
+"Whilst the application process for the Ambassador Offer is simple enough (if "
+"you can find the form), finding someone to pair with is not. The recommended "
+"method is to hang out in the Verbier Community Facebook group and ask around "
+"as the season approaches. This becomes very chaotic as the season approaches."
+msgstr ""
+"Si la procédure d'inscription à l'Offre Parrainage est assez simple (à "
+"condition de trouver le formulaire), trouver quelqu'un avec qui faire équipe "
+"ne l'est pas. La méthode recommandée consiste à fréquenter le groupe "
+"Facebook Verbier Community et à demander autour de soi à l'approche de la "
+"saison. Cela devient très chaotique à mesure que la saison approche."
+
+#, python-format
+msgid ""
+"The alternative is to pay someone to find you a match — typically a rental "
+"agency, as they know who is booked for the season. I believe the going price "
+"is CHF 50 (10%% of a CHF 500 saving, so not outrageous)."
+msgstr ""
+"L'autre solution consiste à payer quelqu'un pour vous trouver un binôme — en "
+"général une agence de location, car elle sait qui a réservé pour la saison. "
+"Le tarif courant est, je crois, de CHF 50 (10%% d'une économie de CHF 500, "
+"ce qui n'a rien d'excessif)."
+
+msgid ""
+"I lost out last year when multiple potential Facebook pairings fell through "
+"at the last minute, and I promised myself then that I would fix the problem "
+"for the 26/27 season."
+msgstr ""
+"L'an dernier, j'y ai perdu : plusieurs binômes potentiels trouvés sur "
+"Facebook se sont désistés à la dernière minute. Je me suis alors promis de "
+"régler le problème pour la saison 26/27."
+
+msgid "Who pays for Ski Parrainage?"
+msgstr "Qui finance Ski Parrainage ?"
+
+msgid ""
+"I do. I am currently not working, and I wanted to test some AI models' "
+"coding abilities — this was a good testbed. It has cost me a few hundred GBP/"
+"CHF/EUR to build it, host it, buy the domain name, and so on."
+msgstr ""
+"Moi. Je ne travaille pas en ce moment et je voulais tester les capacités de "
+"programmation de quelques modèles d'IA — c'était un bon terrain d'essai. "
+"Construire le site, l'héberger, acheter le nom de domaine et le reste m'ont "
+"coûté quelques centaines de GBP/CHF/EUR."
+
+msgid "How do you make money?"
+msgstr "Comment gagnez-vous de l'argent ?"
+
+msgid ""
+"This is not a commercial project, and I am not intending to make money out "
+"of it, so it is coming out of my own bank account. That said, if I can cover "
+"my costs and pay for my own pass this year, I would consider that a great "
+"success."
+msgstr ""
+"Ce n'est pas un projet commercial et je ne compte pas en tirer de l'argent : "
+"tout sort de mon propre compte en banque. Cela dit, si j'arrive à couvrir "
+"mes frais et à payer mon propre abonnement cette année, je considérerai que "
+"c'est une belle réussite."
+
+msgid ""
+"I will be introducing voluntary donations (tips) if anyone is feeling "
+"generous, and I may introduce a charge for latecomers — so if you are "
+"registering close to the season start date, there may be something to pay."
+msgstr ""
+"Je mettrai en place des dons volontaires (pourboires) pour les plus "
+"généreux, et j'introduirai peut-être des frais pour les retardataires — si "
+"vous vous inscrivez juste avant le début de la saison, il y aura donc "
+"peut-être quelque chose à payer."
+
+msgid "What next for Ski Parrainage?"
+msgstr "Et ensuite, pour Ski Parrainage ?"
+
+msgid ""
+"At the end of the matching process I will take a look at the data to see if "
+"there is anything to learn from it, then I will delete the data and put the "
+"website back in the cupboard until next year."
+msgstr ""
+"À la fin des mises en relation, je regarderai les données pour voir s'il y a "
+"des enseignements à en tirer, puis je les supprimerai et je rangerai le site "
+"au placard jusqu'à l'année prochaine."
+
+msgid "What is your relationship to Téléverbier?"
+msgstr "Quel est votre lien avec Téléverbier ?"
+
+msgid ""
+"I sit on their chairlifts. I have no affiliation with Téléverbier, and they "
+"know nothing about this site."
+msgstr ""
+"Je m'assois sur leurs télésièges. Je n'ai aucun lien avec Téléverbier, et "
+"ils ne savent rien de ce site."
+
+msgid "Do you have any other skiing-related projects?"
+msgstr "Avez-vous d'autres projets liés au ski ?"
+
+msgid ""
+"Thanks for asking. If you only use the lifts to get to the backcountry, then "
+"my other project,"
+msgstr ""
+"Merci de poser la question. Si vous n'utilisez les remontées que pour "
+"accéder au hors-piste, mon autre projet,"
+
+msgid ""
+", may be of interest. At the moment it is just an avalanche bulletin "
+"aggregator, but it has a better map than WhiteRisk, and all the same "
+"information. More updates coming soon — and suggestions welcome."
+msgstr ""
+", pourrait vous intéresser. Pour l'instant, ce n'est qu'un agrégateur de "
+"bulletins d'avalanche, mais il propose une meilleure carte que WhiteRisk, "
+"avec les mêmes informations. D'autres nouveautés arrivent bientôt — et les "
+"suggestions sont les bienvenues."
 
 msgid ""
 "The tools, frameworks, hosting, and typefaces used to build Ski Parrainage."
@@ -1001,6 +1206,17 @@ msgstr "le corps de texte."
 msgid "small print and code."
 msgstr "les mentions en petits caractères et le code."
 
+msgid "Iconography"
+msgstr "Iconographie"
+
+msgid ""
+"interface icons, used under the Creative Commons Attribution 4.0 licence"
+msgstr ""
+"icônes d'interface, utilisées sous licence Creative Commons Attribution 4.0"
+
+msgid "licence"
+msgstr "licence"
+
 msgid "Hosting and infrastructure"
 msgstr "Hébergement et infrastructure"
 
@@ -1061,6 +1277,10 @@ msgstr ""
 
 msgid "What is the 4 Vallées Ambassador Offer?"
 msgstr "Qu’est-ce que l’Offre Parrainage des 4 Vallées ?"
+
+#, python-format
+msgid "Direct link to: %(question)s"
+msgstr "Lien direct vers : %(question)s"
 
 msgid ""
 "The 4 Vallées Ambassador Offer is a referral scheme that lets a returning "
@@ -1368,8 +1588,8 @@ msgstr "Offre Parrainage des 4 Vallées"
 msgid "Find your season-pass match"
 msgstr "Trouvez votre partenaire d'abonnement de saison"
 
-msgid "Free to use"
-msgstr "Gratuit"
+msgid "Register now to beat the queue"
+msgstr "Inscrivez-vous maintenant pour prendre de l'avance"
 
 msgid ""
 "No more last minute search in the Facebook group. We automatically match you "
@@ -1459,13 +1679,11 @@ msgstr ""
 msgid "Register as a Referee"
 msgstr "S'inscrire en tant que Filleul"
 
-#, python-format
-msgid ""
-"Not sure which one you are? Check the <a href=\"%(faq_url)s\" class=\"text-"
-"accent underline\">FAQ</a>."
-msgstr ""
-"Vous ne savez pas lequel vous êtes ? Consultez la <a href=\"%(faq_url)s\" "
-"class=\"text-accent underline\">FAQ</a>."
+msgid "Not sure which one you are? Start"
+msgstr "Vous ne savez pas lequel vous correspond ? Commencez"
+
+msgid "here"
+msgstr "ici"
 
 msgid "A plain-language walkthrough of the Ski Parrainage matching process."
 msgstr ""
@@ -1625,12 +1843,13 @@ msgstr "Politique de cookies"
 
 msgid ""
 "Cookie Policy for the Ski Parrainage partner-matching service. We use only "
-"strictly-necessary cookies — no analytics, advertising, or third-party "
-"tracking."
+"strictly-necessary cookies, including a session cookie that may record how "
+"you found us — no third-party analytics, advertising, or cross-site tracking."
 msgstr ""
 "Politique de cookies du service de mise en relation Ski Parrainage. Nous "
-"n'utilisons que des cookies strictement nécessaires — pas d'analyse, de "
-"publicité ou de suivi tiers."
+"n'utilisons que des cookies strictement nécessaires, dont un cookie de "
+"session susceptible d'enregistrer comment vous nous avez trouvés — pas "
+"d'analyse tierce, de publicité ni de suivi intersites."
 
 msgid "Last updated"
 msgstr "Dernière mise à jour"
@@ -1648,15 +1867,36 @@ msgstr ""
 "les formulaires contre les requêtes intersites falsifiées, et un cookie qui "
 "mémorise la langue choisie."
 
+msgid ""
+"If you arrive via a link that carries tracking parameters — for example a "
+"shared Facebook post — the session cookie also records which channel "
+"referred you, so we can see which channels bring genuine sign-ups. This "
+"attribution is first-party only: it stays within our own systems and is "
+"never shared with Facebook, Google, or any other platform."
+msgstr ""
+"Si vous arrivez via un lien contenant des paramètres de suivi — par exemple "
+"une publication Facebook partagée —, le cookie de session enregistre "
+"également le canal qui vous a orienté vers nous, ce qui nous permet de voir "
+"quels canaux génèrent de véritables inscriptions. Cette attribution est "
+"strictement interne : elle reste dans nos propres systèmes et n'est jamais "
+"partagée avec Facebook, Google ou toute autre plateforme."
+
 msgid "What we don't use"
 msgstr "Ce que nous n'utilisons pas"
 
 msgid ""
-"We do not use analytics, advertising, or third-party tracking cookies, so "
-"there is no cookie consent banner to manage."
+"We do not use third-party analytics, advertising, or cross-site tracking "
+"cookies, so there is still no cookie consent banner to manage. The session "
+"cookie may now be set the moment you arrive — not only once you sign in or "
+"submit a form — if your visit carries tracking parameters, but it is never "
+"used to track you across other sites."
 msgstr ""
-"Nous n'utilisons pas de cookies d'analyse, de publicité ou de suivi tiers, "
-"donc il n'y a pas de bannière de consentement aux cookies à gérer."
+"Nous n'utilisons ni cookies d'analyse tiers, ni cookies publicitaires, ni "
+"cookies de suivi intersites : il n'y a donc toujours aucune bannière de "
+"consentement à gérer. Le cookie de session peut désormais être déposé dès "
+"votre arrivée — et non plus seulement lorsque vous vous connectez ou envoyez "
+"un formulaire — si votre visite comporte des paramètres de suivi, mais il "
+"n'est jamais utilisé pour vous suivre sur d'autres sites."
 
 msgid "Managing cookies"
 msgstr "Gestion des cookies"
@@ -1874,9 +2114,6 @@ msgstr "Votre mise en relation"
 
 msgid "Match details"
 msgstr "Détails de la mise en relation"
-
-msgid "You"
-msgstr "Vous"
 
 msgid "Your partner"
 msgstr "Votre partenaire"
@@ -2217,6 +2454,9 @@ msgid "Your answer helps us set a fair price for future seasons."
 msgstr ""
 "Votre réponse nous aide à fixer un prix équitable pour les saisons à venir."
 
+msgid "Live queue"
+msgstr "File d'attente en direct"
+
 msgid "Registration closed"
 msgstr "Inscriptions fermées"
 
@@ -2418,6 +2658,24 @@ msgid ""
 msgstr ""
 "Votre paiement a bien été reçu. Cela aide réellement à faire fonctionner Ski "
 "Parrainage."
+
+#~ msgid "Free to use"
+#~ msgstr "Gratuit"
+
+#, python-format
+#~ msgid ""
+#~ "Not sure which one you are? Check the <a href=\"%(faq_url)s\" "
+#~ "class=\"text-accent underline\">FAQ</a>."
+#~ msgstr ""
+#~ "Vous ne savez pas lequel vous êtes ? Consultez la <a href=\"%(faq_url)s\" "
+#~ "class=\"text-accent underline\">FAQ</a>."
+
+#~ msgid ""
+#~ "We do not use analytics, advertising, or third-party tracking cookies, so "
+#~ "there is no cookie consent banner to manage."
+#~ msgstr ""
+#~ "Nous n'utilisons pas de cookies d'analyse, de publicité ou de suivi "
+#~ "tiers, donc il n'y a pas de bannière de consentement aux cookies à gérer."
 
 #~ msgid "Neutral"
 #~ msgstr "Neutre"
@@ -2729,9 +2987,6 @@ msgstr ""
 
 #~ msgid "Say thanks &middot; Ski Parrainage"
 #~ msgstr "Dire merci &middot; Ski Parrainage"
-
-#~ msgid "Register in the role that fits you"
-#~ msgstr "Inscrivez-vous dans le rôle qui vous correspond"
 
 #~ msgid "Ambassador or Referee — whichever describes you."
 #~ msgstr "Parrain ou Filleul — selon votre situation."

@@ -89,9 +89,9 @@ class AdminHostMiddleware:
             urlconf = (
                 "config.urls_admin" if host == admin_host else "config.urls_public"
             )
-            # django-stubs omits the dynamic urlconf attribute Django reads
-            # during resolution; the assignment is valid at runtime.
-            request.urlconf = urlconf  # type: ignore[attr-defined]
+            # Django reads request.urlconf during resolution, so the admin
+            # host resolves against a different URLConf to the public site.
+            request.urlconf = urlconf
         return self.get_response(request)
 
 

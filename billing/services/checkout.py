@@ -220,7 +220,7 @@ def verify_webhook(payload: bytes, sig_header: str) -> stripe.Event:
         stripe.error.SignatureVerificationError: if the signature does not
             match ``settings.STRIPE_WEBHOOK_SECRET``.
     """
-    return stripe.Webhook.construct_event(  # type: ignore[no-any-return,no-untyped-call]  # stripe.Webhook.construct_event has no type stub
+    return stripe.Webhook.construct_event(  # type: ignore[no-any-return]  # construct_event is untyped, so its return is Any
         payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
     )
 

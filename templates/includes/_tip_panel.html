@@ -1,43 +1,62 @@
-{% load i18n %}
+{% load i18n static %}
 {% comment %}
-Tip (voluntary contribution) panel — VERB-110.
+Tip (voluntary contribution) panel — VERB-110, mounted by VERB-112.
 
-Include contract (the handoff to the placement ticket — keep these three
-params explicit):
+Presented as an aside, not a step (.tip, deliberately not .card): at its real
+mount it sits below the confirmed-match contact card and the numbered next
+steps, and must not compete with either. Hence the "Optional" eyebrow, the
+outline chips, the disclosure hiding the two low-traffic controls, and the
+ghost submit — the loudest control on the confirmed page stays "Email
+<partner>", which is the action that actually matters.
+
+Include contract (keep these params explicit at every mount):
   form                   — a billing.forms.TipForm instance (bound or unbound)
   skip_url               — where the "No thanks" link goes; the mount decides
-                           the target (the standalone page passes accounts:detail)
+                           the target (the standalone page passes accounts:detail).
+                           Empty/omitted suppresses the link entirely — the
+                           confirmed-match mount (VERB-112) is an inline panel on
+                           a page the reader is already on, so it has nowhere to
+                           skip to.
   show_refund_disclaimer — boolean. When true, renders the "refunded if no
-                           match is found; decline/no-show is on you" copy.
-                           The decided mount (the confirmed-match page) will
-                           pass false and supply its own no-refund framing,
-                           since a match is already found by that point.
+                           match is found" copy. Registration-time mounts only;
+                           a post-match mount passes false and says nothing
+                           about refunds, since by then there is no refund
+                           condition left to describe.
+  return_to              — optional origin key posted to public:tip_start, which
+                           maps it to a return destination (see
+                           public.views.tips._RETURN_TO_ROUTES). The confirmed-
+                           match mount passes "match" so an abandoned Checkout
+                           lands back on the match page rather than on the
+                           generic cancelled page. Omitted on the standalone page.
 
 The three preset amounts (CHF 5/10/20) are buttons, not form fields — clicking
 one sets the free-amount number input (the sole "amount_chf" field submitted)
-via a small nonce'd script. Without JS, the number input is still fully
-usable on its own, so the form degrades gracefully. Submits to
-public:tip_start.
+and takes the pressed state. Without JS the chips are inert, so the number
+input inside the disclosure is the real control and has to stay reachable:
+the disclosure is a <details> (it opens with no JS at all), and it is forced
+open on a bound form so a validation error can never render out of sight
+inside a collapsed panel. Submits to public:tip_start.
 {% endcomment %}
-<div class="card" id="tip-panel">
-    <h2 class="mb-2 text-h3 text-ink">{% translate "Buy the team a coffee" %}</h2>
-    <p class="mb-5 text-body">
+<div class="tip" id="tip-panel">
+    <p class="label mb-2">{% translate "Optional" %}</p>
+    <p class="tip__title">{% translate "Buy the team a coffee" %}</p>
+    <p class="tip__lede">
         {% blocktranslate trimmed %}
-            If Ski Parrainage helped you find a partner, a small voluntary contribution helps keep it running. Entirely
-            optional.
+            If Ski Parrainage helped you find a partner, a small voluntary contribution helps keep it running.
         {% endblocktranslate %}
     </p>
 
     {% if show_refund_disclaimer %}
-        <p class="field__hint mb-5">
+        <p class="field__hint">
             {% blocktranslate trimmed %}
                 If no match is found for you this season, your contribution will be refunded.
             {% endblocktranslate %}
         </p>
     {% endif %}
 
-    <form method="post" action="{% url 'public:tip_start' %}">
+    <form method="post" action="{% url 'public:tip_start' %}" class="mt-4">
         {% csrf_token %}
+        {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}
 
         {% if form.non_field_errors %}
             <div class="mb-4 rounded-control border border-danger bg-danger-tint p-3 text-sm text-danger-ink">
@@ -45,56 +64,108 @@ public:tip_start.
             </div>
         {% endif %}
 
-        <fieldset class="mb-4">
-            <legend class="label mb-2">{% translate "Amount" %}</legend>
-            <div class="field-row mb-3">
-                <button type="button" class="btn btn--secondary tip-preset" data-tip-amount="5">
-                    {% blocktranslate %}CHF 5 — Buy me a beer{% endblocktranslate %}
-                </button>
-                <button type="button" class="btn btn--secondary tip-preset" data-tip-amount="10">
-                    {% blocktranslate %}CHF 10 — Buy me lunch on the hill{% endblocktranslate %}
-                </button>
-            </div>
-            <button type="button" class="btn btn--secondary btn--block tip-preset mb-3" data-tip-amount="20">
-                {% blocktranslate %}CHF 20 — Help me buy a lift pass{% endblocktranslate %}
+        <div class="tip-presets" role="group" aria-label='{% translate "Suggested amounts" %}'>
+            {% comment %}
+                The icons are flavour (a coffee / a glass of wine / a meal),
+                not labels: each is aria-hidden, so the chip's accessible name
+                is the amount alone — which is the whole of what a chooser
+                needs. A stemmed glass rather than a beer mug for the middle
+                one: at 24px a handled mug and a handled cup are the same
+                silhouette, and the three marks have to be tellable apart at
+                a glance or they carry nothing.
+            {% endcomment %}
+            <button type="button" class="tip-chip" aria-pressed="false" data-tip-amount="5">
+                <svg
+                    class="tip-chip__icon"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.9"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <path d="M5.5 6.5h10v6a5 5 0 0 1-10 0z" />
+                    <path d="M15.5 7.8h1.6a2.4 2.4 0 0 1 0 4.8h-1.6" />
+                    <path d="M3.8 18.6h13.4" />
+                    <path d="M8.6 2.4v1.9M12.4 2v2.3" />
+                </svg>
+                <span class="tip-chip__amount">{% blocktranslate %}CHF 5{% endblocktranslate %}</span>
             </button>
+            <button type="button" class="tip-chip" aria-pressed="false" data-tip-amount="10">
+                <svg
+                    class="tip-chip__icon"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.9"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <path d="M6.8 3.2h10.4v3.4a5.2 5.2 0 0 1-10.4 0z" />
+                    <path d="M12 11.8v8.4" />
+                    <path d="M8.2 20.6h7.6" />
+                </svg>
+                <span class="tip-chip__amount">{% blocktranslate %}CHF 10{% endblocktranslate %}</span>
+            </button>
+            <button type="button" class="tip-chip" aria-pressed="false" data-tip-amount="20">
+                <svg
+                    class="tip-chip__icon"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.9"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <path d="M7 3v6a2.2 2.2 0 0 0 4.4 0V3" />
+                    <path d="M9.2 11.2V21" />
+                    <path d="M17.4 3c1.4 1.7 2 3.8 2 5.9 0 2-.7 3.3-2 3.6V3z" />
+                    <path d="M17.4 12.5V21" />
+                </svg>
+                <span class="tip-chip__amount">{% blocktranslate %}CHF 20{% endblocktranslate %}</span>
+            </button>
+        </div>
 
-            {% comment %}Free-amount fallback — the form field itself, bounded 1-500 CHF.{% endcomment %}
+        {% comment %}
+            Forced open on a bound form: the only always-usable amount control
+            lives in here, so an error on it must never render out of sight.
+        {% endcomment %}
+        <details class="tip-more" {% if form.is_bound %}open{% endif %}>
+            <summary>{% translate "Another amount, or add a note" %}</summary>
             {% include "includes/_field.html" with field=form.amount_chf %}
-        </fieldset>
+            {% include "includes/_field.html" with field=form.message %}
+        </details>
 
-        {% include "includes/_field.html" with field=form.message %}
-
-        <button type="submit" class="btn btn--primary btn--block">
+        <button type="submit" class="btn btn--ghost mt-4">
             {% translate "Send my contribution" %}
         </button>
     </form>
 
-    <p class="mt-4 text-center">
-        <a href="{{ skip_url }}" class="font-medium text-accent underline">
-            {% translate "No thanks" %}
-        </a>
-    </p>
+    {% if skip_url %}
+        <p class="mt-4">
+            <a href="{{ skip_url }}" class="font-medium text-accent underline">
+                {% translate "No thanks" %}
+            </a>
+        </p>
+    {% endif %}
 </div>
 {% comment %}
-Preset buttons write straight into the amount_chf number input — progressive
+Preset chips write straight into the amount_chf number input — progressive
 enhancement only; the input itself is always a fully working standalone
 control (CLAUDE.md: no JS framework, plain vanilla JS is fine for this).
+
+A file rather than a nonce'd inline script: this partial is mounted inside the
+HTMX-swapped #match-actions block on the confirmed-match page, and htmx
+re-creates the script nodes it swaps in — a re-created inline script loses its
+nonce and is blocked by the production CSP. See static/js/tip-panel.js.
 {% endcomment %}
-<script nonce="{{ request.csp_nonce }}">
-    (function () {
-        var panel = document.getElementById("tip-panel");
-        if (!panel) {
-            return;
-        }
-        var amountInput = panel.querySelector('input[name="amount_chf"]');
-        if (!amountInput) {
-            return;
-        }
-        panel.querySelectorAll(".tip-preset").forEach(function (button) {
-            button.addEventListener("click", function () {
-                amountInput.value = button.getAttribute("data-tip-amount");
-            });
-        });
-    })();
-</script>
+<script src="{% static 'js/tip-panel.js' %}" defer></script>

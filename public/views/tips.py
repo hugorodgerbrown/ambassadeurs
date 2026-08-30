@@ -1,13 +1,21 @@
-# Tip (voluntary contribution) flow — standalone, unmounted (VERB-110).
+# Tip (voluntary contribution) flow (VERB-110, mounted by VERB-112).
 #
-# A standalone, login-required page (tip_page) that exercises
-# billing.services.tips in isolation — it is not mounted in any journey yet
-# (a follow-up ticket wires it into the confirmed-match page). Audience is
-# gated server-side to free-tier registrants only (registration.fee_chf == 0);
-# a tip never touches matching state. payments.stripe_webhook dispatches on
-# the "purpose" session metadata key set by create_tip_checkout_session,
-# falling through to the existing deposit path (which carries no "purpose"
-# key) unchanged.
+# The panel's real home is the confirmed-match page (VERB-112) — see
+# public.views.match._match_context; tip_page here remains a standalone,
+# login-required page that exercises billing.services.tips in isolation.
+# Audience is gated server-side to free-tier registrants only
+# (registration.is_free_tier); a tip never touches matching state.
+# payments.stripe_webhook dispatches on the "purpose" session metadata key set
+# by create_tip_checkout_session, falling through to the existing deposit path
+# (which carries no "purpose" key) unchanged.
+#
+# A mount tells the flow where it came from with a "return_to" origin key
+# (_RETURN_TO_ROUTES). It is a fixed allow-list, not a free-text "next"
+# parameter, so a value arriving from a form field can never become an open
+# redirect. A recognised origin means a match already exists, which changes
+# two things: an abandoned Checkout returns to that page instead of the
+# generic cancelled page, and the registration-time refund disclaimer is
+# dropped, since by then there is no refund condition left to describe.
 
 from __future__ import annotations
 
@@ -38,18 +46,59 @@ from ._shared import (
 logger = logging.getLogger(__name__)
 
 
+# Origin keys a mount may post as ``return_to``, mapped to the route the flow
+# returns to. Fixed allow-list — see the module header.
+_RETURN_TO_ROUTES = {"match": "accounts:match"}
+
+
 def _free_tier_registration_or_404(request: HttpRequest) -> Registration:
     """Return the caller's free-tier registration, or raise Http404.
 
     The tip flow is gated to free-tier registrants only
-    (``registration.fee_chf == 0``) — enforced identically in ``tip_page``
+    (``registration.is_free_tier``) — enforced identically in ``tip_page``
     and ``tip_start`` so neither view can be reached directly by a paid-tier
     registrant.
     """
     registration = _authenticated_registration(request)
-    if registration is None or registration.fee_chf > 0:
+    if registration is None or not registration.is_free_tier:
         raise Http404("No free-tier registration for this account.")
     return registration
+
+
+def _validated_return_to(request: HttpRequest) -> str:
+    """Return the POSTed ``return_to`` origin key if recognised, else "".
+
+    Anything not in ``_RETURN_TO_ROUTES`` is discarded rather than rejected —
+    an unknown origin simply falls back to the standalone flow's own pages.
+    """
+    return_to = request.POST.get("return_to", "")
+    return return_to if return_to in _RETURN_TO_ROUTES else ""
+
+
+def _tip_panel_context(
+    request: HttpRequest, form: TipForm, *, return_to: str
+) -> dict[str, object]:
+    """Build the ``public/tip.html`` context for ``form``.
+
+    ``return_to`` is an already-validated origin key: "" for the standalone
+    page, otherwise a key in ``_RETURN_TO_ROUTES``. A recognised origin means a
+    match already exists, so the registration-time refund disclaimer (which
+    promises a refund if no match is found) no longer applies and is dropped,
+    and "No thanks" goes back to the page the reader came from.
+    """
+    if return_to:
+        return {
+            "form": form,
+            "skip_url": reverse(_RETURN_TO_ROUTES[return_to]),
+            "show_refund_disclaimer": False,
+            "return_to": return_to,
+        }
+    return {
+        "form": form,
+        "skip_url": reverse("accounts:detail"),
+        "show_refund_disclaimer": request.GET.get("disclaimer", "1") != "0",
+        "return_to": "",
+    }
 
 
 @login_required
@@ -57,20 +106,15 @@ def tip_page(request: HttpRequest) -> HttpResponse:
     """Render the standalone tip (voluntary contribution) page.
 
     Login-required; free-tier registrants only (Http404 otherwise). Not
-    linked from any nav or journey page — this ticket (VERB-110) builds the
-    component in isolation; a follow-up ticket mounts it on the
-    confirmed-match page.
+    linked from any nav or journey page — the panel's real mount is the
+    confirmed-match page (VERB-112); this route keeps the component
+    exercisable on its own.
     """
     _free_tier_registration_or_404(request)
-    show_refund_disclaimer = request.GET.get("disclaimer", "1") != "0"
     return render(
         request,
         "public/tip.html",
-        {
-            "form": TipForm(),
-            "skip_url": reverse("accounts:detail"),
-            "show_refund_disclaimer": show_refund_disclaimer,
-        },
+        _tip_panel_context(request, TipForm(), return_to=""),
     )
 
 
@@ -83,23 +127,19 @@ def tip_start(request: HttpRequest) -> HttpResponse:
     ``tip_page`` with errors rather than redirecting.
     """
     registration = _free_tier_registration_or_404(request)
+    return_to = _validated_return_to(request)
     form = TipForm(request.POST)
     if not form.is_valid():
-        show_refund_disclaimer = request.GET.get("disclaimer", "1") != "0"
         return render(
             request,
             "public/tip.html",
-            {
-                "form": form,
-                "skip_url": reverse("accounts:detail"),
-                "show_refund_disclaimer": show_refund_disclaimer,
-            },
+            _tip_panel_context(request, form, return_to=return_to),
         )
 
     success_url, cancel_url = _checkout_return_urls(
         request,
         return_route="public:tip_return",
-        cancel_route="public:tip_cancelled",
+        cancel_route=_RETURN_TO_ROUTES.get(return_to, "public:tip_cancelled"),
     )
 
     session = create_tip_checkout_session(

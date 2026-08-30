@@ -737,6 +737,43 @@
      (CSP, VERB-71). --role is re-pointed by the .role-theme wrapper. */
   .text-role { color: var(--role); }
 
+  /* Tip aside (voluntary contribution — VERB-110 panel, VERB-112 mount).
+     Deliberately NOT a .card: the ask sits among the confirmed-match step
+     cards and must read as an aside beside them, not as a fifth step in the
+     flow. So it recedes — transparent against the page rather than a raised
+     white surface. The border is the strong line rather than the faint one:
+     recessive is the goal, invisible is not — the aside still has to read as a
+     bounded thing next to its raised neighbours. */
+  .tip { background: transparent; border: 1px solid var(--color-line-strong); border-left: 3px solid var(--color-accent); border-radius: var(--radius-card); padding: 18px 20px; }
+  .tip__title { font-weight: 600; font-size: 0.97rem; color: var(--color-ink); margin-bottom: 3px; }
+  .tip__lede { font-size: 0.89rem; line-height: 1.45; color: var(--color-body); }
+
+  /* Preset amounts. Three equal columns, so the row stays balanced whatever
+     the caption length — the amount leads and the joke is secondary. The
+     pressed state is driven by aria-pressed (static/js/tip-panel.js), so the
+     selection is exposed to assistive tech rather than only painted. */
+  .tip-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tip-chip { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 12px 6px; border: 1px solid var(--color-line-strong); border-radius: var(--radius-control); background: transparent; cursor: pointer; font-family: var(--font-sans); transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
+  .tip-chip:hover { border-color: var(--color-accent); }
+  /* The icon is flavour, not label — it is aria-hidden in the markup and the
+     chip's accessible name is the amount alone, so the mono figure has to stay
+     the thing that reads. Hence the icon takes the muted tone, not the ink. */
+  .tip-chip__icon { color: var(--color-meta); }
+  .tip-chip__amount { font-family: var(--font-mono); font-size: 0.95rem; font-weight: 600; color: var(--color-ink); }
+  .tip-chip[aria-pressed="true"] { border-color: var(--color-accent); background: var(--color-accent-tint); }
+  .tip-chip[aria-pressed="true"] .tip-chip__amount,
+  .tip-chip[aria-pressed="true"] .tip-chip__icon { color: var(--color-accent-ink); }
+
+  /* Disclosure holding the panel's two low-traffic controls (free amount and
+     note). A <details> rather than a JS toggle so both stay reachable with JS
+     off — the chips are enhancement, this number input is the real control,
+     which is also why the caller opens the disclosure on a bound form so a
+     validation error is never hidden inside it. */
+  .tip-more { margin-top: 14px; }
+  .tip-more > summary { font-size: 0.85rem; color: var(--color-accent); cursor: pointer; width: fit-content; }
+  .tip-more[open] > summary { margin-bottom: 12px; }
+  .tip-more .field:last-child { margin-bottom: 0; }
+
   /* Homepage hero scrim. Replaces the inline gradient `style="..."` on the
      hero overlay (CSP, VERB-71): dark at the top and bottom for legibility,
      clear through the middle so the central handshake reads through. */

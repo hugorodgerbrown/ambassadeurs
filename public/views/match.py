@@ -17,6 +17,11 @@
 # match_detail. The report transitions the match to CANCELLED, suspends the
 # accused, and re-queues the reporter to the front of the pool.
 #
+# Voluntary tip (VERB-112 / ADR 0022): the confirmed view mounts the tip panel
+# at the foot of its content, so the ask lands once the referral value has been
+# delivered. Free-tier registrants only, and only until they have paid one —
+# see _tip_mount_context.
+#
 # Wrong-user journey (VERB-32): match_detail GET branches on the auth state of
 # the viewer. Anonymous → token auth (existing behaviour). Authenticated
 # participant → own-side view (via match.side_of). Authenticated
@@ -36,6 +41,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.tokens import read_match_access_token
+from billing.forms import TipForm
+from billing.models import Tip
 from core.decorators import require_htmx
 from core.exceptions import StateTransitionError
 from matching.models import Match, Registration
@@ -263,6 +270,29 @@ def _related_registration(match: Match, attr: str) -> Registration | None:
     return related
 
 
+def _tip_mount_context(view: str, registration: Registration) -> dict[str, object]:
+    """Return the confirmed-match tip-panel context, or ``{}`` when not shown.
+
+    The ask is mounted on the confirmed view only (ADR 0022 / VERB-112): the
+    contribution is asked for at the moment the referral value has just been
+    delivered, never earlier in the match lifecycle. It is offered to free-tier
+    registrants only, and only until one has been paid — the "don't ask twice"
+    rule, which is the completed tip itself rather than any dismissal state, so
+    there is nothing to persist.
+
+    The ``view``/``is_free_tier`` guards precede the query, so the extra round
+    trip is paid only on a confirmed page shown to a free-tier registrant.
+
+    Returns ``{}`` (rather than a false flag) when the panel is not shown, so
+    the caller can merge it unconditionally.
+    """
+    if view != "confirmed" or not registration.is_free_tier:
+        return {}
+    if Tip.objects.for_registration(registration).paid().exists():
+        return {}
+    return {"show_tip_panel": True, "tip_form": TipForm()}
+
+
 def _match_context(
     match: Match,
     registration: Registration,
@@ -316,6 +346,7 @@ def _match_context(
     # Reveal counterpart PII ONLY when both parties have accepted (Invariant 1).
     if match.status == Match.Status.ACCEPTED:
         context["counterpart"] = counterpart
+    context.update(_tip_mount_context(view, registration))
     return context
 
 

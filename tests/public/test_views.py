@@ -32,6 +32,7 @@ from matching.models import Match, Registration
 from matching.services import accept_match, register_participant
 from public.models import FormDownload, SurveyResponse
 from tests.accounts.factories import UserFactory
+from tests.billing.factories import TipFactory
 from tests.matching.factories import MatchFactory, RegistrationFactory
 from tests.public.factories import SurveyResponseFactory
 
@@ -3726,6 +3727,287 @@ def test_tip_cancelled_renders() -> None:
     response = Client().get(reverse("public:tip_cancelled"))
     assert response.status_code == 200
     assert "public/tip_cancelled.html" in [t.name for t in response.templates]
+
+
+# ---------------------------------------------------------------------------
+# Tip panel mounted on the confirmed-match page (VERB-112)
+# ---------------------------------------------------------------------------
+
+_TIP_PANEL_MARKER = b'id="tip-panel"'
+_TIP_REFUND_DISCLAIMER = b"your contribution will be refunded"
+# The panel's <details> holding the free-amount input and the note. Matched
+# exactly (not by index) because base.html renders other <details> elements.
+_TIP_DISCLOSURE_CLOSED = b'<details class="tip-more" >'
+_TIP_DISCLOSURE_OPEN = b'<details class="tip-more" open>'
+
+
+def _confirmed_match(fee_chf: int = 0) -> tuple[Match, Registration]:
+    """Return an ACCEPTED match and the ambassador registration viewing it.
+
+    ``fee_chf`` sets the *viewer's* tier — 0 (the default) is the free tier
+    the tip panel is offered to.
+    """
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.VERIFIED,
+        phone="+41790009999",
+        fee_chf=fee_chf,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.VERIFIED,
+        phone="+41790008888",
+    )
+    match = MatchFactory.create(
+        accepted=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    return match, ambassador_reg
+
+
+def test_match_confirmed_tip_disclosure_starts_closed() -> None:
+    """On an unbound form the low-traffic controls stay tucked away.
+
+    The counterpart of the bound-form case: nothing is wrong yet, so the amount
+    input and the note sit behind the disclosure and the panel stays an aside.
+    """
+    match, viewer = _confirmed_match()
+
+    content = Client().get(_make_match_url(match, viewer)).content
+
+    assert _TIP_DISCLOSURE_CLOSED in content
+    assert _TIP_DISCLOSURE_OPEN not in content
+
+
+def test_match_confirmed_shows_tip_panel_for_free_tier() -> None:
+    """A confirmed match shows the tip panel to a free-tier registrant."""
+    match, viewer = _confirmed_match()
+
+    response = Client().get(_make_match_url(match, viewer))
+
+    assert _TIP_PANEL_MARKER in response.content
+    assert reverse("public:tip_start").encode() in response.content
+
+
+def test_tip_panel_presets_load_from_a_same_origin_file() -> None:
+    """The preset enhancement is a src script, not an inline nonce'd one.
+
+    The panel is swapped in by htmx on the confirmed-match page, and htmx
+    re-creates swapped script nodes without their CSP nonce — an inline script
+    would be blocked in production. ``script-src 'self'`` covers a same-origin
+    file at both mounts.
+    """
+    match, viewer = _confirmed_match()
+
+    content = Client().get(_make_match_url(match, viewer)).content
+
+    assert b"js/tip-panel.js" in content
+    assert b"tip-chip" in content
+
+
+def test_match_confirmed_hides_tip_panel_for_paid_tier() -> None:
+    """A paid-tier registrant is never asked for a tip — but still sees the reveal."""
+    match, viewer = _confirmed_match(fee_chf=5)
+
+    response = Client().get(_make_match_url(match, viewer))
+    content = response.content
+
+    assert _TIP_PANEL_MARKER not in content
+    # Invariant 1: the contact reveal is unconditional, never gated on the panel.
+    assert match.referee_registration.phone.encode() in content
+    assert match.referee_registration.user.email.encode() in content
+
+
+def test_match_confirmed_hides_tip_panel_after_paid_tip() -> None:
+    """Don't ask twice: a registrant with a PAID tip sees no panel."""
+    match, viewer = _confirmed_match()
+    TipFactory.create(registration=viewer, status=Tip.Status.PAID)
+
+    response = Client().get(_make_match_url(match, viewer))
+
+    assert _TIP_PANEL_MARKER not in response.content
+
+
+def test_match_confirmed_shows_tip_panel_after_refunded_tip() -> None:
+    """A REFUNDED tip does not count as paid, so the ask returns."""
+    match, viewer = _confirmed_match()
+    TipFactory.create(registration=viewer, status=Tip.Status.REFUNDED)
+
+    response = Client().get(_make_match_url(match, viewer))
+
+    assert _TIP_PANEL_MARKER in response.content
+
+
+def test_match_confirmed_ignores_another_registrations_tip() -> None:
+    """A tip paid by someone else does not suppress this viewer's panel."""
+    match, viewer = _confirmed_match()
+    TipFactory.create(status=Tip.Status.PAID)
+
+    response = Client().get(_make_match_url(match, viewer))
+
+    assert _TIP_PANEL_MARKER in response.content
+
+
+def test_match_proposed_has_no_tip_panel() -> None:
+    """The ask is mounted on the confirmed view only, never before it."""
+    match = MatchFactory.create()
+
+    response = Client().get(_make_match_url(match, match.ambassador_registration))
+
+    assert _TIP_PANEL_MARKER not in response.content
+
+
+def test_match_expired_has_no_tip_panel() -> None:
+    """A terminal non-success view carries no tip ask either."""
+    match = MatchFactory.create(status=Match.Status.EXPIRED)
+
+    response = Client().get(_make_match_url(match, match.ambassador_registration))
+
+    assert _TIP_PANEL_MARKER not in response.content
+
+
+def test_match_confirmed_tip_panel_follows_the_contact_reveal() -> None:
+    """The panel sits below the contact card, so the reveal stays primary."""
+    match, viewer = _confirmed_match()
+
+    content = Client().get(_make_match_url(match, viewer)).content
+
+    assert content.index(b'class="contact-card"') < content.index(_TIP_PANEL_MARKER)
+    assert content.index(b'id="next-steps"') < content.index(_TIP_PANEL_MARKER)
+
+
+def test_match_confirmed_tip_panel_makes_no_refund_promise() -> None:
+    """The registration-time refund disclaimer must not follow the panel here.
+
+    It promises a refund if no match is found; at this mount one already has
+    been, so rendering it would be a promise the flow cannot keep.
+    """
+    match, viewer = _confirmed_match()
+
+    content = Client().get(_make_match_url(match, viewer)).content
+
+    assert _TIP_PANEL_MARKER in content
+    assert _TIP_REFUND_DISCLAIMER not in content
+
+
+def test_match_confirmed_tip_panel_posts_the_match_origin() -> None:
+    """The panel carries return_to=match and drops the "No thanks" skip link."""
+    match, viewer = _confirmed_match()
+
+    content = Client().get(_make_match_url(match, viewer)).content
+
+    assert b'name="return_to" value="match"' in content
+    assert b"No thanks" not in content
+
+
+def test_match_htmx_second_accept_returns_the_tip_panel() -> None:
+    """The panel is present in the HTMX-swapped confirmed partial, not just the page."""
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.VERIFIED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.VERIFIED
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    with TestCase.captureOnCommitCallbacks(execute=False):
+        accept_match(match, ambassador_reg)
+
+    token = make_match_access_token(match.pk, referee_reg.pk)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        response = Client().post(
+            reverse("public:match_accept", args=[token]),
+            headers={"hx-request": "true"},
+        )
+
+    assert _TIP_PANEL_MARKER in response.content
+
+
+def test_tip_start_from_match_returns_to_the_match_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """return_to=match points Stripe's cancel_url at the match page."""
+    calls: list[dict] = []
+    monkeypatch.setattr(
+        stripe.checkout.Session,
+        "create",
+        lambda **kw: (
+            calls.append(kw)
+            or _FakeCheckoutSession(url="https://checkout.stripe.com/pay/cs_tip0002")
+        ),
+    )
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.post(
+        reverse("public:tip_start"), {"amount_chf": 5, "return_to": "match"}
+    )
+
+    assert response.status_code == 302
+    assert calls[0]["cancel_url"].endswith(reverse("accounts:match"))
+    # The success target is unchanged — the tip flow still records the payment.
+    assert reverse("public:tip_return") in calls[0]["success_url"]
+
+
+def test_tip_start_unknown_origin_falls_back_to_the_cancelled_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unrecognised return_to is discarded, not honoured as a redirect target."""
+    calls: list[dict] = []
+    monkeypatch.setattr(
+        stripe.checkout.Session,
+        "create",
+        lambda **kw: calls.append(kw) or _FakeCheckoutSession(),
+    )
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    client.post(
+        reverse("public:tip_start"),
+        {"amount_chf": 5, "return_to": "https://evil.example.com/"},
+    )
+
+    assert calls[0]["cancel_url"].endswith(reverse("public:tip_cancelled"))
+
+
+def test_tip_start_invalid_amount_from_match_keeps_the_match_framing() -> None:
+    """A bounced submission keeps the no-refund copy and the way back."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.post(
+        reverse("public:tip_start"), {"amount_chf": 5000, "return_to": "match"}
+    )
+    content = response.content
+
+    assert response.status_code == 200
+    assert _TIP_REFUND_DISCLAIMER not in content
+    assert b'name="return_to" value="match"' in content
+    assert reverse("accounts:match").encode() in content
+    # The amount input lives in a <details>; a bound form must force it open so
+    # the error on it is never rendered inside a collapsed panel.
+    assert _TIP_DISCLOSURE_OPEN in content
+
+
+def test_tip_page_keeps_the_skip_link() -> None:
+    """The standalone page still offers "No thanks" — the link is mount-supplied."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    content = client.get(reverse("public:tip_page")).content
+
+    assert b"No thanks" in content
+    assert b'name="return_to"' not in content
 
 
 def test_stripe_webhook_tip_purpose_creates_tip_not_payment(

@@ -64,6 +64,13 @@ def test_registration_queryset_verified_filter() -> None:
     assert list(Registration.objects.verified()) == [verified]
 
 
+@pytest.mark.parametrize(("fee_chf", "expected"), [(0, True), (1, False), (5, False)])
+def test_registration_is_free_tier(fee_chf: int, expected: bool) -> None:
+    """is_free_tier is True only when no prepaid deposit was locked in."""
+    registration = RegistrationFactory.create(fee_chf=fee_chf)
+    assert registration.is_free_tier is expected
+
+
 def test_eligible_ambassadors_excludes_none_prior_pass() -> None:
     """eligible_ambassadors excludes ambassadors with prior_pass=NONE."""
     RegistrationFactory.create(

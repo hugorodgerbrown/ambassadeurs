@@ -99,11 +99,10 @@ def register_payment_return(request: HttpRequest) -> HttpResponse:
     )
     if isinstance(result, HttpResponse):
         return result
-    registration, session, customer_id, payment_intent_id = result
+    registration, _session, payment_intent_id = result
 
     registration = finalize_paid_registration(
         registration,
-        stripe_customer_id=customer_id,
         stripe_payment_intent_id=payment_intent_id,
     )
 

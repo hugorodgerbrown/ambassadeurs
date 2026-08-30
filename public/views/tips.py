@@ -170,7 +170,7 @@ def tip_return(request: HttpRequest) -> HttpResponse:
     )
     if isinstance(result, HttpResponse):
         return result
-    registration, session, customer_id, payment_intent_id = result
+    registration, session, payment_intent_id = result
 
     amount_chf = _parse_tip_amount_chf(_stripe_metadata_get(session, "amount_chf"))
     if amount_chf is None:
@@ -185,7 +185,6 @@ def tip_return(request: HttpRequest) -> HttpResponse:
         registration=registration,
         amount_chf=amount_chf,
         message=message,
-        stripe_customer_id=customer_id,
         stripe_payment_intent_id=payment_intent_id,
     )
     return render(request, "public/tip_thanks.html")

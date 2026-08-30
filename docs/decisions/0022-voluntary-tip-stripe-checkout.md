@@ -35,8 +35,8 @@ would be confusing.
   account deletion, mirroring `Payment` (VERB-88).
 - No unique constraint on `registration` — terminal rows accumulate as
   history, mirroring `Match` and `Payment`.
-- Stripe identifiers only (`stripe_customer_id`, `stripe_payment_intent_id`,
-  `stripe_refund_id`) — never raw card data.
+- Stripe identifiers only (`stripe_payment_intent_id`, `stripe_refund_id`) —
+  never raw card data.
 - **Status is two-state** (`PAID` / `REFUNDED`) — there is no HELD/pending
   phase. A `Tip` row is only ever inserted after Stripe confirms money moved,
   so `PAID` is the correct initial state (contrast with `Payment.Status.HELD`,

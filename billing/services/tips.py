@@ -104,7 +104,6 @@ def record_tip_paid(
     registration: Registration,
     amount_chf: int,
     message: str,
-    stripe_customer_id: str,
     stripe_payment_intent_id: str,
 ) -> tuple[Tip, bool]:
     """Idempotently record a PAID Tip for a completed Stripe payment.
@@ -129,8 +128,6 @@ def record_tip_paid(
         registration: The registration the tip belongs to.
         amount_chf: The whole-CHF amount charged.
         message: The optional "say something nice" message.
-        stripe_customer_id: The Stripe Customer id from the completed
-            session.
         stripe_payment_intent_id: The Stripe PaymentIntent id from the
             completed session — the idempotency key for this function.
 
@@ -157,7 +154,6 @@ def record_tip_paid(
                 amount_chf=amount_chf,
                 message=message,
                 status=Tip.Status.PAID,
-                stripe_customer_id=stripe_customer_id,
                 stripe_payment_intent_id=stripe_payment_intent_id,
             )
     except IntegrityError:

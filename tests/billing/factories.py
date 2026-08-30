@@ -19,7 +19,6 @@ class PaymentFactory(factory.django.DjangoModelFactory[Payment]):
     amount_chf = 5
     status = Payment.Status.HELD
     reason = ""
-    stripe_customer_id = factory.Sequence(lambda n: f"cus_test{n:04d}")
     stripe_payment_intent_id = factory.Sequence(lambda n: f"pi_test{n:04d}")
     stripe_refund_id = ""
 
@@ -37,6 +36,5 @@ class TipFactory(factory.django.DjangoModelFactory[Tip]):
     amount_chf = 5
     message = ""
     status = Tip.Status.PAID
-    stripe_customer_id = factory.Sequence(lambda n: f"cus_tip_test{n:04d}")
     stripe_payment_intent_id = factory.Sequence(lambda n: f"pi_tip_test{n:04d}")
     stripe_refund_id = ""

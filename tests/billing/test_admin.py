@@ -40,7 +40,6 @@ def test_stripe_ids_and_status_are_readonly() -> None:
     """The Stripe identifier fields, amount, and status/reason are readonly."""
     readonly = PaymentAdmin.readonly_fields
     for field in (
-        "stripe_customer_id",
         "stripe_payment_intent_id",
         "stripe_refund_id",
         "amount_chf",
@@ -64,7 +63,6 @@ def test_tip_stripe_ids_and_status_are_readonly() -> None:
     """The Stripe identifier fields, amount, message, and status are readonly."""
     readonly = TipAdmin.readonly_fields
     for field in (
-        "stripe_customer_id",
         "stripe_payment_intent_id",
         "stripe_refund_id",
         "amount_chf",

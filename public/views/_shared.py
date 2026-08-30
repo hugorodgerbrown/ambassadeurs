@@ -9,7 +9,7 @@
 # flows — building redirect URLs, narrowing session fields to plain id
 # strings, and verifying a return-view session belongs to the caller.
 #
-# _stripe_metadata_get and _session_customer_and_intent (VERB-142) are
+# _stripe_metadata_get and _session_payment_intent_id (VERB-142) are
 # Stripe-generic helpers whose canonical home is now
 # billing.services.checkout (billing must not import from public) — they are
 # re-exported here so the view layer keeps importing them from ``_shared``.
@@ -25,7 +25,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 
 from billing.services.checkout import (
-    _session_customer_and_intent as _session_customer_and_intent,
+    _session_payment_intent_id as _session_payment_intent_id,
 )
 from billing.services.checkout import (
     _stripe_metadata_get as _stripe_metadata_get,
@@ -132,11 +132,11 @@ def _start_checkout(
 
 def _verify_return_session(
     request: HttpRequest, *, purpose: str | None, on_incomplete: str
-) -> tuple[Registration, stripe.checkout.Session, str, str] | HttpResponse:
+) -> tuple[Registration, stripe.checkout.Session, str] | HttpResponse:
     """Verify a Stripe return session for the caller.
 
-    Returns (registration, session, customer_id, payment_intent_id) when the
-    session is confirmed paid and belongs to the caller's own registration
+    Returns (registration, session, payment_intent_id) when the session is
+    confirmed paid and belongs to the caller's own registration
     (Invariant: never finalise a session that is not this caller's). Returns a
     rendered response for anything else, which the caller returns directly.
     Raises Http404 when the caller has no registration. When `purpose` is not
@@ -195,7 +195,7 @@ def _verify_return_session(
     if session.payment_status != "paid":
         return render(request, on_incomplete)
 
-    customer_id, payment_intent_id = _session_customer_and_intent(session)
+    payment_intent_id = _session_payment_intent_id(session)
     if not payment_intent_id:
         # Stripe says paid, so money moved; there is simply no intent id to
         # record it against. The cancelled page would be an outright false
@@ -207,4 +207,4 @@ def _verify_return_session(
         )
         return render(request, _UNCONFIRMED_TEMPLATE)
 
-    return registration, session, customer_id, payment_intent_id
+    return registration, session, payment_intent_id

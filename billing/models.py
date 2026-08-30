@@ -43,8 +43,8 @@ class Payment(BaseModel):
     (VERB-88); there is no unique constraint, mirroring ``Match``: terminal
     rows accumulate as history rather than being reused.
 
-    Only Stripe identifiers are stored (``stripe_customer_id``,
-    ``stripe_payment_intent_id``, ``stripe_refund_id``) — never raw card data.
+    Only Stripe identifiers are stored (``stripe_payment_intent_id``,
+    ``stripe_refund_id``) — never raw card data.
     """
 
     class Status(models.TextChoices):
@@ -107,7 +107,6 @@ class Payment(BaseModel):
         blank=True,
         help_text="Set only on the terminal transition; blank while HELD.",
     )
-    stripe_customer_id = models.CharField(max_length=255, blank=True)
     stripe_payment_intent_id = models.CharField(max_length=255, blank=True)
     stripe_refund_id = models.CharField(max_length=255, blank=True)
 
@@ -189,7 +188,6 @@ class Tip(BaseModel):
         choices=Status.choices,
         default=Status.PAID,
     )
-    stripe_customer_id = models.CharField(max_length=255, blank=True)
     stripe_payment_intent_id = models.CharField(max_length=255, blank=True)
     stripe_refund_id = models.CharField(max_length=255, blank=True)
 

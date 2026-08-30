@@ -21,7 +21,7 @@
 # event and routes on metadata.purpose to either the tip finaliser
 # (billing.services.tips.record_tip_paid) or the deposit finaliser
 # (finalize_paid_registration) below. _stripe_metadata_get and
-# _session_customer_and_intent live here (rather than in public.views) because
+# _session_payment_intent_id live here (rather than in public.views) because
 # they are Stripe-generic helpers the dispatch itself needs; public.views
 # imports them back for the return-view flows that still need to inspect a
 # session directly.
@@ -59,21 +59,13 @@ def _stripe_metadata_get(obj: object, key: str) -> str | None:
     return str(metadata[key])
 
 
-def _session_customer_and_intent(
-    session: stripe.checkout.Session,
-) -> tuple[str, str]:
-    """Return (customer_id, payment_intent_id) as strings, '' when Stripe omits them.
+def _session_payment_intent_id(session: stripe.checkout.Session) -> str:
+    """Return the session's payment_intent id as a string, '' when absent.
 
-    Stripe does not create a Customer for payment-mode sessions by default (and
-    never for TWINT), and the payment_intent may be an expandable object rather
-    than an id string — so both are narrowed to a plain id string, or '' when
-    absent.
+    The payment_intent may be an expandable object rather than an id string —
+    narrowed to a plain id string, or '' when absent.
     """
-    customer_id = session.customer if isinstance(session.customer, str) else ""
-    payment_intent_id = (
-        session.payment_intent if isinstance(session.payment_intent, str) else ""
-    )
-    return customer_id, payment_intent_id
+    return session.payment_intent if isinstance(session.payment_intent, str) else ""
 
 
 def create_checkout_session(
@@ -158,7 +150,6 @@ def retrieve_checkout_session(session_id: str) -> stripe.checkout.Session:
 def record_deposit_paid(
     *,
     registration: Registration,
-    stripe_customer_id: str,
     stripe_payment_intent_id: str,
 ) -> tuple[Payment, bool]:
     """Idempotently record a HELD Payment for a completed Stripe payment.
@@ -172,7 +163,6 @@ def record_deposit_paid(
 
     Args:
         registration: The registration the deposit belongs to.
-        stripe_customer_id: The Stripe Customer id from the completed session.
         stripe_payment_intent_id: The Stripe PaymentIntent id from the
             completed session — the idempotency key for this function.
 
@@ -197,7 +187,6 @@ def record_deposit_paid(
             registration=registration,
             amount_chf=registration.fee_chf,
             status=Payment.Status.HELD,
-            stripe_customer_id=stripe_customer_id,
             stripe_payment_intent_id=stripe_payment_intent_id,
         )
     logger.info(
@@ -234,7 +223,6 @@ def verify_webhook(payload: bytes, sig_header: str) -> stripe.Event:
 def finalize_paid_registration(
     registration: Registration,
     *,
-    stripe_customer_id: str,
     stripe_payment_intent_id: str,
 ) -> Registration:
     """Record the deposit and confirm the registration — the single funnel.
@@ -248,7 +236,6 @@ def finalize_paid_registration(
 
     Args:
         registration: The UNVERIFIED registration that has just paid.
-        stripe_customer_id: The Stripe Customer id from the completed session.
         stripe_payment_intent_id: The Stripe PaymentIntent id from the
             completed session.
 
@@ -260,7 +247,6 @@ def finalize_paid_registration(
         locked = Registration.objects.select_for_update().get(pk=registration.pk)
         record_deposit_paid(
             registration=locked,
-            stripe_customer_id=stripe_customer_id,
             stripe_payment_intent_id=stripe_payment_intent_id,
         )
         locked = confirm_registration(locked)
@@ -367,11 +353,7 @@ def handle_checkout_completed(event: stripe.Event) -> None:
     """
     session = event["data"]["object"]
     registration_pk = _stripe_metadata_get(session, "registration_pk")
-    # Stripe does not create a Customer for payment-mode sessions by
-    # default (and never for TWINT), so session.customer is often absent.
-    # customer_id is optional (Payment.stripe_customer_id is blank); only
-    # the payment_intent is required to finalise — mirrors the return view.
-    customer_id, payment_intent_id = _session_customer_and_intent(session)
+    payment_intent_id = _session_payment_intent_id(session)
     if registration_pk and payment_intent_id:
         try:
             registration = Registration.objects.get(pk=registration_pk)
@@ -398,13 +380,11 @@ def handle_checkout_completed(event: stripe.Event) -> None:
                 registration=registration,
                 amount_chf=amount_chf,
                 message=message,
-                stripe_customer_id=customer_id,
                 stripe_payment_intent_id=payment_intent_id,
             )
         else:
             finalize_paid_registration(
                 registration,
-                stripe_customer_id=customer_id,
                 stripe_payment_intent_id=payment_intent_id,
             )
     else:

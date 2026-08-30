@@ -25,7 +25,6 @@ class PaymentAdmin(admin.ModelAdmin):
     list_filter = ["status", "reason"]
     search_fields = [
         "registration__user__email",
-        "stripe_customer_id",
         "stripe_payment_intent_id",
         "stripe_refund_id",
     ]
@@ -44,7 +43,6 @@ class PaymentAdmin(admin.ModelAdmin):
         "amount_chf",
         "status",
         "reason",
-        "stripe_customer_id",
         "stripe_payment_intent_id",
         "stripe_refund_id",
         "created_at",
@@ -73,7 +71,6 @@ class TipAdmin(admin.ModelAdmin):
     list_filter = ["status"]
     search_fields = [
         "registration__user__email",
-        "stripe_customer_id",
         "stripe_payment_intent_id",
         "stripe_refund_id",
         "message",
@@ -92,7 +89,6 @@ class TipAdmin(admin.ModelAdmin):
         "amount_chf",
         "message",
         "status",
-        "stripe_customer_id",
         "stripe_payment_intent_id",
         "stripe_refund_id",
         "created_at",

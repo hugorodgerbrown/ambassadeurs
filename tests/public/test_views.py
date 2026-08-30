@@ -744,19 +744,12 @@ class _FakeCheckoutSession:
         session_id: str = "cs_test0001",
         url: str = "https://checkout.stripe.com/pay/cs_test0001",
         payment_status: str = "unpaid",
-        # Defaults to None to match production: mode="payment" sessions create
-        # no Customer unless customer_creation is set, and neither flow sets
-        # it — a real session's `customer` is always absent (SKI-163). The old
-        # "cus_test0001" default modelled a response Stripe never returns,
-        # which is why the always-blank stripe_customer_id went unnoticed.
-        customer: str | None = None,
         payment_intent: str | None = "pi_test0001",
         metadata: dict[str, str] | None = None,
     ) -> None:
         self.id = session_id
         self.url = url
         self.payment_status = payment_status
-        self.customer = customer
         self.payment_intent = payment_intent
         self.metadata = metadata if metadata is not None else {}
 
@@ -873,7 +866,6 @@ def test_register_payment_return_paid_session_finalizes(
     reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=5)
     session = _FakeCheckoutSession(
         payment_status="paid",
-        customer="cus_abc",
         payment_intent="pi_abc",
         metadata={"registration_pk": str(reg.pk)},
     )
@@ -978,7 +970,6 @@ def test_stripe_webhook_completed_finalizes(monkeypatch: pytest.MonkeyPatch) -> 
         "data": {
             "object": _FakeCheckoutSession(
                 payment_status="paid",
-                customer="cus_wh",
                 payment_intent="pi_wh",
                 metadata={"registration_pk": str(reg.pk)},
             )
@@ -1007,7 +998,7 @@ def test_stripe_webhook_completed_without_customer_finalizes(
     """A completed session with no Stripe Customer (e.g. TWINT) still finalises.
 
     Payment-mode sessions do not create a Customer by default, so the webhook
-    must not require ``session.customer`` — only the payment_intent.
+    must not require one — only the payment_intent (SKI-163).
     """
     reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=5)
     fake_event = {
@@ -1015,7 +1006,6 @@ def test_stripe_webhook_completed_without_customer_finalizes(
         "data": {
             "object": _FakeCheckoutSession(
                 payment_status="paid",
-                customer=None,
                 payment_intent="pi_twint",
                 metadata={"registration_pk": str(reg.pk)},
             )
@@ -1036,7 +1026,6 @@ def test_stripe_webhook_completed_without_customer_finalizes(
     assert Payment.objects.count() == 1
     payment = Payment.objects.get()
     assert payment.stripe_payment_intent_id == "pi_twint"
-    assert payment.stripe_customer_id == ""
 
 
 def test_stripe_webhook_unknown_registration_returns_200(
@@ -1048,7 +1037,6 @@ def test_stripe_webhook_unknown_registration_returns_200(
         "data": {
             "object": _FakeCheckoutSession(
                 payment_status="paid",
-                customer="cus_x",
                 payment_intent="pi_x",
                 metadata={"registration_pk": "9999999"},
             )
@@ -1075,7 +1063,6 @@ def test_stripe_webhook_idempotent_with_return_view(
     reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=5)
     session = _FakeCheckoutSession(
         payment_status="paid",
-        customer="cus_shared",
         payment_intent="pi_shared",
         metadata={"registration_pk": str(reg.pk)},
     )
@@ -3638,7 +3625,6 @@ def test_tip_return_paid_session_records_tip(
     reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
     session = _FakeCheckoutSession(
         payment_status="paid",
-        customer="cus_tip",
         payment_intent="pi_tip",
         metadata={
             "purpose": "tip",
@@ -3698,7 +3684,6 @@ def test_tip_return_non_numeric_amount_metadata_shows_cancelled(
     reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
     session = _FakeCheckoutSession(
         payment_status="paid",
-        customer="cus_bad",
         payment_intent="pi_bad",
         metadata={
             "purpose": "tip",
@@ -3728,7 +3713,6 @@ def test_tip_return_non_positive_amount_metadata_shows_cancelled(
     reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
     session = _FakeCheckoutSession(
         payment_status="paid",
-        customer="cus_bad",
         payment_intent="pi_bad",
         metadata={
             "purpose": "tip",
@@ -3755,7 +3739,6 @@ def test_tip_return_missing_amount_metadata_key_shows_cancelled(
     reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
     session = _FakeCheckoutSession(
         payment_status="paid",
-        customer="cus_noamt",
         payment_intent="pi_noamt",
         metadata={"purpose": "tip", "registration_pk": str(reg.pk)},
     )
@@ -3778,7 +3761,6 @@ def test_tip_return_deposit_session_replayed_is_rejected(
     reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
     session = _FakeCheckoutSession(
         payment_status="paid",
-        customer="cus_dep",
         payment_intent="pi_dep",
         # No "purpose" key at all — exactly what create_checkout_session sends.
         metadata={"registration_pk": str(reg.pk)},
@@ -4274,7 +4256,6 @@ def test_stripe_webhook_tip_purpose_creates_tip_not_payment(
         "data": {
             "object": _FakeCheckoutSession(
                 payment_status="paid",
-                customer="cus_tip_wh",
                 payment_intent="pi_tip_wh",
                 metadata={
                     "purpose": "tip",
@@ -4314,7 +4295,6 @@ def test_stripe_webhook_tip_purpose_non_numeric_amount_returns_200_no_tip(
         "data": {
             "object": _FakeCheckoutSession(
                 payment_status="paid",
-                customer="cus_tip_bad",
                 payment_intent="pi_tip_bad",
                 metadata={
                     "purpose": "tip",
@@ -4350,7 +4330,6 @@ def test_stripe_webhook_without_purpose_still_drives_deposit_path(
         "data": {
             "object": _FakeCheckoutSession(
                 payment_status="paid",
-                customer="cus_dep_wh",
                 payment_intent="pi_dep_wh",
                 metadata={"registration_pk": str(reg.pk)},
             )

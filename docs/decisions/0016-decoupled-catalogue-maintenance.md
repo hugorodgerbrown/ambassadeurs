@@ -92,7 +92,13 @@ backlog.
   threshold. It is read-only with respect to the working tree — the committed
   `.po` files are never written — but it is not a passive read of them either:
   it reports the backlog a rebuild would *actually* produce, including copy
-  that was wrapped for translation but never yet extracted.
+  that was wrapped for translation but never yet extracted. `--check` also
+  temporarily renames the real `locale/` out of the way for the duration of
+  the extraction: `makemessages` unconditionally auto-discovers a
+  working-directory-relative `locale/` ahead of `LOCALE_PATHS`, and this
+  repo's own `locale/` sits exactly there, so without the rename the
+  extraction would still write straight back into the committed catalogues
+  regardless of the shadow copy.
 
   > **2026-08-30 amendment (SKI-159).** This bullet originally read the
   > opposite: "`--check` counts the untranslated/fuzzy entries in the

@@ -140,6 +140,36 @@ def _locale_paths(paths: list[Path]) -> Iterator[None]:
         settings.LOCALE_PATHS = original
 
 
+# The sibling name a colliding cwd-relative locale/ is temporarily renamed to
+# while makemessages runs (see _shielded_cwd_locale_dir). Shared with
+# _recover_leftover_hidden_locale_dir so both look for the same name.
+_HIDDEN_LOCALE_DIR_NAME = ".locale-hidden-for-update-messages-check"
+
+
+def _recover_leftover_hidden_locale_dir() -> None:
+    """Restore a cwd-relative ``locale/`` left renamed by a killed prior run.
+
+    See the "Crash safety" note on :func:`_shielded_cwd_locale_dir`: a
+    ``SIGKILL`` (or the default, unoverridden ``SIGTERM`` handler) during a
+    prior ``--check`` can leave the real ``locale/`` renamed to
+    :data:`_HIDDEN_LOCALE_DIR_NAME` on disk. Left unrecovered, the *next* run
+    would see no ``locale/``, decide there is nothing to shield, and
+    :func:`_shadow_locale_dir` would build an empty shadow and report
+    ``0 untranslated, 0 fuzzy`` — silently reintroducing the exact bug this
+    ticket exists to fix. Idempotent: a no-op once ``locale/`` exists again or
+    there is no hidden sibling to recover.
+
+    Callers must run this *before* deciding whether ``locale/`` exists for any
+    other purpose (:func:`_shadow_locale_dir` calls it before checking whether
+    to copy the real tree) — recovering it too late means that decision is
+    already made on stale (missing) information.
+    """
+    cwd_locale_dir = Path("locale")
+    hidden_dir = cwd_locale_dir.with_name(_HIDDEN_LOCALE_DIR_NAME)
+    if hidden_dir.is_dir() and not cwd_locale_dir.is_dir():
+        hidden_dir.rename(cwd_locale_dir)
+
+
 @contextmanager
 def _shielded_cwd_locale_dir(real_locale_dir: Path) -> Iterator[None]:
     """Hide a cwd-relative ``locale/`` that collides with ``real_locale_dir``.
@@ -157,14 +187,37 @@ def _shielded_cwd_locale_dir(real_locale_dir: Path) -> Iterator[None]:
     outside the repo, ``makemessages`` then writes the extraction straight
     back into the real catalogues — verified empirically; this is exactly
     what ``--check`` must never do (SKI-159). Redirecting ``LOCALE_PATHS``
-    alone does not stop it. Temporarily renaming the colliding directory out
-    of the way (and back again in a ``finally``, even on error) is the only
-    reliable way to stop the rediscovery.
+    alone does not stop it: ``--ignore`` only governs which *source* files
+    ``xgettext`` scans, not where output is written; running the extraction
+    in a subprocess with a different working directory would break source
+    discovery for the same reason; and driving the ``Command`` class
+    directly still runs the same ``handle()``. Temporarily renaming the
+    colliding directory out of the way (and back again in a ``finally``, on
+    the ordinary success/exception path) is the only reliable lever.
 
     A no-op unless ``./locale`` (relative to the current working directory)
     resolves to the same directory as ``real_locale_dir`` — which keeps this
     safe to call unconditionally: tests that point ``LOCALE_PATHS`` at an
     unrelated temporary directory never touch the real ``locale/`` at all.
+
+    Crash safety. The ``finally`` only runs on a Python exception — it does
+    **not** run if the process is killed outright (``SIGKILL``, or the
+    default ``SIGTERM`` handler this command does not override) while
+    ``makemessages`` is extracting, several seconds into the ``with`` block.
+    A kill at that point leaves ``locale/`` renamed on disk and every tracked
+    ``.po`` reading as deleted to git. Left unhandled, the *next* run would
+    see ``./locale`` missing, skip the shield (nothing to hide), and
+    ``_shadow_locale_dir`` would then build an empty shadow and report
+    ``0 untranslated, 0 fuzzy`` — silently reintroducing the exact bug this
+    ticket exists to fix. :func:`_recover_leftover_hidden_locale_dir` handles
+    that recovery — this function calls it before deciding whether there is
+    anything to shield, and :func:`_shadow_locale_dir` calls it again even
+    earlier, before deciding whether the real ``locale/`` exists at all (see
+    its own docstring for why the ordering matters). The same silent-zero
+    outcome can also occur if two ``--check`` runs overlap: the second sees no
+    ``./locale`` to shield (the first has already renamed it), and — with no
+    locking here — builds its own empty shadow. Unlikely for a weekly Routine
+    plus an occasional manual/audit run, but worth knowing about.
 
     Args:
         real_locale_dir: The directory ``--check`` must leave untouched.
@@ -172,7 +225,9 @@ def _shielded_cwd_locale_dir(real_locale_dir: Path) -> Iterator[None]:
     Yields:
         None.
     """
+    _recover_leftover_hidden_locale_dir()
     cwd_locale_dir = Path("locale")
+    hidden_dir = cwd_locale_dir.with_name(_HIDDEN_LOCALE_DIR_NAME)
     collides = (
         cwd_locale_dir.is_dir()
         and cwd_locale_dir.resolve() == real_locale_dir.resolve()
@@ -180,7 +235,6 @@ def _shielded_cwd_locale_dir(real_locale_dir: Path) -> Iterator[None]:
     if not collides:
         yield
         return
-    hidden_dir = cwd_locale_dir.with_name(".locale-hidden-for-update-messages-check")
     cwd_locale_dir.rename(hidden_dir)
     try:
         yield
@@ -203,10 +257,18 @@ def _shadow_locale_dir() -> Iterator[Path]:
     with no ``locale/`` yet (a fresh checkout) gets an empty directory
     instead of raising, so ``--check`` reports all-zero rather than erroring.
 
+    Recovers a leftover hidden directory (see
+    :func:`_recover_leftover_hidden_locale_dir`) *before* checking whether
+    the real ``locale/`` exists — a prior run killed mid-shield can leave it
+    renamed away, and deciding "nothing to copy" on that stale information
+    is exactly how a killed run would otherwise reintroduce a silent
+    ``0 untranslated, 0 fuzzy``.
+
     Yields:
         The path to the shadow locale directory, with ``LOCALE_PATHS``
         already pointed at it.
     """
+    _recover_leftover_hidden_locale_dir()
     real_locale_dir = Path(settings.LOCALE_PATHS[0])
     with tempfile.TemporaryDirectory(prefix="update_messages_shadow_") as tmp_dir:
         shadow_dir = Path(tmp_dir) / "locale"

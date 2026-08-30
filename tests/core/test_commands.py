@@ -225,6 +225,50 @@ def test_check_missing_locale_dir_reports_all_zero(
     assert not missing.exists()  # never created — --check writes no real path
 
 
+def test_check_recovers_from_leftover_hidden_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A hidden dir left by a run killed mid-shield is restored, not lost.
+
+    Simulates the crash window documented on _shielded_cwd_locale_dir: a
+    prior --check was SIGKILLed after renaming the real locale/ away but
+    before its `finally` could rename it back, leaving
+    .locale-hidden-for-update-messages-check on disk and no locale/. The next
+    --check must recover it *before* deciding whether there is a real
+    locale/ to copy into the shadow — otherwise the pre-existing backlog
+    (FR_PO's 3 entries) is silently lost in favour of an empty shadow, which
+    is the exact bug this ticket exists to fix. The extraction double is a
+    no-op here so the only way to see "3 total" reported is if the shadow was
+    actually built from the recovered, pre-crash content.
+    """
+    monkeypatch.setattr(
+        "core.management.commands.update_messages.call_command",
+        _extraction_double(None),
+    )
+    monkeypatch.chdir(tmp_path)
+    locale_dir = tmp_path / "locale"
+    _write_catalogues(locale_dir, fr_po=FR_PO)
+
+    # Simulate the kill: rename locale/ to the hidden sibling
+    # _shielded_cwd_locale_dir uses, leaving no locale/ behind.
+    hidden_dir = tmp_path / ".locale-hidden-for-update-messages-check"
+    locale_dir.rename(hidden_dir)
+    assert not locale_dir.exists()
+
+    with override_settings(I18N_UPDATE_MESSAGES_THRESHOLD=10):
+        out = _run(locale_dir, check=True)
+
+    # Recovered rather than left hidden or treated as a fresh checkout.
+    assert locale_dir.is_dir()
+    assert not hidden_dir.exists()
+    assert (locale_dir / "fr" / "LC_MESSAGES" / "django.po").read_text(
+        encoding="utf-8"
+    ) == FR_PO
+    # The pre-existing backlog was found — not the silent "0 untranslated,
+    # 0 fuzzy" an empty (un-recovered) shadow would otherwise produce.
+    assert "fr: 2 untranslated, 1 fuzzy (3 total)" in out
+
+
 # A minimal but well-formed catalogue — msgmerge needs a declared charset in
 # the header to merge cleanly, which the deliberately-terse FR_PO/EN_PO
 # fixtures above omit (they only ever go through the hand-rolled parser, not

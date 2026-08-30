@@ -31,6 +31,7 @@ from django.views.decorators.http import require_POST
 from billing.services.checkout import (
     create_checkout_session,
     finalize_paid_registration,
+    handle_charge_refunded,
     handle_checkout_completed,
     verify_webhook,
 )
@@ -144,5 +145,7 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
 
     if event["type"] == "checkout.session.completed":
         handle_checkout_completed(event)
+    elif event["type"] == "charge.refunded":
+        handle_charge_refunded(event)
 
     return HttpResponse(status=200)

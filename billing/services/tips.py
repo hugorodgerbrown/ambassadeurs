@@ -184,6 +184,42 @@ def record_tip_paid(
     return tip, True
 
 
+def record_tip_refunded(tip: Tip, *, stripe_refund_id: str) -> tuple[Tip, bool]:
+    """Idempotently record a refund that Stripe has already issued for ``tip``.
+
+    A tip has no in-app refund path at all — ``Tip.Status.REFUNDED`` was
+    documented as dashboard-initiated with nothing that ever set it, so the
+    only way to correct a row was to hand-edit the admin, recording no refund
+    id and no audit trail (SKI-164). This closes that loop from the
+    charge.refunded webhook. It makes no Stripe call: the money has already
+    moved.
+
+    Idempotent on the current status, because a webhook can be redelivered.
+
+    Returns:
+        A ``(tip, updated)`` tuple; ``updated`` is False for the
+        already-recorded no-op.
+    """
+    with transaction.atomic():
+        locked: Tip = Tip.objects.select_for_update().get(pk=tip.pk)
+        if locked.status == Tip.Status.REFUNDED:
+            logger.info(
+                "record_tip_refunded: Tip pk=%s already REFUNDED; no-op.",
+                locked.pk,
+            )
+            return locked, False
+
+        locked.status = Tip.Status.REFUNDED
+        locked.stripe_refund_id = stripe_refund_id
+        locked.save(update_fields=["status", "stripe_refund_id", "updated_at"])
+    logger.info(
+        "record_tip_refunded: Tip pk=%s reconciled to REFUNDED (stripe_refund_id=%s)",
+        locked.pk,
+        stripe_refund_id,
+    )
+    return locked, True
+
+
 def _parse_tip_amount_chf(raw: str | None) -> int | None:
     """Parse the ``amount_chf`` session metadata value, or None if unusable.
 

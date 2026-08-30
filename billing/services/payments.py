@@ -158,6 +158,59 @@ def forfeit(
     return locked
 
 
+def record_payment_refunded(
+    payment: Payment, *, stripe_refund_id: str
+) -> tuple[Payment, bool]:
+    """Idempotently record a refund that Stripe has already issued.
+
+    The counterpart to ``refund()``: that one *initiates* a refund and calls
+    Stripe, this one reconciles a refund made elsewhere — in practice from the
+    Stripe dashboard, which is the only way staff can refund an ad-hoc request
+    today (SKI-164). It therefore makes no Stripe call; the money has already
+    moved by the time this runs.
+
+    Idempotent, because a webhook can be redelivered: a payment already in
+    REFUNDED is returned untouched rather than transitioned twice. Unlike
+    ``refund()`` it does not require HELD — a refund issued against a CAPTURED
+    or FORFEITED deposit is unusual but real, and the row should reflect what
+    Stripe did rather than refuse it.
+
+    Returns:
+        A ``(payment, updated)`` tuple; ``updated`` is False for the
+        already-recorded no-op.
+    """
+    with transaction.atomic():
+        locked: Payment = Payment.objects.select_for_update().get(pk=payment.pk)
+        if locked.status == Payment.Status.REFUNDED:
+            logger.info(
+                "record_payment_refunded: Payment pk=%s already REFUNDED; no-op.",
+                locked.pk,
+            )
+            return locked, False
+
+        status_before = locked.status
+        locked.status = Payment.Status.REFUNDED
+        locked.reason = Payment.Reason.STAFF_REFUND
+        locked.stripe_refund_id = stripe_refund_id
+        locked.save(
+            update_fields=["status", "reason", "stripe_refund_id", "updated_at"]
+        )
+        record_transition(
+            locked,
+            "status",
+            before=status_before,
+            after=locked.status,
+        )
+    logger.info(
+        "record_payment_refunded: Payment pk=%s reconciled to REFUNDED "
+        "(was %s, stripe_refund_id=%s)",
+        locked.pk,
+        status_before,
+        stripe_refund_id,
+    )
+    return locked, True
+
+
 def refund(payment: Payment, *, reason: Payment.Reason) -> Payment:
     """Transition ``payment`` HELD → REFUNDED via a Stripe Refund.
 

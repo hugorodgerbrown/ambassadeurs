@@ -5,8 +5,11 @@
 #
 #   1. Translation-catalogue inspection — measuring how much of a gettext ``.po``
 #      catalogue is still untranslated. Used by the ``update_messages`` command
-#      and, through it, by the code-review audit and the update-messages Routine
-#      to decide when a catalogue rebuild is worth a dedicated pass (ADR 0016).
+#      against whichever locale directory it is pointed at — the real
+#      ``locale/`` tree for a rebuild, or a throwaway extraction copy for
+#      ``--check`` (SKI-159) — and, through it, by the code-review audit and
+#      the update-messages Routine to decide when a catalogue rebuild is worth
+#      a dedicated pass (ADR 0016).
 #
 #   2. Language alternates — computing the per-language URL variants of a path
 #      for ``hreflang`` link tags (SKI-153, ADR 0025).

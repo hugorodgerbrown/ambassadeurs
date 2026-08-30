@@ -111,7 +111,10 @@ exercise. Ground every finding with a file path (and line where it helps).
     catalogue that lags the source as drift — catalogue maintenance is decoupled
     (ADR 0016). Instead, measure the backlog: run
     `uv run python manage.py update_messages --check` and record the
-    untranslated/fuzzy count. When it exits non-zero (count ≥
+    untranslated/fuzzy count. Since SKI-159 this runs a real extraction into a
+    throwaway copy of `locale/` (never the committed catalogues), so the count
+    reflects copy wrapped for translation but never yet extracted, not just
+    what was last committed. When it exits non-zero (count ≥
     `settings.I18N_UPDATE_MESSAGES_THRESHOLD`, default 10) and no open "update
     translation catalogues" ticket already exists, classify this as a
     **spin-off** so the calling skill opens that ticket. Below the threshold,

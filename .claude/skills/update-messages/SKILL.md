@@ -54,11 +54,14 @@ attempt, push/PR failure) so the runtime surfaces it. Never push a red branch.
 uv run python manage.py update_messages --check
 ```
 
-This counts untranslated/fuzzy entries in the committed catalogues and exits
-non-zero once the total reaches `settings.I18N_UPDATE_MESSAGES_THRESHOLD`
-(default 10). **If it exits zero (below threshold), stop** — a rebuild for a
-handful of strings is not worth the churn. In routine mode this is a clean,
-successful no-op; say so and exit. Proceed only when it exits non-zero.
+This extracts into a throwaway copy of `locale/` (the real tree is never
+written) and counts untranslated/fuzzy entries there, exiting non-zero once
+the total reaches `settings.I18N_UPDATE_MESSAGES_THRESHOLD` (default 10) —
+so it reports the backlog a rebuild would actually produce, including copy
+wrapped for translation but never yet extracted (SKI-159). **If it exits zero
+(below threshold), stop** — a rebuild for a handful of strings is not worth
+the churn. In routine mode this is a clean, successful no-op; say so and
+exit. Proceed only when it exits non-zero.
 
 Exception: an explicit human request ("translate everything now") overrides the
 gate — proceed even below the threshold.

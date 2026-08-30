@@ -3736,6 +3736,10 @@ def test_tip_cancelled_renders() -> None:
 _TIP_PANEL_MARKER = b'id="tip-panel"'
 _TIP_NO_REFUND_NOTE = b"is taken straight away and is not refunded"
 _TIP_REFUND_DISCLAIMER = b"your contribution will be refunded"
+# The panel's <details> holding the free-amount input and the note. Matched
+# exactly (not by index) because base.html renders other <details> elements.
+_TIP_DISCLOSURE_CLOSED = b'<details class="tip-more" >'
+_TIP_DISCLOSURE_OPEN = b'<details class="tip-more" open>'
 
 
 def _confirmed_match(fee_chf: int = 0) -> tuple[Match, Registration]:
@@ -3764,6 +3768,20 @@ def _confirmed_match(fee_chf: int = 0) -> tuple[Match, Registration]:
     return match, ambassador_reg
 
 
+def test_match_confirmed_tip_disclosure_starts_closed() -> None:
+    """On an unbound form the low-traffic controls stay tucked away.
+
+    The counterpart of the bound-form case: nothing is wrong yet, so the amount
+    input and the note sit behind the disclosure and the panel stays an aside.
+    """
+    match, viewer = _confirmed_match()
+
+    content = Client().get(_make_match_url(match, viewer)).content
+
+    assert _TIP_DISCLOSURE_CLOSED in content
+    assert _TIP_DISCLOSURE_OPEN not in content
+
+
 def test_match_confirmed_shows_tip_panel_for_free_tier() -> None:
     """A confirmed match shows the tip panel to a free-tier registrant."""
     match, viewer = _confirmed_match()
@@ -3787,7 +3805,7 @@ def test_tip_panel_presets_load_from_a_same_origin_file() -> None:
     content = Client().get(_make_match_url(match, viewer)).content
 
     assert b"js/tip-panel.js" in content
-    assert b"tip-preset" in content
+    assert b"tip-chip" in content
 
 
 def test_match_confirmed_hides_tip_panel_for_paid_tier() -> None:
@@ -3973,6 +3991,9 @@ def test_tip_start_invalid_amount_from_match_keeps_the_match_framing() -> None:
     assert _TIP_REFUND_DISCLAIMER not in content
     assert b'name="return_to" value="match"' in content
     assert reverse("accounts:match").encode() in content
+    # The amount input lives in a <details>; a bound form must force it open so
+    # the error on it is never rendered inside a collapsed panel.
+    assert _TIP_DISCLOSURE_OPEN in content
 
 
 def test_tip_page_keeps_the_skip_link() -> None:

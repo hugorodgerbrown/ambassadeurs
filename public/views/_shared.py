@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 import stripe
 from django.http import Http404, HttpRequest, HttpResponse
@@ -89,6 +90,40 @@ def _redirect_to_checkout(
     return redirect(session.url)
 
 
+def _start_checkout(
+    request: HttpRequest,
+    registration: Registration,
+    *,
+    create_session: Callable[[], stripe.checkout.Session],
+    cancel_template: str,
+) -> HttpResponse:
+    """Create a Checkout session and redirect to it, degrading on failure.
+
+    Wraps the Stripe call so a provider-side failure — a declined API key, a
+    rate limit, a network blip, or a payment method requested that the account
+    has not activated — renders ``cancel_template`` instead of raising into a
+    500 (SKI-165). The template's "nothing was taken, try again" framing is
+    accurate here: the failure happened before any session existed, so no money
+    can have moved.
+
+    ``create_session`` is a zero-argument callable rather than a session,
+    because the whole point is to run the Stripe call inside the guard; the
+    caller closes over its own arguments (composition over inheritance,
+    CLAUDE.md).
+    """
+    try:
+        session = create_session()
+    except stripe.error.StripeError:
+        logger.exception(
+            "checkout start: Stripe rejected session creation for registration pk=%s",
+            registration.pk,
+        )
+        return render(request, cancel_template)
+    return _redirect_to_checkout(
+        request, session, registration, cancel_template=cancel_template
+    )
+
+
 def _verify_return_session(
     request: HttpRequest, *, purpose: str | None, on_incomplete: str
 ) -> tuple[Registration, stripe.checkout.Session, str, str] | HttpResponse:
@@ -111,7 +146,18 @@ def _verify_return_session(
     if not session_id:
         return render(request, on_incomplete)
 
-    session = retrieve_checkout_session(session_id)
+    try:
+        session = retrieve_checkout_session(session_id)
+    except stripe.error.StripeError:
+        # Cannot confirm the outcome from here. Never raise into a 500: the
+        # webhook is the source of truth for a completed payment and records
+        # it independently, so falling back to the incomplete page loses
+        # nothing durable (SKI-165).
+        logger.exception(
+            "_verify_return_session: Stripe lookup failed for session id=%s",
+            session_id,
+        )
+        return render(request, on_incomplete)
 
     # Defence in depth: confirm this session was created for this caller's
     # own registration (and, where relevant, is the expected purpose) before

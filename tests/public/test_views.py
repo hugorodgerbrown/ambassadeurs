@@ -3488,6 +3488,75 @@ def test_tip_start_missing_session_url_renders_cancelled(
     assert "public/tip_cancelled.html" in [t.name for t in response.templates]
 
 
+def test_tip_start_stripe_failure_renders_cancelled_not_500(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A Stripe error while creating the session degrades instead of raising.
+
+    The realistic trigger is an account-level rejection — e.g. a payment
+    method requested that the account has not activated (SKI-165) — which
+    would otherwise reach the user as a 500.
+    """
+
+    def _boom(**kwargs: object) -> None:
+        raise stripe.error.StripeError("payment method not activated")
+
+    monkeypatch.setattr(stripe.checkout.Session, "create", _boom)
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.post(reverse("public:tip_start"), {"amount_chf": 5})
+
+    assert response.status_code == 200
+    assert "public/tip_cancelled.html" in [t.name for t in response.templates]
+
+
+def test_register_payment_start_stripe_failure_renders_cancelled_not_500(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The deposit flow degrades on a Stripe error the same way the tip does."""
+
+    def _boom(**kwargs: object) -> None:
+        raise stripe.error.StripeError("payment method not activated")
+
+    monkeypatch.setattr(stripe.checkout.Session, "create", _boom)
+    reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=5)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.post(reverse("public:register_payment_start"))
+
+    assert response.status_code == 200
+    assert "public/register_payment_cancelled.html" in [
+        t.name for t in response.templates
+    ]
+
+
+def test_tip_return_stripe_lookup_failure_does_not_500(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed session lookup on return degrades rather than raising.
+
+    Nothing durable is lost: the webhook records a completed payment
+    independently of this view.
+    """
+
+    def _boom(*args: object, **kwargs: object) -> None:
+        raise stripe.error.StripeError("temporarily unavailable")
+
+    monkeypatch.setattr(stripe.checkout.Session, "retrieve", _boom)
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:tip_return"), {"session_id": "cs_tip0009"})
+
+    assert response.status_code == 200
+    assert "public/tip_cancelled.html" in [t.name for t in response.templates]
+    assert Tip.objects.count() == 0
+
+
 def test_tip_return_requires_login() -> None:
     """An anonymous request to tip_return is redirected to login."""
     response = Client().get(reverse("public:tip_return"))

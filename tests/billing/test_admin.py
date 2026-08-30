@@ -36,6 +36,22 @@ def test_payment_changelist_returns_200(client: Client) -> None:
     assert response.status_code == 200
 
 
+def test_payment_change_view_returns_200(client: Client) -> None:
+    """GET the Payment change view as a staff user returns HTTP 200.
+
+    Distinct from the changelist test above: Django resolves readonly_fields
+    and fields into a form only when building the change view, so a stale
+    entry naming a dropped model field raises FieldError here and nowhere
+    else. manage.py check does not catch every such case.
+    """
+    payment = PaymentFactory.create()
+    staff = make_staff_user()
+    client.force_login(staff)
+    url = reverse("admin:billing_payment_change", args=[payment.pk])
+    response = client.get(url)
+    assert response.status_code == 200
+
+
 def test_stripe_ids_and_status_are_readonly() -> None:
     """The Stripe identifier fields, amount, and status/reason are readonly."""
     readonly = PaymentAdmin.readonly_fields
@@ -55,6 +71,20 @@ def test_tip_changelist_returns_200(client: Client) -> None:
     staff = make_staff_user()
     client.force_login(staff)
     url = reverse("admin:billing_tip_changelist")
+    response = client.get(url)
+    assert response.status_code == 200
+
+
+def test_tip_change_view_returns_200(client: Client) -> None:
+    """GET the Tip change view as a staff user returns HTTP 200.
+
+    The Tip counterpart to test_payment_change_view_returns_200: guards
+    TipAdmin's readonly_fields against naming a field the model no longer has.
+    """
+    tip = TipFactory.create()
+    staff = make_staff_user()
+    client.force_login(staff)
+    url = reverse("admin:billing_tip_change", args=[tip.pk])
     response = client.get(url)
     assert response.status_code == 200
 

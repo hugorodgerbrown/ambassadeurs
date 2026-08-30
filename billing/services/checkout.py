@@ -309,7 +309,7 @@ def handle_charge_refunded(event: stripe.Event) -> None:
         )
         return
 
-    refund_id = _latest_refund_id(charge)
+    refund_id = _latest_refund_id(payment_intent_id)
 
     payment = Payment.objects.filter(stripe_payment_intent_id=payment_intent_id).first()
     if payment is not None:
@@ -327,18 +327,31 @@ def handle_charge_refunded(event: stripe.Event) -> None:
     )
 
 
-def _latest_refund_id(charge: stripe.Charge) -> str:
-    """Return the newest refund id on ``charge``, or "" if it cannot be read.
+def _latest_refund_id(payment_intent_id: str) -> str:
+    """Return the newest refund id for ``payment_intent_id``, or "".
 
-    Stripe expands ``charge.refunds`` as a list whose newest entry is first.
-    The id is stored for the audit trail only, so an unreadable shape degrades
-    to an empty string rather than aborting the reconciliation — the status
-    transition matters more than the identifier.
+    Looked up rather than read off the event: Stripe does not include
+    ``charge.refunds`` in the webhook payload, and does not return it from a
+    plain ``Charge.retrieve`` either — it needs an explicit ``expand``. Reading
+    it off the charge therefore always yielded nothing, which a live test-mode
+    refund confirmed (SKI-166): the status reconciled but the id was stored
+    empty, leaving the audit trail without the one identifier it exists to
+    hold.
+
+    The id is for the audit trail only, so any failure degrades to an empty
+    string rather than aborting — the status transition matters more, and a
+    webhook handler must not raise.
     """
+    _configure_stripe()
     try:
-        refunds = charge["refunds"]["data"]
-        return str(refunds[0]["id"]) if refunds else ""
-    except KeyError, IndexError, TypeError:
+        refunds = stripe.Refund.list(payment_intent=payment_intent_id, limit=1)
+        return str(refunds.data[0].id) if refunds.data else ""
+    except stripe.error.StripeError, KeyError, IndexError, TypeError:
+        logger.exception(
+            "_latest_refund_id: could not resolve a refund id for "
+            "payment_intent=%s; recording the transition without one",
+            payment_intent_id,
+        )
         return ""
 
 

@@ -4094,20 +4094,29 @@ def test_tip_page_keeps_the_skip_link() -> None:
     assert b'name="return_to"' not in content
 
 
-def _charge_refunded_event(
-    payment_intent: str, *, refunded: bool = True, refund_id: str = "re_test0001"
-) -> dict:
-    """Build a charge.refunded event payload for the webhook tests."""
+def _charge_refunded_event(payment_intent: str, *, refunded: bool = True) -> dict:
+    """Build a charge.refunded event payload for the webhook tests.
+
+    Carries no ``refunds`` key, matching what Stripe actually delivers: the
+    list is absent from the webhook payload and from a plain Charge retrieve
+    alike, so the refund id has to be looked up (SKI-166). A fixture that
+    included one would model a response Stripe never sends.
+    """
     return {
         "type": "charge.refunded",
-        "data": {
-            "object": {
-                "payment_intent": payment_intent,
-                "refunded": refunded,
-                "refunds": {"data": [{"id": refund_id}]},
-            }
-        },
+        "data": {"object": {"payment_intent": payment_intent, "refunded": refunded}},
     }
+
+
+def _stub_refund_list(
+    monkeypatch: pytest.MonkeyPatch, refund_id: str = "re_test0001"
+) -> None:
+    """Stub ``stripe.Refund.list`` to return one refund with ``refund_id``."""
+
+    class _Listing:
+        data = [type("R", (), {"id": refund_id})()]
+
+    monkeypatch.setattr(stripe.Refund, "list", lambda **kwargs: _Listing())
 
 
 def _post_webhook(event: dict, monkeypatch: pytest.MonkeyPatch) -> object:
@@ -4129,6 +4138,7 @@ def test_webhook_charge_refunded_reconciles_a_tip(
         status=Tip.Status.PAID, stripe_payment_intent_id="pi_refund01"
     )
 
+    _stub_refund_list(monkeypatch)
     response = _post_webhook(_charge_refunded_event("pi_refund01"), monkeypatch)
 
     assert response.status_code == 200
@@ -4145,6 +4155,7 @@ def test_webhook_charge_refunded_reconciles_a_payment(
         status=Payment.Status.HELD, stripe_payment_intent_id="pi_refund02"
     )
 
+    _stub_refund_list(monkeypatch)
     response = _post_webhook(_charge_refunded_event("pi_refund02"), monkeypatch)
 
     assert response.status_code == 200
@@ -4152,6 +4163,51 @@ def test_webhook_charge_refunded_reconciles_a_payment(
     assert payment.status == Payment.Status.REFUNDED
     assert payment.reason == Payment.Reason.STAFF_REFUND
     assert payment.stripe_refund_id == "re_test0001"
+
+
+def test_webhook_charge_refunded_records_the_looked_up_refund_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The refund id comes from a lookup, not from the event payload.
+
+    Stripe omits ``charge.refunds`` from the webhook, so a handler that read it
+    off the event stored nothing — the audit trail lost the one identifier it
+    exists to hold (SKI-166).
+    """
+    tip = TipFactory.create(
+        status=Tip.Status.PAID, stripe_payment_intent_id="pi_refund05"
+    )
+    _stub_refund_list(monkeypatch, refund_id="re_looked_up")
+
+    _post_webhook(_charge_refunded_event("pi_refund05"), monkeypatch)
+
+    tip.refresh_from_db()
+    assert tip.stripe_refund_id == "re_looked_up"
+
+
+def test_webhook_charge_refunded_survives_a_failed_refund_lookup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed id lookup still reconciles the status, with an empty id.
+
+    The transition matters more than the identifier, and a webhook handler
+    must not raise.
+    """
+    tip = TipFactory.create(
+        status=Tip.Status.PAID, stripe_payment_intent_id="pi_refund06"
+    )
+
+    def _boom(**kwargs: object) -> None:
+        raise stripe.error.StripeError("unavailable")
+
+    monkeypatch.setattr(stripe.Refund, "list", _boom)
+
+    response = _post_webhook(_charge_refunded_event("pi_refund06"), monkeypatch)
+
+    assert response.status_code == 200
+    tip.refresh_from_db()
+    assert tip.status == Tip.Status.REFUNDED
+    assert tip.stripe_refund_id == ""
 
 
 def test_webhook_charge_refunded_is_idempotent(

@@ -69,12 +69,18 @@ class Payment(BaseModel):
 
         Set only on the terminal transition (capture/refund/forfeit); blank
         while the payment is HELD.
+
+        STAFF_REFUND is the one reason the app does not originate: it records
+        a refund issued from the Stripe dashboard and reconciled back through
+        the charge.refunded webhook (SKI-164), rather than a decision this
+        codebase made.
         """
 
         SUCCESSFUL_MATCH = "SUCCESSFUL_MATCH", _("Successful match")
         USER_CANCELLED = "USER_CANCELLED", _("User cancelled")
         SEASON_END_NO_MATCH = "SEASON_END_NO_MATCH", _("Season end, no match")
         POST_ACCEPT_NOSHOW = "POST_ACCEPT_NOSHOW", _("Post-accept no-show")
+        STAFF_REFUND = "STAFF_REFUND", _("Refunded by staff in Stripe")
 
     registration = models.ForeignKey(
         Registration,

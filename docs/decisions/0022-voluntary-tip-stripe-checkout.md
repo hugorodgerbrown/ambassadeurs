@@ -50,7 +50,7 @@ would be confusing.
 ### Collection flow
 
 1. **`create_tip_checkout_session`** — creates a Stripe hosted Checkout
-   session (`mode="payment"`, card + TWINT). Sets `metadata.purpose == "tip"`
+   session (`mode="payment"`). Sets `metadata.purpose == "tip"`
    and records `registration_pk`, `amount_chf`, and `message` so the webhook
    can reconstruct the context without an extra DB query.
 2. **No idempotency key** on `create_tip_checkout_session`: unlike the

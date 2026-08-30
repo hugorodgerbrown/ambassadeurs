@@ -42,10 +42,13 @@ def create_tip_checkout_session(
     """Create a Stripe hosted Checkout Session for a voluntary contribution.
 
     ``mode="payment"`` with a single line item for ``amount_chf`` (converted
-    to centimes via ``to_centimes``), offering both card and TWINT. No
-    idempotency key is set — a registrant may legitimately start several tip
-    sessions with different amounts, and a fixed key with changed params
-    makes Stripe error.
+    to centimes via ``to_centimes``). No idempotency key is set — a registrant
+    may legitimately start several tip sessions with different amounts, and a
+    fixed key with changed params makes Stripe error.
+
+    ``payment_method_types`` is deliberately NOT passed — see
+    ``create_checkout_session`` for the reasoning (SKI-165). The methods on
+    offer come from the Stripe dashboard, not from this call.
 
     Args:
         registration: The registration making the contribution.
@@ -66,7 +69,6 @@ def create_tip_checkout_session(
     _configure_stripe()
     session = stripe.checkout.Session.create(
         mode="payment",
-        payment_method_types=["card", "twint"],
         line_items=[
             {
                 "price_data": {
@@ -180,6 +182,42 @@ def record_tip_paid(
         stripe_payment_intent_id,
     )
     return tip, True
+
+
+def record_tip_refunded(tip: Tip, *, stripe_refund_id: str) -> tuple[Tip, bool]:
+    """Idempotently record a refund that Stripe has already issued for ``tip``.
+
+    A tip has no in-app refund path at all — ``Tip.Status.REFUNDED`` was
+    documented as dashboard-initiated with nothing that ever set it, so the
+    only way to correct a row was to hand-edit the admin, recording no refund
+    id and no audit trail (SKI-164). This closes that loop from the
+    charge.refunded webhook. It makes no Stripe call: the money has already
+    moved.
+
+    Idempotent on the current status, because a webhook can be redelivered.
+
+    Returns:
+        A ``(tip, updated)`` tuple; ``updated`` is False for the
+        already-recorded no-op.
+    """
+    with transaction.atomic():
+        locked: Tip = Tip.objects.select_for_update().get(pk=tip.pk)
+        if locked.status == Tip.Status.REFUNDED:
+            logger.info(
+                "record_tip_refunded: Tip pk=%s already REFUNDED; no-op.",
+                locked.pk,
+            )
+            return locked, False
+
+        locked.status = Tip.Status.REFUNDED
+        locked.stripe_refund_id = stripe_refund_id
+        locked.save(update_fields=["status", "stripe_refund_id", "updated_at"])
+    logger.info(
+        "record_tip_refunded: Tip pk=%s reconciled to REFUNDED (stripe_refund_id=%s)",
+        locked.pk,
+        stripe_refund_id,
+    )
+    return locked, True
 
 
 def _parse_tip_amount_chf(raw: str | None) -> int | None:

@@ -31,6 +31,7 @@ from django.views.decorators.http import require_POST
 from billing.services.checkout import (
     create_checkout_session,
     finalize_paid_registration,
+    handle_charge_refunded,
     handle_checkout_completed,
     verify_webhook,
 )
@@ -39,7 +40,7 @@ from matching.models import Registration
 from ._shared import (
     _authenticated_registration,
     _checkout_return_urls,
-    _redirect_to_checkout,
+    _start_checkout,
     _verify_return_session,
 )
 from .registration import SLUG_BY_ROLE
@@ -70,15 +71,14 @@ def register_payment_start(request: HttpRequest) -> HttpResponse:
         cancel_route="public:register_payment_cancelled",
     )
 
-    session = create_checkout_session(
-        registration,
-        success_url=success_url,
-        cancel_url=cancel_url,
-    )
-    return _redirect_to_checkout(
+    return _start_checkout(
         request,
-        session,
         registration,
+        create_session=lambda: create_checkout_session(
+            registration,
+            success_url=success_url,
+            cancel_url=cancel_url,
+        ),
         cancel_template="public/register_payment_cancelled.html",
     )
 
@@ -145,5 +145,7 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
 
     if event["type"] == "checkout.session.completed":
         handle_checkout_completed(event)
+    elif event["type"] == "charge.refunded":
+        handle_charge_refunded(event)
 
     return HttpResponse(status=200)

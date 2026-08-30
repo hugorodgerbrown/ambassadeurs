@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% comment %}
+Payment could not be confirmed from the browser (SKI-165).
+
+Distinct from the two cancelled pages, which state plainly that no money was
+taken. This page is rendered only on the return leg, in the branches where a
+payment may well have succeeded and this view simply could not establish it —
+a failed session lookup, or a session Stripe reports as paid but without a
+payment-intent id. Telling those users "nothing was taken" would be a false
+statement about their money.
+
+Nothing is lost when this renders: the Stripe webhook is the source of truth
+for a completed payment and records the Payment/Tip row independently of this
+view, so the copy's promise that a real payment lands by itself is one the
+system keeps.
+
+Shared by the deposit and tip flows, so it stays flow-agnostic — it names no
+amount and offers no retry, because retrying is exactly what someone in this
+state must not be nudged into doing.
+{% endcomment %}
+
+{% block page_title %}{% translate "Payment received?" %}{% endblock %}
+
+{% block content %}
+    <section>
+        <h1 class="mb-4 text-ink">
+            {% translate "We couldn't confirm your payment" %}
+        </h1>
+        <p class="text-body">
+            {% blocktranslate trimmed %}
+                Something went wrong while we were checking with our payment provider. This does not necessarily mean
+                your payment failed.
+            {% endblocktranslate %}
+        </p>
+        <p class="mt-4 text-body">
+            {% blocktranslate trimmed %}
+                If it did go through, it will be recorded automatically within a few minutes — please do not pay again.
+                Check your account shortly, and get in touch if it still looks wrong.
+            {% endblocktranslate %}
+        </p>
+        <p class="mt-6">
+            <a href="{% url 'accounts:detail' %}" class="btn btn--role">
+                {% translate "Go to my account" %}
+            </a>
+        </p>
+    </section>
+{% endblock %}

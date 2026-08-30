@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 import stripe
 from django.http import Http404, HttpRequest, HttpResponse
@@ -35,6 +36,12 @@ from billing.services.checkout import (
 from matching.models import Registration
 
 logger = logging.getLogger(__name__)
+
+# Rendered on the return leg when a payment may have succeeded but this view
+# could not establish it. Distinct from the flows' cancelled pages, which state
+# plainly that no money was taken — a claim only safe to make where no payment
+# can have happened (SKI-165).
+_UNCONFIRMED_TEMPLATE = "public/payment_unconfirmed.html"
 
 
 def _authenticated_registration(request: HttpRequest) -> Registration | None:
@@ -89,6 +96,40 @@ def _redirect_to_checkout(
     return redirect(session.url)
 
 
+def _start_checkout(
+    request: HttpRequest,
+    registration: Registration,
+    *,
+    create_session: Callable[[], stripe.checkout.Session],
+    cancel_template: str,
+) -> HttpResponse:
+    """Create a Checkout session and redirect to it, degrading on failure.
+
+    Wraps the Stripe call so a provider-side failure — a declined API key, a
+    rate limit, a network blip, or a payment method requested that the account
+    has not activated — renders ``cancel_template`` instead of raising into a
+    500 (SKI-165). The template's "nothing was taken, try again" framing is
+    accurate here: the failure happened before any session existed, so no money
+    can have moved.
+
+    ``create_session`` is a zero-argument callable rather than a session,
+    because the whole point is to run the Stripe call inside the guard; the
+    caller closes over its own arguments (composition over inheritance,
+    CLAUDE.md).
+    """
+    try:
+        session = create_session()
+    except stripe.error.StripeError:
+        logger.exception(
+            "checkout start: Stripe rejected session creation for registration pk=%s",
+            registration.pk,
+        )
+        return render(request, cancel_template)
+    return _redirect_to_checkout(
+        request, session, registration, cancel_template=cancel_template
+    )
+
+
 def _verify_return_session(
     request: HttpRequest, *, purpose: str | None, on_incomplete: str
 ) -> tuple[Registration, stripe.checkout.Session, str, str] | HttpResponse:
@@ -97,11 +138,20 @@ def _verify_return_session(
     Returns (registration, session, customer_id, payment_intent_id) when the
     session is confirmed paid and belongs to the caller's own registration
     (Invariant: never finalise a session that is not this caller's). Returns a
-    rendered `on_incomplete` response for any not-yet-complete or mismatched
-    condition, which the caller returns directly. Raises Http404 when the caller
-    has no registration. When `purpose` is not None the session's
-    metadata.purpose must equal it (the tip flow passes "tip"; the deposit flow
-    passes None to skip the check).
+    rendered response for anything else, which the caller returns directly.
+    Raises Http404 when the caller has no registration. When `purpose` is not
+    None the session's metadata.purpose must equal it (the tip flow passes
+    "tip"; the deposit flow passes None to skip the check).
+
+    Two different failure pages, chosen by what can honestly be asserted about
+    the payer's money:
+
+    - `on_incomplete` (the flow's own cancelled page, which says nothing was
+      taken) for the branches where that is true — no session id, a session
+      belonging to someone else, or one Stripe reports as unpaid.
+    - `_UNCONFIRMED_TEMPLATE` where a payment may have succeeded and this view
+      could not confirm it — a failed lookup, or a paid session with no
+      payment-intent id.
     """
     registration = _authenticated_registration(request)
     if registration is None:
@@ -111,7 +161,19 @@ def _verify_return_session(
     if not session_id:
         return render(request, on_incomplete)
 
-    session = retrieve_checkout_session(session_id)
+    try:
+        session = retrieve_checkout_session(session_id)
+    except stripe.error.StripeError:
+        # Cannot confirm the outcome from here, so say exactly that: the payer
+        # may well have paid. Never raise into a 500, and never render the
+        # cancelled page's "nothing was taken" — the webhook is the source of
+        # truth and records a real payment independently of this view
+        # (SKI-165).
+        logger.exception(
+            "_verify_return_session: Stripe lookup failed for session id=%s",
+            session_id,
+        )
+        return render(request, _UNCONFIRMED_TEMPLATE)
 
     # Defence in depth: confirm this session was created for this caller's
     # own registration (and, where relevant, is the expected purpose) before
@@ -135,11 +197,14 @@ def _verify_return_session(
 
     customer_id, payment_intent_id = _session_customer_and_intent(session)
     if not payment_intent_id:
+        # Stripe says paid, so money moved; there is simply no intent id to
+        # record it against. The cancelled page would be an outright false
+        # statement here (SKI-165).
         logger.error(
             "_verify_return_session: session id=%s is paid but has no "
             "payment_intent id",
             session_id,
         )
-        return render(request, on_incomplete)
+        return render(request, _UNCONFIRMED_TEMPLATE)
 
     return registration, session, customer_id, payment_intent_id

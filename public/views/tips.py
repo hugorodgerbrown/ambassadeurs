@@ -38,7 +38,7 @@ from matching.models import Registration
 from ._shared import (
     _authenticated_registration,
     _checkout_return_urls,
-    _redirect_to_checkout,
+    _start_checkout,
     _stripe_metadata_get,
     _verify_return_session,
 )
@@ -142,15 +142,17 @@ def tip_start(request: HttpRequest) -> HttpResponse:
         cancel_route=_RETURN_TO_ROUTES.get(return_to, "public:tip_cancelled"),
     )
 
-    session = create_tip_checkout_session(
+    return _start_checkout(
+        request,
         registration,
-        amount_chf=form.cleaned_data["amount_chf"],
-        message=form.cleaned_data["message"],
-        success_url=success_url,
-        cancel_url=cancel_url,
-    )
-    return _redirect_to_checkout(
-        request, session, registration, cancel_template="public/tip_cancelled.html"
+        create_session=lambda: create_tip_checkout_session(
+            registration,
+            amount_chf=form.cleaned_data["amount_chf"],
+            message=form.cleaned_data["message"],
+            success_url=success_url,
+            cancel_url=cancel_url,
+        ),
+        cancel_template="public/tip_cancelled.html",
     )
 
 

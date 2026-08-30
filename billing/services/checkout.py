@@ -38,9 +38,9 @@ from django.utils.translation import gettext as _
 from matching.models import Registration
 from matching.services import confirm_registration
 
-from ..models import Payment
-from .payments import _configure_stripe, to_centimes
-from .tips import _parse_tip_amount_chf, record_tip_paid
+from ..models import Payment, Tip
+from .payments import _configure_stripe, record_payment_refunded, to_centimes
+from .tips import _parse_tip_amount_chf, record_tip_paid, record_tip_refunded
 
 logger = logging.getLogger(__name__)
 
@@ -85,10 +85,17 @@ def create_checkout_session(
     """Create a Stripe hosted Checkout Session for a paid-tier deposit.
 
     ``mode="payment"`` with a single line item for ``registration.fee_chf``
-    (converted to centimes via ``to_centimes``), offering both card and TWINT
-    (ADR 0014). The idempotency key is stable per registration, so a
-    double-submit (e.g. a user double-clicking "Pay") replays the same
-    session rather than creating a duplicate.
+    (converted to centimes via ``to_centimes``). The idempotency key is stable
+    per registration, so a double-submit (e.g. a user double-clicking "Pay")
+    replays the same session rather than creating a duplicate.
+
+    ``payment_method_types`` is deliberately NOT passed (SKI-165). Naming it
+    overrides the account's dashboard configuration: Stripe then offers
+    exactly the listed methods and errors if any one of them is not activated,
+    so a single unapproved method takes down every payment — card included.
+    Omitting it lets Stripe offer whatever is activated for the currency and
+    amount, which keeps the card + TWINT intent of ADR 0014 while letting
+    TWINT appear the moment its approval lands, with no deploy.
 
     Args:
         registration: The UNVERIFIED, fee_chf > 0 registration paying the
@@ -105,7 +112,6 @@ def create_checkout_session(
     _configure_stripe()
     session = stripe.checkout.Session.create(
         mode="payment",
-        payment_method_types=["card", "twint"],
         line_items=[
             {
                 "price_data": {
@@ -264,6 +270,76 @@ def finalize_paid_registration(
         locked.status,
     )
     return locked
+
+
+def handle_charge_refunded(event: stripe.Event) -> None:
+    """Reconcile a refund issued outside the app back onto its Payment or Tip.
+
+    Refunding from the Stripe dashboard is the only way staff can serve an
+    ad-hoc request today, and until SKI-164 nothing listened for it: the row
+    kept saying the money was held or paid while Stripe disagreed, with no
+    alert, because the webhook returned 200 for every event it did not handle.
+
+    Matches on ``charge.payment_intent`` against ``stripe_payment_intent_id``,
+    which both models store and both populate. A charge maps to at most one of
+    them — the deposit and tip flows never share a payment intent — so the
+    Payment lookup is tried first and the Tip only if it misses.
+
+    **Partial refunds are deliberately not reconciled.** Neither model can
+    represent one (``Payment.refund`` is documented as all-or-nothing, and
+    ``Tip`` has a single REFUNDED status), so marking a row REFUNDED off the
+    back of a partial would overstate what happened. They are logged and left
+    alone for a human to handle; representing them properly is a modelling
+    decision, not something to infer here.
+
+    Never raises: the webhook must return 200 or Stripe retries forever.
+    """
+    charge = event["data"]["object"]
+    payment_intent_id = charge["payment_intent"] if "payment_intent" in charge else None
+    if not payment_intent_id:
+        logger.warning("handle_charge_refunded: event carries no payment_intent id")
+        return
+
+    fully_refunded = bool(charge["refunded"] if "refunded" in charge else False)
+    if not fully_refunded:
+        logger.warning(
+            "handle_charge_refunded: partial refund on payment_intent=%s left "
+            "unreconciled — neither Payment nor Tip can represent one",
+            payment_intent_id,
+        )
+        return
+
+    refund_id = _latest_refund_id(charge)
+
+    payment = Payment.objects.filter(stripe_payment_intent_id=payment_intent_id).first()
+    if payment is not None:
+        record_payment_refunded(payment, stripe_refund_id=refund_id)
+        return
+
+    tip = Tip.objects.filter(stripe_payment_intent_id=payment_intent_id).first()
+    if tip is not None:
+        record_tip_refunded(tip, stripe_refund_id=refund_id)
+        return
+
+    logger.warning(
+        "handle_charge_refunded: no Payment or Tip for payment_intent=%s",
+        payment_intent_id,
+    )
+
+
+def _latest_refund_id(charge: stripe.Charge) -> str:
+    """Return the newest refund id on ``charge``, or "" if it cannot be read.
+
+    Stripe expands ``charge.refunds`` as a list whose newest entry is first.
+    The id is stored for the audit trail only, so an unreadable shape degrades
+    to an empty string rather than aborting the reconciliation — the status
+    transition matters more than the identifier.
+    """
+    try:
+        refunds = charge["refunds"]["data"]
+        return str(refunds[0]["id"]) if refunds else ""
+    except KeyError, IndexError, TypeError:
+        return ""
 
 
 def handle_checkout_completed(event: stripe.Event) -> None:

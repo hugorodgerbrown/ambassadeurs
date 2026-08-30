@@ -32,7 +32,7 @@ from matching.models import Match, Registration
 from matching.services import accept_match, register_participant
 from public.models import FormDownload, SurveyResponse
 from tests.accounts.factories import UserFactory
-from tests.billing.factories import TipFactory
+from tests.billing.factories import PaymentFactory, TipFactory
 from tests.matching.factories import MatchFactory, RegistrationFactory
 from tests.public.factories import SurveyResponseFactory
 
@@ -744,7 +744,12 @@ class _FakeCheckoutSession:
         session_id: str = "cs_test0001",
         url: str = "https://checkout.stripe.com/pay/cs_test0001",
         payment_status: str = "unpaid",
-        customer: str | None = "cus_test0001",
+        # Defaults to None to match production: mode="payment" sessions create
+        # no Customer unless customer_creation is set, and neither flow sets
+        # it — a real session's `customer` is always absent (SKI-163). The old
+        # "cus_test0001" default modelled a response Stripe never returns,
+        # which is why the always-blank stripe_customer_id went unnoticed.
+        customer: str | None = None,
         payment_intent: str | None = "pi_test0001",
         metadata: dict[str, str] | None = None,
     ) -> None:
@@ -3488,6 +3493,78 @@ def test_tip_start_missing_session_url_renders_cancelled(
     assert "public/tip_cancelled.html" in [t.name for t in response.templates]
 
 
+def test_tip_start_stripe_failure_renders_cancelled_not_500(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A Stripe error while creating the session degrades instead of raising.
+
+    The realistic trigger is an account-level rejection — e.g. a payment
+    method requested that the account has not activated (SKI-165) — which
+    would otherwise reach the user as a 500.
+    """
+
+    def _boom(**kwargs: object) -> None:
+        raise stripe.error.StripeError("payment method not activated")
+
+    monkeypatch.setattr(stripe.checkout.Session, "create", _boom)
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.post(reverse("public:tip_start"), {"amount_chf": 5})
+
+    assert response.status_code == 200
+    assert "public/tip_cancelled.html" in [t.name for t in response.templates]
+
+
+def test_register_payment_start_stripe_failure_renders_cancelled_not_500(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The deposit flow degrades on a Stripe error the same way the tip does."""
+
+    def _boom(**kwargs: object) -> None:
+        raise stripe.error.StripeError("payment method not activated")
+
+    monkeypatch.setattr(stripe.checkout.Session, "create", _boom)
+    reg = RegistrationFactory.create(status=Registration.Status.UNVERIFIED, fee_chf=5)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.post(reverse("public:register_payment_start"))
+
+    assert response.status_code == 200
+    assert "public/register_payment_cancelled.html" in [
+        t.name for t in response.templates
+    ]
+
+
+def test_tip_return_stripe_lookup_failure_does_not_500(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed session lookup degrades, and must not claim nothing was taken.
+
+    The payer may well have paid; this view simply cannot establish it. The
+    webhook records a real payment independently, so the honest page is the
+    unconfirmed one, never the cancelled page.
+    """
+
+    def _boom(*args: object, **kwargs: object) -> None:
+        raise stripe.error.StripeError("temporarily unavailable")
+
+    monkeypatch.setattr(stripe.checkout.Session, "retrieve", _boom)
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:tip_return"), {"session_id": "cs_tip0009"})
+    rendered = [t.name for t in response.templates]
+
+    assert response.status_code == 200
+    assert "public/payment_unconfirmed.html" in rendered
+    assert "public/tip_cancelled.html" not in rendered
+    assert Tip.objects.count() == 0
+
+
 def test_tip_return_requires_login() -> None:
     """An anonymous request to tip_return is redirected to login."""
     response = Client().get(reverse("public:tip_return"))
@@ -3506,10 +3583,15 @@ def test_tip_return_404s_for_authenticated_user_with_no_registration() -> None:
     assert response.status_code == 404
 
 
-def test_tip_return_missing_payment_intent_shows_cancelled(
+def test_tip_return_missing_payment_intent_says_unconfirmed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A paid session with no payment_intent id renders the cancelled page."""
+    """A paid session with no payment_intent id must not claim nothing was taken.
+
+    Stripe reports the session as paid, so money moved; there is simply no id
+    to record it against. The cancelled page would be an outright false
+    statement about the payer's money (SKI-165).
+    """
     reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
     session = _FakeCheckoutSession(
         payment_status="paid",
@@ -3521,9 +3603,11 @@ def test_tip_return_missing_payment_intent_shows_cancelled(
     client.force_login(reg.user)
 
     response = client.get(reverse("public:tip_return"), {"session_id": "cs_tip0001"})
+    rendered = [t.name for t in response.templates]
 
     assert response.status_code == 200
-    assert "public/tip_cancelled.html" in [t.name for t in response.templates]
+    assert "public/payment_unconfirmed.html" in rendered
+    assert "public/tip_cancelled.html" not in rendered
     assert Tip.objects.count() == 0
 
 
@@ -4008,6 +4092,119 @@ def test_tip_page_keeps_the_skip_link() -> None:
 
     assert b"No thanks" in content
     assert b'name="return_to"' not in content
+
+
+def _charge_refunded_event(
+    payment_intent: str, *, refunded: bool = True, refund_id: str = "re_test0001"
+) -> dict:
+    """Build a charge.refunded event payload for the webhook tests."""
+    return {
+        "type": "charge.refunded",
+        "data": {
+            "object": {
+                "payment_intent": payment_intent,
+                "refunded": refunded,
+                "refunds": {"data": [{"id": refund_id}]},
+            }
+        },
+    }
+
+
+def _post_webhook(event: dict, monkeypatch: pytest.MonkeyPatch) -> object:
+    """POST ``event`` to the webhook with signature verification stubbed out."""
+    monkeypatch.setattr(stripe.Webhook, "construct_event", lambda *a, **kw: event)
+    return Client().post(
+        reverse("stripe_webhook"),
+        data=b"{}",
+        content_type="application/json",
+        headers={"stripe-signature": "sig"},
+    )
+
+
+def test_webhook_charge_refunded_reconciles_a_tip(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A dashboard refund marks the Tip REFUNDED and records the refund id."""
+    tip = TipFactory.create(
+        status=Tip.Status.PAID, stripe_payment_intent_id="pi_refund01"
+    )
+
+    response = _post_webhook(_charge_refunded_event("pi_refund01"), monkeypatch)
+
+    assert response.status_code == 200
+    tip.refresh_from_db()
+    assert tip.status == Tip.Status.REFUNDED
+    assert tip.stripe_refund_id == "re_test0001"
+
+
+def test_webhook_charge_refunded_reconciles_a_payment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The deposit side reconciles too, recording STAFF_REFUND as the reason."""
+    payment = PaymentFactory.create(
+        status=Payment.Status.HELD, stripe_payment_intent_id="pi_refund02"
+    )
+
+    response = _post_webhook(_charge_refunded_event("pi_refund02"), monkeypatch)
+
+    assert response.status_code == 200
+    payment.refresh_from_db()
+    assert payment.status == Payment.Status.REFUNDED
+    assert payment.reason == Payment.Reason.STAFF_REFUND
+    assert payment.stripe_refund_id == "re_test0001"
+
+
+def test_webhook_charge_refunded_is_idempotent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A redelivered refund event does not transition an already-refunded row."""
+    tip = TipFactory.create(
+        status=Tip.Status.PAID, stripe_payment_intent_id="pi_refund03"
+    )
+    event = _charge_refunded_event("pi_refund03")
+
+    _post_webhook(event, monkeypatch)
+    tip.refresh_from_db()
+    first_updated = tip.updated_at
+
+    _post_webhook(event, monkeypatch)
+    tip.refresh_from_db()
+
+    assert tip.status == Tip.Status.REFUNDED
+    assert tip.updated_at == first_updated
+
+
+def test_webhook_partial_refund_is_left_unreconciled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A partial refund must not mark the row REFUNDED.
+
+    Neither model can represent a partial, so recording one would overstate
+    what happened; it is logged for a human instead (SKI-164).
+    """
+    tip = TipFactory.create(
+        status=Tip.Status.PAID, stripe_payment_intent_id="pi_refund04"
+    )
+
+    response = _post_webhook(
+        _charge_refunded_event("pi_refund04", refunded=False), monkeypatch
+    )
+
+    assert response.status_code == 200
+    tip.refresh_from_db()
+    assert tip.status == Tip.Status.PAID
+
+
+def test_webhook_charge_refunded_for_unknown_intent_returns_200(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unmatched payment intent is logged and ignored, never a 500.
+
+    The webhook has to return 200 or Stripe retries the event indefinitely.
+    """
+    response = _post_webhook(_charge_refunded_event("pi_nothing_here"), monkeypatch)
+
+    assert response.status_code == 200
 
 
 def test_stripe_webhook_tip_purpose_creates_tip_not_payment(

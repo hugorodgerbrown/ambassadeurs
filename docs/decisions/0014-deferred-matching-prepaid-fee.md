@@ -123,6 +123,14 @@ is already collected at registration time, `capture()` and `forfeit()` are
 pure state transitions with no Stripe call; `refund()` is the only one that
 calls the Stripe API.
 
+**Amendment (SKI-165):** the card + TWINT decision above stands, but the
+methods are enabled in the Stripe dashboard rather than named in the
+`Session.create` call. Passing `payment_method_types` overrides the account
+configuration — Stripe then offers exactly the listed methods and errors if
+any one of them is not activated, so a single method pending approval fails
+every payment, card included. Omitting it keeps the intent and lets TWINT
+appear as soon as its approval lands, with no deploy.
+
 ---
 
 ## Consequences

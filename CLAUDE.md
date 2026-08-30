@@ -467,12 +467,21 @@ Deployed on **Render**. Topology:
 - **Cron service** (`ambassadeurs-expire-matches`) — runs `manage.py expire_matches`
   hourly (`0 * * * *`) to sweep PROPOSED/PENDING matches whose contact window
   has expired, pause non-responders, and re-queue the faithful party.
-- **Postgres database** (`ambassadeurs-db`) — shared by both services via
+- **Cron service** (`ambassadeurs-run-matching`) — runs `manage.py run_matching
+  --commit` hourly (`0 * * * *`) to drain the waiting pool by proposing eligible
+  matches. Complements the rolling synchronous propose inside
+  `register_participant`, and clears the queue that accumulates while matching is
+  gated before the open date.
+- **Cron service** (`ambassadeurs-close-season`) — runs `manage.py close_season
+  --commit` daily (`0 3 * * *`) to refund every still-HELD deposit whose
+  registration never reached an ACCEPTED match and is not suspended (ADR 0014).
+  A no-op outside the season-end window, so it is safe to leave scheduled.
+- **Postgres database** (`ambassadeurs-db`) — shared by all four services via
   `DATABASE_URL`.
 
 Every merge to `main` auto-deploys the web service; `build.sh` runs migrations on
-each deploy. The cron service shares the same `build.sh` so migrations are safe to
-run from either service (they are idempotent).
+each deploy. The cron services share the same `build.sh` so migrations are safe to
+run from any of them (they are idempotent).
 
 - **Season configuration lives in `render.yaml`, not the dashboard** (SKI-162) —
   `MATCHING_OPENS_AT`, `REGISTRATION_OPENS_AT`, `REGISTRATION_CLOSES_AT`,

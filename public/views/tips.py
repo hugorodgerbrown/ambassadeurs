@@ -14,8 +14,8 @@
 # parameter, so a value arriving from a form field can never become an open
 # redirect. A recognised origin means a match already exists, which changes
 # two things: an abandoned Checkout returns to that page instead of the
-# generic cancelled page, and the panel shows the no-refund note in place of
-# the registration-time refund disclaimer.
+# generic cancelled page, and the registration-time refund disclaimer is
+# dropped, since by then there is no refund condition left to describe.
 
 from __future__ import annotations
 
@@ -81,24 +81,22 @@ def _tip_panel_context(
     """Build the ``public/tip.html`` context for ``form``.
 
     ``return_to`` is an already-validated origin key: "" for the standalone
-    page, otherwise a key in ``_RETURN_TO_ROUTES``. A recognised origin means
-    a match already exists, so the panel swaps the registration-time refund
-    disclaimer for the no-refund note and sends "No thanks" back to the page
-    the reader came from.
+    page, otherwise a key in ``_RETURN_TO_ROUTES``. A recognised origin means a
+    match already exists, so the registration-time refund disclaimer (which
+    promises a refund if no match is found) no longer applies and is dropped,
+    and "No thanks" goes back to the page the reader came from.
     """
     if return_to:
         return {
             "form": form,
             "skip_url": reverse(_RETURN_TO_ROUTES[return_to]),
             "show_refund_disclaimer": False,
-            "show_no_refund_note": True,
             "return_to": return_to,
         }
     return {
         "form": form,
         "skip_url": reverse("accounts:detail"),
         "show_refund_disclaimer": request.GET.get("disclaimer", "1") != "0",
-        "show_no_refund_note": False,
         "return_to": "",
     }
 

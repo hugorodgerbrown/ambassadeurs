@@ -18,8 +18,8 @@ class TipForm(forms.Form):
     """Validate a voluntary-contribution amount and optional message.
 
     ``amount_chf`` is bounded 1-500 (whole CHF); ``message`` is an optional
-    "say something nice" note, capped at 280 characters and shown to staff
-    only (never to the tipper's counterpart).
+    note to the team, capped at 280 characters and shown to staff only (never
+    to the tipper's counterpart).
     """
 
     amount_chf = forms.IntegerField(
@@ -29,7 +29,7 @@ class TipForm(forms.Form):
         widget=forms.NumberInput(attrs={"class": _INPUT_CLASSES}),
     )
     message = forms.CharField(
-        label=_("Say something nice (optional)"),
+        label=_("Send the team a message"),
         max_length=280,
         required=False,
         widget=forms.Textarea(attrs={"class": _TEXTAREA_CLASSES, "rows": 3}),

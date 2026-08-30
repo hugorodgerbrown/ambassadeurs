@@ -3734,7 +3734,6 @@ def test_tip_cancelled_renders() -> None:
 # ---------------------------------------------------------------------------
 
 _TIP_PANEL_MARKER = b'id="tip-panel"'
-_TIP_NO_REFUND_NOTE = b"is taken straight away and is not refunded"
 _TIP_REFUND_DISCLAIMER = b"your contribution will be refunded"
 # The panel's <details> holding the free-amount input and the note. Matched
 # exactly (not by index) because base.html renders other <details> elements.
@@ -3879,13 +3878,17 @@ def test_match_confirmed_tip_panel_follows_the_contact_reveal() -> None:
     assert content.index(b'id="next-steps"') < content.index(_TIP_PANEL_MARKER)
 
 
-def test_match_confirmed_tip_panel_uses_the_no_refund_copy() -> None:
-    """At this mount the match is already made, so no refund is promised."""
+def test_match_confirmed_tip_panel_makes_no_refund_promise() -> None:
+    """The registration-time refund disclaimer must not follow the panel here.
+
+    It promises a refund if no match is found; at this mount one already has
+    been, so rendering it would be a promise the flow cannot keep.
+    """
     match, viewer = _confirmed_match()
 
     content = Client().get(_make_match_url(match, viewer)).content
 
-    assert _TIP_NO_REFUND_NOTE in content
+    assert _TIP_PANEL_MARKER in content
     assert _TIP_REFUND_DISCLAIMER not in content
 
 
@@ -3987,7 +3990,6 @@ def test_tip_start_invalid_amount_from_match_keeps_the_match_framing() -> None:
     content = response.content
 
     assert response.status_code == 200
-    assert _TIP_NO_REFUND_NOTE in content
     assert _TIP_REFUND_DISCLAIMER not in content
     assert b'name="return_to" value="match"' in content
     assert reverse("accounts:match").encode() in content

@@ -134,7 +134,6 @@ def test_record_deposit_paid_creates_held_payment() -> None:
 
     payment, created = record_deposit_paid(
         registration=registration,
-        stripe_customer_id="cus_test0001",
         stripe_payment_intent_id="pi_test0001",
     )
 
@@ -142,7 +141,6 @@ def test_record_deposit_paid_creates_held_payment() -> None:
     assert payment.status == Payment.Status.HELD
     assert payment.amount_chf == 10
     assert payment.registration_id == registration.pk
-    assert payment.stripe_customer_id == "cus_test0001"
     assert payment.stripe_payment_intent_id == "pi_test0001"
     assert Payment.objects.count() == 1
 
@@ -153,12 +151,10 @@ def test_record_deposit_paid_is_idempotent_on_payment_intent_id() -> None:
 
     first, first_created = record_deposit_paid(
         registration=registration,
-        stripe_customer_id="cus_1",
         stripe_payment_intent_id="pi_shared",
     )
     second, second_created = record_deposit_paid(
         registration=registration,
-        stripe_customer_id="cus_1",
         stripe_payment_intent_id="pi_shared",
     )
 
@@ -220,7 +216,6 @@ def test_finalize_paid_registration_records_payment_and_confirms() -> None:
 
     result = finalize_paid_registration(
         registration,
-        stripe_customer_id="cus_test0001",
         stripe_payment_intent_id="pi_test0001",
     )
 
@@ -240,13 +235,11 @@ def test_finalize_paid_registration_is_idempotent() -> None:
 
     finalize_paid_registration(
         registration,
-        stripe_customer_id="cus_test0001",
         stripe_payment_intent_id="pi_test0001",
     )
     registration.refresh_from_db()
     result = finalize_paid_registration(
         registration,
-        stripe_customer_id="cus_test0001",
         stripe_payment_intent_id="pi_test0001",
     )
 

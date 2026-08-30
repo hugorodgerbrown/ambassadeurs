@@ -159,7 +159,6 @@ def test_record_tip_paid_creates_paid_tip() -> None:
         registration=registration,
         amount_chf=10,
         message="Cheers!",
-        stripe_customer_id="cus_test0001",
         stripe_payment_intent_id="pi_test0001",
     )
 
@@ -168,7 +167,6 @@ def test_record_tip_paid_creates_paid_tip() -> None:
     assert tip.amount_chf == 10
     assert tip.message == "Cheers!"
     assert tip.registration_id == registration.pk
-    assert tip.stripe_customer_id == "cus_test0001"
     assert tip.stripe_payment_intent_id == "pi_test0001"
     assert Tip.objects.count() == 1
 
@@ -181,14 +179,12 @@ def test_record_tip_paid_is_idempotent_on_payment_intent_id() -> None:
         registration=registration,
         amount_chf=10,
         message="",
-        stripe_customer_id="cus_1",
         stripe_payment_intent_id="pi_shared",
     )
     second, second_created = record_tip_paid(
         registration=registration,
         amount_chf=10,
         message="",
-        stripe_customer_id="cus_1",
         stripe_payment_intent_id="pi_shared",
     )
 
@@ -234,7 +230,6 @@ def test_record_tip_paid_degrades_to_idempotency_on_create_race(
         registration=registration,
         amount_chf=10,
         message="",
-        stripe_customer_id="cus_race",
         stripe_payment_intent_id="pi_race",
     )
 

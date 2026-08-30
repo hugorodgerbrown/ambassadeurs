@@ -42,10 +42,13 @@ def create_tip_checkout_session(
     """Create a Stripe hosted Checkout Session for a voluntary contribution.
 
     ``mode="payment"`` with a single line item for ``amount_chf`` (converted
-    to centimes via ``to_centimes``), offering both card and TWINT. No
-    idempotency key is set — a registrant may legitimately start several tip
-    sessions with different amounts, and a fixed key with changed params
-    makes Stripe error.
+    to centimes via ``to_centimes``). No idempotency key is set — a registrant
+    may legitimately start several tip sessions with different amounts, and a
+    fixed key with changed params makes Stripe error.
+
+    ``payment_method_types`` is deliberately NOT passed — see
+    ``create_checkout_session`` for the reasoning (SKI-165). The methods on
+    offer come from the Stripe dashboard, not from this call.
 
     Args:
         registration: The registration making the contribution.
@@ -66,7 +69,6 @@ def create_tip_checkout_session(
     _configure_stripe()
     session = stripe.checkout.Session.create(
         mode="payment",
-        payment_method_types=["card", "twint"],
         line_items=[
             {
                 "price_data": {

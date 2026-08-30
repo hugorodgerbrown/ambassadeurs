@@ -67,7 +67,10 @@ def test_create_tip_checkout_session_calls_stripe_with_expected_args(
     assert len(calls) == 1
     kwargs = calls[0]
     assert kwargs["mode"] == "payment"
-    assert kwargs["payment_method_types"] == ["card", "twint"]
+    # Deliberately absent (SKI-165): naming payment_method_types overrides
+    # the account's dashboard configuration, so one unapproved method (e.g. a
+    # TWINT application still pending) fails every payment, card included.
+    assert "payment_method_types" not in kwargs
     assert kwargs["line_items"][0]["price_data"]["unit_amount"] == 1000
     assert kwargs["line_items"][0]["price_data"]["currency"] == "chf"
     assert kwargs["customer_email"] == registration.user.email

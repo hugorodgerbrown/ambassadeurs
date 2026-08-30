@@ -85,10 +85,17 @@ def create_checkout_session(
     """Create a Stripe hosted Checkout Session for a paid-tier deposit.
 
     ``mode="payment"`` with a single line item for ``registration.fee_chf``
-    (converted to centimes via ``to_centimes``), offering both card and TWINT
-    (ADR 0014). The idempotency key is stable per registration, so a
-    double-submit (e.g. a user double-clicking "Pay") replays the same
-    session rather than creating a duplicate.
+    (converted to centimes via ``to_centimes``). The idempotency key is stable
+    per registration, so a double-submit (e.g. a user double-clicking "Pay")
+    replays the same session rather than creating a duplicate.
+
+    ``payment_method_types`` is deliberately NOT passed (SKI-165). Naming it
+    overrides the account's dashboard configuration: Stripe then offers
+    exactly the listed methods and errors if any one of them is not activated,
+    so a single unapproved method takes down every payment — card included.
+    Omitting it lets Stripe offer whatever is activated for the currency and
+    amount, which keeps the card + TWINT intent of ADR 0014 while letting
+    TWINT appear the moment its approval lands, with no deploy.
 
     Args:
         registration: The UNVERIFIED, fee_chf > 0 registration paying the
@@ -105,7 +112,6 @@ def create_checkout_session(
     _configure_stripe()
     session = stripe.checkout.Session.create(
         mode="payment",
-        payment_method_types=["card", "twint"],
         line_items=[
             {
                 "price_data": {

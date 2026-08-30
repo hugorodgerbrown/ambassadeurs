@@ -1,4 +1,4 @@
-# Render blueprint: one web service + two cron services + one Postgres database.
+# Render blueprint: one web service + three cron services + one Postgres database.
 # Deploys on merge to main; build.sh migrates on each deploy. Plan names and
 # region are placeholders to confirm against the Render account at deploy time.
 
@@ -34,6 +34,41 @@ services:
         sync: false
       - key: POSTHOG_HOST
         value: https://eu.i.posthog.com
+      # Season configuration (SKI-162). Declared here rather than left to the
+      # config/settings/base.py fallbacks so the live configuration is visible
+      # in a diff instead of existing only as Render dashboard state. Every
+      # value below is the value already in force — changing the season's
+      # timing or pricing means editing this block, in a reviewed PR.
+      #
+      # Matching is open and has been since the service began taking
+      # registrations on 2026-07-07 (Europe/Zurich, CEST). Parsed as a full
+      # ISO 8601 datetime by matching.pricing_config.matching_opens_at; an
+      # unparseable value fails safe to a far-future sentinel, i.e. closed.
+      - key: MATCHING_OPENS_AT
+        value: "2026-07-07T00:00:00+02:00"
+      # Registration window bounds, dates only (YYYY-MM-DD), both inclusive.
+      # The closing bound is a deliberate never-closes placeholder; setting a
+      # real end-of-season date is a product decision, not config hygiene.
+      - key: REGISTRATION_OPENS_AT
+        value: "2026-07-07"
+      - key: REGISTRATION_CLOSES_AT
+        value: "2099-12-31"
+      # Hours a proposed pair has to mutually accept before the match expires
+      # (ADR 0013).
+      - key: CONTACT_WINDOW_HOURS
+        value: "72"
+      # Tiered prepaid registration fee (ADR 0014): comma-separated
+      # "YYYY-MM-DD:CHF" thresholds. Empty means registration is free, which is
+      # the current state — declared explicitly so "free" reads as a choice
+      # rather than an unset variable.
+      - key: REGISTRATION_FEE_TIERS
+        value: ""
+      # Live queue snapshot on the public homepage (VERB-149). Web-only by
+      # design — the sole reader is the `home` view, so unlike the keys above
+      # this one is NOT mirrored to the crons. The standalone /queue/ page is
+      # unaffected by this flag either way.
+      - key: SHOW_HOMEPAGE_QUEUE
+        value: "false"
       # Stripe (VERB-85/86, ADR 0014). Set both in the Render dashboard — never
       # in source (Invariant 9). STRIPE_SECRET_KEY drives the hosted-Checkout
       # deposit flow and is read by the close-season cron from this web service;
@@ -91,6 +126,35 @@ services:
           envVarKey: POSTHOG_API_KEY
       - key: POSTHOG_HOST
         value: https://eu.i.posthog.com
+      # Season configuration (SKI-162), read from the web service so the app
+      # and the matching engine can never evaluate different values. Same
+      # fromService parity pattern as ADMIN_HOST / POSTHOG_API_KEY above.
+      # SHOW_HOMEPAGE_QUEUE is deliberately absent — it is web-only.
+      - key: MATCHING_OPENS_AT
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: MATCHING_OPENS_AT
+      - key: REGISTRATION_OPENS_AT
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: REGISTRATION_OPENS_AT
+      - key: REGISTRATION_CLOSES_AT
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: REGISTRATION_CLOSES_AT
+      - key: CONTACT_WINDOW_HOURS
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: CONTACT_WINDOW_HOURS
+      - key: REGISTRATION_FEE_TIERS
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: REGISTRATION_FEE_TIERS
       - key: DATABASE_URL
         fromDatabase:
           name: ambassadeurs-db
@@ -140,6 +204,35 @@ services:
           envVarKey: POSTHOG_API_KEY
       - key: POSTHOG_HOST
         value: https://eu.i.posthog.com
+      # Season configuration (SKI-162), read from the web service so the app
+      # and the matching engine can never evaluate different values. Same
+      # fromService parity pattern as ADMIN_HOST / POSTHOG_API_KEY above.
+      # SHOW_HOMEPAGE_QUEUE is deliberately absent — it is web-only.
+      - key: MATCHING_OPENS_AT
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: MATCHING_OPENS_AT
+      - key: REGISTRATION_OPENS_AT
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: REGISTRATION_OPENS_AT
+      - key: REGISTRATION_CLOSES_AT
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: REGISTRATION_CLOSES_AT
+      - key: CONTACT_WINDOW_HOURS
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: CONTACT_WINDOW_HOURS
+      - key: REGISTRATION_FEE_TIERS
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: REGISTRATION_FEE_TIERS
       - key: DATABASE_URL
         fromDatabase:
           name: ambassadeurs-db
@@ -190,6 +283,35 @@ services:
           envVarKey: POSTHOG_API_KEY
       - key: POSTHOG_HOST
         value: https://eu.i.posthog.com
+      # Season configuration (SKI-162), read from the web service so the app
+      # and the matching engine can never evaluate different values. Same
+      # fromService parity pattern as ADMIN_HOST / POSTHOG_API_KEY above.
+      # SHOW_HOMEPAGE_QUEUE is deliberately absent — it is web-only.
+      - key: MATCHING_OPENS_AT
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: MATCHING_OPENS_AT
+      - key: REGISTRATION_OPENS_AT
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: REGISTRATION_OPENS_AT
+      - key: REGISTRATION_CLOSES_AT
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: REGISTRATION_CLOSES_AT
+      - key: CONTACT_WINDOW_HOURS
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: CONTACT_WINDOW_HOURS
+      - key: REGISTRATION_FEE_TIERS
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: REGISTRATION_FEE_TIERS
       # Stripe secret key — read from the web service so refunds can authenticate.
       - key: STRIPE_SECRET_KEY
         fromService:

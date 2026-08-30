@@ -474,6 +474,14 @@ Every merge to `main` auto-deploys the web service; `build.sh` runs migrations o
 each deploy. The cron service shares the same `build.sh` so migrations are safe to
 run from either service (they are idempotent).
 
+- **Season configuration lives in `render.yaml`, not the dashboard** (SKI-162) —
+  `MATCHING_OPENS_AT`, `REGISTRATION_OPENS_AT`, `REGISTRATION_CLOSES_AT`,
+  `CONTACT_WINDOW_HOURS`, `REGISTRATION_FEE_TIERS` and `SHOW_HOMEPAGE_QUEUE` are
+  declared explicitly in the blueprint, so changing the season's timing or pricing
+  is a reviewed PR rather than an invisible dashboard edit. The crons read the
+  first five from the web service via `fromService` so the app and the matching
+  engine can never evaluate different values; `SHOW_HOMEPAGE_QUEUE` is web-only.
+  Secrets stay `sync: false` and are still set in the dashboard.
 - **No secrets in source** — all credentials via `python-decouple`; `.env` is
   gitignored and never committed.
 

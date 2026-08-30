@@ -84,9 +84,28 @@ language (`settings.LANGUAGE_CODE`, English) has empty `msgstr` entries by desig
 catalogue is never "untranslated". Today that means the count is the French
 backlog.
 
-- `manage.py update_messages --check` counts the untranslated/fuzzy entries in
-  the committed catalogues (it reads the `.po` files; it does **not** run
-  `makemessages`) and exits non-zero when the total reaches the threshold.
+- `manage.py update_messages --check` extracts into a throwaway copy of
+  `locale/` (a `tempfile.TemporaryDirectory()` outside the repo, with
+  `settings.LOCALE_PATHS` redirected to it for the duration) using the *same*
+  `makemessages` invocation the rebuild uses, counts the untranslated/fuzzy
+  entries in that copy, and exits non-zero when the total reaches the
+  threshold. It is read-only with respect to the working tree — the committed
+  `.po` files are never written — but it is not a passive read of them either:
+  it reports the backlog a rebuild would *actually* produce, including copy
+  that was wrapped for translation but never yet extracted.
+
+  > **2026-08-30 amendment (SKI-159).** This bullet originally read the
+  > opposite: "`--check` counts the untranslated/fuzzy entries in the
+  > committed catalogues (it reads the `.po` files; it does **not** run
+  > `makemessages`)". That left `--check` blind to the one condition the
+  > trigger below exists to catch — copy wrapped for translation on a feature
+  > branch but never extracted, which can leave a catalogue reading 100%
+  > translated while genuinely stale. Both automated trigger paths (the weekly
+  > Routine and the `code-auditor` check) depend on this single signal, and
+  > both went silently dead for seven weeks as a result: `--check` reported
+  > `0 untranslated, 0 fuzzy` throughout while a fresh extraction found 49
+  > entries. SKI-159 fixed `--check` to extract for real, into a shadow copy
+  > so the fix stays read-only.
 - The threshold is `settings.I18N_UPDATE_MESSAGES_THRESHOLD` (env var
   `I18N_UPDATE_MESSAGES_THRESHOLD`, **default 10**). Below it, the catalogues
   are left alone — a rebuild for two strings is not worth the churn. At or above

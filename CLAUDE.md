@@ -398,7 +398,7 @@ branch, one PR, touching only `locale/`:
 
 ```bash
 uv run python manage.py update_messages          # extract (--no-location) + compile + report
-uv run python manage.py update_messages --check   # count untranslated/fuzzy; exit non-zero at threshold
+uv run python manage.py update_messages --check   # extract into a throwaway copy of locale/, count untranslated/fuzzy; exit non-zero at threshold
 ```
 
 `update_messages` (in `core/`) wraps `makemessages -l en -l fr --no-location`

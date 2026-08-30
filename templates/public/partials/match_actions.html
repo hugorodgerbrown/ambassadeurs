@@ -20,6 +20,10 @@ Context:
   withdraw_url       — HTMX withdraw-acceptance endpoint (token route only)
   counterpart        — the other party's Registration (present only when ACCEPTED;
                        email/phone are revealed only after mutual accept, Invariant 1)
+  show_tip_panel     — whether to mount the voluntary-tip panel (VERB-112);
+                       set only on the confirmed view, for a free-tier
+                       registrant who has not already paid a tip
+  tip_form           — the billing.forms.TipForm for that panel
 {% endcomment %}
 {% translate "your partner" as fallback_partner %}
 {% firstof partner_name fallback_partner as partner %}
@@ -404,6 +408,20 @@ Context:
                 {% endblocktranslate %}
             </p>
         </div>
+
+        {% comment %}
+            Voluntary tip (VERB-112 / ADR 0022). Mounted below the contact card
+            and the next-steps so the reveal stays visually primary — the
+            contact details render unconditionally, never gated on the panel
+            (Invariant 1). show_tip_panel is set only for a free-tier
+            registrant with no tip already paid; the panel is passed
+            show_no_refund_note because the match is already made by this
+            point, and return_to="match" so an abandoned Checkout comes back
+            here rather than to the standalone cancelled page.
+        {% endcomment %}
+        {% if show_tip_panel %}
+            {% include "includes/_tip_panel.html" with form=tip_form skip_url="" show_refund_disclaimer=False show_no_refund_note=True return_to="match" %}
+        {% endif %}
 
         {% if not match.no_show_reported_by %}
             <div class="card">

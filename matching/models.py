@@ -277,6 +277,15 @@ class Registration(BaseModel):
         """True if role is REFEREE (derived from own state — a property)."""
         return self.role == self.Role.REFEREE
 
+    @property
+    def is_free_tier(self) -> bool:
+        """True if this registration paid no prepaid deposit (``fee_chf == 0``).
+
+        The voluntary-tip ask (ADR 0022) is offered to free-tier registrants
+        only — someone who already paid a deposit is never asked for more.
+        """
+        return self.fee_chf == 0
+
     def pause(self) -> Registration:
         """Mutate this registration's own state to PAUSED, in memory only.
 

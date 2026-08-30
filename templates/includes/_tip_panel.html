@@ -1,17 +1,28 @@
-{% load i18n %}
+{% load i18n static %}
 {% comment %}
 Tip (voluntary contribution) panel — VERB-110.
 
-Include contract (the handoff to the placement ticket — keep these three
-params explicit):
+Include contract (keep these params explicit at every mount):
   form                   — a billing.forms.TipForm instance (bound or unbound)
   skip_url               — where the "No thanks" link goes; the mount decides
-                           the target (the standalone page passes accounts:detail)
+                           the target (the standalone page passes accounts:detail).
+                           Empty/omitted suppresses the link entirely — the
+                           confirmed-match mount (VERB-112) is an inline panel on
+                           a page the reader is already on, so it has nowhere to
+                           skip to.
   show_refund_disclaimer — boolean. When true, renders the "refunded if no
-                           match is found; decline/no-show is on you" copy.
-                           The decided mount (the confirmed-match page) will
-                           pass false and supply its own no-refund framing,
-                           since a match is already found by that point.
+                           match is found" copy. Registration-time mounts only.
+  show_no_refund_note    — boolean. When true, renders the counterpart copy for
+                           a post-match mount: the match is already found, so
+                           the contribution is taken straight away and is not
+                           refunded. The two flags are alternatives; never set
+                           both.
+  return_to              — optional origin key posted to public:tip_start, which
+                           maps it to a return destination (see
+                           public.views.tips._RETURN_TO_ROUTES). The confirmed-
+                           match mount passes "match" so an abandoned Checkout
+                           lands back on the match page rather than on the
+                           generic cancelled page. Omitted on the standalone page.
 
 The three preset amounts (CHF 5/10/20) are buttons, not form fields — clicking
 one sets the free-amount number input (the sole "amount_chf" field submitted)
@@ -34,10 +45,17 @@ public:tip_start.
                 If no match is found for you this season, your contribution will be refunded.
             {% endblocktranslate %}
         </p>
+    {% elif show_no_refund_note %}
+        <p class="field__hint mb-5">
+            {% blocktranslate trimmed %}
+                Your match is already made, so a contribution given here is taken straight away and is not refunded.
+            {% endblocktranslate %}
+        </p>
     {% endif %}
 
     <form method="post" action="{% url 'public:tip_start' %}">
         {% csrf_token %}
+        {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}
 
         {% if form.non_field_errors %}
             <div class="mb-4 rounded-control border border-danger bg-danger-tint p-3 text-sm text-danger-ink">
@@ -70,31 +88,22 @@ public:tip_start.
         </button>
     </form>
 
-    <p class="mt-4 text-center">
-        <a href="{{ skip_url }}" class="font-medium text-accent underline">
-            {% translate "No thanks" %}
-        </a>
-    </p>
+    {% if skip_url %}
+        <p class="mt-4 text-center">
+            <a href="{{ skip_url }}" class="font-medium text-accent underline">
+                {% translate "No thanks" %}
+            </a>
+        </p>
+    {% endif %}
 </div>
 {% comment %}
 Preset buttons write straight into the amount_chf number input — progressive
 enhancement only; the input itself is always a fully working standalone
 control (CLAUDE.md: no JS framework, plain vanilla JS is fine for this).
+
+A file rather than a nonce'd inline script: this partial is mounted inside the
+HTMX-swapped #match-actions block on the confirmed-match page, and htmx
+re-creates the script nodes it swaps in — a re-created inline script loses its
+nonce and is blocked by the production CSP. See static/js/tip-panel.js.
 {% endcomment %}
-<script nonce="{{ request.csp_nonce }}">
-    (function () {
-        var panel = document.getElementById("tip-panel");
-        if (!panel) {
-            return;
-        }
-        var amountInput = panel.querySelector('input[name="amount_chf"]');
-        if (!amountInput) {
-            return;
-        }
-        panel.querySelectorAll(".tip-preset").forEach(function (button) {
-            button.addEventListener("click", function () {
-                amountInput.value = button.getAttribute("data-tip-amount");
-            });
-        });
-    })();
-</script>
+<script src="{% static 'js/tip-panel.js' %}" defer></script>

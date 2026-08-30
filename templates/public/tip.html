@@ -3,11 +3,14 @@
 
 {% comment %}
 Standalone tip page (VERB-110) — exercises the _tip_panel.html component in
-isolation; not linked from any nav or journey page. Not yet mounted anywhere
-(a follow-up ticket wires it into the confirmed-match page).
+isolation; not linked from any nav or journey page. The panel's real mount is
+the confirmed-match page (VERB-112, templates/public/partials/match_actions.html).
+
+This page also catches an invalid submission bounced back from that mount, in
+which case the view supplies return_to="match" and the post-match copy variant.
 
 ?disclaimer=0 turns off show_refund_disclaimer (defaults on), so both panel
-variants can be previewed pre-placement.
+variants can be previewed directly.
 {% endcomment %}
 
 {% block page_title %}{% translate "Say thanks" %}{% endblock %}
@@ -16,6 +19,6 @@ variants can be previewed pre-placement.
     <section>
         <p class="eyebrow mb-3">{% translate "Ski Parrainage" %}</p>
         <h1 class="mb-6 text-ink">{% translate "Say thanks" %}</h1>
-        {% include "includes/_tip_panel.html" with form=form skip_url=skip_url show_refund_disclaimer=show_refund_disclaimer %}
+        {% include "includes/_tip_panel.html" with form=form skip_url=skip_url show_refund_disclaimer=show_refund_disclaimer show_no_refund_note=show_no_refund_note return_to=return_to %}
     </section>
 {% endblock %}

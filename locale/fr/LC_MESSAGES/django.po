@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-24 08:50+0200\n"
+"POT-Creation-Date: 2026-08-31 10:43+0200\n"
 "PO-Revision-Date: 2026-07-02 12:23+0200\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -40,8 +40,8 @@ msgstr "Votre compte a été supprimé."
 msgid "Amount (CHF)"
 msgstr "Montant (CHF)"
 
-msgid "Say something nice (optional)"
-msgstr "Laissez un petit mot (facultatif)"
+msgid "Send the team a message"
+msgstr "Laissez un message à l'équipe"
 
 msgid "Held"
 msgstr "Bloqué"
@@ -66,6 +66,9 @@ msgstr "Fin de saison, sans mise en relation"
 
 msgid "Post-accept no-show"
 msgstr "Absence après acceptation"
+
+msgid "Refunded by staff in Stripe"
+msgstr "Remboursé par l'équipe dans Stripe"
 
 msgid "Paid"
 msgstr "Payé"
@@ -914,15 +917,18 @@ msgstr[1] "%(c)s filleuls en attente"
 msgid "No referees waiting"
 msgstr "Aucun filleul en attente"
 
+msgid "Optional"
+msgstr "Facultatif"
+
 msgid "Buy the team a coffee"
 msgstr "Offrez un café à l’équipe"
 
 msgid ""
 "If Ski Parrainage helped you find a partner, a small voluntary contribution "
-"helps keep it running. Entirely optional."
+"helps keep it running."
 msgstr ""
 "Si Ski Parrainage vous a aidé(e) à trouver un partenaire, une petite "
-"contribution volontaire aide à le faire fonctionner. Entièrement facultatif."
+"contribution volontaire aide à le faire fonctionner."
 
 msgid ""
 "If no match is found for you this season, your contribution will be refunded."
@@ -930,17 +936,11 @@ msgstr ""
 "Si aucun partenaire ne vous est trouvé cette saison, votre contribution sera "
 "remboursée."
 
-msgid "Amount"
-msgstr "Montant"
+msgid "Suggested amounts"
+msgstr "Montants suggérés"
 
-msgid "CHF 5 — Buy me a beer"
-msgstr "CHF 5 — Offrez-moi une bière"
-
-msgid "CHF 10 — Buy me lunch on the hill"
-msgstr "CHF 10 — Offrez-moi un déjeuner sur les pistes"
-
-msgid "CHF 20 — Help me buy a lift pass"
-msgstr "CHF 20 — Aidez-moi à acheter un forfait"
+msgid "Another amount, or add a note"
+msgstr "Autre montant, ou ajouter un mot"
 
 msgid "Send my contribution"
 msgstr "Envoyer ma contribution"
@@ -1099,8 +1099,8 @@ msgid ""
 msgstr ""
 "Je mettrai en place des dons volontaires (pourboires) pour les plus "
 "généreux, et j'introduirai peut-être des frais pour les retardataires — si "
-"vous vous inscrivez juste avant le début de la saison, il y aura donc "
-"peut-être quelque chose à payer."
+"vous vous inscrivez juste avant le début de la saison, il y aura donc peut-"
+"être quelque chose à payer."
 
 msgid "What next for Ski Parrainage?"
 msgstr "Et ensuite, pour Ski Parrainage ?"
@@ -2454,6 +2454,28 @@ msgid "Your answer helps us set a fair price for future seasons."
 msgstr ""
 "Votre réponse nous aide à fixer un prix équitable pour les saisons à venir."
 
+msgid "Payment received?"
+msgstr "Paiement reçu ?"
+
+msgid "We couldn't confirm your payment"
+msgstr "Nous n'avons pas pu confirmer votre paiement"
+
+msgid ""
+"Something went wrong while we were checking with our payment provider. This "
+"does not necessarily mean your payment failed."
+msgstr ""
+"Une erreur s'est produite lors de la vérification auprès de notre prestataire "
+"de paiement. Cela ne signifie pas nécessairement que votre paiement a échoué."
+
+msgid ""
+"If it did go through, it will be recorded automatically within a few minutes "
+"— please do not pay again. Check your account shortly, and get in touch if "
+"it still looks wrong."
+msgstr ""
+"S'il a bien abouti, il sera enregistré automatiquement d'ici quelques minutes "
+"— merci de ne pas payer une deuxième fois. Consultez votre compte d'ici peu, "
+"et contactez-nous si le problème persiste."
+
 msgid "Live queue"
 msgstr "File d'attente en direct"
 
@@ -2658,6 +2680,21 @@ msgid ""
 msgstr ""
 "Votre paiement a bien été reçu. Cela aide réellement à faire fonctionner Ski "
 "Parrainage."
+
+#~ msgid "Say something nice (optional)"
+#~ msgstr "Laissez un petit mot (facultatif)"
+
+#~ msgid "Amount"
+#~ msgstr "Montant"
+
+#~ msgid "CHF 5 — Buy me a beer"
+#~ msgstr "CHF 5 — Offrez-moi une bière"
+
+#~ msgid "CHF 10 — Buy me lunch on the hill"
+#~ msgstr "CHF 10 — Offrez-moi un déjeuner sur les pistes"
+
+#~ msgid "CHF 20 — Help me buy a lift pass"
+#~ msgstr "CHF 20 — Aidez-moi à acheter un forfait"
 
 #~ msgid "Free to use"
 #~ msgstr "Gratuit"

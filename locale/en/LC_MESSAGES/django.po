@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-24 08:50+0200\n"
+"POT-Creation-Date: 2026-08-31 10:43+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -40,7 +40,7 @@ msgstr ""
 msgid "Amount (CHF)"
 msgstr ""
 
-msgid "Say something nice (optional)"
+msgid "Send the team a message"
 msgstr ""
 
 msgid "Held"
@@ -65,6 +65,9 @@ msgid "Season end, no match"
 msgstr ""
 
 msgid "Post-accept no-show"
+msgstr ""
+
+msgid "Refunded by staff in Stripe"
 msgstr ""
 
 msgid "Paid"
@@ -807,28 +810,25 @@ msgstr[1] ""
 msgid "No referees waiting"
 msgstr ""
 
+msgid "Optional"
+msgstr ""
+
 msgid "Buy the team a coffee"
 msgstr ""
 
 msgid ""
 "If Ski Parrainage helped you find a partner, a small voluntary contribution "
-"helps keep it running. Entirely optional."
+"helps keep it running."
 msgstr ""
 
 msgid ""
 "If no match is found for you this season, your contribution will be refunded."
 msgstr ""
 
-msgid "Amount"
+msgid "Suggested amounts"
 msgstr ""
 
-msgid "CHF 5 — Buy me a beer"
-msgstr ""
-
-msgid "CHF 10 — Buy me lunch on the hill"
-msgstr ""
-
-msgid "CHF 20 — Help me buy a lift pass"
+msgid "Another amount, or add a note"
 msgstr ""
 
 msgid "Send my contribution"
@@ -1976,6 +1976,23 @@ msgid "Thank you"
 msgstr ""
 
 msgid "Your answer helps us set a fair price for future seasons."
+msgstr ""
+
+msgid "Payment received?"
+msgstr ""
+
+msgid "We couldn't confirm your payment"
+msgstr ""
+
+msgid ""
+"Something went wrong while we were checking with our payment provider. This "
+"does not necessarily mean your payment failed."
+msgstr ""
+
+msgid ""
+"If it did go through, it will be recorded automatically within a few minutes "
+"— please do not pay again. Check your account shortly, and get in touch if "
+"it still looks wrong."
 msgstr ""
 
 msgid "Live queue"

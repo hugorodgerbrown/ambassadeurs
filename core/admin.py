@@ -2,6 +2,8 @@
 
 from typing import Any, cast
 
+from csp.admin import CspReportAdmin, CspRuleAdmin
+from csp.models import CspReport, CspReportQuerySet, CspRule
 from django import forms
 from django.conf import settings
 from django.contrib import admin
@@ -12,6 +14,7 @@ from django.utils.html import format_html
 from django.utils.safestring import SafeString
 from django.utils.translation import gettext_lazy as _
 
+from .csp import unsafe_source
 from .models import Notification, StateTransitionLog
 
 
@@ -210,3 +213,86 @@ class NotificationAdmin(admin.ModelAdmin):
     def is_active(self, obj: Notification) -> bool:
         """Expose the derived is_active property as a boolean admin column."""
         return obj.is_active
+
+
+# ---------------------------------------------------------------------------
+# CSP rule guard (Invariant 10, SKI-171)
+# ---------------------------------------------------------------------------
+#
+# core.csp.reject_unsafe_csp_rule is the actual guarantee — it fails closed on
+# every write path. These two overrides exist so the admin *explains* itself
+# instead of 500ing: a field error on the form, and a warning message on the
+# report-conversion action. Both re-check rather than trusting the caller, so
+# neither is load-bearing on its own.
+
+
+class CspRuleForm(forms.ModelForm):
+    """CspRule form that rejects the sources Invariant 10 withholds."""
+
+    class Meta:
+        model = CspRule
+        # Named explicitly rather than "__all__" (ruff DJ007): the field list is
+        # upstream's, so an added field should be a decision here, not a silent
+        # inheritance.
+        fields = ("directive", "value", "enabled")
+
+    def clean_value(self) -> str:
+        """Reject a value that normalises to an unsafe source.
+
+        Named for the ``value`` field — unrelated to ``CspRule.clean_value``,
+        the model classmethod that does the normalising this check reads.
+        """
+        value = cast(str, self.cleaned_data["value"])
+        if banned := unsafe_source(value):
+            raise ValidationError(
+                _(
+                    "%(value)s is not permitted (Invariant 10). Allow the "
+                    "specific origin, or fix the inline style or script that "
+                    "needs it."
+                )
+                % {"value": banned}
+            )
+        return value
+
+
+admin.site.unregister(CspRule)
+admin.site.unregister(CspReport)
+
+
+@admin.register(CspRule)
+class GuardedCspRuleAdmin(CspRuleAdmin):
+    """The package's rule admin with Invariant 10 enforced on the form."""
+
+    form = CspRuleForm
+
+
+@admin.register(CspReport)
+class GuardedCspReportAdmin(CspReportAdmin):
+    """The package's report admin, minus the one-click route to an unsafe rule.
+
+    ``convert_report`` calls ``CspRule.objects.create`` directly, so the upstream
+    action would hit the pre_save guard and 500. A violation whose blocked_uri
+    is the literal "inline" normalises to ``'unsafe-inline'`` — the commonest
+    report there is — so this is the path most likely to be taken by accident.
+    Those reports are left alone and named in a warning; the rest convert as
+    usual.
+    """
+
+    @admin.action(description="Add new CSP rule for selected violations.")
+    def add_rule(self, request: HttpRequest, queryset: CspReportQuerySet) -> None:
+        """Convert the safe selections, and say why the others were skipped."""
+        unsafe_pks = [r.pk for r in queryset if unsafe_source(r.blocked_uri)]
+        if unsafe_pks:
+            self.message_user(
+                request,
+                _(
+                    "Skipped %(count)d violation(s) that would add an unsafe "
+                    "source to the policy (Invariant 10). Fix the inline style "
+                    "or script instead."
+                )
+                % {"count": len(unsafe_pks)},
+                "warning",
+            )
+        remaining = queryset.exclude(pk__in=unsafe_pks)
+        if remaining.exists():
+            super().add_rule(request, remaining)

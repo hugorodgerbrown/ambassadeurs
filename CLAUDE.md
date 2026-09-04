@@ -542,7 +542,10 @@ against this list on every PR.
    done by naming the source: in `CSP_DEFAULTS` when the app itself needs it,
    as a runtime `csp.CspRule` in the admin when a third party does. This binds
    the runtime layer too — an admin rule is as capable of wrecking the policy
-   as a settings edit, and is not reviewed.
+   as a settings edit, and is not reviewed. **Enforced** (SKI-171) by
+   `core.csp.reject_unsafe_csp_rule`, a `pre_save` guard on `CspRule` — the
+   project's only signal receiver, and the only hook that covers the
+   third-party write in `csp.models.convert_report`. See `core/csp.py`.
 
 ## Documentation
 

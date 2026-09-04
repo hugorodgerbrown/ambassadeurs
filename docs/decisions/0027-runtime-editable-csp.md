@@ -109,9 +109,45 @@ to appear would defeat the point of having runtime rules at all.
   reads correctly when the Tailwind build is what broke.
 - **Value order within a directive is not stable** — the library dedupes
   through a set. Order is meaningless in CSP, but tests must not assert on it.
+- **Switching between a pre- and post-SKI-170 branch corrupts a local venv.**
+  Both packages install into a top-level `csp/` module, and `uv remove` leaves
+  the other's files behind — producing a directory that is half `django-csp`
+  and half `django-csp-plus`, which fails at import with a confusing
+  `InvalidTemplateLibrary`. `uv sync --reinstall-package django-csp-plus` fixes
+  it. tox and CI build fresh environments, so neither is affected.
 - **`csp.models` ships no `py.typed`.** django-stubs walks `INSTALLED_APPS` and
   imports each app's models, so `csp.*` needs an `ignore_missing_imports`
   override or the untyped import is reported against our own `apps.py` files.
+
+### Enforcement of Invariant 10 (SKI-171, amendment)
+
+The consequence above — that the policy is now partly database state — has a
+sharper edge than it first reads. Within minutes of this ADR shipping, a rule
+adding `'unsafe-inline'` to `style-src` was live in production. It was
+deliberate (testing the admin) and was removed, but it was also unreviewed,
+instant, and invisible: a rule can only *add* to a directive, so a bad one never
+breaks a page. It silently permits what the policy was withholding.
+
+`core.csp.reject_unsafe_csp_rule` is a `pre_save` receiver that refuses any
+rule whose value normalises to `'unsafe-inline'` or `'unsafe-eval'`. It is the
+project's only signal receiver. CLAUDE.md bans signals **for side effects**;
+this is neither a side effect nor ours to place in a service function, because
+the write happens in third-party code — `csp.models.convert_report` calls
+`CspRule.objects.create` directly from the *Add new CSP rule for selected
+violations* admin action. `pre_save` is the only hook covering every path.
+
+That report-conversion path is the one that matters. A `style-src-elem`
+violation reports its `blocked_uri` as the literal string `"inline"`, which
+`CspRule.clean_value` normalises to `'unsafe-inline'` — so the entire loosening
+is one click on a violation that looks routine. `core.admin` overrides both
+admin classes so that path skips unsafe reports with a warning, and the rule
+form shows a field error, rather than either 500ing off the backstop.
+
+The guard is scoped to exactly the two values the invariant names.
+`'unsafe-hashes'` and `'wasm-unsafe-eval'` are narrower loosenings and are
+deliberately *not* banned: widening the code without widening the invariant
+text would put the two out of step. A settings edit cannot be intercepted by a
+signal at all, so a test asserts `CSP_DEFAULTS` carries neither value.
 
 ## Alternatives considered
 

@@ -493,11 +493,15 @@ run from any of them (they are idempotent).
   `SHOW_HOMEPAGE_QUEUE` and `TIPS_ENABLED` are web-only. Secrets stay
   `sync: false` and are still set in the dashboard.
 - **`TIPS_ENABLED` is the kill switch for the voluntary tip ask** (SKI-169,
-  ADR 0022) — currently **`false`**, because the Stripe account behind the tip
-  flow is not working. Off means no panel on the confirmed-match page and a 404
-  on `/tip/` and `/tip/start/`; Stripe's return paths (`/tip/return/`,
-  `/tip/cancelled/`) and the webhook's `purpose == "tip"` branch stay live either
-  way, so a Checkout already in flight still records its `Tip`. Do not reach for
+  ADR 0022) — currently **`true`**. It was switched off on the theory that
+  Stripe was broken; the actual cause was this app's own CSP blocking the
+  redirect to Checkout, fixed in SKI-170, so it went back on in SKI-172. Off
+  means no panel on the confirmed-match page and a 404 on `/tip/` and
+  `/tip/start/`; Stripe's return paths (`/tip/return/`, `/tip/cancelled/`) and
+  the webhook's `purpose == "tip"` branch stay live either way, so a Checkout
+  already in flight still records its `Tip`. Change it in `render.yaml`, not the
+  dashboard — the key carries an explicit `value:`, so a dashboard override is
+  liable to be reverted on the next blueprint sync. Do not reach for
   `REGISTRATION_FEE_TIERS` to hide the panel — it does, but only by switching on
   the paid deposit and charging every registrant.
 - **No secrets in source** — all credentials via `python-decouple`; `.env` is

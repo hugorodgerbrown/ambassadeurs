@@ -19,8 +19,8 @@
 #
 # Voluntary tip (VERB-112 / ADR 0022): the confirmed view mounts the tip panel
 # at the foot of its content, so the ask lands once the referral value has been
-# delivered. Free-tier registrants only, and only until they have paid one —
-# see _tip_mount_context.
+# delivered. Free-tier registrants only, and only until they have paid one, and
+# only while settings.TIPS_ENABLED (SKI-169) — see _tip_mount_context.
 #
 # Wrong-user journey (VERB-32): match_detail GET branches on the auth state of
 # the viewer. Anonymous → token auth (existing behaviour). Authenticated
@@ -34,6 +34,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -280,12 +281,20 @@ def _tip_mount_context(view: str, registration: Registration) -> dict[str, objec
     rule, which is the completed tip itself rather than any dismissal state, so
     there is nothing to persist.
 
+    ``settings.TIPS_ENABLED`` (SKI-169) switches the ask off wholesale, ahead
+    of every other condition: it is the operational kill switch for a tip flow
+    whose payment provider is unavailable, so it must not depend on the
+    registrant. It gates the ask only — a Checkout session already in flight
+    still records through ``public.views.tips.tip_return``.
+
     The ``view``/``is_free_tier`` guards precede the query, so the extra round
     trip is paid only on a confirmed page shown to a free-tier registrant.
 
     Returns ``{}`` (rather than a false flag) when the panel is not shown, so
     the caller can merge it unconditionally.
     """
+    if not settings.TIPS_ENABLED:
+        return {}
     if view != "confirmed" or not registration.is_free_tier:
         return {}
     if Tip.objects.for_registration(registration).paid().exists():

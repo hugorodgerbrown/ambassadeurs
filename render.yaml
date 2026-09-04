@@ -78,6 +78,17 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      # Voluntary tip ask (SKI-169, ADR 0022). OFF: the Stripe account behind
+      # the tip flow is not currently working, so the panel is not mounted on
+      # the confirmed-match page and /tip/ 404s rather than sending readers to
+      # a Checkout that cannot complete. Stripe's return paths (/tip/return/,
+      # /tip/cancelled/) and the webhook stay live regardless, so nothing
+      # already in flight is lost. Web-only by design — no cron renders the
+      # panel or serves these routes — so unlike the season keys above it is
+      # NOT mirrored to the crons. Set back to "true" here, in a PR, once the
+      # Stripe account is working again.
+      - key: TIPS_ENABLED
+        value: "false"
       - key: DATABASE_URL
         fromDatabase:
           name: ambassadeurs-db

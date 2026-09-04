@@ -110,6 +110,14 @@ module = ["matching.services", "matching.side_effects"]
 disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]
+# core.admin subclasses django-csp-plus's CspRuleAdmin / CspReportAdmin to
+# enforce Invariant 10 (SKI-171). The package is untyped, so those bases are
+# Any and strict mode's disallow_subclassing_any rejects them. Scoped to the one
+# module that does it rather than relaxed across every *.admin.
+module = ["core.admin"]
+disallow_subclassing_any = false
+
+[[tool.mypy.overrides]]
 # Settings modules are dynamic (env-driven) and not worth type-gating.
 module = ["config.settings.*"]
 ignore_errors = true

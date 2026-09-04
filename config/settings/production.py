@@ -44,9 +44,10 @@ SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", cast=Csv(), default="")
 
-# Enforce the Content-Security-Policy in production (development runs the same
-# directives in report-only mode). See base.CSP_DIRECTIVES.
-CONTENT_SECURITY_POLICY = {"DIRECTIVES": CSP_DIRECTIVES}  # noqa: F405
+# Enforce the Content-Security-Policy in production; every other environment
+# runs the same policy in report-only mode (base.CSP_REPORT_ONLY). This is the
+# only place enforcement is switched on. See base.CSP_DEFAULTS and ADR 0027.
+CSP_REPORT_ONLY = False
 
 # --- Error monitoring (PostHog) -------------------------------------------
 

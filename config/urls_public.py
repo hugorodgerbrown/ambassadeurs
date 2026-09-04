@@ -74,6 +74,12 @@ urlpatterns = [
     path("llms.txt", llms_txt, name="llms_txt"),
     # Stripe checkout.session.completed webhook (VERB-86) — un-prefixed.
     path("webhooks/stripe/", stripe_webhook, name="stripe_webhook"),
+    # CSP violation report endpoint + diagnostics (SKI-170, ADR 0027). The
+    # report URL is written into the header by csp.policy, which reverses
+    # "csp:report_uri" — so this must stay OUTSIDE i18n_patterns: a browser
+    # posting a violation report is a machine, and a language-prefixed report
+    # URL would vary by the language of the page that generated it.
+    path("csp/", include("csp.urls", namespace="csp")),
 ]
 
 # Human-facing routes — English unprefixed, French under /fr/.

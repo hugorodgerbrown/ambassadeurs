@@ -20,7 +20,6 @@ dependencies = [
     "django-countries>=9.0.0",
     "geoip2>=5.2.0",
     "django-ratelimit>=4.1.0",
-    "django-csp>=4.0",
     "posthog>=7.21.2",
     "stripe>=15.3.0",
     "django-side-effects>=3.2.0",
@@ -28,6 +27,7 @@ dependencies = [
     "django-utm-tracker>=1.5.0",
     "markdownify>=1.2.3",
     "beautifulsoup4>=4.15.0",
+    "django-csp-plus>=3.3.0",
 ]
 
 [dependency-groups]
@@ -86,6 +86,10 @@ module = [
     "django_ratelimit.*",
     "side_effects.*",
     "utm_tracker.*",
+    # django-csp-plus ships no py.typed marker (SKI-170). django-stubs walks
+    # INSTALLED_APPS and imports every app's models, so without this the
+    # untyped csp.models is reported against each of our own apps.py files.
+    "csp.*",
 ]
 ignore_missing_imports = true
 

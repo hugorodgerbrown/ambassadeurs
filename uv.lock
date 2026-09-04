@@ -94,7 +94,7 @@ dependencies = [
     { name = "dj-database-url" },
     { name = "django" },
     { name = "django-countries" },
-    { name = "django-csp" },
+    { name = "django-csp-plus" },
     { name = "django-htmx" },
     { name = "django-ratelimit" },
     { name = "django-side-effects" },
@@ -133,7 +133,7 @@ requires-dist = [
     { name = "dj-database-url", specifier = ">=2.2" },
     { name = "django", specifier = ">=6.0.7,<6.1" },
     { name = "django-countries", specifier = ">=9.0.0" },
-    { name = "django-csp", specifier = ">=4.0" },
+    { name = "django-csp-plus", specifier = ">=3.3.0" },
     { name = "django-htmx", specifier = ">=1.21" },
     { name = "django-ratelimit", specifier = ">=4.1.0" },
     { name = "django-side-effects", specifier = ">=3.2.0" },
@@ -577,16 +577,16 @@ wheels = [
 ]
 
 [[package]]
-name = "django-csp"
-version = "4.0"
+name = "django-csp-plus"
+version = "3.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "django" },
-    { name = "packaging" },
+    { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/52/db/23567744dff2169aadb095f726088074476b24dfff5a759ffcf6389cf401/django_csp-4.0.tar.gz", hash = "sha256:b27010bb702eb20a3dad329178df2b61a2b82d338b70fbdc13c3a3bd28712833", size = 20028, upload-time = "2025-04-02T16:41:46.721Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/76/03/c38994364eb5a9df185079fef3be0f19c2dc63611871faccfb0120b61411/django_csp_plus-3.3.0.tar.gz", hash = "sha256:6050f9addc2e7f0c74b4968bfa740c8059f30355217a0bfd39736b325f70a6db", size = 17557, upload-time = "2026-01-06T17:16:44.519Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e1/a4/736ab90ee527a23e194d1ce7358c6bcced66381ced83c28268b4aea236f7/django_csp-4.0-py3-none-any.whl", hash = "sha256:d5a0a05463a6b75a4f1fc1828c58c89af8db9364d09fc6e12f122b4d7f3d00dc", size = 25689, upload-time = "2025-04-02T16:41:45.689Z" },
+    { url = "https://files.pythonhosted.org/packages/ff/c0/720e99b8acf00171e6e2741123dd89e9b57acc1b5a02861a3df3fc85f54e/django_csp_plus-3.3.0-py3-none-any.whl", hash = "sha256:923f377cb63d945ad687971d240d64e40214d07653decc54003bae07d7745c22", size = 22075, upload-time = "2026-01-06T17:16:42.986Z" },
 ]
 
 [[package]]

@@ -44,7 +44,8 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 # The rate-limit tests opt back in via @override_settings(RATELIMIT_ENABLE=True).
 RATELIMIT_ENABLE = False
 
-# Content-Security-Policy in report-only mode locally: violations are logged by
-# the browser but nothing is blocked, so a policy slip surfaces before it can
-# break a page. Production enforces the same directives. See base.CSP_DIRECTIVES.
-CONTENT_SECURITY_POLICY_REPORT_ONLY = {"DIRECTIVES": CSP_DIRECTIVES}  # noqa: F405
+# Content-Security-Policy stays report-only locally (base.CSP_REPORT_ONLY):
+# violations are logged by the browser but nothing is blocked, so a policy slip
+# surfaces before it can break a page. Production enforces the same policy.
+# Reports POST to the local endpoint, so csp.CspReport rows accumulate in the
+# dev database and the admin view can be exercised without a deploy.

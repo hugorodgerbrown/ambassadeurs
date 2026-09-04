@@ -536,6 +536,13 @@ against this list on every PR.
    single-purpose task, not a per-PR step (see Internationalisation / ADR 0016).
 9. **No secrets in source** — all credentials via `python-decouple`; `.env`
    gitignored.
+10. **The CSP never gains `'unsafe-inline'` or `'unsafe-eval'`** (SKI-170,
+   ADR 0027) — the policy is defence-in-depth behind auto-escaping, and those
+   two values are most of what it exists to withhold. Unblocking something is
+   done by naming the source: in `CSP_DEFAULTS` when the app itself needs it,
+   as a runtime `csp.CspRule` in the admin when a third party does. This binds
+   the runtime layer too — an admin rule is as capable of wrecking the policy
+   as a settings edit, and is not reviewed.
 
 ## Documentation
 
@@ -566,5 +573,6 @@ feature docs are written:
 | LLM visibility (robots.txt Content-Signal, llms.txt, what is deferred) | [ADR 0024](docs/decisions/0024-llm-visibility-content-signal-and-llms-txt.md) |
 | Language-prefixed URLs (`/fr/`, hreflang, emailed-link language) | [ADR 0025](docs/decisions/0025-language-prefixed-urls.md) |
 | Markdown representations (`.md` routes, Accept negotiation, page registry) | [ADR 0026](docs/decisions/0026-markdown-representations.md) |
+| Content-Security-Policy (baseline + runtime rules, admin, reports) | [ADR 0027](docs/decisions/0027-runtime-editable-csp.md) |
 | Deployment (Render single-service) | _to be written_ |
 | Linear workflow (full lifecycle) | _to be written_ |

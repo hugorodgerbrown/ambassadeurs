@@ -187,6 +187,15 @@ STRIPE_CURRENCY: str = config("STRIPE_CURRENCY", default="chf")
 # configured — never accept an unverified event.
 STRIPE_WEBHOOK_SECRET: str = config("STRIPE_WEBHOOK_SECRET", default="")
 
+# Voluntary tip ask (SKI-169, ADR 0022). Kill switch for the *ask*, not the
+# recording: when false the tip panel is not mounted on the confirmed-match
+# page and the tip_page / tip_start routes 404, but tip_return, tip_cancelled
+# and the webhook's "tip" branch stay live so a Checkout session already in
+# flight when the flag flips is still recorded rather than orphaned in Stripe.
+# Default-on so development and the suite exercise the flow; the live value is
+# declared in render.yaml (web service only — no cron renders the panel).
+TIPS_ENABLED: bool = config("TIPS_ENABLED", default=True, cast=bool)
+
 # --- Authentication -------------------------------------------------------
 # AUTH_USER_MODEL stays the default Django ``auth.User``.
 

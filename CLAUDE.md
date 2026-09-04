@@ -485,12 +485,21 @@ run from any of them (they are idempotent).
 
 - **Season configuration lives in `render.yaml`, not the dashboard** (SKI-162) —
   `MATCHING_OPENS_AT`, `REGISTRATION_OPENS_AT`, `REGISTRATION_CLOSES_AT`,
-  `CONTACT_WINDOW_HOURS`, `REGISTRATION_FEE_TIERS` and `SHOW_HOMEPAGE_QUEUE` are
-  declared explicitly in the blueprint, so changing the season's timing or pricing
-  is a reviewed PR rather than an invisible dashboard edit. The crons read the
-  first five from the web service via `fromService` so the app and the matching
-  engine can never evaluate different values; `SHOW_HOMEPAGE_QUEUE` is web-only.
-  Secrets stay `sync: false` and are still set in the dashboard.
+  `CONTACT_WINDOW_HOURS`, `REGISTRATION_FEE_TIERS`, `SHOW_HOMEPAGE_QUEUE` and
+  `TIPS_ENABLED` are declared explicitly in the blueprint, so changing the
+  season's timing or pricing is a reviewed PR rather than an invisible dashboard
+  edit. The crons read the first five from the web service via `fromService` so
+  the app and the matching engine can never evaluate different values;
+  `SHOW_HOMEPAGE_QUEUE` and `TIPS_ENABLED` are web-only. Secrets stay
+  `sync: false` and are still set in the dashboard.
+- **`TIPS_ENABLED` is the kill switch for the voluntary tip ask** (SKI-169,
+  ADR 0022) — currently **`false`**, because the Stripe account behind the tip
+  flow is not working. Off means no panel on the confirmed-match page and a 404
+  on `/tip/` and `/tip/start/`; Stripe's return paths (`/tip/return/`,
+  `/tip/cancelled/`) and the webhook's `purpose == "tip"` branch stay live either
+  way, so a Checkout already in flight still records its `Tip`. Do not reach for
+  `REGISTRATION_FEE_TIERS` to hide the panel — it does, but only by switching on
+  the paid deposit and charging every registrant.
 - **No secrets in source** — all credentials via `python-decouple`; `.env` is
   gitignored and never committed.
 

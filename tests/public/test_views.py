@@ -4076,6 +4076,141 @@ def test_tip_page_keeps_the_skip_link() -> None:
     assert b'name="return_to"' not in content
 
 
+# ---------------------------------------------------------------------------
+# TIPS_ENABLED kill switch (SKI-169)
+# ---------------------------------------------------------------------------
+
+
+@override_settings(TIPS_ENABLED=False)
+def test_tips_disabled_hides_the_panel_but_not_the_contact_reveal() -> None:
+    """The switch withdraws the ask; Invariant 1's reveal is untouched by it.
+
+    The reveal is the product's core guarantee and is unconditional on an
+    ACCEPTED match. Coupling it to an unrelated billing flag would be a
+    regression the panel assertion alone would not catch.
+    """
+    match, viewer = _confirmed_match()
+
+    response = Client().get(_make_match_url(match, viewer))
+    content = response.content
+
+    assert response.status_code == 200
+    assert _TIP_PANEL_MARKER not in content
+    assert match.referee_registration.phone.encode() in content
+    assert match.referee_registration.user.email.encode() in content
+
+
+@override_settings(TIPS_ENABLED=False)
+def test_tips_disabled_hides_the_panel_in_the_htmx_partial() -> None:
+    """The swapped confirmed partial honours the switch, not just the full page.
+
+    The panel reaches the reader by two routes; gating only the page would
+    leave the htmx second-accept swap still asking.
+    """
+    ambassador_reg = RegistrationFactory.create(
+        role=Registration.Role.AMBASSADOR,
+        prior_pass=Registration.PriorPass.SEASONAL,
+        status=Registration.Status.VERIFIED,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True, status=Registration.Status.VERIFIED
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    with TestCase.captureOnCommitCallbacks(execute=False):
+        accept_match(match, ambassador_reg)
+
+    token = make_match_access_token(match.pk, referee_reg.pk)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        response = Client().post(
+            reverse("public:match_accept", args=[token]),
+            headers={"hx-request": "true"},
+        )
+
+    assert response.status_code == 200
+    assert _TIP_PANEL_MARKER not in response.content
+
+
+@override_settings(TIPS_ENABLED=False)
+def test_tips_disabled_404s_tip_page_for_a_free_tier_registrant() -> None:
+    """The standalone page closes to the audience that would otherwise see it."""
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:tip_page"))
+
+    assert response.status_code == 404
+
+
+@override_settings(TIPS_ENABLED=False)
+def test_tips_disabled_404s_tip_start_before_reaching_stripe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A POST straight to tip_start 404s, and no Checkout session is created.
+
+    The switch exists because Stripe is unavailable, so the point is not only
+    the status code — it is that the view never calls out at all.
+    """
+    calls: list[dict] = []
+    monkeypatch.setattr(
+        stripe.checkout.Session,
+        "create",
+        lambda **kw: calls.append(kw) or _FakeCheckoutSession(),
+    )
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.post(reverse("public:tip_start"), {"amount_chf": 5})
+
+    assert response.status_code == 404
+    assert calls == []
+
+
+@override_settings(TIPS_ENABLED=False)
+def test_tips_disabled_still_records_a_tip_paid_in_flight(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Stripe's return path stays open when the switch is off.
+
+    Someone can be mid-Checkout when the flag flips. Their money has already
+    moved, so gating tip_return would strand a paid Stripe session with no
+    ``Tip`` row here. The switch turns off the ask, never the recording.
+    """
+    reg = RegistrationFactory.create(status=Registration.Status.VERIFIED, fee_chf=0)
+    session = _FakeCheckoutSession(
+        payment_status="paid",
+        payment_intent="pi_tip_inflight",
+        metadata={
+            "purpose": "tip",
+            "registration_pk": str(reg.pk),
+            "amount_chf": "10",
+            "message": "",
+        },
+    )
+    monkeypatch.setattr(stripe.checkout.Session, "retrieve", lambda session_id: session)
+    client = Client()
+    client.force_login(reg.user)
+
+    response = client.get(reverse("public:tip_return"), {"session_id": "cs_tip0009"})
+
+    assert response.status_code == 200
+    assert "public/tip_thanks.html" in [t.name for t in response.templates]
+    assert Tip.objects.count() == 1
+    assert Tip.objects.get().status == Tip.Status.PAID
+
+
+@override_settings(TIPS_ENABLED=False)
+def test_tips_disabled_keeps_the_cancelled_page_reachable() -> None:
+    """Stripe's cancel_url target stays served, so an abandon lands somewhere."""
+    response = Client().get(reverse("public:tip_cancelled"))
+
+    assert response.status_code == 200
+
+
 def _charge_refunded_event(payment_intent: str, *, refunded: bool = True) -> dict:
     """Build a charge.refunded event payload for the webhook tests.
 

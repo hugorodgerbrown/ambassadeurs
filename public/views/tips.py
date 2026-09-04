@@ -9,6 +9,14 @@
 # by create_tip_checkout_session, falling through to the existing deposit path
 # (which carries no "purpose" key) unchanged.
 #
+# settings.TIPS_ENABLED (SKI-169) is the kill switch for the ask: when false,
+# tip_page and tip_start 404 and the confirmed-match panel is not mounted
+# (public.views.match._tip_mount_context). tip_return and tip_cancelled are
+# deliberately OUTSIDE the gate — they are Stripe's return targets, and a
+# Checkout session already in flight when the flag flips must still record its
+# Tip rather than be left paid in Stripe with no row here. The webhook's "tip"
+# branch is ungated for the same reason.
+#
 # A mount tells the flow where it came from with a "return_to" origin key
 # (_RETURN_TO_ROUTES). It is a fixed allow-list, not a free-text "next"
 # parameter, so a value arriving from a form field can never become an open
@@ -21,6 +29,7 @@ from __future__ import annotations
 
 import logging
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import render
@@ -58,7 +67,14 @@ def _free_tier_registration_or_404(request: HttpRequest) -> Registration:
     (``registration.is_free_tier``) — enforced identically in ``tip_page``
     and ``tip_start`` so neither view can be reached directly by a paid-tier
     registrant.
+
+    ``settings.TIPS_ENABLED`` (SKI-169) is checked first and closes both views
+    to everyone, so the ask cannot be reached by URL while the flag is off.
+    Only the two views that *offer* a tip call this helper; the return paths
+    do not — see the module header.
     """
+    if not settings.TIPS_ENABLED:
+        raise Http404("The tip flow is disabled.")
     registration = _authenticated_registration(request)
     if registration is None or not registration.is_free_tier:
         raise Http404("No free-tier registration for this account.")

@@ -57,9 +57,10 @@ SECURE_HSTS_SECONDS = 0
 # suite (see e2e/README.md → "What the suite deliberately does not cover").
 RATELIMIT_ENABLE = False
 
-# CSP in report-only mode: a violation is logged, nothing is blocked, so a
-# policy slip never flakes an e2e run.
-CONTENT_SECURITY_POLICY_REPORT_ONLY = {"DIRECTIVES": CSP_DIRECTIVES}  # noqa: F405
+# CSP stays report-only here (base.CSP_REPORT_ONLY): a violation is logged,
+# nothing is blocked, so a policy slip never flakes an e2e run. The trade-off
+# is that this lane cannot catch an enforcement-only break — production is the
+# only environment that enforces.
 
 # The suite relies on the season being open and matching being synchronous with
 # a free tier, so a second verified registration proposes a match immediately.

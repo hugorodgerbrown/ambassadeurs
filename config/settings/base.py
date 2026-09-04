@@ -10,7 +10,6 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from csp.constants import NONCE, NONE, SELF
 from decouple import config
 from django.utils.translation import gettext_lazy as _
 
@@ -33,6 +32,10 @@ DJANGO_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
+    # django-csp-plus (SKI-170). Unlike django-csp this is a full app: it owns
+    # the CspRule / CspReport tables and the admin that makes the policy
+    # editable at runtime.
+    "csp",
     "django_htmx",
     "django_countries",
     "side_effects",
@@ -58,7 +61,12 @@ MIDDLEWARE = [
     # set (ADR 0022). Must precede LocaleMiddleware/CommonMiddleware, which read
     # request.urlconf. A no-op when ADMIN_HOST is empty.
     "core.middleware.AdminHostMiddleware",
-    "csp.middleware.CSPMiddleware",
+    # django-csp-plus (SKI-170): split in two — CspNonceMiddleware puts
+    # request.csp_nonce on the request (read by the nonce'd inline scripts in
+    # base.html and friends), CspHeaderMiddleware writes the header on the way
+    # out. Both raise MiddlewareNotUsed when CSP_ENABLED is false.
+    "csp.middleware.CspNonceMiddleware",
+    "csp.middleware.CspHeaderMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
@@ -395,31 +403,55 @@ LOGGING = {
 # --- Content-Security-Policy ----------------------------------------------
 #
 # Defence-in-depth behind Django's template auto-escaping (VERB-71, audit M2).
-# The directives are defined once here; development.py applies them in
-# report-only mode (observe, don't block) and production.py enforces them.
+# Served by django-csp-plus (SKI-170), which builds the header from two layers:
+# this static baseline, plus any enabled ``csp.CspRule`` rows, which EXTEND it
+# at runtime. A blocked third-party origin is therefore an admin edit, not a
+# deploy — and the violation reports that drive those edits are collected by
+# the report endpoint mounted in config/urls_public.py. See ADR 0027.
 #
 # Origins in use: same-origin CSS/JS (WhiteNoise; htmx is self-hosted per
 # VERB-70), the Google Fonts stylesheet (fonts.googleapis.com) and font files
-# (fonts.gstatic.com). The only inline script is base.html's font-swap helper,
-# whitelisted with a per-response nonce (NONCE). Inline style= attributes were
-# refactored into CSS classes, so style-src needs no 'unsafe-inline'; the one
-# remaining inline <style> block is templates/500.html, whitelisted by hash.
+# (fonts.gstatic.com), and Stripe hosted Checkout as a form-action target.
 #
-# The 500.html hash is over the exact bytes of that <style> block — regenerate
-# it (sha256, base64) if that block ever changes, or the standalone error page
-# loses its critical styling under enforcement.
-CSP_DIRECTIVES = {
-    "default-src": [SELF],
-    "script-src": [SELF, NONCE],
-    "style-src": [
-        SELF,
-        "https://fonts.googleapis.com",
-        "'sha256-qd79DCo1rt0o2NtF54DrHquS28j7g8PpzT0bg89b8f4='",
-    ],
+# form-action carries checkout.stripe.com (SKI-170) because Chrome and Safari
+# re-check form-action against the target of a redirect that follows a form
+# POST. Both money flows POST to a local view which 302s to Checkout
+# (public.views._shared._redirect_to_checkout), so 'self' alone blocks the hop
+# — and the browser reports the local action URL, not the Stripe one.
+#
+# Two placeholders are substituted per request by csp.policy: {nonce} becomes
+# the response's nonce (base.html's font-swap script and friends read the same
+# value from request.csp_nonce), and {report_uri} becomes the local report URL.
+# Neither is a literal to be quoted — the library adds the quoting.
+#
+# NB values are normalised through csp.models.CspRule.clean_value, which
+# lowercases them. A base64 hash source (e.g. 'sha256-…') does NOT survive
+# that, which is why templates/500.html links a static stylesheet instead of
+# carrying a hashed inline <style> block.
+CSP_ENABLED = True
+
+# Whether the header is advisory or enforced. Report-only here so development
+# and the test suite observe without blocking; production.py flips it.
+# NB django-csp-plus reads this at import time, so @override_settings cannot
+# change it in a test — assert against the configured environment instead.
+CSP_REPORT_ONLY = True
+
+# How long a built policy is cached. The cache is per-process LocMemCache and
+# Gunicorn runs several workers, so this is also the worst-case lag before an
+# admin rule change is live on every worker. Kept short for that reason: the
+# policy is cheap to rebuild (one indexed query) and the point of the runtime
+# rules is that they take effect promptly.
+CSP_CACHE_TIMEOUT = 60
+
+CSP_DEFAULTS = {
+    "default-src": ["'self'"],
+    "script-src": ["'self'", "{nonce}"],
+    "style-src": ["'self'", "https://fonts.googleapis.com"],
     "font-src": ["https://fonts.gstatic.com"],
-    "img-src": [SELF, "data:"],
-    "connect-src": [SELF],
-    "base-uri": [SELF],
-    "form-action": [SELF],
-    "frame-ancestors": [NONE],
+    "img-src": ["'self'", "data:"],
+    "connect-src": ["'self'"],
+    "base-uri": ["'self'"],
+    "form-action": ["'self'", "https://checkout.stripe.com"],
+    "frame-ancestors": ["'none'"],
+    "report-uri": ["{report_uri}"],
 }

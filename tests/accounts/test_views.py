@@ -318,22 +318,25 @@ def test_detail_without_registration_shows_register_link() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_detail_renders_the_queue_component() -> None:
-    """The detail page carries the live queue card."""
+def test_detail_renders_the_queue_inside_the_match_status_card() -> None:
+    """The queue diagram is drawn, and inside the Match status card, not beside it."""
     registration = RegistrationFactory.create()
     client = Client()
     client.force_login(registration.user)
+
     response = client.get(reverse("accounts:detail"))
+
     assert response.status_code == 200
-    assert b'id="queue-snapshot"' in response.content
+    content = response.content.decode()
+    assert 'id="queue-snapshot"' in content
+    assert "Who's in the queue" in content
+    # Embedded: a rule inside the host card rather than a second card edge.
+    assert 'class="mt-6 border-t border-line pt-6" id="queue-snapshot"' in content
+    assert content.index("Match status") < content.index("Who's in the queue")
 
 
 def test_detail_queue_highlights_the_viewer() -> None:
-    """A queued ambassador is highlighted and told how many referees are needed.
-
-    Two ambassadors wait and no referee does, so the second needs two referees
-    before their own pairing.
-    """
+    """The viewer's own glyph is the highlighted one, matching their ordinal."""
     RegistrationFactory.create()
     registration = RegistrationFactory.create()
     client = Client()
@@ -342,18 +345,29 @@ def test_detail_queue_highlights_the_viewer() -> None:
     response = client.get(reverse("accounts:detail"))
 
     assert response.status_code == 200
-    assert response.context["queue"]["you"] == {
-        "role": "ambassadors",
-        "position": 2,
-        "counterparts_needed": 2,
-        "counterpart_role": "referee",
-    }
     assert response.context["queue"]["ambassadors"]["you_glyph"] == 1
-    assert b"Once 2 more referees register" in response.content
+    assert response.context["queue"]["referees"]["you_glyph"] is None
+
+
+def test_detail_queue_highlight_matches_the_status_card_ordinal() -> None:
+    """The highlighted glyph and the status card's ordinal are the same place.
+
+    Both derive from one ``queue_position`` call: the view hands the value it
+    already has to ``queue_snapshot_context`` rather than letting it recompute.
+    """
+    RegistrationFactory.create_batch(2)
+    registration = RegistrationFactory.create()
+    client = Client()
+    client.force_login(registration.user)
+
+    response = client.get(reverse("accounts:detail"))
+
+    assert response.context["queue_position"] == 3
+    assert response.context["queue"]["ambassadors"]["you_glyph"] == 2
 
 
 def test_detail_queue_has_no_highlight_without_a_registration() -> None:
-    """An admin user with no registration still sees the pool, without a highlight."""
+    """A user with no registration sees no queue card at all."""
     RegistrationFactory.create()
     client = Client()
     client.force_login(UserFactory.create())
@@ -361,8 +375,9 @@ def test_detail_queue_has_no_highlight_without_a_registration() -> None:
     response = client.get(reverse("accounts:detail"))
 
     assert response.status_code == 200
-    assert response.context["queue"]["you"] is None
-    assert response.context["queue"]["ambassadors"]["count"] == 1
+    assert response.context["queue"]["ambassadors"]["you_glyph"] is None
+    # The card hosting the diagram is the registration branch of the partial.
+    assert b'id="queue-snapshot"' not in response.content
 
 
 def test_detail_queue_has_no_highlight_for_a_paused_registration() -> None:
@@ -374,7 +389,8 @@ def test_detail_queue_has_no_highlight_for_a_paused_registration() -> None:
     response = client.get(reverse("accounts:detail"))
 
     assert response.status_code == 200
-    assert response.context["queue"]["you"] is None
+    assert response.context["queue"]["ambassadors"]["you_glyph"] is None
+    assert response.context["queue"]["matches"]["you_glyph"] is None
 
 
 # ---------------------------------------------------------------------------

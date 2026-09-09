@@ -18,7 +18,6 @@ from matching.services import (
     accept_match,
     confirm_registration,
     decline_match,
-    eligible_pool_size,
     expire_lapsed_matches,
     is_eligible_pair,
     is_registration_open,
@@ -3279,47 +3278,15 @@ def test_register_participant_geo_defaults_to_empty_strings() -> None:
 
 
 # ---------------------------------------------------------------------------
-# eligible_pool_size / matched_pair_index (SKI-174)
+# matched_pair_index (SKI-174)
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.django_db
-def test_eligible_pool_size_counts_each_role_separately() -> None:
-    """Each role's pool size counts only that role's eligible registrations."""
-    RegistrationFactory.create_batch(3)
-    RegistrationFactory.create_batch(2, referee=True)
-
-    assert eligible_pool_size(Registration.Role.AMBASSADOR) == 3
-    assert eligible_pool_size(Registration.Role.REFEREE) == 2
-
-
-@pytest.mark.django_db
-def test_eligible_pool_size_excludes_ineligible_prior_pass() -> None:
-    """An ambassador with no prior pass is waiting but not eligible."""
-    RegistrationFactory.create()
-    RegistrationFactory.create(prior_pass=Registration.PriorPass.NONE)
-
-    assert eligible_pool_size(Registration.Role.AMBASSADOR) == 1
-
-
-@pytest.mark.django_db
-def test_eligible_pool_size_excludes_unverified_and_matched() -> None:
-    """Unverified registrations and those holding an active match are excluded."""
-    RegistrationFactory.create()
-    RegistrationFactory.create(unverified=True)
-    MatchFactory.create()
-
-    assert eligible_pool_size(Registration.Role.AMBASSADOR) == 1
-    assert eligible_pool_size(Registration.Role.REFEREE) == 0
-
-
-@pytest.mark.django_db
 def test_matched_pair_index_returns_none_without_an_active_match() -> None:
     """A waiting registration occupies no slot in the matched column."""
     assert matched_pair_index(RegistrationFactory.create()) is None
 
 
-@pytest.mark.django_db
 def test_matched_pair_index_counts_earlier_active_matches() -> None:
     """The slot is the number of active matches created before this one."""
     MatchFactory.create()
@@ -3329,7 +3296,6 @@ def test_matched_pair_index_counts_earlier_active_matches() -> None:
     assert matched_pair_index(second.referee_registration) == 1
 
 
-@pytest.mark.django_db
 def test_matched_pair_index_ignores_terminal_matches() -> None:
     """A declined match is not in the column, so it does not shift the slot."""
     MatchFactory.create(declined=True)

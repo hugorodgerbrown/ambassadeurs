@@ -102,17 +102,12 @@
             </dl>
         </div>
 
-        {# Match status card — see accounts/partials/match_status.html #}
-        {% include "accounts/partials/match_status.html" %}
-
         {% comment %}
-            Live queue (SKI-174) — the pool as a whole, with this viewer's own
-            glyph highlighted and captioned. Sits directly below the Match
-            status card: that card gives the ordinal, this one gives it meaning.
+            Match status card — see accounts/partials/match_status.html. It
+            hosts the live queue diagram too (SKI-174), drawn from the `queue`
+            context this view supplies.
         {% endcomment %}
-        <div class="mb-6">
-            {% include "includes/_queue_snapshot.html" with queue=queue %}
-        </div>
+        {% include "accounts/partials/match_status.html" %}
 
         {# Security #}
         <div class="card">

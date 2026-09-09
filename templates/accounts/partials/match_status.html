@@ -17,6 +17,12 @@
                               match; controls the "Rejoin the queue" button
       can_cancel            — True under the same condition as can_rejoin;
                               controls the "Cancel & refund" link (VERB-88)
+      queue                 — optional QueueSnapshotContext (SKI-174). When
+                              present the live queue diagram is drawn inside
+                              this card, below the status copy, with the
+                              viewer's own glyph highlighted. Surfaces that do
+                              not supply it (register_done, the DEBUG gallery)
+                              render the card exactly as before.
 
     Match progress (proposed/pending/accepted) is derived from match_state, NOT
     from registration.status (VERB-44 / ADR 0011). registration.status reflects
@@ -131,6 +137,15 @@
                     {% translate "View your match" %}
                 </a>
             </div>
+        {% endif %}
+        {% comment %}
+            The live queue (SKI-174) belongs to this card, not a card of its
+            own: the status copy above gives the viewer their ordinal and the
+            diagram shows them where that sits. Embedded, so it contributes a
+            rule and a heading rather than a second card edge.
+        {% endcomment %}
+        {% if queue %}
+            {% include "includes/_queue_snapshot.html" with queue=queue embedded=True %}
         {% endif %}
     </div>
 {% else %}

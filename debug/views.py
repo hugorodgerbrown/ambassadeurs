@@ -482,8 +482,6 @@ def _queue_scenario(
     days_until_open: int = 0,
     you_role: Literal["", "ambassadors", "referees", "matches"] = "",
     you_index: int | None = None,
-    you_position: int | None = None,
-    you_counterparts_needed: int | None = None,
 ) -> dict[str, object]:
     """Build one labelled synthetic queue-visualisation context for the gallery.
 
@@ -502,9 +500,6 @@ def _queue_scenario(
         days_until_open: Whole-day countdown shown pre-open.
         you_role: Role of the current user for the "you" highlight, or "".
         you_index: Zero-based position of the current user in that role's column.
-        you_position: 1-based queue position of the current user, or None.
-        you_counterparts_needed: Counterpart registrations still required before
-            the current user is matched, or None.
     """
     queue = build_queue_context(
         ambassadors_waiting=ambassadors,
@@ -515,8 +510,6 @@ def _queue_scenario(
         days_until_open=days_until_open,
         you_role=you_role,
         you_index=you_index,
-        you_position=you_position,
-        you_counterparts_needed=you_counterparts_needed,
     )
     return {"label": label, "queue": queue}
 
@@ -622,51 +615,25 @@ def components(request: HttpRequest) -> HttpResponse:
             matches=60,
         ),
         _queue_scenario(
-            "Live — you are waiting (ambassador, position 3, 3 referees needed)",
+            "Live — you are waiting (ambassador, position 3)",
             is_open=True,
             ambassadors=6,
-            referees=0,
+            referees=4,
             matches=3,
             you_role="ambassadors",
             you_index=2,
-            you_position=3,
-            you_counterparts_needed=3,
         ),
         _queue_scenario(
-            "Live — you are waiting (referee, position 2, 2 ambassadors needed)",
+            "Live — you are waiting (referee, position 2)",
             is_open=True,
-            ambassadors=0,
+            ambassadors=6,
             referees=4,
             matches=3,
             you_role="referees",
             you_index=1,
-            you_position=2,
-            you_counterparts_needed=2,
         ),
         _queue_scenario(
-            "Live — you are next (one counterpart away, singular caption)",
-            is_open=True,
-            ambassadors=6,
-            referees=0,
-            matches=3,
-            you_role="ambassadors",
-            you_index=0,
-            you_position=1,
-            you_counterparts_needed=1,
-        ),
-        _queue_scenario(
-            "Live — you are due to be matched (counterparts already waiting)",
-            is_open=True,
-            ambassadors=6,
-            referees=4,
-            matches=3,
-            you_role="ambassadors",
-            you_index=2,
-            you_position=3,
-            you_counterparts_needed=0,
-        ),
-        _queue_scenario(
-            "Pre-open — you are waiting (ordinal caption, no counterpart maths)",
+            "Pre-open — you are waiting (ambassador, position 3)",
             is_open=False,
             ambassadors=6,
             referees=4,
@@ -674,8 +641,6 @@ def components(request: HttpRequest) -> HttpResponse:
             days_until_open=22,
             you_role="ambassadors",
             you_index=2,
-            you_position=3,
-            you_counterparts_needed=3,
         ),
         _queue_scenario(
             "Live — you are matched (pair 2)",

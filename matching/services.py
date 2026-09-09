@@ -249,30 +249,6 @@ def queue_position(registration: Registration) -> int | None:
     return ahead + 1
 
 
-def eligible_pool_size(role: str) -> int:
-    """Return the number of registrations in the eligible pool for ``role``.
-
-    The eligible pool is the set the matching engine may actually draw from —
-    VERIFIED, holding no active match, and carrying a ``prior_pass`` value valid
-    for the role (``eligible_ambassadors`` / ``eligible_referees``). This is a
-    narrower set than the "waiting" count reported by ``queue_snapshot``, which
-    does not filter on ``prior_pass``.
-
-    Used to tell a waiting participant how many further counterpart
-    registrations stand between them and a pairing (SKI-174): only eligible
-    counterparts can be paired with them, so only eligible counterparts count.
-
-    Args:
-        role: A ``Registration.Role`` value.
-
-    Returns:
-        The count of registrations in that role's eligible pool.
-    """
-    if role == Registration.Role.AMBASSADOR:
-        return Registration.objects.eligible_ambassadors().count()
-    return Registration.objects.eligible_referees().count()
-
-
 def matched_pair_index(registration: Registration) -> int | None:
     """Return the 0-based slot of ``registration``'s active match, or ``None``.
 

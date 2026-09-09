@@ -61,6 +61,9 @@ class RegistrationFactory(factory.django.DjangoModelFactory[Registration]):
         unverified = factory.Trait(
             status=Registration.Status.UNVERIFIED,
         )
+        withdrawn = factory.Trait(
+            status=Registration.Status.WITHDRAWN,
+        )
 
 
 class MatchFactory(factory.django.DjangoModelFactory[Match]):

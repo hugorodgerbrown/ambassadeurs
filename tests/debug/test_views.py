@@ -472,10 +472,3 @@ def test_components_renders_queue_visualisation_states() -> None:
     assert "Next referee will be matched immediately on registration" in content
     assert "Next ambassador will be matched immediately on registration" in content
     assert "Instant match" in content
-    # The viewer caption (SKI-174), in each of its five states.
-    assert "Once 3 more referees register" in content
-    assert "Once 2 more ambassadors register" in content
-    assert "The next referee to register will be matched with you." in content
-    assert "You are due to be matched" in content
-    assert "You are number 3 in the queue." in content
-    assert "your pair is highlighted above" in content

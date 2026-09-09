@@ -249,6 +249,38 @@ def queue_position(registration: Registration) -> int | None:
     return ahead + 1
 
 
+def matched_pair_index(registration: Registration) -> int | None:
+    """Return the 0-based slot of ``registration``'s active match, or ``None``.
+
+    Locates the registration's active (PROPOSED / PENDING / ACCEPTED) match and
+    counts the active matches created before it, giving the position of that
+    pair within the matched column of the queue visualisation (SKI-174). A
+    registration holds at most one active match (Invariant 3), so the lookup is
+    unambiguous. Returns ``None`` when the registration holds no active match.
+
+    The ordering is ``created_at`` ascending, which matches nothing in
+    particular — the matched column's glyphs are anonymous and identical, so the
+    index only has to be stable and in range, not meaningful.
+
+    Args:
+        registration: The registration whose matched slot to locate.
+
+    Returns:
+        0-based index within the active matches, or ``None``.
+    """
+    match = (
+        Match.objects.active()
+        .filter(
+            Q(ambassador_registration=registration)
+            | Q(referee_registration=registration)
+        )
+        .first()
+    )
+    if match is None:
+        return None
+    return Match.objects.active().filter(created_at__lt=match.created_at).count()
+
+
 def total_accepted_matches() -> int:
     """Return the total count of mutually-accepted matches this season.
 

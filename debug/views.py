@@ -633,6 +633,16 @@ def components(request: HttpRequest) -> HttpResponse:
             you_index=1,
         ),
         _queue_scenario(
+            "Pre-open — you are waiting (ambassador, position 3)",
+            is_open=False,
+            ambassadors=6,
+            referees=4,
+            matches=0,
+            days_until_open=22,
+            you_role="ambassadors",
+            you_index=2,
+        ),
+        _queue_scenario(
             "Live — you are matched (pair 2)",
             is_open=True,
             ambassadors=6,

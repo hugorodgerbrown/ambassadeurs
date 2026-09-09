@@ -314,6 +314,86 @@ def test_detail_without_registration_shows_register_link() -> None:
 
 
 # ---------------------------------------------------------------------------
+# account_detail — live queue component (SKI-174)
+# ---------------------------------------------------------------------------
+
+
+def test_detail_renders_the_queue_inside_the_match_status_card() -> None:
+    """The queue diagram is drawn, and inside the Match status card, not beside it."""
+    registration = RegistrationFactory.create()
+    client = Client()
+    client.force_login(registration.user)
+
+    response = client.get(reverse("accounts:detail"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert 'id="queue-snapshot"' in content
+    assert "Who's in the queue" in content
+    # Embedded: no card chrome of its own — it sits inside the host card.
+    assert 'class="mt-6" id="queue-snapshot"' in content
+    assert content.index("Match status") < content.index("Who's in the queue")
+
+
+def test_detail_queue_highlights_the_viewer() -> None:
+    """The viewer's own glyph is the highlighted one, matching their ordinal."""
+    RegistrationFactory.create()
+    registration = RegistrationFactory.create()
+    client = Client()
+    client.force_login(registration.user)
+
+    response = client.get(reverse("accounts:detail"))
+
+    assert response.status_code == 200
+    assert response.context["queue"]["ambassadors"]["you_glyph"] == 1
+    assert response.context["queue"]["referees"]["you_glyph"] is None
+
+
+def test_detail_queue_highlight_matches_the_status_card_ordinal() -> None:
+    """The highlighted glyph and the status card's ordinal are the same place.
+
+    Both derive from one ``queue_position`` call: the view hands the value it
+    already has to ``queue_snapshot_context`` rather than letting it recompute.
+    """
+    RegistrationFactory.create_batch(2)
+    registration = RegistrationFactory.create()
+    client = Client()
+    client.force_login(registration.user)
+
+    response = client.get(reverse("accounts:detail"))
+
+    assert response.context["queue_position"] == 3
+    assert response.context["queue"]["ambassadors"]["you_glyph"] == 2
+
+
+def test_detail_queue_has_no_highlight_without_a_registration() -> None:
+    """A user with no registration sees no queue card at all."""
+    RegistrationFactory.create()
+    client = Client()
+    client.force_login(UserFactory.create())
+
+    response = client.get(reverse("accounts:detail"))
+
+    assert response.status_code == 200
+    assert response.context["queue"]["ambassadors"]["you_glyph"] is None
+    # The card hosting the diagram is the registration branch of the partial.
+    assert b'id="queue-snapshot"' not in response.content
+
+
+def test_detail_queue_has_no_highlight_for_a_paused_registration() -> None:
+    """A paused registration is out of the pool, so nothing is highlighted."""
+    registration = RegistrationFactory.create(paused=True)
+    client = Client()
+    client.force_login(registration.user)
+
+    response = client.get(reverse("accounts:detail"))
+
+    assert response.status_code == 200
+    assert response.context["queue"]["ambassadors"]["you_glyph"] is None
+    assert response.context["queue"]["matches"]["you_glyph"] is None
+
+
+# ---------------------------------------------------------------------------
 # account_detail — email_verified derived from Registration.status (VERB-46)
 # ---------------------------------------------------------------------------
 

@@ -21,6 +21,7 @@ from matching.services import (
     expire_lapsed_matches,
     is_eligible_pair,
     is_registration_open,
+    matched_pair_index,
     pause_registration,
     propose_match,
     queue_position,
@@ -3274,3 +3275,30 @@ def test_register_participant_geo_defaults_to_empty_strings() -> None:
 
     assert registration.registration_country == ""
     assert registration.registration_region == ""
+
+
+# ---------------------------------------------------------------------------
+# matched_pair_index (SKI-174)
+# ---------------------------------------------------------------------------
+
+
+def test_matched_pair_index_returns_none_without_an_active_match() -> None:
+    """A waiting registration occupies no slot in the matched column."""
+    assert matched_pair_index(RegistrationFactory.create()) is None
+
+
+def test_matched_pair_index_counts_earlier_active_matches() -> None:
+    """The slot is the number of active matches created before this one."""
+    MatchFactory.create()
+    second = MatchFactory.create()
+
+    assert matched_pair_index(second.ambassador_registration) == 1
+    assert matched_pair_index(second.referee_registration) == 1
+
+
+def test_matched_pair_index_ignores_terminal_matches() -> None:
+    """A declined match is not in the column, so it does not shift the slot."""
+    MatchFactory.create(declined=True)
+    live = MatchFactory.create()
+
+    assert matched_pair_index(live.ambassador_registration) == 0

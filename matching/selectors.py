@@ -17,6 +17,13 @@
 # into the two-column context templates/includes/_queue_snapshot.html reads;
 # the aggregate counting logic itself stays in services.py (this module never
 # runs its own queries).
+#
+# queue_you_for (SKI-174) locates the viewer within that picture — which section
+# holds them and which glyph to draw in the highlight colour — so the account
+# page's queue card shows a participant where they sit rather than only quoting
+# an ordinal. It takes the queue position from its caller (match_status_context
+# has already computed it for the same page) and reads services.matched_pair_index
+# for a viewer who is matched rather than waiting.
 
 from __future__ import annotations
 
@@ -30,7 +37,7 @@ from django.utils.translation import gettext as _
 
 from .models import Match, Registration
 from .pricing_config import matching_opens_at
-from .services import queue_position, queue_snapshot
+from .services import matched_pair_index, queue_position, queue_snapshot
 
 
 class StatusPill(TypedDict):
@@ -266,6 +273,11 @@ class QueueMatches(TypedDict):
     you_glyph: int | None
 
 
+# Which section of the visualisation a viewer occupies; "" means they are not in
+# the picture at all.
+QueueSection = Literal["", "ambassadors", "referees", "matches"]
+
+
 class QueueSnapshotContext(TypedDict):
     """The full render context for ``templates/includes/_queue_snapshot.html``.
 
@@ -364,8 +376,63 @@ def instant_match_role(
     return ""
 
 
-def queue_snapshot_context(now: datetime) -> QueueSnapshotContext:
-    """Build the render context for the standalone queue visualisation.
+def queue_you_for(
+    registration: Registration, position: int | None
+) -> tuple[QueueSection, int | None]:
+    """Return ``(you_role, you_index)`` for ``registration``.
+
+    Locates the viewer within the queue visualisation so their own glyph can be
+    drawn in the highlight colour. A VERIFIED registration holding a place in its
+    own eligible pool is a waiting glyph in that role's column (``"ambassadors"``
+    / ``"referees"``); one holding an active match is a pair in the centre column
+    (``"matches"``). Anything else — not VERIFIED, or VERIFIED but kept out of
+    the eligible pool by its ``prior_pass`` — is not in the picture and returns
+    ``("", None)``.
+
+    ``you_index`` for a waiting registration is its queue position less one. Note
+    that the position ranks within the *eligible* pool while the column it indexes
+    counts the *waiting* pool (VERIFIED, no active match, unfiltered by
+    ``prior_pass``). The eligible pool is a subset, so the index can never overrun
+    the column; it may sit a glyph or two off true, which is invisible because the
+    glyphs are anonymous and identical — the highlight says "you are in here,
+    about here", not "you are exactly the fourth".
+
+    ``position`` is passed in rather than recomputed: the account page has it in
+    hand from ``match_status_context``, and ``queue_position`` costs two queries
+    for an answer the caller already holds. A caller that supplies ``None`` for a
+    registration that does in fact hold a queue place gets no highlight — the
+    diagram degrades to the anonymous rendering rather than pointing at the wrong
+    person.
+
+    Args:
+        registration: The viewer's registration.
+        position: The registration's 1-based place in its own eligible queue, as
+            returned by ``matching.services.queue_position``, or ``None`` when it
+            holds none (not VERIFIED, ineligible, or already matched).
+
+    Returns:
+        The role key and the 0-based glyph index within that section.
+    """
+    if registration.status != Registration.Status.VERIFIED:
+        return "", None
+
+    if position is not None:
+        role: QueueSection = "ambassadors" if registration.is_ambassador else "referees"
+        return role, position - 1
+
+    pair_index = matched_pair_index(registration)
+    if pair_index is not None:
+        return "matches", pair_index
+
+    return "", None
+
+
+def queue_snapshot_context(
+    now: datetime,
+    registration: Registration | None = None,
+    position: int | None = None,
+) -> QueueSnapshotContext:
+    """Build the render context for the queue visualisation.
 
     Calls ``matching.services.queue_snapshot`` and shapes it into three columns:
     ambassadors waiting, matched pairs, referees waiting. The two side columns
@@ -382,13 +449,29 @@ def queue_snapshot_context(now: datetime) -> QueueSnapshotContext:
     ``matching_opens_at()``; ``days_until_open`` is the whole-day countdown to
     that date (0 once open), computed in the active timezone.
 
+    ``registration`` is the viewer's own, when there is one (SKI-174). Given it,
+    the viewer's own glyph is drawn in the highlight colour, so they can see where
+    in the pool they sit. Omitted — or given a registration that is not in the
+    picture — nothing is highlighted and the component renders exactly as it does
+    for an anonymous visitor. A caller passing ``registration`` should pass
+    ``position`` with it (see ``queue_you_for``); omitting it costs the highlight,
+    not correctness.
+
     Args:
         now: The tz-aware instant to evaluate the open-date gate against.
+        registration: The viewer's registration, or ``None``.
+        position: That registration's queue position, when the caller already
+            holds it; ``None`` when it has no queue place.
 
     Returns:
         The full render context, including the open-date keys.
     """
     snapshot = queue_snapshot()
+
+    you_role: QueueSection = ""
+    you_index: int | None = None
+    if registration is not None:
+        you_role, you_index = queue_you_for(registration, position)
 
     opens_at = matching_opens_at()
     is_open = now >= opens_at
@@ -404,6 +487,8 @@ def queue_snapshot_context(now: datetime) -> QueueSnapshotContext:
         is_open=is_open,
         opens_at=opens_at,
         days_until_open=days_until_open,
+        you_role=you_role,
+        you_index=you_index,
     )
 
 
@@ -415,7 +500,7 @@ def build_queue_context(
     is_open: bool,
     opens_at: datetime,
     days_until_open: int,
-    you_role: Literal["", "ambassadors", "referees", "matches"] = "",
+    you_role: QueueSection = "",
     you_index: int | None = None,
 ) -> QueueSnapshotContext:
     """Shape explicit counts + open-state into a ``QueueSnapshotContext``.

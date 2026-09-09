@@ -102,7 +102,11 @@
             </dl>
         </div>
 
-        {# Match status card — see accounts/partials/match_status.html #}
+        {% comment %}
+            Match status card — see accounts/partials/match_status.html. It
+            hosts the live queue diagram too (SKI-174), drawn from the `queue`
+            context this view supplies.
+        {% endcomment %}
         {% include "accounts/partials/match_status.html" %}
 
         {# Security #}

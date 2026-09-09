@@ -14,6 +14,7 @@ from matching.selectors import (
     instant_match_role,
     match_status_context,
     queue_snapshot_context,
+    queue_you_for,
     status_pill_for,
 )
 from tests.accounts.factories import UserFactory
@@ -490,3 +491,112 @@ def test_build_queue_context_matches_you_glyph_uses_pairs_cap_not_icons_cap() ->
         you_index=_QUEUE_MAX_PAIRS,
     )
     assert context_dropped["matches"]["you_glyph"] is None
+
+
+# ---------------------------------------------------------------------------
+# queue_you_for (SKI-174)
+# ---------------------------------------------------------------------------
+
+
+def test_queue_you_for_waiting_ambassador() -> None:
+    """A queued ambassador is the first glyph of the ambassadors column."""
+    registration = RegistrationFactory.create()
+
+    assert queue_you_for(registration, 1) == ("ambassadors", 0)
+
+
+def test_queue_you_for_waiting_referee_behind_others() -> None:
+    """A referee second in line is the second glyph of the referees column."""
+    registration = RegistrationFactory.create(referee=True)
+
+    assert queue_you_for(registration, 2) == ("referees", 1)
+
+
+def test_queue_you_for_matched_registration() -> None:
+    """A matched registration is a pair in the centre column."""
+    match = MatchFactory.create()
+
+    assert queue_you_for(match.ambassador_registration, None) == ("matches", 0)
+    assert queue_you_for(match.referee_registration, None) == ("matches", 0)
+
+
+@pytest.mark.parametrize(
+    "trait",
+    ["unverified", "paused", "suspended", "withdrawn"],
+)
+def test_queue_you_for_non_verified_is_not_in_the_picture(trait: str) -> None:
+    """Only a VERIFIED registration appears in the diagram."""
+    registration = RegistrationFactory.create(**{trait: True})
+
+    assert queue_you_for(registration, 1) == ("", None)
+
+
+def test_queue_you_for_verified_with_no_position_and_no_match() -> None:
+    """A VERIFIED registration that is neither queued nor matched is absent.
+
+    This is the ineligible case — the caller passes ``None`` for the position
+    because ``queue_position`` found no place in the eligible pool.
+    """
+    registration = RegistrationFactory.create(
+        prior_pass=Registration.PriorPass.NONE,
+    )
+
+    assert queue_you_for(registration, None) == ("", None)
+
+
+# ---------------------------------------------------------------------------
+# queue_snapshot_context — the viewer highlight (SKI-174)
+# ---------------------------------------------------------------------------
+
+
+def test_queue_snapshot_context_without_registration_highlights_nothing() -> None:
+    """An anonymous visitor gets the pool picture with no highlight."""
+    RegistrationFactory.create()
+
+    context = queue_snapshot_context(_NOW)
+
+    assert context["ambassadors"]["you_glyph"] is None
+    assert context["referees"]["you_glyph"] is None
+    assert context["matches"]["you_glyph"] is None
+
+
+def test_queue_snapshot_context_highlights_the_viewers_own_glyph() -> None:
+    """A queued ambassador's own slot is highlighted, and only that one."""
+    RegistrationFactory.create_batch(2)
+    registration = RegistrationFactory.create()
+
+    context = queue_snapshot_context(_NOW, registration, 3)
+
+    assert context["ambassadors"]["you_glyph"] == 2
+    assert context["referees"]["you_glyph"] is None
+    assert context["matches"]["you_glyph"] is None
+
+
+def test_queue_snapshot_context_highlights_a_referee_in_the_referee_column() -> None:
+    """A queued referee is highlighted on the referee side, not the ambassador side."""
+    registration = RegistrationFactory.create(referee=True)
+
+    context = queue_snapshot_context(_NOW, registration, 1)
+
+    assert context["referees"]["you_glyph"] == 0
+    assert context["ambassadors"]["you_glyph"] is None
+
+
+def test_queue_snapshot_context_highlights_a_matched_viewers_pair() -> None:
+    """A matched viewer's pair is highlighted in the centre column."""
+    match = MatchFactory.create()
+
+    context = queue_snapshot_context(_NOW, match.ambassador_registration, None)
+
+    assert context["matches"]["you_glyph"] == 0
+    assert context["ambassadors"]["you_glyph"] is None
+
+
+def test_queue_snapshot_context_paused_registration_highlights_nothing() -> None:
+    """A paused registration is out of the pool, so nothing is highlighted."""
+    registration = RegistrationFactory.create(paused=True)
+
+    context = queue_snapshot_context(_NOW, registration, None)
+
+    assert context["ambassadors"]["you_glyph"] is None
+    assert context["matches"]["you_glyph"] is None

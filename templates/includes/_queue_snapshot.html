@@ -27,13 +27,12 @@ Include contract (single param):
              card, which is how the standalone /queue/ page and the homepage
              mount it. True drops the card chrome so the diagram can sit inside
              a card the caller already opened — the account page renders it
-             inside the Match status card (SKI-174), separated by a rule rather
-             than by a second card edge.
+             inside the Match status card (SKI-174), set off by spacing alone.
 
 The "id" is kept on the outer element so a future hx-get can target it for
 polling — no polling in this ticket.
 {% endcomment %}
-<div class="{% if embedded %}mt-6 border-t border-line pt-6{% else %}card{% endif %}" id="queue-snapshot">
+<div class="{% if embedded %}mt-6{% else %}card{% endif %}" id="queue-snapshot">
     <div class="mb-4">
         <h2 class="text-lg font-semibold text-ink">{% translate "Who's in the queue" %}</h2>
         {% if not queue.is_open %}

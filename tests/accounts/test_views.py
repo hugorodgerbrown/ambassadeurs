@@ -330,8 +330,8 @@ def test_detail_renders_the_queue_inside_the_match_status_card() -> None:
     content = response.content.decode()
     assert 'id="queue-snapshot"' in content
     assert "Who's in the queue" in content
-    # Embedded: a rule inside the host card rather than a second card edge.
-    assert 'class="mt-6 border-t border-line pt-6" id="queue-snapshot"' in content
+    # Embedded: no card chrome of its own — it sits inside the host card.
+    assert 'class="mt-6" id="queue-snapshot"' in content
     assert content.index("Match status") < content.index("Who's in the queue")
 
 

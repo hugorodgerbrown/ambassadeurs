@@ -11,9 +11,11 @@ from matching.selectors import (
     _QUEUE_MAX_PAIRS,
     _capped,
     build_queue_context,
+    counterparts_needed,
     instant_match_role,
     match_status_context,
     queue_snapshot_context,
+    queue_you_for,
     status_pill_for,
 )
 from tests.accounts.factories import UserFactory
@@ -490,3 +492,196 @@ def test_build_queue_context_matches_you_glyph_uses_pairs_cap_not_icons_cap() ->
         you_index=_QUEUE_MAX_PAIRS,
     )
     assert context_dropped["matches"]["you_glyph"] is None
+
+
+# ---------------------------------------------------------------------------
+# counterparts_needed (SKI-174)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("position", "waiting", "expected"),
+    [
+        (1, 0, 1),  # next arrival is yours
+        (4, 0, 4),  # empty opposite side — position is the whole answer
+        (4, 1, 3),  # one already waiting discounts the figure
+        (4, 4, 0),  # exactly enough waiting — pairing is imminent
+        (2, 9, 0),  # more than enough — floors at zero, never negative
+    ],
+)
+def test_counterparts_needed(position: int, waiting: int, expected: int) -> None:
+    """Arrivals required is position minus counterparts waiting, floored at 0."""
+    assert counterparts_needed(position, waiting) == expected
+
+
+# ---------------------------------------------------------------------------
+# queue_you_for (SKI-174)
+# ---------------------------------------------------------------------------
+
+
+def test_queue_you_for_waiting_ambassador() -> None:
+    """A queued ambassador is the first glyph of the ambassadors column."""
+    registration = RegistrationFactory.create()
+
+    assert queue_you_for(registration) == ("ambassadors", 0, 1)
+
+
+def test_queue_you_for_waiting_referee_behind_others() -> None:
+    """A referee behind one other is the second glyph of the referees column."""
+    RegistrationFactory.create(referee=True)
+    registration = RegistrationFactory.create(referee=True)
+
+    assert queue_you_for(registration) == ("referees", 1, 2)
+
+
+def test_queue_you_for_matched_registration() -> None:
+    """A matched registration is a pair in the centre column, with no position."""
+    match = MatchFactory.create()
+
+    assert queue_you_for(match.ambassador_registration) == ("matches", 0, None)
+    assert queue_you_for(match.referee_registration) == ("matches", 0, None)
+
+
+@pytest.mark.parametrize(
+    "trait",
+    ["unverified", "paused", "suspended"],
+)
+def test_queue_you_for_non_verified_is_not_in_the_picture(trait: str) -> None:
+    """Only a VERIFIED registration appears in the diagram."""
+    registration = RegistrationFactory.create(**{trait: True})
+
+    assert queue_you_for(registration) == ("", None, None)
+
+
+def test_queue_you_for_verified_but_ineligible_is_not_in_the_picture() -> None:
+    """A VERIFIED ambassador with no prior pass cannot be paired, so no highlight."""
+    registration = RegistrationFactory.create(
+        prior_pass=Registration.PriorPass.NONE,
+    )
+
+    assert queue_you_for(registration) == ("", None, None)
+
+
+# ---------------------------------------------------------------------------
+# queue_snapshot_context — the "you" payload (SKI-174)
+# ---------------------------------------------------------------------------
+
+
+def test_queue_snapshot_context_without_registration_has_no_you() -> None:
+    """An anonymous visitor gets the pool picture with no highlight."""
+    RegistrationFactory.create()
+
+    assert queue_snapshot_context(_NOW)["you"] is None
+
+
+def test_queue_snapshot_context_you_counts_eligible_counterparts() -> None:
+    """A queued ambassador is told how many further referees must register.
+
+    Three ambassadors wait and no referee does, so the third ambassador needs
+    three referees before their own pairing — the last of those three matches.
+    """
+    RegistrationFactory.create_batch(2)
+    registration = RegistrationFactory.create()
+
+    context = queue_snapshot_context(_NOW, registration)
+
+    assert context["you"] == {
+        "role": "ambassadors",
+        "position": 3,
+        "counterparts_needed": 3,
+        "counterpart_role": "referee",
+    }
+    assert context["ambassadors"]["you_glyph"] == 2
+
+
+def test_queue_snapshot_context_you_discounts_waiting_counterparts() -> None:
+    """Eligible counterparts already in the pool reduce the arrivals needed.
+
+    Two ambassadors and one referee wait (an unpaired state the hourly sweep has
+    not yet drained), so the second ambassador needs one further referee.
+    """
+    RegistrationFactory.create()
+    registration = RegistrationFactory.create()
+    RegistrationFactory.create(referee=True)
+
+    context = queue_snapshot_context(_NOW, registration)
+
+    assert context["you"]["counterparts_needed"] == 1
+    assert context["you"]["position"] == 2
+
+
+def test_queue_snapshot_context_you_for_referee_names_the_other_side() -> None:
+    """A queued referee's counterpart role is the ambassador."""
+    registration = RegistrationFactory.create(referee=True)
+
+    context = queue_snapshot_context(_NOW, registration)
+
+    assert context["you"]["role"] == "referees"
+    assert context["you"]["counterpart_role"] == "ambassador"
+    assert context["referees"]["you_glyph"] == 0
+
+
+def test_queue_snapshot_context_you_for_matched_user_has_no_arithmetic() -> None:
+    """A matched viewer highlights a pair and is waiting for nobody."""
+    match = MatchFactory.create()
+
+    context = queue_snapshot_context(_NOW, match.ambassador_registration)
+
+    assert context["you"] == {
+        "role": "matches",
+        "position": None,
+        "counterparts_needed": None,
+        "counterpart_role": "",
+    }
+    assert context["matches"]["you_glyph"] == 0
+
+
+def test_queue_snapshot_context_you_none_for_paused_registration() -> None:
+    """A paused registration is out of the pool, so it gets no highlight."""
+    registration = RegistrationFactory.create(paused=True)
+
+    assert queue_snapshot_context(_NOW, registration)["you"] is None
+
+
+# ---------------------------------------------------------------------------
+# build_queue_context — the "you" payload (SKI-174)
+# ---------------------------------------------------------------------------
+
+
+def test_build_queue_context_you_is_none_without_a_role() -> None:
+    """No ``you_role`` means the viewer is not in the picture."""
+    context = build_queue_context(
+        ambassadors_waiting=3,
+        referees_waiting=0,
+        matches=0,
+        is_open=True,
+        opens_at=_NOW,
+        days_until_open=0,
+        you_position=2,
+        you_counterparts_needed=2,
+    )
+
+    assert context["you"] is None
+
+
+def test_build_queue_context_you_carries_the_caption_figures() -> None:
+    """``you`` relays the position, arrivals needed, and the opposite side."""
+    context = build_queue_context(
+        ambassadors_waiting=3,
+        referees_waiting=0,
+        matches=0,
+        is_open=True,
+        opens_at=_NOW,
+        days_until_open=0,
+        you_role="referees",
+        you_index=0,
+        you_position=1,
+        you_counterparts_needed=1,
+    )
+
+    assert context["you"] == {
+        "role": "referees",
+        "position": 1,
+        "counterparts_needed": 1,
+        "counterpart_role": "ambassador",
+    }

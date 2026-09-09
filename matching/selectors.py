@@ -17,6 +17,12 @@
 # into the two-column context templates/includes/_queue_snapshot.html reads;
 # the aggregate counting logic itself stays in services.py (this module never
 # runs its own queries).
+#
+# The "you" payload (SKI-174) extends that context with the viewer's own
+# standing, so the account page can say what has to happen before they are
+# matched rather than only quoting an ordinal. Its arithmetic lives in the pure
+# counterparts_needed helper below; the counts it consumes come from
+# services.eligible_pool_size and services.matched_pair_index.
 
 from __future__ import annotations
 
@@ -30,7 +36,12 @@ from django.utils.translation import gettext as _
 
 from .models import Match, Registration
 from .pricing_config import matching_opens_at
-from .services import queue_position, queue_snapshot
+from .services import (
+    eligible_pool_size,
+    matched_pair_index,
+    queue_position,
+    queue_snapshot,
+)
 
 
 class StatusPill(TypedDict):
@@ -266,6 +277,38 @@ class QueueMatches(TypedDict):
     you_glyph: int | None
 
 
+class QueueYou(TypedDict):
+    """The viewer's own standing within the queue visualisation (SKI-174).
+
+    Set on ``QueueSnapshotContext`` only when the viewer is actually represented
+    in the picture — a VERIFIED registration waiting in the eligible pool, or one
+    holding an active match. ``None`` for everyone else (an anonymous visitor, an
+    admin with no registration, an UNVERIFIED / PAUSED / WITHDRAWN / SUSPENDED
+    registration, or one whose ``prior_pass`` keeps it out of the eligible pool).
+
+    ``role`` names the section holding them, and so which glyph is drawn in the
+    highlight colour. ``position`` is their 1-based place in their own eligible
+    queue; ``counterparts_needed`` is how many further counterpart registrations
+    must arrive before they are paired, and ``counterpart_role`` names that
+    opposite side (singular, for the caption copy). The last three are ``None`` /
+    ``""`` when ``role`` is ``"matches"`` — a matched viewer waits for nobody.
+    """
+
+    role: str
+    position: int | None
+    counterparts_needed: int | None
+    counterpart_role: str
+
+
+# Which section of the visualisation a viewer occupies; "" means they are not in
+# the picture at all.
+QueueSection = Literal["", "ambassadors", "referees", "matches"]
+
+# Which side has to show up for a given waiting section to be paired. Singular,
+# because the caption copy reads "the next referee to register".
+_COUNTERPART_ROLE = {"ambassadors": "referee", "referees": "ambassador"}
+
+
 class QueueSnapshotContext(TypedDict):
     """The full render context for ``templates/includes/_queue_snapshot.html``.
 
@@ -280,6 +323,10 @@ class QueueSnapshotContext(TypedDict):
     next arrival on the empty side is matched immediately; ``""`` otherwise. It
     drives the persistent "next X will be matched immediately" subheader (which
     is on screen for most of the season, since the scarce side stays empty).
+
+    ``you`` (SKI-174) carries the viewer's own standing, or ``None`` when the
+    viewer is not in the picture; it drives both the highlighted glyph and the
+    caption beneath the diagram.
     """
 
     ambassadors: QueueColumn
@@ -289,6 +336,7 @@ class QueueSnapshotContext(TypedDict):
     opens_at: datetime
     days_until_open: int
     instant_match_role: str
+    you: QueueYou | None
 
 
 def _capped(count: int, cap: int) -> tuple[list[int], bool]:
@@ -364,8 +412,74 @@ def instant_match_role(
     return ""
 
 
-def queue_snapshot_context(now: datetime) -> QueueSnapshotContext:
-    """Build the render context for the standalone queue visualisation.
+def counterparts_needed(position: int, counterparts_waiting: int) -> int:
+    """Return how many further counterpart registrations precede a pairing.
+
+    The engine pairs each arriving counterpart with the front of the opposite
+    queue, so a participant sitting at 1-based ``position`` is matched once
+    ``position`` eligible counterparts are available — and is the last of that
+    batch to be paired. Counterparts already waiting in the eligible pool
+    discount the figure, and the result floors at zero, which means enough are
+    waiting already and the pairing is imminent rather than pending an arrival.
+
+    Pure — no DB, no clock.
+
+    Args:
+        position: The participant's 1-based place in their own eligible queue.
+        counterparts_waiting: Eligible counterparts currently in the pool.
+
+    Returns:
+        The number of further counterpart registrations required, at least 0.
+    """
+    return max(position - counterparts_waiting, 0)
+
+
+def queue_you_for(
+    registration: Registration,
+) -> tuple[QueueSection, int | None, int | None]:
+    """Return ``(you_role, you_index, you_position)`` for ``registration``.
+
+    Locates the viewer within the queue visualisation. A VERIFIED registration
+    holding a place in its own eligible pool is a waiting glyph in that role's
+    column (``"ambassadors"`` / ``"referees"``); one holding an active match is a
+    pair in the centre column (``"matches"``, with no position). Anything else —
+    not VERIFIED, or VERIFIED but kept out of the eligible pool by its
+    ``prior_pass`` — is not in the picture and returns ``("", None, None)``.
+
+    ``you_index`` for a waiting registration is ``position - 1``. Note that
+    ``position`` ranks within the *eligible* pool while the column it indexes
+    counts the *waiting* pool (VERIFIED, no active match, unfiltered by
+    ``prior_pass``). The eligible pool is a subset, so the index can never
+    overrun the column; it may sit a glyph or two off true, which is invisible
+    because the glyphs are anonymous and identical. The caption figure, which
+    does have to be exact, is computed from eligible counts on both sides.
+
+    Args:
+        registration: The viewer's registration.
+
+    Returns:
+        The role key, the 0-based glyph index, and the 1-based queue position
+        (``None`` for a matched viewer).
+    """
+    if registration.status != Registration.Status.VERIFIED:
+        return "", None, None
+
+    position = queue_position(registration)
+    if position is not None:
+        role: QueueSection = "ambassadors" if registration.is_ambassador else "referees"
+        return role, position - 1, position
+
+    pair_index = matched_pair_index(registration)
+    if pair_index is not None:
+        return "matches", pair_index, None
+
+    return "", None, None
+
+
+def queue_snapshot_context(
+    now: datetime, registration: Registration | None = None
+) -> QueueSnapshotContext:
+    """Build the render context for the queue visualisation.
 
     Calls ``matching.services.queue_snapshot`` and shapes it into three columns:
     ambassadors waiting, matched pairs, referees waiting. The two side columns
@@ -382,13 +496,37 @@ def queue_snapshot_context(now: datetime) -> QueueSnapshotContext:
     ``matching_opens_at()``; ``days_until_open`` is the whole-day countdown to
     that date (0 once open), computed in the active timezone.
 
+    ``registration`` is the viewer's own, when there is one (SKI-174). Given it,
+    the context also carries the ``you`` payload: which section holds them, which
+    glyph to highlight, and how many further counterpart registrations stand
+    between them and a pairing. Omitted — or given a registration that is not in
+    the picture — ``you`` is ``None`` and the component renders exactly as it did
+    for an anonymous visitor.
+
     Args:
         now: The tz-aware instant to evaluate the open-date gate against.
+        registration: The viewer's registration, or ``None``.
 
     Returns:
-        The full render context, including the open-date keys.
+        The full render context, including the open-date and ``you`` keys.
     """
     snapshot = queue_snapshot()
+
+    you_role: QueueSection = ""
+    you_index: int | None = None
+    you_position: int | None = None
+    you_needed: int | None = None
+    if registration is not None:
+        you_role, you_index, you_position = queue_you_for(registration)
+        if you_position is not None:
+            counterpart = (
+                Registration.Role.REFEREE
+                if registration.is_ambassador
+                else Registration.Role.AMBASSADOR
+            )
+            you_needed = counterparts_needed(
+                you_position, eligible_pool_size(counterpart)
+            )
 
     opens_at = matching_opens_at()
     is_open = now >= opens_at
@@ -404,6 +542,10 @@ def queue_snapshot_context(now: datetime) -> QueueSnapshotContext:
         is_open=is_open,
         opens_at=opens_at,
         days_until_open=days_until_open,
+        you_role=you_role,
+        you_index=you_index,
+        you_position=you_position,
+        you_counterparts_needed=you_needed,
     )
 
 
@@ -415,8 +557,10 @@ def build_queue_context(
     is_open: bool,
     opens_at: datetime,
     days_until_open: int,
-    you_role: Literal["", "ambassadors", "referees", "matches"] = "",
+    you_role: QueueSection = "",
     you_index: int | None = None,
+    you_position: int | None = None,
+    you_counterparts_needed: int | None = None,
 ) -> QueueSnapshotContext:
     """Shape explicit counts + open-state into a ``QueueSnapshotContext``.
 
@@ -437,6 +581,10 @@ def build_queue_context(
             highlight). Routes ``you_index`` to that section only.
         you_index: The current user's zero-based position within ``you_role``'s
             glyphs; highlighted only when it falls within the drawn grid.
+        you_position: The current user's 1-based place in their own eligible
+            queue, or ``None`` (a matched user is waiting in no queue).
+        you_counterparts_needed: Further counterpart registrations required
+            before the current user is paired, or ``None``.
 
     Returns:
         The full render context.
@@ -466,6 +614,16 @@ def build_queue_context(
         "is_open": is_open,
         "opens_at": opens_at,
         "days_until_open": days_until_open,
+        "you": (
+            {
+                "role": you_role,
+                "position": you_position,
+                "counterparts_needed": you_counterparts_needed,
+                "counterpart_role": _COUNTERPART_ROLE.get(you_role, ""),
+            }
+            if you_role
+            else None
+        ),
         "instant_match_role": instant_match_role(
             is_open, ambassadors_waiting, referees_waiting
         ),

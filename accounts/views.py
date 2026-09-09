@@ -44,7 +44,7 @@ from billing.models import Payment
 from core.emails import normalise_email
 from core.ratelimit import rate_limited_response
 from matching.models import Match, Registration
-from matching.selectors import match_status_context
+from matching.selectors import match_status_context, queue_snapshot_context
 from matching.services import rejoin_queue
 from public.views import _render_match_page
 
@@ -182,6 +182,12 @@ def account_detail(request: HttpRequest) -> HttpResponse:
     ``email_verified`` is derived from the Registration status (not from the
     former allauth EmailAddress model, which has been removed in VERB-46).
     An admin user with no Registration is treated as unverified (False).
+
+    ``queue`` (SKI-174) is the live queue visualisation, built for this viewer:
+    passing their registration to ``queue_snapshot_context`` adds the ``you``
+    payload, so the component highlights their own glyph and captions it with
+    what still has to happen before they are matched. A user with no
+    registration still gets the pool picture, just without the highlight.
     """
     user = cast(User, request.user)
     status_context = match_status_context(user)
@@ -206,6 +212,7 @@ def account_detail(request: HttpRequest) -> HttpResponse:
             **status_context,
             "email_verified": email_verified,
             "debug_verify_url": debug_verify_url,
+            "queue": queue_snapshot_context(timezone.now(), registration),
         },
     )
 

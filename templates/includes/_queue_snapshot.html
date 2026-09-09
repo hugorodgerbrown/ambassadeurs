@@ -11,7 +11,7 @@ carry the read.
 Include contract (single param):
   queue — a matching.selectors.QueueSnapshotContext:
             {ambassadors, matches, referees, is_open, opens_at,
-             days_until_open, instant_match_role}
+             days_until_open, instant_match_role, you}
           QueueColumn  = {count, glyphs, truncated, you_glyph}
           QueueMatches = {count, people, glyphs, truncated, you_glyph}
           `glyphs` is a list to iterate (one icon each); `truncated` is True when
@@ -22,6 +22,12 @@ Include contract (single param):
           logged-in user can spot themselves in the pool.
           `instant_match_role` drives the subheader and the empty-side
           "Instant match*" label.
+          `queue.you` (SKI-174) is a QueueYou or None: {role, position,
+          counterparts_needed, counterpart_role}. When set it draws the caption
+          below the diagram — the legend for the highlighted glyph, and what
+          still has to happen before this viewer is matched. None for an
+          anonymous visitor or anyone not represented in the pool, in which case
+          no caption renders.
 
 The "id" is kept on the outer card so a future hx-get can target it for
 polling — no polling in this ticket.
@@ -260,4 +266,38 @@ polling — no polling in this ticket.
             </div>
         </div>
     </div>
+    {% comment %}
+        Viewer caption (SKI-174) — the legend for the highlighted glyph, plus
+        what has to happen before this viewer is matched. Rendered only when the
+        viewer is represented in the diagram; absent for anonymous visitors.
+        The counterpart-role branches carry whole sentences rather than a
+        substituted noun so translators get complete, natural strings.
+    {% endcomment %}
+    {% if queue.you %}
+        <p class="mt-6 border-t border-line pt-4 text-center text-sm text-body">
+            <span class="font-semibold text-notice">{% translate "You" %}</span>
+            <span aria-hidden="true">&nbsp;&middot;&nbsp;</span>
+            {% if queue.you.role == 'matches' %}
+                {% translate "You have been matched — your pair is highlighted above." %}
+            {% elif not queue.is_open %}
+                {% blocktranslate with position=queue.you.position trimmed %}
+                    You are number {{ position }} in the queue.
+                {% endblocktranslate %}
+            {% elif queue.you.counterparts_needed == 0 %}
+                {% translate "You are due to be matched — we'll email you as soon as it happens." %}
+            {% elif queue.you.counterpart_role == 'referee' %}
+                {% blocktranslate count n=queue.you.counterparts_needed trimmed %}
+                    The next referee to register will be matched with you.
+                {% plural %}
+                    Once {{ n }} more referees register, yours will be the last of those matches.
+                {% endblocktranslate %}
+            {% else %}
+                {% blocktranslate count n=queue.you.counterparts_needed trimmed %}
+                    The next ambassador to register will be matched with you.
+                {% plural %}
+                    Once {{ n }} more ambassadors register, yours will be the last of those matches.
+                {% endblocktranslate %}
+            {% endif %}
+        </p>
+    {% endif %}
 </div>

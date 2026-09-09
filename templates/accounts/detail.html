@@ -105,6 +105,15 @@
         {# Match status card — see accounts/partials/match_status.html #}
         {% include "accounts/partials/match_status.html" %}
 
+        {% comment %}
+            Live queue (SKI-174) — the pool as a whole, with this viewer's own
+            glyph highlighted and captioned. Sits directly below the Match
+            status card: that card gives the ordinal, this one gives it meaning.
+        {% endcomment %}
+        <div class="mb-6">
+            {% include "includes/_queue_snapshot.html" with queue=queue %}
+        </div>
+
         {# Security #}
         <div class="card">
             <h2 class="mb-3 text-lg font-semibold text-ink">{% translate "Security" %}</h2>

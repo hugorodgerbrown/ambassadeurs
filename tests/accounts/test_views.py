@@ -314,6 +314,70 @@ def test_detail_without_registration_shows_register_link() -> None:
 
 
 # ---------------------------------------------------------------------------
+# account_detail — live queue component (SKI-174)
+# ---------------------------------------------------------------------------
+
+
+def test_detail_renders_the_queue_component() -> None:
+    """The detail page carries the live queue card."""
+    registration = RegistrationFactory.create()
+    client = Client()
+    client.force_login(registration.user)
+    response = client.get(reverse("accounts:detail"))
+    assert response.status_code == 200
+    assert b'id="queue-snapshot"' in response.content
+
+
+def test_detail_queue_highlights_the_viewer() -> None:
+    """A queued ambassador is highlighted and told how many referees are needed.
+
+    Two ambassadors wait and no referee does, so the second needs two referees
+    before their own pairing.
+    """
+    RegistrationFactory.create()
+    registration = RegistrationFactory.create()
+    client = Client()
+    client.force_login(registration.user)
+
+    response = client.get(reverse("accounts:detail"))
+
+    assert response.status_code == 200
+    assert response.context["queue"]["you"] == {
+        "role": "ambassadors",
+        "position": 2,
+        "counterparts_needed": 2,
+        "counterpart_role": "referee",
+    }
+    assert response.context["queue"]["ambassadors"]["you_glyph"] == 1
+    assert b"Once 2 more referees register" in response.content
+
+
+def test_detail_queue_has_no_highlight_without_a_registration() -> None:
+    """An admin user with no registration still sees the pool, without a highlight."""
+    RegistrationFactory.create()
+    client = Client()
+    client.force_login(UserFactory.create())
+
+    response = client.get(reverse("accounts:detail"))
+
+    assert response.status_code == 200
+    assert response.context["queue"]["you"] is None
+    assert response.context["queue"]["ambassadors"]["count"] == 1
+
+
+def test_detail_queue_has_no_highlight_for_a_paused_registration() -> None:
+    """A paused registration is out of the pool, so nothing is highlighted."""
+    registration = RegistrationFactory.create(paused=True)
+    client = Client()
+    client.force_login(registration.user)
+
+    response = client.get(reverse("accounts:detail"))
+
+    assert response.status_code == 200
+    assert response.context["queue"]["you"] is None
+
+
+# ---------------------------------------------------------------------------
 # account_detail — email_verified derived from Registration.status (VERB-46)
 # ---------------------------------------------------------------------------
 

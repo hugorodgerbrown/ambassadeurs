@@ -227,6 +227,33 @@ def test_propose_match_returns_none_when_no_eligible_counterpart() -> None:
     assert Match.objects.count() == 0
 
 
+@pytest.mark.parametrize("referee_proposes", [False, True])
+def test_propose_match_returns_none_when_proposer_already_matched(
+    referee_proposes: bool,
+) -> None:
+    """propose_match backs off when the proposer already holds an active match.
+
+    Models the loser of a race between two callers proposing for the same
+    registration (e.g. two concurrent declines of one match): by the time it
+    runs, the winner's match exists, so it must not create a second one even
+    though an eligible counterpart is waiting.
+    """
+    existing = MatchFactory.create()
+    RegistrationFactory.create()
+    RegistrationFactory.create(referee=True)
+    proposer = (
+        existing.referee_registration
+        if referee_proposes
+        else existing.ambassador_registration
+    )
+
+    with transaction.atomic():
+        result = propose_match(proposer)
+
+    assert result is None
+    assert list(Match.objects.all()) == [existing]
+
+
 def test_propose_match_prefers_shared_location() -> None:
     """propose_match picks the referee sharing the ambassador's preferred_location."""
     verbier_referee = RegistrationFactory.create(
@@ -2295,6 +2322,56 @@ def test_decline_match_notifies_requeued_partner_only() -> None:
     assert mail.outbox[0].to == [referee_reg.user.email]
 
 
+def test_decline_match_proposes_requeued_party_to_waiting_counterpart() -> None:
+    """decline_match pairs the re-queued party with a waiting counterpart at once.
+
+    The kept-faith referee must not wait for the hourly run_matching sweep:
+    a VERIFIED ambassador already in the pool is proposed to them inside the
+    same decline call.
+    """
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    waiting_ambassador = RegistrationFactory.create()
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        decline_match(match, ambassador_reg)
+
+    new_match = Match.objects.exclude(pk=match.pk).get()
+    assert new_match.status == Match.Status.PROPOSED
+    assert new_match.referee_registration_id == referee_reg.pk
+    assert new_match.ambassador_registration_id == waiting_ambassador.pk
+    # Re-queued notice to the referee, then a proposal email to each side.
+    assert sorted(m.to[0] for m in mail.outbox) == sorted(
+        [
+            referee_reg.user.email,
+            referee_reg.user.email,
+            waiting_ambassador.user.email,
+        ]
+    )
+
+
+def test_decline_match_does_not_repropose_decliner() -> None:
+    """With no other counterpart waiting, decline_match proposes nothing.
+
+    The decliner is PAUSED before the re-queued party is proposed, so the
+    engine cannot hand the declined pair straight back.
+    """
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+
+    decline_match(match, ambassador_reg)
+
+    assert list(Match.objects.all()) == [match]
+
+
 # ---------------------------------------------------------------------------
 # report_no_show (VERB-21 / VERB-44: ACCEPTED → CANCELLED)
 # ---------------------------------------------------------------------------
@@ -2564,6 +2641,25 @@ def test_report_no_show_returns_updated_match() -> None:
 
     assert result.status == Match.Status.CANCELLED
     assert result.pk == match.pk
+
+
+def test_report_no_show_proposes_reporter_to_waiting_counterpart() -> None:
+    """report_no_show pairs the re-queued reporter with a waiting counterpart."""
+    ambassador_reg = RegistrationFactory.create()
+    referee_reg = RegistrationFactory.create(referee=True)
+    match = MatchFactory.create(
+        accepted=True,
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+    )
+    waiting_referee = RegistrationFactory.create(referee=True)
+
+    report_no_show(match, ambassador_reg)
+
+    new_match = Match.objects.exclude(pk=match.pk).get()
+    assert new_match.status == Match.Status.PROPOSED
+    assert new_match.ambassador_registration_id == ambassador_reg.pk
+    assert new_match.referee_registration_id == waiting_referee.pk
 
 
 # ---------------------------------------------------------------------------

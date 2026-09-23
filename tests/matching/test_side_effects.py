@@ -254,6 +254,8 @@ def test_propose_match_does_not_lazy_load_either_sides_user(
     off the created match (via return_value); a missing select_related on
     propose_match's post-create reload fires one extra `auth_user` SELECT per
     side when the handlers run (measured: 5 queries without the fix, 4 with).
+    SKI-175 added two queries — the proposer row lock and its active-match
+    re-check — so the budget is 6.
     """
     RegistrationFactory.create(referee=True)
     ambassador = RegistrationFactory.create(
@@ -269,7 +271,7 @@ def test_propose_match_does_not_lazy_load_either_sides_user(
     # handlers' queries run when captureOnCommitCallbacks(execute=True)
     # fires its deferred callbacks at __exit__, which happens after an inner
     # block would already have closed and stopped counting.
-    with django_assert_max_num_queries(4):
+    with django_assert_max_num_queries(6):
         with TestCase.captureOnCommitCallbacks(execute=True):
             match = propose_match(ambassador_fresh)
 

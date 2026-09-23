@@ -335,6 +335,60 @@ def test_expire_match_pending_transitions_and_handles_participants() -> None:
     assert len(mail.outbox) == 2
 
 
+def test_expire_match_proposes_kept_faith_side_to_waiting_counterpart() -> None:
+    """expire_match pairs the kept-faith side with a waiting counterpart at once.
+
+    The non-responding referee is paused before the proposal runs, so the
+    ambassador is paired with the other waiting referee, not handed back the
+    referee who let the window lapse.
+    """
+    ambassador_reg = RegistrationFactory.create()
+    lapsed_referee = RegistrationFactory.create(referee=True)
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=lapsed_referee,
+        expires_at=_PAST,
+        ambassador_accepted_at=_PAST,
+        status=Match.Status.PENDING,
+    )
+    waiting_referee = RegistrationFactory.create(referee=True)
+
+    expire_match(match)
+
+    new_match = Match.objects.exclude(pk=match.pk).get()
+    assert new_match.status == Match.Status.PROPOSED
+    assert new_match.ambassador_registration_id == ambassador_reg.pk
+    assert new_match.referee_registration_id == waiting_referee.pk
+
+
+def test_expire_match_does_not_repropose_lapsed_pair() -> None:
+    """With no other counterpart waiting, expire_match proposes nothing."""
+    ambassador_reg = RegistrationFactory.create()
+    lapsed_referee = RegistrationFactory.create(referee=True)
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=lapsed_referee,
+        expires_at=_PAST,
+        ambassador_accepted_at=_PAST,
+        status=Match.Status.PENDING,
+    )
+
+    expire_match(match)
+
+    assert list(Match.objects.all()) == [match]
+
+
+def test_expire_match_proposed_with_no_acceptance_proposes_nothing() -> None:
+    """A PROPOSED match that lapses pauses both sides and proposes no one."""
+    match = MatchFactory.create(expires_at=_PAST)
+    RegistrationFactory.create()
+    RegistrationFactory.create(referee=True)
+
+    expire_match(match)
+
+    assert list(Match.objects.all()) == [match]
+
+
 # ---------------------------------------------------------------------------
 # handle_lapsed_participant — service coordination, role-agnostic
 #

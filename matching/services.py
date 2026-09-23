@@ -10,10 +10,11 @@
 # The open-date gate (VERB-83): propose_match is a no-op before
 # matching_opens_at() (from matching.pricing_config, VERB-82). The gate lives
 # inside propose_match — the single chokepoint every proposing caller
-# (register_participant, confirm_registration, rejoin_queue, and any future
-# one) passes through — so a pre-open email-confirmation or rejoin can never
-# leak a match. Registrations still verify and enqueue before the open date;
-# they are simply not paired until it. run_matching drains the built-up queue
+# (register_participant, confirm_registration, rejoin_queue, and the re-queue
+# paths in decline_match, expire_match and report_no_show) passes through —
+# so a pre-open email-confirmation or rejoin can never leak a match.
+# Registrations still verify and enqueue before the open date; they are simply
+# not paired until it. run_matching drains the built-up queue
 # at/after the open date (it reuses propose_match, so the gate is satisfied by
 # the time it runs) and can then run on a schedule to complement the rolling
 # synchronous behaviour for late entrants.
@@ -367,7 +368,10 @@ def propose_match(registration: Registration) -> Match | None:
     (FIFO within the same priority).
 
     Returns the created Match, or None if no eligible counterpart is waiting.
-    No-ops (returns None) if ``registration`` is not itself eligible.
+    No-ops (returns None) if ``registration`` is not itself eligible, or if it
+    already holds an active match — checked after locking its own row, so two
+    concurrent callers proposing for the same registration create one match,
+    not two (SKI-175).
 
     Registrations no longer flip to MATCHED when a match is proposed (VERB-44).
     Pool availability is managed by RegistrationQuerySet._without_active_match,
@@ -415,6 +419,23 @@ def propose_match(registration: Registration) -> Match | None:
             .exclude(pk=registration.pk)
             .select_for_update()
         )
+
+    # Lock the proposer's own row, then re-check it holds no active match. The
+    # candidate lock above covers counterparts only; without this, two
+    # concurrent callers proposing for the same registration (e.g. racing
+    # declines of one match, or a decline overlapping the run_matching sweep)
+    # could each create a match for it. The second caller blocks here until
+    # the first commits, then sees the new match and backs off.
+    Registration.objects.select_for_update().filter(pk=registration.pk).first()
+    if (
+        Match.objects.active()
+        .filter(
+            Q(ambassador_registration=registration)
+            | Q(referee_registration=registration)
+        )
+        .exists()
+    ):
+        return None
 
     if not candidates.exists():
         return None
@@ -616,6 +637,8 @@ def decline_match(match: Match, registration: Registration) -> Match:
       account page (VERB-74 / ADR 0013).
     - Re-queues the other party to the front of the pool (``requeue_to_front``).
       No PII and no reason are disclosed in the notification (Invariant 1).
+    - Calls ``propose_match`` for the other party, so a waiting counterpart is
+      paired at once instead of at the next hourly ``run_matching`` sweep.
 
     All three steps run inside a single outer ``transaction.atomic()`` block so
     that a crash between steps cannot leave a partial state (e.g. match DECLINED
@@ -649,6 +672,10 @@ def decline_match(match: Match, registration: Registration) -> Match:
 
         pause_registration(registration)
         requeue_to_front(other)
+        # Pair the re-queued party now rather than leaving them for the next
+        # hourly run_matching sweep. The decliner is already PAUSED, so the
+        # engine cannot hand the same pair back.
+        propose_match(other)
 
     logger.info(
         "decline_match: match pk=%s DECLINED by registration pk=%s "
@@ -881,8 +908,9 @@ def expire_match(match: Match) -> None:
     row lock is taken (VERB-106).
 
     Transitions the match to EXPIRED via the ``Match.expire`` model method,
-    persists it, records the transition, and calls
-    ``handle_lapsed_participants`` to apply the per-side re-queue/pause outcome.
+    persists it, records the transition, calls ``handle_lapsed_participants``
+    to apply the per-side re-queue/pause outcome, then calls ``propose_match``
+    for the side that had accepted (if any) so it is paired at once.
     Decorated with ``@has_side_effects(MATCH_EXPIRED)`` (VERB-107): the
     ``matching.side_effects`` handlers bound to that label notify each side,
     picking requeued-vs-window-expired copy from that side's own
@@ -916,6 +944,17 @@ def expire_match(match: Match) -> None:
     # Both FKs are non-null; assertions satisfy mypy.
     assert match.ambassador_registration is not None
     assert match.referee_registration is not None
+
+    # Pair the kept-faith side now rather than leaving them for the next hourly
+    # run_matching sweep. This runs only after both sides are handled: were it
+    # inside handle_lapsed_participant, a kept-faith ambassador would be
+    # proposed while the non-responding referee was still VERIFIED, and the
+    # engine could hand the same pair straight back.
+    if match.ambassador_accepted_at is not None:
+        propose_match(match.ambassador_registration)
+    if match.referee_accepted_at is not None:
+        propose_match(match.referee_registration)
+
     logger.info(
         "Expired match pk=%s (ambassador reg pk=%s accepted=%s, "
         "referee reg pk=%s accepted=%s)",
@@ -1264,6 +1303,8 @@ def report_no_show(match: Match, registration: Registration) -> Match:
     5. Re-queues the reporter to the front of the pool (``VERIFIED``,
        ``priority += 1``). The reporter's status transition is **not** logged,
        consistent with the decline path.
+    6. Calls ``propose_match`` for the reporter, so a waiting counterpart is
+       paired at once instead of at the next hourly ``run_matching`` sweep.
 
     Decorated with ``@has_side_effects(MATCH_NO_SHOW)`` (VERB-107): the
     ``matching.side_effects`` handlers bound to that label notify the accused
@@ -1332,8 +1373,10 @@ def report_no_show(match: Match, registration: Registration) -> Match:
             forfeit(accused_deposit, reason=Payment.Reason.POST_ACCEPT_NOSHOW)
 
         # Re-queue the reporter to the front (no transition log — consistent
-        # with the decline path which does not log reporter re-queue either).
+        # with the decline path which does not log reporter re-queue either),
+        # then pair them now rather than waiting for the hourly sweep.
         requeue_to_front(registration)
+        propose_match(registration)
 
         logger.info(
             "report_no_show: match pk=%s CANCELLED by %s (registration pk=%s); "

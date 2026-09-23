@@ -368,7 +368,10 @@ def propose_match(registration: Registration) -> Match | None:
     (FIFO within the same priority).
 
     Returns the created Match, or None if no eligible counterpart is waiting.
-    No-ops (returns None) if ``registration`` is not itself eligible.
+    No-ops (returns None) if ``registration`` is not itself eligible, or if it
+    already holds an active match — checked after locking its own row, so two
+    concurrent callers proposing for the same registration create one match,
+    not two (SKI-175).
 
     Registrations no longer flip to MATCHED when a match is proposed (VERB-44).
     Pool availability is managed by RegistrationQuerySet._without_active_match,
@@ -416,6 +419,23 @@ def propose_match(registration: Registration) -> Match | None:
             .exclude(pk=registration.pk)
             .select_for_update()
         )
+
+    # Lock the proposer's own row, then re-check it holds no active match. The
+    # candidate lock above covers counterparts only; without this, two
+    # concurrent callers proposing for the same registration (e.g. racing
+    # declines of one match, or a decline overlapping the run_matching sweep)
+    # could each create a match for it. The second caller blocks here until
+    # the first commits, then sees the new match and backs off.
+    Registration.objects.select_for_update().filter(pk=registration.pk).first()
+    if (
+        Match.objects.active()
+        .filter(
+            Q(ambassador_registration=registration)
+            | Q(referee_registration=registration)
+        )
+        .exists()
+    ):
+        return None
 
     if not candidates.exists():
         return None

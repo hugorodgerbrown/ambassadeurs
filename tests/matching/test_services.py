@@ -227,6 +227,33 @@ def test_propose_match_returns_none_when_no_eligible_counterpart() -> None:
     assert Match.objects.count() == 0
 
 
+@pytest.mark.parametrize("referee_proposes", [False, True])
+def test_propose_match_returns_none_when_proposer_already_matched(
+    referee_proposes: bool,
+) -> None:
+    """propose_match backs off when the proposer already holds an active match.
+
+    Models the loser of a race between two callers proposing for the same
+    registration (e.g. two concurrent declines of one match): by the time it
+    runs, the winner's match exists, so it must not create a second one even
+    though an eligible counterpart is waiting.
+    """
+    existing = MatchFactory.create()
+    RegistrationFactory.create()
+    RegistrationFactory.create(referee=True)
+    proposer = (
+        existing.referee_registration
+        if referee_proposes
+        else existing.ambassador_registration
+    )
+
+    with transaction.atomic():
+        result = propose_match(proposer)
+
+    assert result is None
+    assert list(Match.objects.all()) == [existing]
+
+
 def test_propose_match_prefers_shared_location() -> None:
     """propose_match picks the referee sharing the ambassador's preferred_location."""
     verbier_referee = RegistrationFactory.create(

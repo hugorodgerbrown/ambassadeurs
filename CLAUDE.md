@@ -46,7 +46,8 @@ Target app layout. Create apps as the domain needs them; don't pre-build empty s
 config/          Django project settings (split base/development/production)
 core/            Shared abstractions (BaseModel; abstract, no concrete tables),
                  HTTP-layer middleware, shared helpers, HTML->Markdown
-                 conversion + Accept negotiation (ADR 0026)
+                 conversion + Accept negotiation (ADR 0026), staff
+                 impersonation link helper (ADR 0028)
 accounts/        Magic-link (passwordless) login flow; AUTH_USER_MODEL is the
                  default Django model. Participant attributes (phone,
                  preferred_language) live on matching.Registration
@@ -581,5 +582,6 @@ feature docs are written:
 | Language-prefixed URLs (`/fr/`, hreflang, emailed-link language) | [ADR 0025](docs/decisions/0025-language-prefixed-urls.md) |
 | Markdown representations (`.md` routes, Accept negotiation, page registry) | [ADR 0026](docs/decisions/0026-markdown-representations.md) |
 | Content-Security-Policy (baseline + runtime rules, admin, reports) | [ADR 0027](docs/decisions/0027-runtime-editable-csp.md) |
+| Staff impersonation (read-only "View as", split-host link, audit log) | [ADR 0028](docs/decisions/0028-staff-impersonation.md) |
 | Deployment (Render single-service) | _to be written_ |
 | Linear workflow (full lifecycle) | _to be written_ |

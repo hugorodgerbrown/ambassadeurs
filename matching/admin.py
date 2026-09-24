@@ -5,7 +5,10 @@ from typing import Any
 
 from django.contrib import admin
 from django.http import HttpRequest, HttpResponse
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+
+from core.impersonation import impersonate_start_url
 
 from .models import Match, Registration
 
@@ -73,6 +76,7 @@ class RegistrationAdmin(admin.ModelAdmin):
         "registration_country",
         "registration_region",
         "created_at",
+        "view_as",
     ]
     list_filter = [
         "role",
@@ -92,6 +96,19 @@ class RegistrationAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
     ]
+
+    @admin.display(description=_("View as"))
+    def view_as(self, obj: Registration) -> str:
+        """Link that starts a read-only impersonation of this participant.
+
+        Opens in a new tab: on a split-host deployment the link leaves the
+        admin host for the public site (see ``core.impersonation``).
+        """
+        return format_html(
+            '<a href="{}" target="_blank" rel="noopener">{}</a>',
+            impersonate_start_url(obj.user_id),
+            _("View as"),
+        )
 
 
 @admin.register(Match)

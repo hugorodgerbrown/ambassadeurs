@@ -68,6 +68,9 @@
         off-screen, then slides it into view on :focus-visible.
         {% endcomment %}
         <a href="#main" class="skip-link">{% translate "Skip to main content" %}</a>
+        {% if request.impersonator %}
+            {% include "includes/impersonation_banner.html" %}
+        {% endif %}
         {% comment %}
         Top-of-body notifications slot (VERB-109). Empty by default: standard
         pages render the strip in the {% block notifications %} slot below the

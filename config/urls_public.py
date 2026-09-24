@@ -80,6 +80,12 @@ urlpatterns = [
     # posting a violation report is a machine, and a language-prefixed report
     # URL would vary by the language of the page that generated it.
     path("csp/", include("csp.urls", namespace="csp")),
+    # Staff impersonation start/stop (django-impersonate, ADR 0028). Mounted on
+    # the public site, not the admin host: impersonation only has an effect on
+    # the host whose session carries it, and the public pages are what staff
+    # want to see. Unprefixed — a staff tool, not a translated page. The admin
+    # links here with an absolute URL (core.impersonation).
+    path("impersonate/", include("impersonate.urls")),
 ]
 
 # Human-facing routes — English unprefixed, French under /fr/.

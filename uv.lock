@@ -96,6 +96,7 @@ dependencies = [
     { name = "django-countries" },
     { name = "django-csp-plus" },
     { name = "django-htmx" },
+    { name = "django-impersonate" },
     { name = "django-ratelimit" },
     { name = "django-side-effects" },
     { name = "django-utm-tracker" },
@@ -135,6 +136,7 @@ requires-dist = [
     { name = "django-countries", specifier = ">=9.0.0" },
     { name = "django-csp-plus", specifier = ">=3.3.0" },
     { name = "django-htmx", specifier = ">=1.21" },
+    { name = "django-impersonate", specifier = ">=1.9" },
     { name = "django-ratelimit", specifier = ">=4.1.0" },
     { name = "django-side-effects", specifier = ">=3.2.0" },
     { name = "django-utm-tracker", specifier = ">=1.5.0" },
@@ -601,6 +603,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/34/f2/8c3e28a5eed8e5226
 wheels = [
     { url = "https://files.pythonhosted.org/packages/23/ac/25d28489dc43224e260f4ebee7565f7ef1efe12af0f284a89500c19f75e2/django_htmx-1.27.0-py3-none-any.whl", hash = "sha256:13e1e13b87d39b57f95aae6e4987cb3df056d0b1373a41f4a94504a00298ffd8", size = 62126, upload-time = "2025-11-28T23:18:53.57Z" },
 ]
+
+[[package]]
+name = "django-impersonate"
+version = "1.9.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8a/d1/df63cf3cb942c49d2b6237ab57ddd1f5b312186678b609149df2a1744009/django_impersonate-1.9.5.tar.gz", hash = "sha256:1a77459b9174bf2cbe054c03088ed78718211ff9e91e172890f7500ab0385128", size = 26694, upload-time = "2025-04-05T15:14:50.492Z" }
 
 [[package]]
 name = "django-ratelimit"

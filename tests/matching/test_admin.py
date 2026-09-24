@@ -44,6 +44,14 @@ def test_registration_changelist_returns_200(client: Client) -> None:
     assert response.status_code == 200
 
 
+def test_registration_changelist_links_to_view_as(client: Client) -> None:
+    """Each Registration row carries a link that starts impersonating its user."""
+    registration = RegistrationFactory.create()
+    client.force_login(make_staff_user())
+    response = client.get(reverse("admin:matching_registration_changelist"))
+    assert f'href="/impersonate/{registration.user_id}/"' in response.content.decode()
+
+
 def test_match_changelist_returns_200(client: Client) -> None:
     """GET the Match changelist as a staff user returns HTTP 200."""
     MatchFactory.create()

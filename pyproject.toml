@@ -28,6 +28,7 @@ dependencies = [
     "markdownify>=1.2.3",
     "beautifulsoup4>=4.15.0",
     "django-csp-plus>=3.3.0",
+    "django-impersonate>=1.9",
 ]
 
 [dependency-groups]
@@ -90,6 +91,8 @@ module = [
     # INSTALLED_APPS and imports every app's models, so without this the
     # untyped csp.models is reported against each of our own apps.py files.
     "csp.*",
+    # django-impersonate ships no py.typed marker either (ADR 0028).
+    "impersonate.*",
 ]
 ignore_missing_imports = true
 

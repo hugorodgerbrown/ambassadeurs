@@ -1,0 +1,15 @@
+{% load i18n %}
+{% comment %}
+Staff impersonation banner (django-impersonate, ADR 0028). Rendered from
+base.html only while request.impersonator is set, so a staff user always knows
+the page shows a participant's view and has a one-click way out. The session
+is read-only: form submissions are refused with a 405 until it ends.
+{% endcomment %}
+<div class="bg-ink text-white text-sm" role="status">
+    <div class="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-2 px-4 py-2">
+        <p>
+            {% blocktranslate with email=request.user.email %}Viewing as {{ email }} (read-only).{% endblocktranslate %}
+        </p>
+        <a href="{% url 'impersonate-stop' %}" class="font-semibold underline">{% translate "Stop viewing" %}</a>
+    </div>
+</div>

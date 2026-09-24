@@ -133,6 +133,18 @@ def test_pageview_does_not_fire_for_htmx_partial() -> None:
     mock_capture.assert_not_called()
 
 
+def test_pageview_does_not_fire_while_impersonating() -> None:
+    """Staff browsing as a participant is not reported as their page-view."""
+    request = _resolved_request("public:home")
+    request.impersonator = object()  # type: ignore[attr-defined]
+    middleware = PostHogPageviewMiddleware(lambda req: _html_response())  # type: ignore[arg-type]
+
+    with patch("core.middleware.capture_event") as mock_capture:
+        middleware(request)
+
+    mock_capture.assert_not_called()
+
+
 def test_pageview_does_not_fire_for_non_html_response() -> None:
     """A GET/200 whose Content-Type is not text/html (JSON/API, robots, sw.js,
     an image) fires nothing.

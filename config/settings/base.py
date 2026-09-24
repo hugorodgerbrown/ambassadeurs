@@ -38,6 +38,10 @@ THIRD_PARTY_APPS = [
     "csp",
     "django_htmx",
     "django_countries",
+    # django-impersonate: staff view the site as a participant. Owns the
+    # ImpersonationLog audit table and its admin. Configured under
+    # IMPERSONATE below.
+    "impersonate",
     "side_effects",
     "utm_tracker",
 ]
@@ -81,6 +85,10 @@ MIDDLEWARE = [
     # so attribution works wherever a visitor first lands.
     "core.middleware.MarketingSourceMiddleware",
     "utm_tracker.middleware.LeadSourceMiddleware",
+    # Staff impersonation (django-impersonate, ADR 0028): swaps request.user for
+    # the impersonated participant. Placed after the attribution pair so a
+    # staff visit's utm params are never persisted against the participant.
+    "impersonate.middleware.ImpersonateMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
@@ -225,6 +233,22 @@ AUTH_PASSWORD_VALIDATORS = [
 # LOGIN_URL uses the named URL so @login_required redirects go to the new form.
 LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "accounts:detail"
+
+# Staff impersonation (django-impersonate, ADR 0028). A superuser views the
+# public site as a participant to see what they see. Read-only: any non-GET
+# request while impersonating is refused with a 405, so staff cannot accept,
+# decline or report on a participant's behalf (each of which would email the
+# real partner). Superusers cannot be impersonated (ALLOW_SUPERUSER defaults to
+# False). Sessions end after MAX_DURATION seconds. Every session is recorded
+# as an ImpersonationLog row, visible read-only in the admin.
+IMPERSONATE = {
+    "REQUIRE_SUPERUSER": True,
+    "READ_ONLY": True,
+    "MAX_DURATION": 60 * 60,
+    # Start and stop both land on the account page — the participant's while
+    # impersonating, the staff user's own after stopping.
+    "REDIRECT_URL": "accounts:detail",
+}
 
 # --- Internationalisation -------------------------------------------------
 

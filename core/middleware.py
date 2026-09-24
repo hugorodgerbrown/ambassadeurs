@@ -156,8 +156,10 @@ def _is_trackable_pageview(request: HttpRequest, response: HttpResponse) -> bool
     """Return whether this request/response pair is a full-page content view.
 
     True only for a GET that resolved to a 200 HTML response, is not an HTMX
-    partial swap, and does not resolve into an excluded namespace. See the
-    module header for the rationale behind each gate.
+    partial swap, is not a staff impersonation (which would attribute staff
+    browsing to the participant, ADR 0028), and does not resolve into an
+    excluded namespace. See the module header for the rationale behind each
+    gate.
     """
     resolver_match = request.resolver_match
     if (
@@ -165,6 +167,7 @@ def _is_trackable_pageview(request: HttpRequest, response: HttpResponse) -> bool
         or response.status_code != 200
         or resolver_match is None
         or "HX-Request" in request.headers
+        or getattr(request, "impersonator", None) is not None
     ):
         return False
     content_type = response.headers.get("Content-Type", "")

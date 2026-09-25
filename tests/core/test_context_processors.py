@@ -3,17 +3,18 @@
 # Verifies that notifications() returns only Notification instances that are
 # both within their display window (.active()) and visible to the request's
 # user (is_visible_to()) — VERB-109. Also covers end-to-end rendering of the
-# notification strip through a real page (public:home).
+# notification strip through a real page (public:home), and the analytics()
+# flag that gates the Fivebar tag in base.html (SKI-177).
 
 from datetime import timedelta
 
 import pytest
 from django.contrib.auth.models import AnonymousUser
-from django.test import Client, RequestFactory
-from django.urls import reverse
+from django.test import Client, RequestFactory, override_settings
+from django.urls import resolve, reverse
 from django.utils import timezone
 
-from core.context_processors import notifications
+from core.context_processors import analytics, notifications
 from core.models import Notification
 from tests.accounts.factories import UserFactory
 from tests.core.factories import NotificationFactory
@@ -153,3 +154,66 @@ def test_home_page_hides_dismiss_button_for_permanent_notification() -> None:
     response = Client().get(reverse("public:home"))
     content = response.content.decode()
     assert "data-dismiss-notification=" not in content
+
+
+_FIVEBAR_SRC = b"https://fiveb.ar/js/tally.js"
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+def test_analytics_returns_fivebar_flag(enabled: bool) -> None:
+    """analytics() mirrors settings.FIVEBAR_ENABLED."""
+    with override_settings(FIVEBAR_ENABLED=enabled):
+        result = analytics(RequestFactory().get("/"))
+    assert result == {"fivebar_enabled": enabled}
+
+
+@override_settings(FIVEBAR_ENABLED=True)
+def test_fivebar_script_rendered_when_enabled() -> None:
+    """The Fivebar tag is in the page head when the flag is on."""
+    response = Client().get(reverse("public:home"))
+    assert _FIVEBAR_SRC in response.content
+    assert b'data-domain="skiparrainage.com"' in response.content
+
+
+@override_settings(FIVEBAR_ENABLED=False)
+def test_fivebar_script_absent_when_disabled() -> None:
+    """The Fivebar tag is not rendered when the flag is off."""
+    response = Client().get(reverse("public:home"))
+    assert _FIVEBAR_SRC not in response.content
+
+
+@override_settings(FIVEBAR_ENABLED=True)
+def test_analytics_off_on_signed_token_route() -> None:
+    """A route with a signed token kwarg never loads Fivebar.
+
+    The tally script reports location.href, so the token — a live credential —
+    would otherwise be sent to a third party.
+    """
+    path = reverse("accounts:login_verify", kwargs={"token": "abc"})
+    request = RequestFactory().get(path)
+    request.resolver_match = resolve(path)
+    assert analytics(request) == {"fivebar_enabled": False}
+
+
+@override_settings(FIVEBAR_ENABLED=True)
+def test_analytics_on_for_route_without_token() -> None:
+    """A normal resolved page keeps Fivebar on."""
+    path = reverse("public:home")
+    request = RequestFactory().get(path)
+    request.resolver_match = resolve(path)
+    assert analytics(request) == {"fivebar_enabled": True}
+
+
+@override_settings(FIVEBAR_ENABLED=True)
+def test_analytics_off_during_impersonation() -> None:
+    """Staff impersonation is not recorded as participant activity (ADR 0028)."""
+    request = RequestFactory().get("/")
+    request.impersonator = UserFactory.create(is_superuser=True)  # type: ignore[attr-defined]
+    assert analytics(request) == {"fivebar_enabled": False}
+
+
+@override_settings(FIVEBAR_ENABLED=True)
+def test_fivebar_script_absent_on_login_verify_page() -> None:
+    """The rendered login-verify page carries no Fivebar tag."""
+    response = Client().get(reverse("accounts:login_verify", kwargs={"token": "bad"}))
+    assert _FIVEBAR_SRC not in response.content

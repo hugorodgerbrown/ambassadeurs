@@ -20,7 +20,7 @@ The service is independent, non-commercial, and runs for one season at a time. P
 ## Legal
 
 - [Privacy Policy]({{ base }}{% url 'public:legal' page='privacy' %}): What personal data is held, why, and for how long.
-- [Cookie Policy]({{ base }}{% url 'public:legal' page='cookies' %}): Strictly-necessary cookies only — no third-party analytics, advertising, or cross-site tracking.
+- [Cookie Policy]({{ base }}{% url 'public:legal' page='cookies' %}): Strictly-necessary cookies only; cookieless visit statistics — no advertising or cross-site tracking.
 - [Terms of Use]({{ base }}{% url 'public:legal' page='terms' %}): What the service does and does not promise.
 
 ## Notes

@@ -59,8 +59,9 @@
         {% endcomment %}
         <script src="{% static 'js/htmx.min.js' %}" defer></script>
         {% comment %}
-        Fivebar client-side analytics (SKI-177), gated by FIVEBAR_ENABLED so
-        development and the test suite send no events. The fiveb.ar origin is
+        Fivebar client-side analytics (SKI-177). fivebar_enabled comes from
+        core.context_processors.analytics: FIVEBAR_ENABLED, and never on a
+        signed-token URL or during staff impersonation. The fiveb.ar origin is
         in script-src and connect-src in CSP_DEFAULTS.
         {% endcomment %}
         {% if fivebar_enabled %}

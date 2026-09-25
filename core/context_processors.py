@@ -9,8 +9,9 @@ view passing the data explicitly (VERB-109).
 so ``_meta.html`` can advertise it with a ``<link rel="alternate">`` tag
 (SKI-155).
 
-``analytics`` exposes the ``FIVEBAR_ENABLED`` flag so ``base.html`` can
-decide whether to load the Fivebar tally script (SKI-177).
+``analytics`` decides whether ``base.html`` loads the Fivebar tally script
+(SKI-177): the ``FIVEBAR_ENABLED`` flag, minus signed-token routes and staff
+impersonation.
 """
 
 from __future__ import annotations
@@ -75,11 +76,26 @@ def markdown_alternate(request: HttpRequest) -> dict[str, str]:
 def analytics(request: HttpRequest) -> dict[str, bool]:
     """Return whether the Fivebar analytics script should be loaded.
 
+    Off whenever ``FIVEBAR_ENABLED`` is false, and also on two kinds of
+    request regardless of the flag:
+
+    - a route carrying a signed ``token`` URL kwarg (login verify, registration
+      confirm, match pages). The tally script reports ``location.href``, and
+      those tokens are live credentials — they must never reach a third party.
+    - a staff impersonation (``request.impersonator``), which would record
+      staff browsing as participant activity; the same gate
+      ``core.middleware._is_trackable_pageview`` applies to PostHog (ADR 0028).
+
     Args:
-        request: The current HTTP request (unused; required by the
-            context-processor signature).
+        request: The current HTTP request.
 
     Returns:
-        ``{"fivebar_enabled": settings.FIVEBAR_ENABLED}``.
+        ``{"fivebar_enabled": <bool>}``.
     """
-    return {"fivebar_enabled": settings.FIVEBAR_ENABLED}
+    match = request.resolver_match
+    enabled = (
+        settings.FIVEBAR_ENABLED
+        and getattr(request, "impersonator", None) is None
+        and not (match is not None and "token" in match.kwargs)
+    )
+    return {"fivebar_enabled": enabled}

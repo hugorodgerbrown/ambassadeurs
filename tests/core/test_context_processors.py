@@ -11,7 +11,7 @@ from datetime import timedelta
 import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.test import Client, RequestFactory, override_settings
-from django.urls import reverse
+from django.urls import resolve, reverse
 from django.utils import timezone
 
 from core.context_processors import analytics, notifications
@@ -179,4 +179,41 @@ def test_fivebar_script_rendered_when_enabled() -> None:
 def test_fivebar_script_absent_when_disabled() -> None:
     """The Fivebar tag is not rendered when the flag is off."""
     response = Client().get(reverse("public:home"))
+    assert _FIVEBAR_SRC not in response.content
+
+
+@override_settings(FIVEBAR_ENABLED=True)
+def test_analytics_off_on_signed_token_route() -> None:
+    """A route with a signed token kwarg never loads Fivebar.
+
+    The tally script reports location.href, so the token — a live credential —
+    would otherwise be sent to a third party.
+    """
+    path = reverse("accounts:login_verify", kwargs={"token": "abc"})
+    request = RequestFactory().get(path)
+    request.resolver_match = resolve(path)
+    assert analytics(request) == {"fivebar_enabled": False}
+
+
+@override_settings(FIVEBAR_ENABLED=True)
+def test_analytics_on_for_route_without_token() -> None:
+    """A normal resolved page keeps Fivebar on."""
+    path = reverse("public:home")
+    request = RequestFactory().get(path)
+    request.resolver_match = resolve(path)
+    assert analytics(request) == {"fivebar_enabled": True}
+
+
+@override_settings(FIVEBAR_ENABLED=True)
+def test_analytics_off_during_impersonation() -> None:
+    """Staff impersonation is not recorded as participant activity (ADR 0028)."""
+    request = RequestFactory().get("/")
+    request.impersonator = UserFactory.create(is_superuser=True)  # type: ignore[attr-defined]
+    assert analytics(request) == {"fivebar_enabled": False}
+
+
+@override_settings(FIVEBAR_ENABLED=True)
+def test_fivebar_script_absent_on_login_verify_page() -> None:
+    """The rendered login-verify page carries no Fivebar tag."""
+    response = Client().get(reverse("accounts:login_verify", kwargs={"token": "bad"}))
     assert _FIVEBAR_SRC not in response.content

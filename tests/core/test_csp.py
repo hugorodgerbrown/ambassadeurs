@@ -65,7 +65,7 @@ def test_baseline_policy_is_served_on_a_public_page() -> None:
     assert directives["default-src"] == {"'self'"}
     assert directives["style-src"] == {"'self'", "https://fonts.googleapis.com"}
     assert directives["font-src"] == {"https://fonts.gstatic.com"}
-    assert directives["connect-src"] == {"'self'"}
+    assert directives["connect-src"] == {"'self'", "https://fiveb.ar"}
     assert directives["base-uri"] == {"'self'"}
     assert directives["frame-ancestors"] == {"'none'"}
     assert directives["img-src"] == {"'self'", "data:"}
@@ -83,6 +83,13 @@ def test_form_action_allows_stripe_checkout() -> None:
 
     assert "'self'" in directives["form-action"]
     assert "https://checkout.stripe.com" in directives["form-action"]
+
+
+def test_script_src_allows_fivebar() -> None:
+    """script-src carries fiveb.ar so the analytics tag can load (SKI-177)."""
+    directives = _directives(Client().get(reverse("public:home")))
+
+    assert "https://fiveb.ar" in directives["script-src"]
 
 
 def test_script_src_nonce_matches_the_nonce_used_in_the_page() -> None:

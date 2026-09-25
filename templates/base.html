@@ -58,6 +58,14 @@
         build is static/js/htmx.min.js (official htmx 2.0.4 minified dist).
         {% endcomment %}
         <script src="{% static 'js/htmx.min.js' %}" defer></script>
+        {% comment %}
+        Fivebar client-side analytics (SKI-177), gated by FIVEBAR_ENABLED so
+        development and the test suite send no events. The fiveb.ar origin is
+        in script-src and connect-src in CSP_DEFAULTS.
+        {% endcomment %}
+        {% if fivebar_enabled %}
+            <script async data-domain="skiparrainage.com" src="https://fiveb.ar/js/tally.js"></script>
+        {% endif %}
     </head>
     <body class="min-h-screen bg-page text-body">
         {% comment %}

@@ -8,10 +8,14 @@ view passing the data explicitly (VERB-109).
 ``markdown_alternate`` injects the URL of the page's Markdown representation
 so ``_meta.html`` can advertise it with a ``<link rel="alternate">`` tag
 (SKI-155).
+
+``analytics`` exposes the ``FIVEBAR_ENABLED`` flag so ``base.html`` can
+decide whether to load the Fivebar tally script (SKI-177).
 """
 
 from __future__ import annotations
 
+from django.conf import settings
 from django.http import HttpRequest
 from django.utils import timezone
 
@@ -66,3 +70,16 @@ def markdown_alternate(request: HttpRequest) -> dict[str, str]:
     if page is None:
         return {}
     return {"markdown_url": request.build_absolute_uri(f"/{page.slug}.md")}
+
+
+def analytics(request: HttpRequest) -> dict[str, bool]:
+    """Return whether the Fivebar analytics script should be loaded.
+
+    Args:
+        request: The current HTTP request (unused; required by the
+            context-processor signature).
+
+    Returns:
+        ``{"fivebar_enabled": settings.FIVEBAR_ENABLED}``.
+    """
+    return {"fivebar_enabled": settings.FIVEBAR_ENABLED}

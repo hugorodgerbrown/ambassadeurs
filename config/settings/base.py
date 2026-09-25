@@ -134,6 +134,7 @@ TEMPLATES = [
                 "debug.context_processors.debug_panel",
                 "core.context_processors.notifications",
                 "core.context_processors.markdown_alternate",
+                "core.context_processors.analytics",
             ],
         },
     },
@@ -211,6 +212,12 @@ STRIPE_WEBHOOK_SECRET: str = config("STRIPE_WEBHOOK_SECRET", default="")
 # Default-on so development and the suite exercise the flow; the live value is
 # declared in render.yaml (web service only — no cron renders the panel).
 TIPS_ENABLED: bool = config("TIPS_ENABLED", default=True, cast=bool)
+
+# Fivebar client-side analytics (SKI-177). When true, base.html loads the
+# fiveb.ar tally script on every page. Default-off so development, the test
+# suite and e2e send no events; the live value is declared in render.yaml (web
+# service only). The origin is allow-listed in CSP_DEFAULTS below.
+FIVEBAR_ENABLED: bool = config("FIVEBAR_ENABLED", default=False, cast=bool)
 
 # --- Authentication -------------------------------------------------------
 # AUTH_USER_MODEL stays the default Django ``auth.User``.
@@ -444,7 +451,9 @@ LOGGING = {
 #
 # Origins in use: same-origin CSS/JS (WhiteNoise; htmx is self-hosted per
 # VERB-70), the Google Fonts stylesheet (fonts.googleapis.com) and font files
-# (fonts.gstatic.com), and Stripe hosted Checkout as a form-action target.
+# (fonts.gstatic.com), Stripe hosted Checkout as a form-action target, and
+# Fivebar analytics (fiveb.ar, SKI-177) — the tally script in script-src and
+# the event beacon it posts to /api/tally in connect-src.
 #
 # form-action carries checkout.stripe.com (SKI-170) because Chrome and Safari
 # re-check form-action against the target of a redirect that follows a form
@@ -478,11 +487,11 @@ CSP_CACHE_TIMEOUT = 60
 
 CSP_DEFAULTS = {
     "default-src": ["'self'"],
-    "script-src": ["'self'", "{nonce}"],
+    "script-src": ["'self'", "{nonce}", "https://fiveb.ar"],
     "style-src": ["'self'", "https://fonts.googleapis.com"],
     "font-src": ["https://fonts.gstatic.com"],
     "img-src": ["'self'", "data:"],
-    "connect-src": ["'self'"],
+    "connect-src": ["'self'", "https://fiveb.ar"],
     "base-uri": ["'self'"],
     "form-action": ["'self'", "https://checkout.stripe.com"],
     "frame-ancestors": ["'none'"],

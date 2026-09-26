@@ -378,7 +378,8 @@ def test_register_post_creates_pending_registration() -> None:
 
 def test_register_post_sends_confirmation_email() -> None:
     """A valid anonymous POST sends a confirmation email to the supplied address."""
-    Client().post(_register_url("referee"), _valid_referee_post())
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        Client().post(_register_url("referee"), _valid_referee_post())
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == ["grace@example.com"]
     # The confirmation link must point to the confirm endpoint, not verify.
@@ -451,7 +452,8 @@ def test_register_post_resends_for_existing_pending() -> None:
     )
     mail.outbox.clear()
 
-    Client().post(_register_url("referee"), _valid_referee_post())
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        Client().post(_register_url("referee"), _valid_referee_post())
 
     assert Registration.objects.filter(role=Registration.Role.REFEREE).count() == 1
     assert len(mail.outbox) == 1
@@ -472,7 +474,8 @@ def test_register_post_enrolled_email_is_non_enumerating() -> None:
     )
     mail.outbox.clear()
 
-    response = Client().post(_register_url("referee"), _valid_referee_post())
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        response = Client().post(_register_url("referee"), _valid_referee_post())
 
     # Same redirect as a brand-new registration — the response never reveals
     # that the email is enrolled.

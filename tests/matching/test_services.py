@@ -418,8 +418,9 @@ def test_email_proposal_sends_one_email_per_call() -> None:
     match = MatchFactory.create()
     assert match.ambassador_registration is not None
     assert match.referee_registration is not None
-    _email_proposal(match.ambassador_registration, match)
-    _email_proposal(match.referee_registration, match)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_proposal(match.ambassador_registration, match)
+        _email_proposal(match.referee_registration, match)
     assert len(mail.outbox) == 2
 
 
@@ -443,8 +444,9 @@ def test_email_proposal_contains_no_pii() -> None:
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
     )
-    _email_proposal(ambassador_reg, match)
-    _email_proposal(referee_reg, match)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_proposal(ambassador_reg, match)
+        _email_proposal(referee_reg, match)
 
     for message in mail.outbox:
         html_body = next(
@@ -477,8 +479,9 @@ def test_email_proposal_includes_match_link() -> None:
     match = MatchFactory.create()
     assert match.ambassador_registration is not None
     assert match.referee_registration is not None
-    _email_proposal(match.ambassador_registration, match)
-    _email_proposal(match.referee_registration, match)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_proposal(match.ambassador_registration, match)
+        _email_proposal(match.referee_registration, match)
     assert len(mail.outbox) == 2
     for message in mail.outbox:
         assert "/match/" in message.body
@@ -488,7 +491,8 @@ def test_email_proposal_attaches_html_alternative() -> None:
     """_email_proposal attaches a non-empty text/html alternative."""
     match = MatchFactory.create()
     assert match.ambassador_registration is not None
-    _email_proposal(match.ambassador_registration, match)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_proposal(match.ambassador_registration, match)
 
     html_alternatives = [
         content
@@ -525,8 +529,9 @@ def test_email_proposal_respects_preferred_language() -> None:
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
     )
-    _email_proposal(ambassador_reg, match)
-    _email_proposal(referee_reg, match)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_proposal(ambassador_reg, match)
+        _email_proposal(referee_reg, match)
     assert len(mail.outbox) == 2
     fr_message = next(
         message for message in mail.outbox if ambassador_reg.user.email in message.to
@@ -1916,8 +1921,9 @@ def test_email_confirmation_sends_one_email_per_call() -> None:
     match = MatchFactory.create(accepted=True)
     assert match.ambassador_registration is not None
     assert match.referee_registration is not None
-    _email_confirmation(match.ambassador_registration, match.referee_registration)
-    _email_confirmation(match.referee_registration, match.ambassador_registration)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_confirmation(match.ambassador_registration, match.referee_registration)
+        _email_confirmation(match.referee_registration, match.ambassador_registration)
     assert len(mail.outbox) == 2
 
 
@@ -1937,8 +1943,9 @@ def test_email_confirmation_contains_counterpart_details() -> None:
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
     )
-    _email_confirmation(ambassador_reg, referee_reg)
-    _email_confirmation(referee_reg, ambassador_reg)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_confirmation(ambassador_reg, referee_reg)
+        _email_confirmation(referee_reg, ambassador_reg)
     assert len(mail.outbox) == 2
 
     def _html_part(to_address: str) -> str:
@@ -1982,7 +1989,8 @@ def test_email_confirmation_attaches_html_alternative() -> None:
     match = MatchFactory.create(accepted=True)
     assert match.ambassador_registration is not None
     assert match.referee_registration is not None
-    _email_confirmation(match.ambassador_registration, match.referee_registration)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_confirmation(match.ambassador_registration, match.referee_registration)
 
     html_alternatives = [
         content
@@ -2009,8 +2017,9 @@ def test_email_confirmation_respects_preferred_language() -> None:
         ambassador_registration=ambassador_reg,
         referee_registration=referee_reg,
     )
-    _email_confirmation(ambassador_reg, referee_reg)
-    _email_confirmation(referee_reg, ambassador_reg)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_confirmation(ambassador_reg, referee_reg)
+        _email_confirmation(referee_reg, ambassador_reg)
     assert len(mail.outbox) == 2
 
 
@@ -2673,7 +2682,8 @@ def test_email_no_show_sends_one_email() -> None:
     match = MatchFactory.create(accepted=True)
     accused = match.referee_registration
 
-    _email_no_show(accused)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_no_show(accused)
 
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == [accused.user.email]
@@ -2690,7 +2700,8 @@ def test_email_no_show_contains_no_reporter_pii() -> None:
     )
 
     # Reporter is ambassador; accused is referee.
-    _email_no_show(referee_reg)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_no_show(referee_reg)
 
     body = mail.outbox[0].body
     # Reporter's PII must not appear in the accused's email.
@@ -2706,7 +2717,8 @@ def test_email_no_show_respects_preferred_language() -> None:
         referee_registration=accused_reg,
     )
 
-    _email_no_show(accused_reg)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_no_show(accused_reg)
 
     # Assert delivery to the accused rather than translated copy: the test env
     # does not compile message catalogues, so gettext returns the source string.
@@ -3189,7 +3201,8 @@ def test_expire_lapsed_matches_notifies_both_faithful_and_non_responder(
 def test_email_window_expired_sends_one_email() -> None:
     """_email_window_expired sends one email to the non-responder."""
     reg = RegistrationFactory.create()
-    _email_window_expired(reg)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_window_expired(reg)
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == [reg.user.email]
 
@@ -3198,7 +3211,8 @@ def test_email_window_expired_includes_account_url() -> None:
     """The expiry email body includes the account detail URL so the user can rejoin."""
 
     reg = RegistrationFactory.create()
-    _email_window_expired(reg)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_window_expired(reg)
     body = mail.outbox[0].body
     assert settings.BASE_URL in body
     assert "/account/" in body
@@ -3207,7 +3221,8 @@ def test_email_window_expired_includes_account_url() -> None:
 def test_email_window_expired_respects_preferred_language() -> None:
     """_email_window_expired uses the recipient's preferred_language."""
     reg = RegistrationFactory.create(preferred_language="fr")
-    _email_window_expired(reg)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_window_expired(reg)
     # Assert delivery — test env has no compiled catalogues, so only check To:.
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == [reg.user.email]
@@ -3216,7 +3231,8 @@ def test_email_window_expired_respects_preferred_language() -> None:
 def test_email_window_expired_offers_cancel_and_refund() -> None:
     """The expiry email mentions cancelling for a refund (VERB-88)."""
     reg = RegistrationFactory.create()
-    _email_window_expired(reg)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_window_expired(reg)
     body = mail.outbox[0].body
     assert "cancel" in body
     assert "refund" in body
@@ -3230,7 +3246,8 @@ def test_email_window_expired_offers_cancel_and_refund() -> None:
 def test_email_requeued_sends_one_email() -> None:
     """_email_requeued sends one email to the re-queued party."""
     reg = RegistrationFactory.create()
-    _email_requeued(reg)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_requeued(reg)
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == [reg.user.email]
 
@@ -3244,7 +3261,8 @@ def test_email_requeued_contains_no_counterpart_pii() -> None:
     markers rather than a specific person's PII.
     """
     reg = RegistrationFactory.create(preferred_language="en")
-    _email_requeued(reg)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_requeued(reg)
     body = mail.outbox[0].body
     # Neutral reassurance copy — no address markers that would imply PII.
     assert "@" not in body
@@ -3254,7 +3272,8 @@ def test_email_requeued_contains_no_counterpart_pii() -> None:
 def test_email_requeued_respects_preferred_language() -> None:
     """_email_requeued renders under the recipient's preferred_language."""
     reg = RegistrationFactory.create(preferred_language="fr")
-    _email_requeued(reg)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_requeued(reg)
     # Assert delivery — test env has no compiled catalogues, so only check To:.
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == [reg.user.email]
@@ -3274,7 +3293,8 @@ def test_email_partner_accepted_sends_one_email_to_waiting_party() -> None:
         referee_registration=referee_reg,
         status=Match.Status.PENDING,
     )
-    _email_partner_accepted(referee_reg, match)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_partner_accepted(referee_reg, match)
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == [referee_reg.user.email]
 
@@ -3290,7 +3310,8 @@ def test_email_partner_accepted_includes_match_link_no_pii() -> None:
         referee_registration=referee_reg,
         status=Match.Status.PENDING,
     )
-    _email_partner_accepted(referee_reg, match)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_partner_accepted(referee_reg, match)
     message = mail.outbox[0]
     body = message.body
     html_body = next(
@@ -3322,7 +3343,8 @@ def test_email_partner_accepted_attaches_html_alternative() -> None:
         referee_registration=referee_reg,
         status=Match.Status.PENDING,
     )
-    _email_partner_accepted(referee_reg, match)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        _email_partner_accepted(referee_reg, match)
 
     html_alternatives = [
         content

@@ -313,6 +313,16 @@ DEFAULT_FROM_EMAIL = config(
     "DEFAULT_FROM_EMAIL", default="Ambassadeurs <noreply@example.com>"
 )
 
+# Background email delivery (SKI-178, ADR 0029). When true,
+# core.emails.send_templated_email hands the SMTP send to a background thread
+# after commit, so the request that triggered it returns without waiting on
+# the mail server. Off by default so tests, dev (console backend) and e2e
+# (Mailpit, read straight after the POST) deliver synchronously; production
+# turns it on.
+EMAIL_SEND_IN_BACKGROUND: bool = config(
+    "EMAIL_SEND_IN_BACKGROUND", cast=bool, default=False
+)
+
 # --- Notifications (VERB-109) ----------------------------------------------
 # CUSTOM_NOTIFICATION_GROUPS backs Notification.Audience.CUSTOM: each value is
 # a pure, zero-argument callable returning a User queryset, evaluated lazily at

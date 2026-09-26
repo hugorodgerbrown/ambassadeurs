@@ -78,3 +78,9 @@ EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", cast=bool, default=True)
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default=DEFAULT_FROM_EMAIL)  # noqa: F405
+# Seconds before a blocking SMTP operation gives up (SKI-178). Without it a hung
+# mail server holds the sending thread — and, before background delivery, the
+# gunicorn worker — indefinitely.
+EMAIL_TIMEOUT = config("EMAIL_TIMEOUT", cast=int, default=10)
+# Deliver after the response rather than inside it (SKI-178, ADR 0029).
+EMAIL_SEND_IN_BACKGROUND = config("EMAIL_SEND_IN_BACKGROUND", cast=bool, default=True)

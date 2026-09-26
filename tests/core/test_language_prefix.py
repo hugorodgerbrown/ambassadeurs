@@ -11,7 +11,7 @@ from unittest.mock import patch
 import pytest
 from django.conf import settings
 from django.core import mail
-from django.test import Client, override_settings
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import translation
 
@@ -333,7 +333,8 @@ class TestEmailedLinksCarryTheRecipientLanguage:
         registration = RegistrationFactory.create(preferred_language="fr")
         match = MatchFactory.create(referee_registration=registration)
 
-        _email_proposal(registration, match)
+        with TestCase.captureOnCommitCallbacks(execute=True):
+            _email_proposal(registration, match)
 
         assert len(mail.outbox) == 1
         assert f"{settings.BASE_URL}/fr/match/" in mail.outbox[0].body
@@ -344,7 +345,8 @@ class TestEmailedLinksCarryTheRecipientLanguage:
         registration = RegistrationFactory.create(preferred_language="en")
         match = MatchFactory.create(referee_registration=registration)
 
-        _email_proposal(registration, match)
+        with TestCase.captureOnCommitCallbacks(execute=True):
+            _email_proposal(registration, match)
 
         assert len(mail.outbox) == 1
         assert f"{settings.BASE_URL}/match/" in mail.outbox[0].body
@@ -361,7 +363,10 @@ class TestEmailedLinksCarryTheRecipientLanguage:
         registration = RegistrationFactory.create(preferred_language="fr")
         match = MatchFactory.create(referee_registration=registration)
 
-        with translation.override("en"):
+        with (
+            TestCase.captureOnCommitCallbacks(execute=True),
+            translation.override("en"),
+        ):
             _email_proposal(registration, match)
 
         assert f"{settings.BASE_URL}/fr/match/" in mail.outbox[0].body

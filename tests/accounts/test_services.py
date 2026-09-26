@@ -102,7 +102,8 @@ def test_send_confirmation_email_sends_mail_and_returns_confirm_url() -> None:
     request.META["SERVER_PORT"] = "80"
     mail.outbox.clear()
 
-    confirm_url = send_confirmation_email(request, registration)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        confirm_url = send_confirmation_email(request, registration)
 
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == [registration.user.email]
@@ -119,7 +120,8 @@ def test_send_confirmation_email_attaches_html_alternative() -> None:
     request.META["SERVER_PORT"] = "80"
     mail.outbox.clear()
 
-    send_confirmation_email(request, registration)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        send_confirmation_email(request, registration)
 
     html_alternatives = [
         content
@@ -143,7 +145,8 @@ def test_send_login_email_sends_mail_to_user() -> None:
     request.META["SERVER_PORT"] = "80"
     mail.outbox.clear()
 
-    send_login_email(request, user)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        send_login_email(request, user)
 
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == ["ada@example.com"]
@@ -157,7 +160,8 @@ def test_send_login_email_attaches_html_alternative() -> None:
     request.META["SERVER_PORT"] = "80"
     mail.outbox.clear()
 
-    send_login_email(request, user)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        send_login_email(request, user)
 
     html_alternatives = [
         content
@@ -176,7 +180,8 @@ def test_send_login_email_body_contains_verify_url() -> None:
     request.META["SERVER_PORT"] = "80"
     mail.outbox.clear()
 
-    verify_url = send_login_email(request, user)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        verify_url = send_login_email(request, user)
 
     assert len(mail.outbox) == 1
     assert "account/login/" in mail.outbox[0].body
@@ -224,7 +229,8 @@ def test_send_confirmation_email_subject_is_non_empty() -> None:
     request.META["SERVER_PORT"] = "80"
     mail.outbox.clear()
 
-    send_confirmation_email(request, registration)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        send_confirmation_email(request, registration)
 
     assert len(mail.outbox) == 1
     subject = mail.outbox[0].subject
@@ -240,7 +246,8 @@ def test_send_login_email_subject_is_non_empty() -> None:
     request.META["SERVER_PORT"] = "80"
     mail.outbox.clear()
 
-    send_login_email(request, user)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        send_login_email(request, user)
 
     assert len(mail.outbox) == 1
     subject = mail.outbox[0].subject
@@ -256,7 +263,8 @@ def test_send_confirmation_email_body_contains_confirm_url() -> None:
     request.META["SERVER_PORT"] = "80"
     mail.outbox.clear()
 
-    confirm_url = send_confirmation_email(request, registration)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        confirm_url = send_confirmation_email(request, registration)
 
     assert confirm_url in mail.outbox[0].body
 
@@ -272,7 +280,8 @@ def test_send_confirmation_email_ambassador_body_mentions_referee() -> None:
     request.META["SERVER_PORT"] = "80"
     mail.outbox.clear()
 
-    send_confirmation_email(request, registration)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        send_confirmation_email(request, registration)
 
     # The EN source string mentions "Referee" in the ambassador copy.
     assert "Referee" in mail.outbox[0].body
@@ -289,7 +298,8 @@ def test_send_confirmation_email_referee_body_mentions_ambassador() -> None:
     request.META["SERVER_PORT"] = "80"
     mail.outbox.clear()
 
-    send_confirmation_email(request, registration)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        send_confirmation_email(request, registration)
 
     # The EN source string mentions "Ambassador" in the referee copy.
     assert "Ambassador" in mail.outbox[0].body
@@ -308,7 +318,8 @@ def test_send_already_registered_email_sends_mail_to_user() -> None:
     request.META["SERVER_PORT"] = "80"
     mail.outbox.clear()
 
-    verify_url = send_already_registered_email(request, user)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        verify_url = send_already_registered_email(request, user)
 
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == ["ada@example.com"]
@@ -323,7 +334,8 @@ def test_send_already_registered_email_attaches_html_alternative() -> None:
     request.META["SERVER_PORT"] = "80"
     mail.outbox.clear()
 
-    send_already_registered_email(request, user)
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        send_already_registered_email(request, user)
 
     html_alternatives = [
         content

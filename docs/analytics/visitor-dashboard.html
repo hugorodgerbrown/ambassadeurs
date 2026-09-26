@@ -627,7 +627,7 @@
 
   // The path each slow page is explored along; only slow branches expand.
   var TREE_DIMS = [["device", "Device"], ["os", "OS"], ["country", "Country"]];
-  var PAGE_LIMIT = 25, BRANCH_LIMIT = 4;
+  var PAGE_LIMIT = 50, BRANCH_LIMIT = 4;
   var SLOW = { needs_improvement: 1, poor: 1 };
   var drillMetric = null, drillSeq = 0, drillStale = true, lastSpeed = null;
   var RANK = { poor: 3, needs_improvement: 2, good: 1 };
@@ -664,12 +664,13 @@
   }
 
   // Runs tasks a few at a time so a drill-down does not flood the connector.
-  function pool(tasks, width) {
+  // A task that rejects is passed to onError and the pool carries on.
+  function pool(tasks, width, onError) {
     var i = 0;
     function next() {
       if (i >= tasks.length) return Promise.resolve();
       var t = tasks[i++];
-      return t().then(next, next);
+      return t().then(next, function (err) { if (onError) onError(err); return next(); });
     }
     var runners = [];
     for (var k = 0; k < width; k++) runners.push(next());
@@ -680,8 +681,8 @@
     return Math.round(((r.ratings.poor || 0) + (r.ratings.needs_improvement || 0)) * r.measured);
   }
 
-  function speedFor(key, filters) {
-    return mcp.callTool(SERVER, "get_site_speed", { domain: site, range: range, filters: filters },
+  function speedFor(ctx, key, filters) {
+    return mcp.callTool(SERVER, "get_site_speed", { domain: ctx.site, range: ctx.range, filters: filters },
       { cache: { staleTime: 60000 } }).then(function (sp) {
       var m = sp.payload && sp.payload.metrics && sp.payload.metrics[key];
       return m && m.page_loads_measured > 0 && m.p75 != null
@@ -690,11 +691,21 @@
     });
   }
 
-  function breakdownFor(dim, filters, limit) {
-    var input = { domain: site, range: range, dimension: dim, limit: limit };
+  function breakdownFor(ctx, dim, filters, limit) {
+    var input = { domain: ctx.site, range: ctx.range, dimension: dim, limit: limit };
     if (filters.length) input.filters = filters;
     return mcp.callTool(SERVER, "get_site_breakdown", input, { cache: { staleTime: 60000 } })
-      .then(function (res) { return (res.payload && res.payload.rows) || []; });
+      .then(function (res) { return res.payload || {}; });
+  }
+
+  function errCode(err) { return (err && err.code) || "error"; }
+
+  // A new site or range makes any drill-down in flight obsolete.
+  function resetDrill() {
+    drillSeq++;
+    drillStale = true;
+    $("drill").hidden = true;
+    clear($("drill-grid"));
   }
 
   // Step 1: every page's reading for the chosen measure; keep the slow ones.
@@ -711,16 +722,19 @@
 
     if (site === EXAMPLE || !mcp) {
       var mock = mockSlowPages(key, overall);
-      drawPages(key, overall, mock.pages, mock.checked);
+      drawPages({ site: site, range: range }, key, overall, mock.pages, mock.checked, null);
       return;
     }
 
-    breakdownFor("path", [], PAGE_LIMIT).then(function (rows) {
+    var ctx = { site: site, range: range };
+    breakdownFor(ctx, "path", [], PAGE_LIMIT).then(function (bd) {
       if (seq !== drillSeq) return;
+      var rows = bd.rows || [];
+      var scope = { scanned: rows.length, total: bd.distinct || rows.length, failed: 0, code: null };
       var found = [], checked = 0;
       var tasks = rows.map(function (row) {
         return function () {
-          return speedFor(key, [{ dimension: "path", value: String(row.value) }]).then(function (r) {
+          return speedFor(ctx, key, [{ dimension: "path", value: String(row.value) }]).then(function (r) {
             if (seq !== drillSeq || !r) return;
             checked++;
             r.path = String(row.value);
@@ -728,30 +742,47 @@
           });
         };
       });
-      return pool(tasks, 4).then(function () {
+      return pool(tasks, 4, function (err) { scope.failed++; scope.code = errCode(err); }).then(function () {
         if (seq !== drillSeq) return;
-        drawPages(key, overall, found.filter(function (r) { return SLOW[r.rating]; }), checked);
+        if (rows.length && scope.failed === rows.length) {
+          $("drill-lead").textContent = "Could not measure any page (" + scope.code + ").";
+          return;
+        }
+        drawPages(ctx, key, overall, found.filter(function (r) { return SLOW[r.rating]; }), checked, scope);
       });
     }).catch(function (err) {
       if (seq !== drillSeq) return;
-      $("drill-lead").textContent = "Could not check pages (" + ((err && err.code) || "error") + ").";
+      $("drill-lead").textContent = "Could not check pages (" + errCode(err) + ").";
     });
   }
 
-  function drawPages(key, overall, slow, checked) {
+  // Says how much of the site the page scan covered.
+  function scopeText(scope) {
+    var parts = [];
+    if (scope && scope.total > scope.scanned) {
+      parts.push("Checked the top " + scope.scanned + " of " + scope.total + " pages by pageviews; lower-traffic pages were not checked.");
+    }
+    if (scope && scope.failed) {
+      parts.push(scope.failed + " page" + (scope.failed === 1 ? "" : "s") + " could not be measured (" + scope.code + ").");
+    }
+    return parts.length ? " " + parts.join(" ") : "";
+  }
+
+  function drawPages(ctx, key, overall, slow, checked, scope) {
     var m = overall || { unit: "ms" };
     var lead = $("drill-lead");
     var list = $("drill-grid");
     clear(list);
     list.className = "slow-list";
-    if (!checked) { lead.textContent = "No page has " + key.toUpperCase() + " readings in this range."; return; }
+    var extra = scopeText(scope);
+    if (!checked) { lead.textContent = "No page has " + key.toUpperCase() + " readings in this range." + extra; return; }
     if (!slow.length) {
-      lead.textContent = "No page is over the good threshold. " + checked + " page" + (checked === 1 ? "" : "s") + " with readings.";
+      lead.textContent = "No checked page is over the good threshold. " + checked + " page" + (checked === 1 ? "" : "s") + " with readings." + extra;
       return;
     }
     slow.sort(function (a, b) { return b.p75 - a.p75; });
     lead.textContent = slow.length + " of " + checked + " page" + (checked === 1 ? "" : "s") +
-      " with readings " + (slow.length === 1 ? "is" : "are") + " over the good threshold. Open a page to follow its slow readings by device, OS and country.";
+      " with readings " + (slow.length === 1 ? "is" : "are") + " over the good threshold. Open a page to follow its slow readings by device, OS and country." + extra;
     slow.forEach(function (r, i) {
       var det = document.createElement("details");
       det.className = "slow-page";
@@ -769,7 +800,7 @@
       det.appendChild(body);
       var loaded = false;
       det.addEventListener("toggle", function () {
-        if (det.open && !loaded) { loaded = true; loadTree(key, m, r, body); }
+        if (det.open && !loaded) { loaded = true; loadTree(ctx, key, m, r, body); }
       });
       list.appendChild(det);
       if (i === 0) det.open = true;
@@ -778,7 +809,7 @@
 
   // Step 2: follow one slow page down device > OS > country. Each level is
   // filtered by every level above it, so a branch is a real combination.
-  function loadTree(key, m, page, body) {
+  function loadTree(ctx, key, m, page, body) {
     var seq = drillSeq;
     clear(body);
     var status = para("note", "Following this page by device, OS and country…");
@@ -786,17 +817,18 @@
     var root = { label: page.path, dim: "path", value: page.path, p75: page.p75, rating: page.rating,
       measured: page.measured, ratings: page.ratings, children: [] };
 
-    if (site === EXAMPLE || !mcp) { root.children = mockTree(m); drawTree(body, m, root); return; }
+    if (ctx.site === EXAMPLE || !mcp) { root.children = mockTree(m); drawTree(body, m, root); return; }
 
-    var calls = 0;
+    var calls = 0, failed = 0, lastCode = null;
+    function fail(err) { failed++; lastCode = errCode(err); }
     function expand(node, depth, filters) {
       if (depth >= TREE_DIMS.length || !SLOW[node.rating]) return Promise.resolve();
       var dim = TREE_DIMS[depth][0];
-      return breakdownFor(dim, filters, BRANCH_LIMIT).then(function (rows) {
-        return pool(rows.map(function (row) {
+      return breakdownFor(ctx, dim, filters, BRANCH_LIMIT).then(function (bd) {
+        return pool((bd.rows || []).map(function (row) {
           return function () {
             var f = filters.concat([{ dimension: dim, value: String(row.value) }]);
-            return speedFor(key, f).then(function (r) {
+            return speedFor(ctx, key, f).then(function (r) {
               calls++;
               if (seq === drillSeq) status.textContent = "Following this page by device, OS and country… " + calls + " segments measured";
               if (!r) return;
@@ -805,12 +837,14 @@
               return expand(child, depth + 1, f);
             });
           };
-        }), 2);
-      }, function () { node.failed = true; });
+        }), 2, fail);
+      }, fail);
     }
     expand(root, 0, [{ dimension: "path", value: page.path }]).then(function () {
       if (seq !== drillSeq) return;
       drawTree(body, m, root);
+      if (failed) body.appendChild(para("err", failed + " segment" + (failed === 1 ? "" : "s") +
+        " could not be measured (" + lastCode + "); the tree may be missing branches."));
     });
   }
 
@@ -1072,7 +1106,7 @@
   }
 
   function refresh() {
-    drillStale = true;
+    resetDrill();
     if (site === EXAMPLE || !mcp) { stopWatches(); renderExample(); }
     else startWatches();
   }

@@ -1,0 +1,1187 @@
+<title>Ski Parrainage Visitors</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #F2F5F8;
+    --surface: #FFFFFF;
+    --ink: #15202C;
+    --muted: #5A6776;
+    --line: #DAE1E8;
+    --accent: #2C68A8;
+    --accent-soft: #DCE8F5;
+    --live: #1B8F55;
+    --warn: #A5620F;
+    --warn-soft: #FBEEDC;
+    --poor: #B8322A;
+    --poor-soft: #FBE3E0;
+    --live-soft: #DDF2E6;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0D131A;
+      --surface: #141C25;
+      --ink: #E4EAF1;
+      --muted: #8E9BAA;
+      --line: #243140;
+      --accent: #74A9E0;
+      --accent-soft: #1C2E42;
+      --live: #4CC98A;
+      --warn: #E3A95A;
+      --warn-soft: #33260F;
+      --poor: #F07A70;
+      --poor-soft: #3A1917;
+      --live-soft: #123222;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0D131A;
+    --surface: #141C25;
+    --ink: #E4EAF1;
+    --muted: #8E9BAA;
+    --line: #243140;
+    --accent: #74A9E0;
+    --accent-soft: #1C2E42;
+    --live: #4CC98A;
+    --warn: #E3A95A;
+    --warn-soft: #33260F;
+    --poor: #F07A70;
+    --poor-soft: #3A1917;
+    --live-soft: #123222;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    padding-inline: 16px;
+    padding-block: 28px 48px;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 20px; }
+
+  header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .site { font-family: var(--mono); font-size: 13px; color: var(--muted); letter-spacing: 0.02em; }
+  h1 { margin: 2px 0 0; font-size: 26px; font-weight: 600; text-wrap: balance; }
+
+  .ranges { display: flex; flex-wrap: wrap; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 4px; }
+  .ranges button {
+    font: 500 13px var(--sans); color: var(--muted); background: transparent;
+    border: 0; border-radius: 5px; padding: 6px 12px; cursor: pointer;
+  }
+  .ranges button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+  .ranges button:hover { color: var(--ink); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .banner { border-radius: 8px; padding: 12px 14px; background: var(--warn-soft); color: var(--warn); font-size: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+  .banner code { flex-basis: 100%; order: 2; font: 12px var(--mono); overflow-wrap: anywhere; opacity: 0.85; }
+  .banner button { margin-left: auto; font: 500 13px var(--sans); color: var(--warn); background: transparent; border: 1px solid currentColor; border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+
+  .stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  }
+  .stat { padding: 16px 18px; border-left: 1px solid var(--line); display: grid; gap: 2px; }
+  .stat:first-child { border-left: 0; }
+  .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .value { font-family: var(--mono); font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-right: 6px; vertical-align: 1px; }
+  .live-dot.on { background: var(--live); box-shadow: 0 0 0 3px color-mix(in srgb, var(--live) 25%, transparent); }
+  @media (prefers-reduced-motion: no-preference) {
+    .live-dot.on { animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--live) 0%, transparent); } }
+  }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: grid; gap: 12px; min-width: 0; align-content: start; }
+  .panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .panel-head h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  .panel-head .sub { font-family: var(--mono); }
+
+  .chart { overflow-x: auto; }
+  .chart svg { display: block; width: 100%; height: 160px; }
+
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 20px; }
+  .speed { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .metric { background: var(--surface); padding: 12px 14px; display: grid; gap: 4px; align-content: start;
+    font: inherit; color: inherit; text-align: left; border: 0; cursor: pointer; }
+  .metric:hover { background: color-mix(in srgb, var(--accent-soft) 45%, var(--surface)); }
+  .metric[aria-pressed="true"] { background: var(--accent-soft); box-shadow: inset 0 -3px 0 var(--accent); }
+  .metric:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  #drill { display: grid; gap: 14px; padding-top: 10px; border-top: 1px solid var(--line); margin-top: 6px; }
+  .drill-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .drill-head h3 { margin: 0; font-size: 14px; font-weight: 600; }
+  .drill-head .sub { font-family: var(--mono); }
+  .drill-head button { font: 500 12px var(--sans); color: var(--accent); background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+  .drill-lead { margin: 0; font-size: 14px; }
+  .drill-lead strong { font-family: var(--mono); font-weight: 500; }
+  .slow-list { display: grid; gap: 8px; }
+  .slow-page { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+  .slow-page > summary {
+    list-style: none; cursor: pointer; display: grid; align-items: center; gap: 10px;
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto; padding: 10px 12px; font-variant-numeric: tabular-nums;
+  }
+  .slow-page > summary::-webkit-details-marker { display: none; }
+  .slow-page .chev { color: var(--muted); font-size: 11px; transition: transform 0.15s; }
+  .slow-page[open] .chev { transform: rotate(90deg); }
+  @media (prefers-reduced-motion: reduce) { .slow-page .chev { transition: none; } }
+  .slow-page[open] > summary { border-bottom: 1px solid var(--line); }
+  .slow-page > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 8px; }
+  .slow-page .path { font-family: var(--mono); font-size: 13px; overflow-wrap: anywhere; }
+  .slow-page .p75 { font-family: var(--mono); font-size: 15px; font-weight: 500; }
+  .slow-page .cnt { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .factors { display: grid; gap: 8px; padding: 10px 12px 12px; }
+  .factors .note { font-size: 12px; color: var(--muted); margin: 0; }
+  .tree-wrap { overflow-x: auto; }
+  .tree-wrap svg { display: block; min-width: 560px; max-width: 760px; width: 100%; height: auto; }
+  .tree-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); }
+  .tree-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; border: 1px solid; }
+  .tree-legend .lg-poor { background: var(--poor-soft); border-color: var(--poor); }
+  .tree-legend .lg-ni { background: var(--warn-soft); border-color: var(--warn); }
+  .tree-legend .lg-good { background: var(--bg); border-color: var(--line); }
+  .metric .abbr { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--muted); }
+  .metric .full { font-size: 12px; color: var(--muted); line-height: 1.3; min-height: 2.6em; }
+  .metric .v { font-family: var(--mono); font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .pill { justify-self: start; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
+  .pill.good { background: var(--live-soft); color: var(--live); }
+  .pill.needs_improvement { background: var(--warn-soft); color: var(--warn); }
+  .pill.poor { background: var(--poor-soft); color: var(--poor); }
+  .pill.none { background: var(--bg); color: var(--muted); }
+  .metric .dev { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  ol.rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  ol.rows.lang li { display: grid; grid-template-columns: minmax(0, 1fr) 3.5em 3.5em; }
+  ol.rows.lang li.head { padding-block: 0 2px; }
+  ol.rows.lang li.head span { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: var(--muted); }
+  ol.rows.lang .n { text-align: right; }
+  ol.rows.lang .n.zero { color: var(--muted); }
+  ol.rows li { position: relative; display: flex; justify-content: space-between; gap: 12px; padding: 5px 8px; border-radius: 5px; overflow: hidden; }
+  ol.rows li .bar { position: absolute; inset: 0 auto 0 0; background: var(--accent-soft); z-index: 0; }
+  ol.rows li span { position: relative; z-index: 1; }
+  ol.rows .name { overflow-wrap: anywhere; min-width: 0; }
+  ol.rows .code { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-left: 6px; }
+  ol.rows .n { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .empty { color: var(--muted); font-size: 14px; margin: 0; }
+  .err { color: var(--warn); font-size: 13px; margin: 0; }
+
+  footer { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+  footer a { color: var(--accent); }
+
+  @media (max-width: 520px) {
+    .stat { border-left: 0; border-top: 1px solid var(--line); }
+    .stat:first-child { border-top: 0; }
+  }
+  .site-pick { display: flex; align-items: center; gap: 8px; }
+  .site-pick label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .site-pick select {
+    font: 500 13px var(--mono); color: var(--ink); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 6px; padding: 5px 28px 5px 8px; max-width: 100%;
+  }
+  .site-pick select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .hours svg { display: block; width: 100%; height: 150px; }
+  .weekdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+  .wd { border-radius: 5px; padding: 6px 4px; text-align: center; display: grid; gap: 1px; }
+  .wd .d { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+  .wd .c { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .hours-note { font-size: 12px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="site-pick">
+        <label for="site-select">Site</label>
+        <select id="site-select"><option value="__example">Example</option></select>
+      </div>
+      <h1>Visitors</h1>
+      <div class="site" id="site"></div>
+    </div>
+    <div class="ranges" role="group" aria-label="Date range" id="ranges">
+      <button type="button" id="r-today" data-range="today" aria-pressed="true">Today</button>
+      <button type="button" id="r-7" data-range="last-7-days" aria-pressed="false">7 days</button>
+      <button type="button" id="r-30" data-range="last-30-days" aria-pressed="false">30 days</button>
+      <button type="button" id="r-all" data-range="all-time" aria-pressed="false">All time</button>
+    </div>
+  </header>
+
+  <div class="banner" id="banner" hidden><span id="banner-text"></span><code id="banner-detail" hidden></code><button type="button" id="retry" hidden>Retry</button></div>
+
+  <section class="panel" aria-label="Page speed">
+    <div class="panel-head"><h2>Page speed</h2><span class="sub" id="h-speed">75th percentile</span></div>
+    <div id="b-speed"><p class="empty">Waiting for data</p></div>
+    <div id="drill" hidden>
+      <div class="drill-head">
+        <h3 id="drill-title">Where it is slow</h3>
+        <span class="sub" id="drill-sub"></span>
+        <button type="button" id="drill-refresh">Refresh</button>
+      </div>
+      <p class="drill-lead" id="drill-lead"></p>
+      <div class="drill-grid" id="drill-grid"></div>
+    </div>
+  </section>
+
+  <section class="stats" aria-label="Totals">
+    <div class="stat">
+      <span class="label"><span class="live-dot" id="live-dot"></span>On site now</span>
+      <span class="value" id="live">–</span>
+      <span class="sub" id="live-sub">last 5 minutes</span>
+    </div>
+    <div class="stat">
+      <span class="label">Visitors</span>
+      <span class="value" id="t-visitors">–</span>
+      <span class="sub" id="c-visitors">visitor-days</span>
+    </div>
+    <div class="stat">
+      <span class="label">Visits</span>
+      <span class="value" id="t-visits">–</span>
+      <span class="sub" id="c-visits">&nbsp;</span>
+    </div>
+    <div class="stat">
+      <span class="label">Pageviews</span>
+      <span class="value" id="t-pageviews">–</span>
+      <span class="sub" id="c-pageviews">&nbsp;</span>
+    </div>
+    <div class="stat">
+      <span class="label">Bounce rate</span>
+      <span class="value" id="t-bounce">–</span>
+      <span class="sub" id="t-duration">&nbsp;</span>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Visitors over time">
+    <div class="panel-head"><h2>Visitors over time</h2><span class="sub" id="series-unit"></span></div>
+    <div class="chart" id="chart"><p class="empty">Waiting for data</p></div>
+  </section>
+
+  <section class="panel" aria-label="Hours of the day">
+    <div class="panel-head"><h2>Hours of the day</h2><span class="sub" id="h-hours">pageviews</span></div>
+    <div id="b-hours" class="hours"><p class="empty">Waiting for data</p></div>
+  </section>
+
+  <div class="grid3">
+    <section class="panel">
+      <div class="panel-head"><h2>Sources</h2><span class="sub" id="h-source"></span></div>
+      <div id="b-source"><p class="empty">Waiting for data</p></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Countries</h2><span class="sub" id="h-country"></span></div>
+      <div id="b-country"><p class="empty">Waiting for data</p></div>
+    </section>
+  </div>
+
+  <div class="grid3">
+    <section class="panel">
+      <div class="panel-head"><h2>Pages</h2><span class="sub" id="h-path">pageviews</span></div>
+      <div id="b-path"><p class="empty">Waiting for data</p></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Devices</h2><span class="sub" id="h-device"></span></div>
+      <div id="b-device"><p class="empty">Waiting for data</p></div>
+    </section>
+  </div>
+
+  <footer>
+    <span id="updated">Not yet updated</span>
+    <span>Visitors are counted once per day each, in the site's time zone. Live figure refreshes every 30 s.</span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var SERVER = "fivebar";
+  var EXAMPLE = "__example";
+  var site = EXAMPLE;
+  var range = "today";
+  var mcp = null;
+  var watches = [];
+  var fmt = new Intl.NumberFormat("en-GB");
+
+  try { var r0 = localStorage.getItem("fb-range"); if (r0) range = r0; } catch (e) {}
+  var savedSite = null;
+  try { savedSite = localStorage.getItem("fb-site"); } catch (e) {}
+
+  function $(id) { return document.getElementById(id); }
+  function num(v) { return v == null ? "–" : fmt.format(v); }
+  function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+  function para(cls, text) { var p = document.createElement("p"); p.className = cls; p.textContent = text; return p; }
+  function showBanner(text, err, canRetry) {
+    $("banner-text").textContent = text || "";
+    var det = $("banner-detail");
+    det.textContent = err ? detail(err) : "";
+    det.hidden = !err;
+    $("retry").hidden = !canRetry;
+    $("banner").hidden = !text;
+  }
+
+  function detail(err) {
+    var parts = ["code: " + (err.code || "unknown")];
+    if (err.server) parts.push("server: " + err.server);
+    if (err.retryable) parts.push("retryable");
+    if (err.message) parts.push("message: " + err.message);
+    return parts.join(" · ");
+  }
+
+  function stamp(result) {
+    var t = result && result.cache ? new Date(result.cache.storedAt) : new Date();
+    $("updated").textContent = "Updated " + t.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+
+  function errorText(err) {
+    switch (err && err.code) {
+      case "server_not_connected":
+        return "fivebar is not connected for you. Add it in claude.ai Settings → Connectors.";
+      case "needs_reauth":
+        return "fivebar needs you to sign in again. Reconnect it in claude.ai Settings → Connectors.";
+      case "selection_required":
+        return "More than one fivebar connector is set up. Choose one when claude.ai asks.";
+      case "not_in_manifest":
+        return "fivebar is not allowed for this page. Allow it in the page's connector settings, then reload.";
+      case "blocked_by_policy":
+      case "approval_required":
+        return "Your organisation's policy blocks fivebar on this page.";
+      case "not_granted":
+      case "capability_disabled":
+      case "capability_removed":
+        return "This view cannot call connectors. Choose Example to see the layout.";
+      case "server_unavailable":
+        return "fivebar did not answer. Showing the last figures received.";
+      case "tool_error":
+        return "fivebar reported an error: " + (err.message || "no message");
+      default:
+        return "fivebar call failed (" + ((err && err.code) || "unknown") + "). Showing the last figures received.";
+    }
+  }
+  var DENIALS = { server_not_connected: 1, not_in_manifest: 1, not_granted: 1, capability_disabled: 1, capability_removed: 1, needs_reauth: 1, blocked_by_policy: 1, approval_required: 1, selection_required: 1 };
+
+  /* ---------- renderers ---------- */
+
+  function renderLive(p) {
+    var n = p && p.live_visitors;
+    $("live").textContent = num(n);
+    $("live-dot").className = "live-dot" + (n > 0 ? " on" : "");
+    $("live-sub").textContent = p && p.at
+      ? "last " + (p.window_minutes || 5) + " min, at " + new Date(p.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+      : "last 5 minutes";
+  }
+
+  function changeText(pct, prev) {
+    if (pct == null) return prev == null ? " " : "no earlier data";
+    return (pct > 0 ? "+" : "") + pct + "% vs previous period";
+  }
+
+  function duration(s) {
+    if (s < 60) return s + " s";
+    var m = Math.floor(s / 60), r = s % 60;
+    return m + " min" + (r ? " " + r + " s" : "");
+  }
+
+  function renderSummary(p) {
+    var t = (p && p.totals) || {};
+    var c = (p && p.change) || {};
+    var prev = p && p.previous && p.previous.totals;
+    $("t-visitors").textContent = num(t.visitors);
+    $("t-visits").textContent = num(t.visits);
+    $("t-pageviews").textContent = num(t.pageviews);
+    $("c-visitors").textContent = c.visitors != null ? changeText(c.visitors, prev) : "visitor-days";
+    $("c-visits").textContent = changeText(c.visits, prev);
+    $("c-pageviews").textContent = changeText(c.pageviews, prev);
+    var ev = (p && p.ended_visits) || {};
+    $("t-bounce").textContent = ev.bounce_rate == null ? "–" : ev.bounce_rate + "%";
+    $("t-duration").textContent = ev.average_seconds == null ? " " : "avg visit " + duration(ev.average_seconds);
+    var rg = p && p.range;
+    $("site").textContent = rg && rg.from
+      ? (rg.from === rg.to ? rg.from : rg.from + " to " + rg.to) + " · " + ((p && p.timezone) || "UTC")
+      : "";
+    renderChart(p && p.series);
+  }
+
+  var SVGNS = "http://www.w3.org/2000/svg";
+  function svgEl(tag, attrs, text) {
+    var el = document.createElementNS(SVGNS, tag);
+    for (var k in attrs) el.setAttribute(k, attrs[k]);
+    if (text != null) el.textContent = text;
+    return el;
+  }
+
+  function niceMax(v) {
+    if (v <= 4) return 4;
+    var p = Math.pow(10, Math.floor(Math.log10(v)));
+    var steps = [1, 2, 2.5, 5, 10];
+    for (var i = 0; i < steps.length; i++) if (steps[i] * p >= v) return steps[i] * p;
+    return 10 * p;
+  }
+
+  // Bar chart shared by the daily series and the hours panel.
+  function barChart(items, opts) {
+    var W = 720, H = opts.height, padL = 34, padR = 8, padT = 10, padB = 24;
+    var max = 0;
+    items.forEach(function (it) { if (it.value > max) max = it.value; });
+    var top = Math.max(1, niceMax(max));
+    var innerW = W - padL - padR, innerH = H - padT - padB;
+    var slot = innerW / items.length;
+    var bw = Math.max(2, Math.min(40, slot * 0.7));
+    var svg = svgEl("svg", { viewBox: "0 0 " + W + " " + H, preserveAspectRatio: "none", role: "img", "aria-label": opts.label });
+    [0, top / 2, top].forEach(function (v) {
+      var y = padT + innerH - (v / top) * innerH;
+      svg.appendChild(svgEl("line", { x1: padL, x2: W - padR, y1: y, y2: y, stroke: "var(--line)", "stroke-width": 1, fill: "none" }));
+      svg.appendChild(svgEl("text", { x: padL - 6, y: y + 4, "text-anchor": "end", "font-size": 11, fill: "var(--muted)", "font-family": "var(--mono)" }, fmt.format(v)));
+    });
+    var every = opts.labelEvery || Math.ceil(items.length / 8);
+    items.forEach(function (it, i) {
+      var h = (it.value / top) * innerH;
+      var x = padL + slot * i + (slot - bw) / 2;
+      var rect = svgEl("rect", { x: x, y: padT + innerH - h, width: bw, height: Math.max(h, 0), rx: 2,
+        fill: it.strong ? "var(--accent)" : "color-mix(in srgb, var(--accent) 55%, var(--surface))" });
+      rect.appendChild(svgEl("title", {}, it.title));
+      svg.appendChild(rect);
+      if (i % every === 0) {
+        svg.appendChild(svgEl("text", { x: x + bw / 2, y: H - 6, "text-anchor": "middle", "font-size": 11, fill: "var(--muted)", "font-family": "var(--mono)" }, it.label));
+      }
+    });
+    return svg;
+  }
+
+  function renderChart(series) {
+    var box = $("chart");
+    clear(box);
+    var buckets = (series && series.buckets) || [];
+    $("series-unit").textContent = series && series.unit ? "by " + series.unit : "";
+    if (!buckets.length) { box.appendChild(para("empty", "No data in this range")); return; }
+    box.appendChild(barChart(buckets.map(function (b) {
+      return { value: b.visitors, label: b.start.slice(5), strong: b.current,
+        title: b.start + ": " + b.visitors + " visitors, " + b.pageviews + " pageviews" };
+    }), { height: 160, label: "Visitors per " + (series.unit || "day") }));
+  }
+
+  function renderHours(p) {
+    var box = $("b-hours");
+    clear(box);
+    var hours = (p && p.hours) || [];
+    $("h-hours").textContent = "pageviews · " + ((p && p.timezone) || "UTC");
+    var total = 0;
+    hours.forEach(function (h) { total += h.pageviews || 0; });
+    if (!total) { box.appendChild(para("empty", "No pageviews in this range")); return; }
+    var peak = hours.reduce(function (a, h) { return h.pageviews > a.pageviews ? h : a; }, hours[0]);
+    box.appendChild(barChart(hours.map(function (h) {
+      return { value: h.pageviews, label: h.hour, strong: h === peak,
+        title: h.hour + ":00 – " + h.pageviews + " pageviews, " + h.visits + " visits" };
+    }), { height: 150, label: "Pageviews by hour of day", labelEvery: 3 }));
+
+    var wds = (p && p.weekdays) || [];
+    if (wds.length) {
+      var wmax = 0;
+      wds.forEach(function (w) { if (w.pageviews > wmax) wmax = w.pageviews; });
+      var row = document.createElement("div");
+      row.className = "weekdays";
+      wds.forEach(function (w) {
+        var cell = document.createElement("div");
+        cell.className = "wd";
+        var pct = wmax ? Math.round((w.pageviews / wmax) * 60) : 0;
+        cell.style.background = "color-mix(in srgb, var(--accent) " + pct + "%, var(--bg))";
+        cell.style.color = pct > 50 ? "var(--surface)" : "var(--ink)";
+        var d = document.createElement("span"); d.className = "d"; d.textContent = w.weekday.slice(0, 3);
+        var c = document.createElement("span"); c.className = "c"; c.textContent = num(w.pageviews);
+        cell.title = w.weekday + ": " + w.pageviews + " pageviews over " + w.days + " day" + (w.days === 1 ? "" : "s");
+        cell.appendChild(d); cell.appendChild(c);
+        row.appendChild(cell);
+      });
+      box.appendChild(row);
+    }
+    var cov = p && p.coverage && p.coverage.pageviews;
+    if (cov != null && cov < 1) box.appendChild(para("hours-note", "Hours cover " + Math.round(cov * 100) + "% of pageviews in this range; read them for shape."));
+  }
+
+  function renderBreakdown(dim, p) {
+    var box = $("b-" + dim);
+    clear(box);
+    var rows = (p && p.rows) || [];
+    var key = (p && p.ranked_by) || "pageviews";
+    $("h-" + dim).textContent = key;
+    if (!rows.length) { box.appendChild(para("empty", "None in this range")); return; }
+    var max = rows[0][key] || 1;
+    var ol = document.createElement("ol");
+    ol.className = "rows";
+    rows.forEach(function (r) {
+      var li = document.createElement("li");
+      var bar = document.createElement("span");
+      bar.className = "bar";
+      bar.style.width = Math.round(((r[key] || 0) / max) * 100) + "%";
+      var name = document.createElement("span");
+      name.className = "name";
+      name.textContent = r.label;
+      if (dim === "country" && r.value && r.value !== r.label) {
+        var code = document.createElement("span");
+        code.className = "code";
+        code.textContent = r.value;
+        name.appendChild(code);
+      }
+      var n = document.createElement("span");
+      n.className = "n";
+      n.textContent = num(r[key]);
+      li.appendChild(bar); li.appendChild(name); li.appendChild(n);
+      ol.appendChild(li);
+    });
+    box.appendChild(ol);
+  }
+
+  // /fr/... is the French version of the same page; no prefix is English.
+  function splitLocale(path) {
+    if (path === "/fr" || path === "/fr/") return { page: "/", lang: "fr" };
+    if (path.indexOf("/fr/") === 0) return { page: path.slice(3), lang: "fr" };
+    return { page: path, lang: "en" };
+  }
+
+  function renderPages(p) {
+    var box = $("b-path");
+    clear(box);
+    var rows = (p && p.rows) || [];
+    var byPage = {}, order = [];
+    rows.forEach(function (r) {
+      var loc = splitLocale(String(r.value || r.label || ""));
+      if (!byPage[loc.page]) { byPage[loc.page] = { page: loc.page, en: 0, fr: 0 }; order.push(byPage[loc.page]); }
+      byPage[loc.page][loc.lang] += r.pageviews || 0;
+    });
+    order.sort(function (a, b) { return (b.en + b.fr) - (a.en + a.fr); });
+    var partial = p && p.following > 0;
+    $("h-path").textContent = "pageviews" + (partial ? " · top " + rows.length + " paths" : "");
+    if (!order.length) { box.appendChild(para("empty", "None in this range")); return; }
+    var top = order.slice(0, 10);
+    var max = top[0].en + top[0].fr || 1;
+    var ol = document.createElement("ol");
+    ol.className = "rows lang";
+    function cell(cls, text) { var el = document.createElement("span"); el.className = cls; el.textContent = text; return el; }
+    var head = document.createElement("li");
+    head.className = "head";
+    head.appendChild(cell("name", "")); head.appendChild(cell("n", "EN")); head.appendChild(cell("n", "FR"));
+    ol.appendChild(head);
+    top.forEach(function (r) {
+      var li = document.createElement("li");
+      var bar = document.createElement("span");
+      bar.className = "bar";
+      bar.style.width = Math.round(((r.en + r.fr) / max) * 100) + "%";
+      li.title = r.page + ": " + r.en + " English, " + r.fr + " French pageviews";
+      li.appendChild(bar);
+      li.appendChild(cell("name", r.page));
+      li.appendChild(cell("n" + (r.en ? "" : " zero"), num(r.en)));
+      li.appendChild(cell("n" + (r.fr ? "" : " zero"), num(r.fr)));
+      ol.appendChild(li);
+    });
+    box.appendChild(ol);
+  }
+
+  var SPEED_ORDER = ["ttfb", "fcp", "lcp", "inp", "cls", "plt"];
+  var RATING_TEXT = { good: "Good", needs_improvement: "Needs work", poor: "Poor" };
+
+  function speedValue(m, v) {
+    if (v == null) return "–";
+    if (m.unit === "score") return v.toFixed(2);
+    return v < 1000 ? "≈" + Math.round(v) + " ms" : "≈" + (v / 1000).toFixed(1) + " s";
+  }
+
+  function renderSpeed(p) {
+    var box = $("b-speed");
+    clear(box);
+    var metrics = (p && p.metrics) || {};
+    $("h-speed").textContent = "75th percentile · " + num(p && p.page_loads) + " page loads";
+    var grid = document.createElement("div");
+    grid.className = "speed";
+    SPEED_ORDER.forEach(function (key) {
+      var m = metrics[key];
+      if (!m) return;
+      var cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "metric";
+      cell.setAttribute("data-metric", key);
+      cell.setAttribute("aria-pressed", String(key === drillMetric));
+      cell.title = "Show where " + key.toUpperCase() + " is slow";
+      function add(cls, text) { var el = document.createElement("span"); el.className = cls; el.textContent = text; cell.appendChild(el); }
+      add("abbr", key.toUpperCase());
+      add("full", m.name || "");
+      add("v", speedValue(m, m.p75));
+      var r = m.p75 == null ? "none" : m.rating;
+      add("pill " + (RATING_TEXT[r] ? r : "none"), RATING_TEXT[r] || "No data");
+      var devs = Object.keys(m.by_device || {}).map(function (d) { return d + " " + speedValue(m, m.by_device[d].p75); });
+      add("dev", devs.length ? devs.join(" · ") : " ");
+      add("dev", num(m.page_loads_measured) + " measured");
+      grid.appendChild(cell);
+    });
+    if (!grid.childNodes.length) { box.appendChild(para("empty", "No page loads measured in this range")); $("drill").hidden = true; return; }
+    box.appendChild(grid);
+    lastSpeed = p;
+    if (!drillMetric || !metrics[drillMetric]) {
+      drillMetric = metrics.ttfb ? "ttfb" : worstMetric(metrics);
+      markPressed();
+      runDrill();
+    } else if (drillStale) {
+      runDrill();
+    }
+  }
+
+  /* ---------- slow pages: drill-down by segment ---------- */
+
+  // The path each slow page is explored along; only slow branches expand.
+  var TREE_DIMS = [["device", "Device"], ["os", "OS"], ["country", "Country"]];
+  var PAGE_LIMIT = 50, BRANCH_LIMIT = 4;
+  var SLOW = { needs_improvement: 1, poor: 1 };
+  var drillMetric = null, drillSeq = 0, drillStale = true, lastSpeed = null;
+  var RANK = { poor: 3, needs_improvement: 2, good: 1 };
+
+  function worstMetric(metrics) {
+    var best = null, bestScore = -1;
+    SPEED_ORDER.forEach(function (k) {
+      var m = metrics[k];
+      if (!m || m.p75 == null) return;
+      var score = (RANK[m.rating] || 0) * 10 + (m.ratings ? (m.ratings.poor || 0) + (m.ratings.needs_improvement || 0) : 0);
+      if (score > bestScore) { bestScore = score; best = k; }
+    });
+    return best || "ttfb";
+  }
+
+  function markPressed() {
+    Array.prototype.forEach.call(document.querySelectorAll("#b-speed .metric"), function (b) {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-metric") === drillMetric));
+    });
+  }
+
+  $("b-speed").addEventListener("click", function (e) {
+    var b = e.target.closest(".metric");
+    if (!b) return;
+    drillMetric = b.getAttribute("data-metric");
+    markPressed();
+    runDrill();
+  });
+  $("drill-refresh").addEventListener("click", function () { runDrill(); });
+
+  function thresholdsText(m) {
+    if (!m || m.good_up_to == null) return "";
+    return "good ≤ " + speedValue(m, m.good_up_to).replace("≈", "") + ", poor > " + speedValue(m, m.poor_over).replace("≈", "");
+  }
+
+  // Runs tasks a few at a time so a drill-down does not flood the connector.
+  // A task that rejects is passed to onError and the pool carries on.
+  function pool(tasks, width, onError) {
+    var i = 0;
+    function next() {
+      if (i >= tasks.length) return Promise.resolve();
+      var t = tasks[i++];
+      return t().then(next, function (err) { if (onError) onError(err); return next(); });
+    }
+    var runners = [];
+    for (var k = 0; k < width; k++) runners.push(next());
+    return Promise.all(runners);
+  }
+
+  function slowCount(r) {
+    return Math.round(((r.ratings.poor || 0) + (r.ratings.needs_improvement || 0)) * r.measured);
+  }
+
+  function speedFor(ctx, key, filters) {
+    return mcp.callTool(SERVER, "get_site_speed", { domain: ctx.site, range: ctx.range, filters: filters },
+      { cache: { staleTime: 60000 } }).then(function (sp) {
+      var m = sp.payload && sp.payload.metrics && sp.payload.metrics[key];
+      return m && m.page_loads_measured > 0 && m.p75 != null
+        ? { p75: m.p75, rating: m.rating, measured: m.page_loads_measured, ratings: m.ratings || {} }
+        : null;
+    });
+  }
+
+  function breakdownFor(ctx, dim, filters, limit) {
+    var input = { domain: ctx.site, range: ctx.range, dimension: dim, limit: limit };
+    if (filters.length) input.filters = filters;
+    return mcp.callTool(SERVER, "get_site_breakdown", input, { cache: { staleTime: 60000 } })
+      .then(function (res) { return res.payload || {}; });
+  }
+
+  function errCode(err) { return (err && err.code) || "error"; }
+
+  // A new site or range makes any drill-down in flight obsolete.
+  function resetDrill() {
+    drillSeq++;
+    drillStale = true;
+    $("drill").hidden = true;
+    clear($("drill-grid"));
+  }
+
+  // Step 1: every page's reading for the chosen measure; keep the slow ones.
+  function runDrill() {
+    drillStale = false;
+    var seq = ++drillSeq;
+    var key = drillMetric;
+    var overall = lastSpeed && lastSpeed.metrics && lastSpeed.metrics[key];
+    $("drill").hidden = false;
+    $("drill-title").textContent = "Slow pages · " + key.toUpperCase();
+    $("drill-sub").textContent = thresholdsText(overall);
+    $("drill-lead").textContent = "Checking each page…";
+    clear($("drill-grid"));
+
+    if (site === EXAMPLE || !mcp) {
+      var mock = mockSlowPages(key, overall);
+      drawPages({ site: site, range: range }, key, overall, mock.pages, mock.checked, null);
+      return;
+    }
+
+    var ctx = { site: site, range: range };
+    breakdownFor(ctx, "path", [], PAGE_LIMIT).then(function (bd) {
+      if (seq !== drillSeq) return;
+      var rows = bd.rows || [];
+      var scope = { scanned: rows.length, total: bd.distinct || rows.length, failed: 0, code: null };
+      var found = [], checked = 0;
+      var tasks = rows.map(function (row) {
+        return function () {
+          return speedFor(ctx, key, [{ dimension: "path", value: String(row.value) }]).then(function (r) {
+            if (seq !== drillSeq || !r) return;
+            checked++;
+            r.path = String(row.value);
+            found.push(r);
+          });
+        };
+      });
+      return pool(tasks, 4, function (err) { scope.failed++; scope.code = errCode(err); }).then(function () {
+        if (seq !== drillSeq) return;
+        if (rows.length && scope.failed === rows.length) {
+          $("drill-lead").textContent = "Could not measure any page (" + scope.code + ").";
+          return;
+        }
+        drawPages(ctx, key, overall, found.filter(function (r) { return SLOW[r.rating]; }), checked, scope);
+      });
+    }).catch(function (err) {
+      if (seq !== drillSeq) return;
+      $("drill-lead").textContent = "Could not check pages (" + errCode(err) + ").";
+    });
+  }
+
+  // Says how much of the site the page scan covered.
+  function scopeText(scope) {
+    var parts = [];
+    if (scope && scope.total > scope.scanned) {
+      parts.push("Checked the top " + scope.scanned + " of " + scope.total + " pages by pageviews; lower-traffic pages were not checked.");
+    }
+    if (scope && scope.failed) {
+      parts.push(scope.failed + " page" + (scope.failed === 1 ? "" : "s") + " could not be measured (" + scope.code + ").");
+    }
+    return parts.length ? " " + parts.join(" ") : "";
+  }
+
+  function drawPages(ctx, key, overall, slow, checked, scope) {
+    var m = overall || { unit: "ms" };
+    var lead = $("drill-lead");
+    var list = $("drill-grid");
+    clear(list);
+    list.className = "slow-list";
+    var extra = scopeText(scope);
+    if (!checked) { lead.textContent = "No page has " + key.toUpperCase() + " readings in this range." + extra; return; }
+    if (!slow.length) {
+      lead.textContent = "No checked page is over the good threshold. " + checked + " page" + (checked === 1 ? "" : "s") + " with readings." + extra;
+      return;
+    }
+    slow.sort(function (a, b) { return b.p75 - a.p75; });
+    lead.textContent = slow.length + " of " + checked + " page" + (checked === 1 ? "" : "s") +
+      " with readings " + (slow.length === 1 ? "is" : "are") + " over the good threshold. Open a page to follow its slow readings by device, OS and country." + extra;
+    slow.forEach(function (r, i) {
+      var det = document.createElement("details");
+      det.className = "slow-page";
+      var sum = document.createElement("summary");
+      function span(cls, text) { var el = document.createElement("span"); el.className = cls; el.textContent = text; sum.appendChild(el); return el; }
+      span("chev", "▸");
+      span("path", r.path);
+      span("p75", speedValue(m, r.p75));
+      span("pill " + r.rating, RATING_TEXT[r.rating]);
+      var c = span("cnt", slowCount(r) + "/" + r.measured + " slow");
+      c.title = slowCount(r) + " of " + r.measured + " readings were over the good threshold";
+      det.appendChild(sum);
+      var body = document.createElement("div");
+      body.className = "factors";
+      det.appendChild(body);
+      var loaded = false;
+      det.addEventListener("toggle", function () {
+        if (det.open && !loaded) { loaded = true; loadTree(ctx, key, m, r, body); }
+      });
+      list.appendChild(det);
+      if (i === 0) det.open = true;
+    });
+  }
+
+  // Step 2: follow one slow page down device > OS > country. Each level is
+  // filtered by every level above it, so a branch is a real combination.
+  function loadTree(ctx, key, m, page, body) {
+    var seq = drillSeq;
+    clear(body);
+    var status = para("note", "Following this page by device, OS and country…");
+    body.appendChild(status);
+    var root = { label: page.path, dim: "path", value: page.path, p75: page.p75, rating: page.rating,
+      measured: page.measured, ratings: page.ratings, children: [] };
+
+    if (ctx.site === EXAMPLE || !mcp) { root.children = mockTree(m); drawTree(body, m, root); return; }
+
+    var calls = 0, failed = 0, lastCode = null;
+    function fail(err) { failed++; lastCode = errCode(err); }
+    function expand(node, depth, filters) {
+      if (depth >= TREE_DIMS.length || !SLOW[node.rating]) return Promise.resolve();
+      var dim = TREE_DIMS[depth][0];
+      return breakdownFor(ctx, dim, filters, BRANCH_LIMIT).then(function (bd) {
+        return pool((bd.rows || []).map(function (row) {
+          return function () {
+            var f = filters.concat([{ dimension: dim, value: String(row.value) }]);
+            return speedFor(ctx, key, f).then(function (r) {
+              calls++;
+              if (seq === drillSeq) status.textContent = "Following this page by device, OS and country… " + calls + " segments measured";
+              if (!r) return;
+              var child = { label: row.label, dim: dim, p75: r.p75, rating: r.rating, measured: r.measured, ratings: r.ratings, children: [] };
+              node.children.push(child);
+              return expand(child, depth + 1, f);
+            });
+          };
+        }), 2, fail);
+      }, fail);
+    }
+    expand(root, 0, [{ dimension: "path", value: page.path }]).then(function () {
+      if (seq !== drillSeq) return;
+      drawTree(body, m, root);
+      if (failed) body.appendChild(para("err", failed + " segment" + (failed === 1 ? "" : "s") +
+        " could not be measured (" + lastCode + "); the tree may be missing branches."));
+    });
+  }
+
+  function drawTree(body, m, root) {
+    clear(body);
+    var BOX = 158, GAP = 44, BH = 38, ROW = 48, TOP = 26, PAD = 4;
+    var cols = TREE_DIMS.map(function (d) { return d[1]; });
+
+    function sortTree(n) {
+      n.children.sort(function (a, b) { return (RANK[b.rating] || 0) - (RANK[a.rating] || 0) || b.p75 - a.p75; });
+      n.children.forEach(sortTree);
+    }
+    function leaves(n) { n.leaves = n.children.length ? n.children.reduce(function (t, c) { return t + leaves(c); }, 0) : 1; return n.leaves; }
+    function place(n, depth, top) {
+      n.depth = depth; n.x = PAD + (depth - 1) * (BOX + GAP); n.y = top + (n.leaves * ROW) / 2;
+      var t = top;
+      n.children.forEach(function (c) { place(c, depth + 1, t); t += c.leaves * ROW; });
+    }
+    sortTree(root); leaves(root); place(root, 0, TOP);
+
+    var W = PAD * 2 + cols.length * BOX + (cols.length - 1) * GAP;
+    var H = TOP + root.leaves * ROW + 4;
+    var svg = svgEl("svg", { viewBox: "0 0 " + W + " " + H, role: "img",
+      "aria-label": "Readings for " + root.label + " split by device, then OS, then country" });
+
+    cols.forEach(function (c, i) {
+      svg.appendChild(svgEl("text", { x: PAD + i * (BOX + GAP) + 2, y: 12, "font-size": 11, "font-weight": 600,
+        "letter-spacing": "0.08em", fill: "var(--muted)", "font-family": "var(--sans)" }, c.toUpperCase()));
+    });
+
+    var COLOR = { poor: ["var(--poor-soft)", "var(--poor)"], needs_improvement: ["var(--warn-soft)", "var(--warn)"], good: ["var(--bg)", "var(--line)"] };
+    var links = svgEl("g", {}), nodes = svgEl("g", {});
+    svg.appendChild(links); svg.appendChild(nodes);
+
+    function clip(t, n) { return t.length > n ? t.slice(0, n - 1) + "…" : t; }
+
+    (function walk(n) {
+      var c = COLOR[n.rating] || COLOR.good;
+      if (n === root) { n.children.forEach(walk); return; }
+      n.children.forEach(function (ch) {
+        var x1 = n.x + BOX, y1 = n.y, x2 = ch.x, y2 = ch.y, mx = (x1 + x2) / 2;
+        var w = Math.max(1.5, Math.min(14, (ch.measured / root.measured) * 14));
+        var cc = COLOR[ch.rating] || COLOR.good;
+        links.appendChild(svgEl("path", { d: "M" + x1 + "," + y1 + " C" + mx + "," + y1 + " " + mx + "," + y2 + " " + x2 + "," + y2,
+          fill: "none", stroke: ch.rating === "good" ? "var(--line)" : cc[1], "stroke-opacity": ch.rating === "good" ? 1 : 0.45,
+          "stroke-width": w, "stroke-linecap": "round" }));
+        walk(ch);
+      });
+      var g = svgEl("g", {});
+      g.appendChild(svgEl("rect", { x: n.x, y: n.y - BH / 2, width: BOX, height: BH, rx: 6, fill: c[0], stroke: c[1], "stroke-width": 1 }));
+      var textFill = n.rating === "good" ? "var(--muted)" : "var(--ink)";
+      g.appendChild(svgEl("text", { x: n.x + 8, y: n.y - 3, "font-size": n.dim === "path" ? 11.5 : 12.5, "font-weight": 600, fill: textFill,
+        "font-family": n.dim === "path" ? "var(--mono)" : "var(--sans)" }, clip(n.label, n.dim === "path" ? 19 : 20)));
+      var slow = slowCount(n);
+      g.appendChild(svgEl("text", { x: n.x + 8, y: n.y + 12, "font-size": 11, fill: n.rating === "good" ? "var(--muted)" : c[1],
+        "font-family": "var(--mono)" }, speedValue(m, n.p75) + " · " + slow + "/" + n.measured + " slow"));
+      g.appendChild(svgEl("title", {}, n.label + ": " + speedValue(m, n.p75) + " at the 75th percentile, " +
+        slow + " of " + n.measured + " readings over the good threshold" +
+        (n.rating === "good" && n.depth < TREE_DIMS.length ? " (fine, not split further)" : "")));
+      nodes.appendChild(g);
+    })(root);
+
+    var wrap = document.createElement("div");
+    wrap.className = "tree-wrap";
+    wrap.appendChild(svg);
+    body.appendChild(wrap);
+
+    var legend = document.createElement("div");
+    legend.className = "tree-legend";
+    [["lg-poor", "Poor"], ["lg-ni", "Needs work"], ["lg-good", "Good — not split further"]].forEach(function (x) {
+      var s = document.createElement("span"); var i = document.createElement("i"); i.className = x[0];
+      s.appendChild(i); s.appendChild(document.createTextNode(x[1])); legend.appendChild(s);
+    });
+    var note = document.createElement("span");
+    note.textContent = "Line width: share of this page's readings. Each box: 75th percentile · slow readings / all readings.";
+    legend.appendChild(note);
+    body.appendChild(legend);
+    if (root.children.length === 0) body.appendChild(para("note", "No device, OS or country readings for this page in this range."));
+  }
+
+  function mockRow(m, v, measured) {
+    var rating = v <= m.good_up_to ? "good" : v > m.poor_over ? "poor" : "needs_improvement";
+    var slowShare = rating === "good" ? 0.1 : rating === "poor" ? 0.8 : 0.55;
+    return { p75: v, rating: rating, measured: measured, ratings: { poor: slowShare / 2, needs_improvement: slowShare / 2 } };
+  }
+
+  function mockSlowPages(key, overall) {
+    var m = overall && overall.good_up_to != null ? overall : { good_up_to: 800, poor_over: 1800 };
+    var g = m.good_up_to, pz = m.poor_over;
+    var pages = [
+      ["/fr/account/login/sent/", pz * 1.05, 6], ["/account/login/sent/", (g + pz) / 2, 4],
+      ["/register/referee/", g * 1.15, 18]
+    ].map(function (x) { var r = mockRow(m, x[1], x[2]); r.path = x[0]; return r; });
+    return { pages: pages, checked: 11 };
+  }
+
+  function mockTree(m) {
+    var slow = (m.good_up_to + m.poor_over) / 2, bad = m.poor_over * 1.1, fast = m.good_up_to * 0.35;
+    function n(label, dim, v, measured, children) {
+      var r = mockRow(m, v, measured); r.label = label; r.dim = dim; r.children = children || []; return r;
+    }
+    return [
+      n("Mobile", "device", slow * 1.15, 5, [
+        n("iOS", "os", bad, 4, [n("Switzerland", "country", bad * 1.05, 3), n("France", "country", slow, 1)]),
+        n("Android", "os", fast, 1)
+      ]),
+      n("Desktop", "device", fast, 2)
+    ];
+  }
+
+  function sectionError(id) {
+    return function () { var box = $(id); clear(box); box.appendChild(para("err", "Unavailable")); };
+  }
+
+  /* ---------- example data ---------- */
+
+  var MOCK = {
+    countries: [["Switzerland", "CH", 46], ["United Kingdom", "GB", 21], ["France", "FR", 14], ["Netherlands", "NL", 8], ["Belgium", "BE", 6], ["Germany", "DE", 3], ["Greece", "GR", 2]],
+    paths: [["/", 26], ["/fr/", 14], ["/register/referee/", 13], ["/fr/register/referee/", 9], ["/register/ambassador/", 10], ["/fr/register/ambassador/", 5], ["/how-it-works/", 7], ["/fr/how-it-works/", 4], ["/faq/", 5], ["/fr/faq/", 2], ["/account/login/", 3], ["/fr/account/login/", 2]],
+    devices: [["Mobile", 68], ["Desktop", 29], ["Tablet", 3]],
+    sources: [["Facebook", 52], ["Direct", 31], ["Google", 12], ["WhatsApp", 5]],
+    days: { "today": 1, "last-7-days": 7, "last-30-days": 30, "all-time": 30 },
+    // Evening-heavy shape: people check the Facebook group after work.
+    hourShape: [1, 0, 0, 0, 0, 1, 2, 4, 5, 4, 4, 5, 7, 6, 4, 4, 5, 7, 10, 12, 11, 8, 5, 2],
+    weekShape: [11, 10, 12, 13, 14, 19, 21]
+  };
+
+  function seeded(i) { var x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x); }
+
+  function mockSummary(r) {
+    var n = MOCK.days[r], buckets = [], end = new Date();
+    end = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()));
+    for (var i = n - 1; i >= 0; i--) {
+      var d = new Date(end.getTime() - i * 86400000);
+      var age = n - 1 - i;
+      var base = n === 1 ? 38 : 6 + age * 1.3;
+      var v = Math.round(base * (0.75 + seeded(age + 1) * 0.5));
+      buckets.push({ start: d.toISOString().slice(0, 10), visitors: v, visits: Math.round(v * 1.2), pageviews: Math.round(v * 2.6), current: i === 0 });
+    }
+    var tot = { visitors: 0, visits: 0, pageviews: 0 };
+    buckets.forEach(function (b) { tot.visitors += b.visitors; tot.visits += b.visits; tot.pageviews += b.pageviews; });
+    return {
+      timezone: "UTC",
+      totals: tot,
+      change: n === 1 ? { visitors: 18, visits: 22, pageviews: 31 } : { visitors: 64, visits: 58, pageviews: 71 },
+      previous: { totals: {} },
+      ended_visits: { bounce_rate: 54, average_seconds: 96 },
+      range: { from: buckets[0].start, to: buckets[buckets.length - 1].start },
+      series: { unit: "day", buckets: buckets }
+    };
+  }
+
+  function mockBreakdown(dim, total) {
+    var list = { country: MOCK.countries, path: MOCK.paths, source: MOCK.sources, device: MOCK.devices }[dim];
+    var key = { country: "visitors", path: "pageviews", source: "visits", device: "visitors" }[dim];
+    return { ranked_by: key, rows: list.map(function (row) {
+      var o = { label: row[0], value: row.length === 3 ? row[1] : row[0] };
+      o[key] = Math.max(1, Math.round(total[key] * (row[row.length - 1] / 100)));
+      return o;
+    }) };
+  }
+
+  function mockHours(total, r) {
+    var hsum = MOCK.hourShape.reduce(function (a, b) { return a + b; }, 0);
+    var wsum = MOCK.weekShape.reduce(function (a, b) { return a + b; }, 0);
+    var names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    var n = MOCK.days[r];
+    return {
+      timezone: "UTC",
+      coverage: { pageviews: 1 },
+      hours: MOCK.hourShape.map(function (w, i) {
+        var pv = Math.round(total.pageviews * w / hsum);
+        return { hour: (i < 10 ? "0" : "") + i, pageviews: pv, visits: Math.round(pv / 2.2) };
+      }),
+      weekdays: n === 1 ? [] : MOCK.weekShape.map(function (w, i) {
+        return { weekday: names[i], days: Math.max(1, Math.round(n / 7)), pageviews: Math.round(total.pageviews * w / wsum) };
+      })
+    };
+  }
+
+  function mockSpeed(total) {
+    function m(name, unit, good, poor, p75, desk, mob, share) {
+      return { name: name, unit: unit, p75: p75, good_up_to: good, poor_over: poor,
+        ratings: { good: 0.7, needs_improvement: 0.2, poor: 0.1 },
+        rating: p75 <= good ? "good" : p75 > poor ? "poor" : "needs_improvement",
+        page_loads_measured: Math.round(total.pageviews * share),
+        by_device: { Desktop: { p75: desk }, Mobile: { p75: mob } } };
+    }
+    return {
+      page_loads: total.pageviews,
+      metrics: {
+        ttfb: m("Time to first byte", "ms", 800, 1800, 310, 240, 360, 0.9),
+        fcp: m("First contentful paint", "ms", 1800, 3000, 1150, 620, 1400, 0.95),
+        lcp: m("Largest contentful paint", "ms", 2500, 4000, 2900, 1300, 3300, 0.95),
+        inp: m("Interaction to next paint", "ms", 200, 500, 120, 40, 160, 0.5),
+        cls: m("Cumulative layout shift", "score", 0.1, 0.25, 0.02, 0, 0.04, 0.9),
+        plt: m("Page load time", "ms", 3000, 6000, 2100, 1100, 2600, 0.97)
+      }
+    };
+  }
+
+  function renderExample() {
+    showBanner(mcp
+      ? "Example data. Choose a site above for live figures."
+      : "Example data. Live figures appear here when the page can reach the fivebar connector.");
+    var s = mockSummary(range);
+    renderLive({ live_visitors: 3, window_minutes: 5, at: new Date().toISOString() });
+    renderSummary(s);
+    ["country", "source", "device"].forEach(function (d) { renderBreakdown(d, mockBreakdown(d, s.totals)); });
+    renderPages(mockBreakdown("path", s.totals));
+    renderHours(mockHours(s.totals, range));
+    renderSpeed(mockSpeed(s.totals));
+    $("updated").textContent = "Example data";
+  }
+
+  /* ---------- live data ---------- */
+
+  function handler(onData, onDenied) {
+    return function (ev) {
+      if (site === EXAMPLE) return;
+      if (ev.type === "data") {
+        showBanner("");
+        stamp(ev.result);
+        onData(ev.result.payload);
+      } else {
+        showBanner(errorText(ev.error), ev.error, true);
+        if (DENIALS[ev.error && ev.error.code]) onDenied();
+      }
+    };
+  }
+
+  function stopWatches() { watches.forEach(function (u) { u(); }); watches = []; }
+
+  function resetPanels() {
+    ["b-country", "b-path", "b-source", "b-device", "b-hours", "b-speed", "chart"].forEach(function (id) {
+      var box = $(id); clear(box); box.appendChild(para("empty", "Loading"));
+    });
+    renderLive(null);
+    $("live").textContent = "–";
+  }
+
+  function startWatches() {
+    stopWatches();
+    resetPanels();
+    var base = { domain: site, range: range };
+    function w(tool, input, onData, onDenied, every) {
+      watches.push(mcp.watchTool(SERVER, tool, input, handler(onData, onDenied), { refetchInterval: every }));
+    }
+    w("get_live_visitors", { domain: site }, renderLive, function () { renderLive(null); }, 30000);
+    w("get_site_summary", base, renderSummary, function () { renderSummary(null); }, 60000);
+    [["country", "visitors"], ["source", null], ["device", "visitors"]].forEach(function (d) {
+      var input = { domain: site, range: range, dimension: d[0], limit: 10 };
+      if (d[1]) input.metric = d[1];
+      w("get_site_breakdown", input, function (p) { renderBreakdown(d[0], p); }, sectionError("b-" + d[0]), 120000);
+    });
+    w("get_site_breakdown", { domain: site, range: range, dimension: "path", limit: 50 }, renderPages, sectionError("b-path"), 120000);
+    w("get_site_hours", base, renderHours, sectionError("b-hours"), 300000);
+    w("get_site_speed", base, renderSpeed, sectionError("b-speed"), 300000);
+  }
+
+  function refresh() {
+    resetDrill();
+    if (site === EXAMPLE || !mcp) { stopWatches(); renderExample(); }
+    else startWatches();
+  }
+
+  /* ---------- controls ---------- */
+
+  function setRange(r) {
+    range = r;
+    try { localStorage.setItem("fb-range", r); } catch (e) {}
+    Array.prototype.forEach.call(document.querySelectorAll("#ranges button"), function (b) {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-range") === r));
+    });
+  }
+
+  $("ranges").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-range]");
+    if (!b) return;
+    setRange(b.getAttribute("data-range"));
+    refresh();
+  });
+
+  $("site-select").addEventListener("change", function (e) {
+    site = e.target.value;
+    try { localStorage.setItem("fb-site", site); } catch (err) {}
+    refresh();
+  });
+
+  function fillSites(list) {
+    var sel = $("site-select");
+    clear(sel);
+    list.forEach(function (s) {
+      var o = document.createElement("option");
+      o.value = s.domain; o.textContent = s.domain;
+      sel.appendChild(o);
+    });
+    var ex = document.createElement("option");
+    ex.value = EXAMPLE; ex.textContent = "Example";
+    sel.appendChild(ex);
+    var domains = list.map(function (s) { return s.domain; });
+    if (savedSite === EXAMPLE || (savedSite && domains.indexOf(savedSite) >= 0)) site = savedSite;
+    else site = domains[0] || EXAMPLE;
+    sel.value = site;
+  }
+
+  setRange(range);
+  renderExample();
+
+  if (!(window.claude && window.claude.use)) return;
+  window.claude.use("mcp").then(function (ns) {
+    if (!ns) return;
+    mcp = ns;
+    loadSites(true);
+  });
+
+  function loadSites(allowAutoRetry) {
+    showBanner("Connecting to fivebar…");
+    mcp.callTool(SERVER, "list_sites", {}).then(function (res) {
+      var p = res && res.payload;
+      fillSites((p && p.sites) || []);
+      refresh();
+    }, function (err) {
+      if (allowAutoRetry && err && err.retryable) {
+        var wait = Math.min(err.retryAfterMs || 0, 60000) + 500 + Math.random() * 1500;
+        showBanner("fivebar did not answer the first call. Trying again…", err, false);
+        setTimeout(function () { loadSites(false); }, wait);
+        return;
+      }
+      showBanner(errorText(err) + " Showing example data.", err, true);
+    });
+  }
+
+  $("retry").addEventListener("click", function () {
+    if (!mcp) return;
+    if ($("site-select").options.length > 1) { refresh(); return; }
+    loadSites(false);
+  });
+})();
+</script>

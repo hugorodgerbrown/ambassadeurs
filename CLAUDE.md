@@ -574,6 +574,7 @@ feature docs are written:
 | Structured email templates (text + HTML, translatable) | [ADR 0020](docs/decisions/0020-structured-email-templates.md) |
 | Authentication (magic-link login) | [ADR 0012](docs/decisions/0012-magic-link-login.md) |
 | Lighthouse audits (CI, thresholds, baseline) | [`docs/lighthouse.md`](docs/lighthouse.md) |
+| Visitor dashboard (fivebar analytics artifact) | [`docs/analytics/README.md`](docs/analytics/README.md) |
 | Internationalisation (catalogues compiled at deploy) | [ADR 0015](docs/decisions/0015-compile-message-catalogues-at-deploy.md) |
 | Internationalisation (decoupled catalogue maintenance) | [ADR 0016](docs/decisions/0016-decoupled-catalogue-maintenance.md) |
 | Billing — prepaid deposit (Stripe, capture / refund / forfeit) | [ADR 0014](docs/decisions/0014-deferred-matching-prepaid-fee.md) |

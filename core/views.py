@@ -22,7 +22,8 @@
 # any external uptime monitors. The endpoint is unauthenticated, read-only, and
 # performs a trivial SELECT 1 to confirm the database is reachable.
 #
-# Every view here is decorated with @require_safe, NOT @require_GET (SKI-151).
+# Every machine-facing view here is decorated with @require_safe, NOT
+# @require_GET (SKI-151); impersonate_handoff is the deliberate exception.
 # require_GET is require_http_methods(["GET"]) — it rejects HEAD with 405.
 # require_safe is require_http_methods(["GET", "HEAD"]). These are machine-facing
 # endpoints: crawlers, link-checkers, AI agents and uptime monitors routinely
@@ -44,7 +45,7 @@ from django.db import OperationalError, connection
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
-from django.views.decorators.http import require_safe
+from django.views.decorators.http import require_GET, require_safe
 from impersonate.views import stop_impersonate
 
 from core.impersonation import read_handoff_token
@@ -158,7 +159,7 @@ def healthz(request: HttpRequest) -> HttpResponse:
     return HttpResponse("ok", content_type="text/plain")
 
 
-@require_safe
+@require_GET
 def impersonate_handoff(request: HttpRequest, token: str) -> HttpResponse:
     """Sign the superuser in on the public host and start impersonating (ADR 0028).
 
@@ -167,6 +168,10 @@ def impersonate_handoff(request: HttpRequest, token: str) -> HttpResponse:
     the public login page, because the admin session cookie never reaches the
     public host. An invalid, expired or spent token renders the login-invalid
     page with a 400 and signs nobody in.
+
+    GET only, not ``require_safe``: redeeming the token logs in and so spends
+    it, and a HEAD probe (proxy, scanner) must not do that before the browser's
+    GET arrives.
 
     Any impersonation already running in this session is stopped first (closing
     its audit log row): the package refuses to start a new impersonation from

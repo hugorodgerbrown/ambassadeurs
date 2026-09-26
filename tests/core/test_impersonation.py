@@ -131,6 +131,17 @@ def test_handoff_token_cannot_be_replayed(client: Client) -> None:
     assert response.status_code == 400
 
 
+def test_handoff_refuses_head_and_leaves_the_token_unspent(client: Client) -> None:
+    """A HEAD probe gets 405 and does not consume the single-use token."""
+    participant = _participant()
+    url = impersonate_handoff_url(_superuser(), participant.pk)
+
+    assert client.head(url).status_code == 405
+    response = client.get(url, follow=True)
+
+    assert response.wsgi_request.user == participant
+
+
 def test_handoff_rejects_an_invalid_token(client: Client) -> None:
     """An invalid token renders a 400 and signs nobody in."""
     response = client.get(reverse("impersonate-handoff", args=["bogus"]))

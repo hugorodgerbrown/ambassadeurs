@@ -53,8 +53,10 @@ chokepoint:
      already rendered.
    - It is non-daemon, so a graceful gunicorn restart lets an in-flight send
      finish.
-   - It catches and logs its own exceptions, with the template name only and
-     never the address.
+   - It catches and logs its own exceptions: the template name and the
+     exception class only. The message and traceback are left out, because
+     SMTP errors such as `SMTPRecipientsRefused` include the recipient
+     addresses in their text.
 4. **Set `EMAIL_TIMEOUT`** (default 10 s) in production, so one send cannot
    hold its thread, or a worker during shutdown, for more than that.
 
@@ -89,7 +91,8 @@ no-enumeration behaviour and the token salts do not change.
   and confirmation links the user can request again. A lost match notification
   is covered by the account page, which shows the match regardless of email.
 - **SMTP errors no longer reach the request in production.** They appear as
-  `Failed to send templated email name=…` log lines, not as a 500. This is
+  `Failed to send templated email name=… error=<class>` log lines, not as a
+  500. This is
   intended: the POST was already answered, and no-enumeration means the user
   was never told whether an email went out.
 - **Tests that assert on `mail.outbox`** must run the on-commit callbacks

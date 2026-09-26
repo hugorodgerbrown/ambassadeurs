@@ -10,6 +10,7 @@
 
 import logging
 import re
+import smtplib
 import threading
 from typing import Any
 from unittest import mock
@@ -276,14 +277,23 @@ def test_send_templated_email_background_sends_on_another_thread(
 def test_background_send_failure_is_logged_not_raised(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """An SMTP error on the background thread is logged, without the address."""
+    """An SMTP error on the background thread is logged, without the address.
+
+    ``SMTPRecipientsRefused`` carries the refused addresses in its text, so the
+    log line must not include the exception message or traceback.
+    """
     message = EmailMultiAlternatives("s", "b", "from@example.com", ["ada@example.com"])
+    refused = smtplib.SMTPRecipientsRefused(
+        {"ada@example.com": (550, b"5.1.1 <ada@example.com>: user unknown")}
+    )
 
     with (
-        mock.patch.object(message, "send", side_effect=OSError("smtp down")),
+        mock.patch.object(message, "send", side_effect=refused),
         caplog.at_level(logging.ERROR, logger="core.emails"),
     ):
         _send_in_background(message, "login")
 
     assert "Failed to send templated email name=login" in caplog.text
+    assert "SMTPRecipientsRefused" in caplog.text
     assert "ada@example.com" not in caplog.text
+    assert all(record.exc_info is None for record in caplog.records)

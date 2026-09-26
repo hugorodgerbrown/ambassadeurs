@@ -171,7 +171,10 @@ def _send_in_background(message: EmailMultiAlternatives, name: str) -> None:
 
     An exception escaping a thread target is printed to stderr by
     ``threading.excepthook`` and otherwise lost, so it is caught and logged
-    here with the template name (never the address) for the log pipeline.
+    here for the log pipeline. Only the template name and the exception's
+    class name are logged — not its message or traceback, because SMTP errors
+    such as ``SMTPRecipientsRefused`` carry the recipient addresses in their
+    text, and addresses never go to the logs.
 
     Args:
         message: The fully rendered message.
@@ -179,5 +182,9 @@ def _send_in_background(message: EmailMultiAlternatives, name: str) -> None:
     """
     try:
         _send(message, name)
-    except Exception:
-        logger.exception("Failed to send templated email name=%s", name)
+    except Exception as exc:
+        logger.error(
+            "Failed to send templated email name=%s error=%s",
+            name,
+            type(exc).__name__,
+        )

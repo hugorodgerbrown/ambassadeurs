@@ -10,6 +10,9 @@
 #
 #   - healthz: health-check view.
 #
+#   - impersonate_handoff: redeems the admin's signed "View as" hand-off token
+#     on the public host (ADR 0028). A staff tool, not a machine endpoint.
+#
 # robots.txt, llms.txt and sitemap.xml are machine-facing documents. Their
 # copy is deliberately NOT wrapped for translation: Invariant 8 governs
 # user-facing display strings, and none of these three is rendered in the UI
@@ -36,10 +39,15 @@
 
 import logging
 
+from django.contrib.auth import login
 from django.db import OperationalError, connection
 from django.http import HttpRequest, HttpResponse
+from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_safe
+from impersonate.views import stop_impersonate
+
+from core.impersonation import read_handoff_token
 
 logger = logging.getLogger(__name__)
 
@@ -148,3 +156,28 @@ def healthz(request: HttpRequest) -> HttpResponse:
         logger.exception("Health check failed: database unreachable")
         return HttpResponse(status=503)
     return HttpResponse("ok", content_type="text/plain")
+
+
+@require_safe
+def impersonate_handoff(request: HttpRequest, token: str) -> HttpResponse:
+    """Sign the superuser in on the public host and start impersonating (ADR 0028).
+
+    The admin's "View as" link redirects here with a signed, 60-second,
+    single-use token. Without it a split-host deployment sends the superuser to
+    the public login page, because the admin session cookie never reaches the
+    public host. An invalid, expired or spent token renders the login-invalid
+    page with a 400 and signs nobody in.
+
+    Any impersonation already running in this session is stopped first (closing
+    its audit log row): the package refuses to start a new impersonation from
+    inside one.
+    """
+    handoff = read_handoff_token(token)
+    if handoff is None:
+        return render(request, "accounts/login_invalid.html", status=400)
+    impersonator, target_pk = handoff
+
+    if "_impersonate" in request.session:
+        stop_impersonate(request)
+    login(request, impersonator, backend="django.contrib.auth.backends.ModelBackend")
+    return redirect("impersonate-start", target_pk)

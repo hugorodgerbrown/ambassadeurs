@@ -39,7 +39,7 @@ from django.conf.urls.i18n import i18n_patterns
 from django.contrib.sitemaps.views import sitemap
 from django.urls import include, path
 
-from core.views import healthz, llms_txt, robots_txt
+from core.views import healthz, impersonate_handoff, llms_txt, robots_txt
 from public.sitemaps import StaticViewSitemap
 from public.views import stripe_webhook
 
@@ -84,7 +84,13 @@ urlpatterns = [
     # the public site, not the admin host: impersonation only has an effect on
     # the host whose session carries it, and the public pages are what staff
     # want to see. Unprefixed — a staff tool, not a translated page. The admin
-    # links here with an absolute URL (core.impersonation).
+    # links here with an absolute URL (core.impersonation), via the signed
+    # hand-off that signs the superuser in on this host first.
+    path(
+        "impersonate/handoff/<str:token>/",
+        impersonate_handoff,
+        name="impersonate-handoff",
+    ),
     path("impersonate/", include("impersonate.urls")),
 ]
 

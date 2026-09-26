@@ -49,7 +49,26 @@ def test_registration_changelist_links_to_view_as(client: Client) -> None:
     registration = RegistrationFactory.create()
     client.force_login(make_staff_user())
     response = client.get(reverse("admin:matching_registration_changelist"))
-    assert f'href="/impersonate/{registration.user_id}/"' in response.content.decode()
+    url = reverse("admin:matching_registration_view_as", args=[registration.pk])
+    assert f'href="{url}"' in response.content.decode()
+
+
+def test_view_as_redirects_superuser_to_the_public_handoff(client: Client) -> None:
+    """The admin "View as" view redirects to the signed public hand-off."""
+    registration = RegistrationFactory.create()
+    client.force_login(make_staff_user())
+    url = reverse("admin:matching_registration_view_as", args=[registration.pk])
+    response = client.get(url)
+    assert response.status_code == 302
+    assert response["Location"].startswith("/impersonate/handoff/")
+
+
+def test_view_as_is_forbidden_to_non_superuser_staff(client: Client) -> None:
+    """Plain staff cannot mint a hand-off token."""
+    registration = RegistrationFactory.create()
+    client.force_login(UserFactory.create(is_staff=True))
+    url = reverse("admin:matching_registration_view_as", args=[registration.pk])
+    assert client.get(url).status_code == 403
 
 
 def test_match_changelist_returns_200(client: Client) -> None:

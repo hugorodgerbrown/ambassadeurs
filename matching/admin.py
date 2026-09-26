@@ -4,11 +4,14 @@ import csv
 from typing import Any
 
 from django.contrib import admin
-from django.http import HttpRequest, HttpResponse
+from django.core.exceptions import PermissionDenied
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.shortcuts import get_object_or_404
+from django.urls import URLPattern, path, reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
-from core.impersonation import impersonate_start_url
+from core.impersonation import impersonate_handoff_url
 
 from .models import Match, Registration
 
@@ -97,6 +100,32 @@ class RegistrationAdmin(admin.ModelAdmin):
         "updated_at",
     ]
 
+    def get_urls(self) -> list[URLPattern]:
+        """Add the "View as" hand-off route ahead of the default admin URLs."""
+        return [
+            path(
+                "<path:object_id>/view-as/",
+                self.admin_site.admin_view(self.view_as_redirect),
+                name="matching_registration_view_as",
+            ),
+            *super().get_urls(),
+        ]
+
+    def view_as_redirect(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        """Hand the superuser to the public site, impersonating this participant.
+
+        Mints the signed hand-off token at click time (so its 60-second expiry
+        starts now, not when the changelist rendered) and redirects to the
+        public hand-off view, which signs the superuser in on the public host
+        before starting the impersonation (ADR 0028).
+        """
+        if not request.user.is_superuser:
+            raise PermissionDenied
+        registration = get_object_or_404(Registration, pk=object_id)
+        return HttpResponseRedirect(
+            impersonate_handoff_url(request.user, registration.user_id)
+        )
+
     @admin.display(description=_("View as"))
     def view_as(self, obj: Registration) -> str:
         """Link that starts a read-only impersonation of this participant.
@@ -106,7 +135,7 @@ class RegistrationAdmin(admin.ModelAdmin):
         """
         return format_html(
             '<a href="{}" target="_blank" rel="noopener">{}</a>',
-            impersonate_start_url(obj.user_id),
+            reverse("admin:matching_registration_view_as", args=[obj.pk]),
             _("View as"),
         )
 

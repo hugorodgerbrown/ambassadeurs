@@ -8,10 +8,15 @@ view passing the data explicitly (VERB-109).
 ``markdown_alternate`` injects the URL of the page's Markdown representation
 so ``_meta.html`` can advertise it with a ``<link rel="alternate">`` tag
 (SKI-155).
+
+``analytics`` decides whether ``base.html`` loads the Fivebar tally script
+(SKI-177): the ``FIVEBAR_ENABLED`` flag, minus signed-token routes and staff
+impersonation.
 """
 
 from __future__ import annotations
 
+from django.conf import settings
 from django.http import HttpRequest
 from django.utils import timezone
 
@@ -66,3 +71,31 @@ def markdown_alternate(request: HttpRequest) -> dict[str, str]:
     if page is None:
         return {}
     return {"markdown_url": request.build_absolute_uri(f"/{page.slug}.md")}
+
+
+def analytics(request: HttpRequest) -> dict[str, bool]:
+    """Return whether the Fivebar analytics script should be loaded.
+
+    Off whenever ``FIVEBAR_ENABLED`` is false, and also on two kinds of
+    request regardless of the flag:
+
+    - a route carrying a signed ``token`` URL kwarg (login verify, registration
+      confirm, match pages). The tally script reports ``location.href``, and
+      those tokens are live credentials — they must never reach a third party.
+    - a staff impersonation (``request.impersonator``), which would record
+      staff browsing as participant activity; the same gate
+      ``core.middleware._is_trackable_pageview`` applies to PostHog (ADR 0028).
+
+    Args:
+        request: The current HTTP request.
+
+    Returns:
+        ``{"fivebar_enabled": <bool>}``.
+    """
+    match = request.resolver_match
+    enabled = (
+        settings.FIVEBAR_ENABLED
+        and getattr(request, "impersonator", None) is None
+        and not (match is not None and "token" in match.kwargs)
+    )
+    return {"fivebar_enabled": enabled}

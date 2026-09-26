@@ -183,3 +183,12 @@ points beyond what this ADR anticipated:
   `ignore_missing_imports` and `disallow_untyped_decorators` to the two
   modules that use the decorators (`matching.services`,
   `matching.side_effects`) rather than relaxing either setting project-wide.
+
+## Amendment (SKI-178) — `on_commit` is not off-request
+
+"Deferred only to `on_commit`" still runs the send before the response is
+returned, so on its own it adds no latency relief. Since SKI-178,
+`core.emails.send_templated_email` renders in the caller's thread, defers
+delivery to `on_commit` itself, and in production hands the SMTP send to a
+background thread. The handlers here are unchanged. See
+[ADR 0029](0029-background-email-delivery.md).

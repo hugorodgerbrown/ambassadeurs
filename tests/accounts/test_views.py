@@ -43,7 +43,10 @@ def test_login_request_post_known_email_redirects_to_sent() -> None:
     """POST with a known email redirects to login_sent and sends one email."""
     user = UserFactory.create(email="ada@example.com")
     mail.outbox.clear()
-    response = Client().post(reverse("accounts:login"), {"email": "ada@example.com"})
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        response = Client().post(
+            reverse("accounts:login"), {"email": "ada@example.com"}
+        )
     assert response.status_code == 302
     assert response.url == reverse("accounts:login_sent")
     assert len(mail.outbox) == 1
@@ -63,7 +66,10 @@ def test_login_request_post_normalises_email_case() -> None:
     """POST with uppercase email is normalised before lookup (Invariant 5)."""
     UserFactory.create(email="ada@example.com")
     mail.outbox.clear()
-    response = Client().post(reverse("accounts:login"), {"email": "ADA@EXAMPLE.COM"})
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        response = Client().post(
+            reverse("accounts:login"), {"email": "ADA@EXAMPLE.COM"}
+        )
     assert response.status_code == 302
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == ["ada@example.com"]
@@ -714,7 +720,8 @@ def test_resend_post_sends_email_for_unverified_registration() -> None:
     client = Client()
     client.force_login(registration.user)
     mail.outbox.clear()
-    response = client.post(reverse("accounts:resend_confirmation"))
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        response = client.post(reverse("accounts:resend_confirmation"))
     assert response.status_code == 302
     assert response.url == reverse("accounts:detail")
     assert len(mail.outbox) == 1

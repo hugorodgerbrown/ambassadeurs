@@ -6,8 +6,8 @@
 {% block meta %}
     {% blocktranslate trimmed asvar page_description %}
         Cookie Policy for the Ski Parrainage partner-matching service. We use only strictly-necessary cookies, including
-        a session cookie that may record how you found us — no third-party analytics, advertising, or cross-site
-        tracking.
+        a session cookie that may record how you found us. Visit statistics are cookieless — no advertising or
+        cross-site tracking.
     {% endblocktranslate %}
     {% blocktranslate trimmed asvar page_title %}
         Cookie Policy
@@ -20,7 +20,7 @@
 {% block content %}
     <article class="space-y-4 text-body">
         <h1 class="text-ink">{% translate "Cookie Policy" %}</h1>
-        <p class="text-sm text-meta">{% translate "Last updated" %}: 2026-07-13</p>
+        <p class="text-sm text-meta">{% translate "Last updated" %}: 2026-09-25</p>
 
         <h2 class="pt-2 text-ink">{% translate "What we use" %}</h2>
         <p>
@@ -38,10 +38,20 @@
             {% endblocktranslate %}
         </p>
 
+        <h2 class="pt-2 text-ink">{% translate "Visit statistics" %}</h2>
+        <p>
+            {% blocktranslate trimmed %}
+                We count page visits with Fivebar, a cookieless analytics service. Its script sets no cookies and
+                stores nothing in your browser; it sends the page address, the referring page, and your screen width so
+                we can see which pages are used. It is not loaded on pages whose address carries a personal sign-in or
+                match link.
+            {% endblocktranslate %}
+        </p>
+
         <h2 class="pt-2 text-ink">{% translate "What we don't use" %}</h2>
         <p>
             {% blocktranslate trimmed %}
-                We do not use third-party analytics, advertising, or cross-site tracking cookies, so there is still no
+                We do not use analytics, advertising, or cross-site tracking cookies, so there is still no
                 cookie consent banner to manage. The session cookie may now be set the moment you arrive — not only
                 once you sign in or submit a form — if your visit carries tracking parameters, but it is never used to
                 track you across other sites.

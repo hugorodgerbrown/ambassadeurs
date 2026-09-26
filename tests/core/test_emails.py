@@ -4,13 +4,23 @@
 # non-empty single-line subject, exactly one non-empty text/html alternative,
 # escaping behaviour) — never translated string literals, because the test
 # env compiles no .mo catalogues and gettext falls back to the English source.
+#
+# Delivery is deferred to transaction.on_commit (SKI-178), so every test that
+# reads mail.outbox runs the callbacks via captureOnCommitCallbacks(execute=True).
 
+import logging
 import re
+import threading
+from typing import Any
+from unittest import mock
 
 import pytest
 from django.core import mail
+from django.core.mail import EmailMultiAlternatives
+from django.db import transaction
+from django.test import TestCase
 
-from core.emails import normalise_email, send_templated_email
+from core.emails import _send_in_background, normalise_email, send_templated_email
 
 pytestmark = pytest.mark.django_db
 
@@ -90,7 +100,8 @@ def test_send_templated_email_sends_one_message() -> None:
     """send_templated_email queues exactly one EmailMultiAlternatives."""
     mail.outbox.clear()
 
-    send_templated_email("login", _LOGIN_CONTEXT, ["ada@example.com"])
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        send_templated_email("login", _LOGIN_CONTEXT, ["ada@example.com"])
 
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == ["ada@example.com"]
@@ -100,7 +111,8 @@ def test_send_templated_email_subject_is_non_empty_single_line() -> None:
     """The rendered subject is non-empty and collapsed to a single line."""
     mail.outbox.clear()
 
-    send_templated_email("login", _LOGIN_CONTEXT, ["ada@example.com"])
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        send_templated_email("login", _LOGIN_CONTEXT, ["ada@example.com"])
 
     subject = mail.outbox[0].subject
     assert subject
@@ -111,7 +123,8 @@ def test_send_templated_email_attaches_one_non_empty_html_alternative() -> None:
     """Exactly one non-empty text/html alternative is attached."""
     mail.outbox.clear()
 
-    send_templated_email("login", _LOGIN_CONTEXT, ["ada@example.com"])
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        send_templated_email("login", _LOGIN_CONTEXT, ["ada@example.com"])
 
     message = mail.outbox[0]
     html_alternatives = [
@@ -133,7 +146,8 @@ def test_send_templated_email_escapes_html_but_not_text() -> None:
     mail.outbox.clear()
     context = {**_LOGIN_CONTEXT, "first_name": "<script>alert(1)</script>"}
 
-    send_templated_email("login", context, ["ada@example.com"])
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        send_templated_email("login", context, ["ada@example.com"])
 
     message = mail.outbox[0]
     html_body = next(
@@ -148,7 +162,10 @@ def test_send_templated_email_accepts_language_argument() -> None:
     """send_templated_email accepts an explicit language without raising."""
     mail.outbox.clear()
 
-    send_templated_email("login", _LOGIN_CONTEXT, ["ada@example.com"], language="fr")
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        send_templated_email(
+            "login", _LOGIN_CONTEXT, ["ada@example.com"], language="fr"
+        )
 
     assert len(mail.outbox) == 1
 
@@ -165,7 +182,10 @@ def test_send_templated_email_html_has_non_empty_lang_attribute() -> None:
     """
     mail.outbox.clear()
 
-    send_templated_email("login", _LOGIN_CONTEXT, ["ada@example.com"], language="en")
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        send_templated_email(
+            "login", _LOGIN_CONTEXT, ["ada@example.com"], language="en"
+        )
 
     html_body = next(
         content
@@ -175,3 +195,95 @@ def test_send_templated_email_html_has_non_empty_lang_attribute() -> None:
     match = re.search(r'<html lang="([^"]*)"', html_body)
     assert match is not None
     assert match.group(1) == "en"
+
+
+# ---------------------------------------------------------------------------
+# Delivery: deferred to commit, inline or on a background thread (SKI-178)
+# ---------------------------------------------------------------------------
+
+
+def test_send_templated_email_waits_for_commit() -> None:
+    """Nothing is sent until the surrounding transaction commits."""
+    mail.outbox.clear()
+
+    with TestCase.captureOnCommitCallbacks(execute=False) as callbacks:
+        send_templated_email("login", _LOGIN_CONTEXT, ["ada@example.com"])
+
+    assert len(callbacks) == 1
+    assert len(mail.outbox) == 0
+
+
+def test_send_templated_email_rolled_back_sends_nothing() -> None:
+    """A rolled-back atomic block never delivers its email."""
+    mail.outbox.clear()
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        with pytest.raises(RuntimeError):
+            with transaction.atomic():
+                send_templated_email("login", _LOGIN_CONTEXT, ["ada@example.com"])
+                raise RuntimeError("roll back")
+
+    assert len(mail.outbox) == 0
+
+
+def test_send_templated_email_inline_sends_on_calling_thread(
+    settings: Any,
+) -> None:
+    """With background delivery off, the send runs on the calling thread."""
+    settings.EMAIL_SEND_IN_BACKGROUND = False
+    mail.outbox.clear()
+
+    with (
+        mock.patch("core.emails.threading.Thread") as thread,
+        TestCase.captureOnCommitCallbacks(execute=True),
+    ):
+        send_templated_email("login", _LOGIN_CONTEXT, ["ada@example.com"])
+
+    thread.assert_not_called()
+    assert len(mail.outbox) == 1
+
+
+def test_send_templated_email_background_sends_on_another_thread(
+    settings: Any,
+) -> None:
+    """With background delivery on, the send runs on a separate thread."""
+    settings.EMAIL_SEND_IN_BACKGROUND = True
+    mail.outbox.clear()
+    sent_on: list[threading.Thread] = []
+    original_send = EmailMultiAlternatives.send
+
+    def _record_thread(self: EmailMultiAlternatives, *args: object) -> int:
+        """Record the thread the send ran on, then send as normal."""
+        sent_on.append(threading.current_thread())
+        return original_send(self, *args)
+
+    with (
+        mock.patch.object(EmailMultiAlternatives, "send", _record_thread),
+        TestCase.captureOnCommitCallbacks(execute=True),
+    ):
+        send_templated_email("login", _LOGIN_CONTEXT, ["ada@example.com"])
+    for worker in threading.enumerate():
+        if worker.name == "email-login":
+            worker.join(timeout=5)
+
+    assert len(sent_on) == 1
+    assert sent_on[0] is not threading.current_thread()
+    assert sent_on[0].name == "email-login"
+    assert sent_on[0].daemon is False
+    assert len(mail.outbox) == 1
+
+
+def test_background_send_failure_is_logged_not_raised(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An SMTP error on the background thread is logged, without the address."""
+    message = EmailMultiAlternatives("s", "b", "from@example.com", ["ada@example.com"])
+
+    with (
+        mock.patch.object(message, "send", side_effect=OSError("smtp down")),
+        caplog.at_level(logging.ERROR, logger="core.emails"),
+    ):
+        _send_in_background(message, "login")
+
+    assert "Failed to send templated email name=login" in caplog.text
+    assert "ada@example.com" not in caplog.text

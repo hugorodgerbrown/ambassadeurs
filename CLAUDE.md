@@ -570,6 +570,7 @@ feature docs are written:
 | Flaking / priority handling | [ADR 0007](docs/decisions/0007-post-match-confirmation-workflow.md) |
 | State-transition model/service split | [ADR 0017](docs/decisions/0017-state-transition-model-service-split.md) |
 | Side-effect / notification dispatch (on_commit → django-side-effects) | [ADR 0018](docs/decisions/0018-adopt-django-side-effects-for-notification-dispatch.md) |
+| Email delivery (rendered in-request, sent after commit on a background thread, `EMAIL_TIMEOUT`) | [ADR 0029](docs/decisions/0029-background-email-delivery.md) |
 | Structured email templates (text + HTML, translatable) | [ADR 0020](docs/decisions/0020-structured-email-templates.md) |
 | Authentication (magic-link login) | [ADR 0012](docs/decisions/0012-magic-link-login.md) |
 | Lighthouse audits (CI, thresholds, baseline) | [`docs/lighthouse.md`](docs/lighthouse.md) |

@@ -31,6 +31,7 @@ implement it. Add a row when a term gains a symbol.
 | Magic-link login token | `accounts.tokens.make_login_token` / `read_login_token` | `accounts/tokens.py` |
 | Send a magic-link login email | `accounts.services.send_login_email` | `accounts/services.py` |
 | Send a templated email | `core.emails.send_templated_email` | `core/emails.py` |
+| Background email delivery switch | `settings.EMAIL_SEND_IN_BACKGROUND` | `config/settings/base.py`, `production.py` |
 | Deferred matching moment | `settings.MATCHING_OPENS_AT` (env var) | `config/settings/base.py` |
 | Tiered prepaid registration fee schedule | `settings.REGISTRATION_FEE_TIERS` (env var) | `config/settings/base.py` |
 | When does matching open? (deferred-matching gate) | `matching.pricing_config.matching_opens_at` | `matching/pricing_config.py` |

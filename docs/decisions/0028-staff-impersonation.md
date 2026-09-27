@@ -49,10 +49,29 @@ URLconf (`config/urls_public.py`, unprefixed), and the admin's "View as" link
 (`RegistrationAdmin.view_as`) is built by `core.impersonation.impersonate_start_url`:
 relative on a single host, absolute on `BASE_URL` when `ADMIN_HOST` is set.
 
-On a split-host deployment the superuser must therefore also be signed in on the
-public site, via the magic link sent to their own email address. The login flow
-does not honour `?next=`, so a first click on "View as" lands on the login page;
-after signing in, click the link again.
+### The hand-off
+
+As first shipped, a split-host superuser had to also sign in on the public site
+by magic link, and a first click on "View as" landed on the login page. In
+practice that read as "impersonation is broken", so the admin now hands the
+superuser across:
+
+1. "View as" links to an admin-host view (`RegistrationAdmin.view_as_redirect`,
+   superuser only) that mints a signed token at click time and redirects to the
+   public `impersonate/handoff/<token>/` (`core.views.impersonate_handoff`).
+2. The hand-off view signs the superuser in on the public host and redirects to
+   `impersonate-start`. An impersonation already running in that session is
+   stopped first (its log row closed), because the package refuses to start one
+   from inside another.
+
+The token (`core.impersonation`, salt `core.impersonation.handoff`) carries the
+superuser pk, the target pk and the superuser's `last_login`. It expires after
+60 seconds and is single-use: redeeming it logs the superuser in, which moves
+`last_login` on. It is redeemed by GET — unlike the magic link, which is
+prefetch-safe by requiring a POST — because it is never emailed: it only ever
+appears in the `Location` header of a redirect a superuser triggered, so there is
+no link scanner to pre-fetch it. The same path is used on a single host, where
+the re-login is a no-op beyond cycling the session key.
 
 Widening `SESSION_COOKIE_DOMAIN` to the parent domain would remove that step but
 would also send the admin session cookie to the public host, undoing part of

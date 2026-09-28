@@ -135,7 +135,7 @@ services:
     plan: starter
     schedule: "0 * * * *"
     buildCommand: ./build.sh
-    startCommand: uv run python manage.py expire_matches
+    startCommand: uv run python manage.py expire_matches --commit
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings.production

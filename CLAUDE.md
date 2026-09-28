@@ -465,9 +465,14 @@ both require `SKI-xxx` in the branch name or PR body.
 Deployed on **Render**. Topology:
 
 - **Web service** (`ambassadeurs`) — serves the Django app via Gunicorn.
-- **Cron service** (`ambassadeurs-expire-matches`) — runs `manage.py expire_matches`
-  hourly (`0 * * * *`) to sweep PROPOSED/PENDING matches whose contact window
-  has expired, pause non-responders, and re-queue the faithful party.
+- **Cron service** (`ambassadeurs-expire-matches`) — runs `manage.py expire_matches
+  --commit` hourly (`0 * * * *`) to sweep PROPOSED/PENDING matches whose contact
+  window has expired, pause non-responders, and re-queue the faithful party.
+  Re-queuing is not the end of it: `expire_match` calls `propose_match` for
+  each side that had accepted, so the sweep pairs that party and emails both
+  sides in the same run. A bare `expire_matches` is a dry-run that lists each
+  lapsed match and which side would be re-proposed; run that first on any
+  backlog.
 - **Cron service** (`ambassadeurs-run-matching`) — runs `manage.py run_matching
   --commit` hourly (`0 * * * *`) to drain the waiting pool by proposing eligible
   matches. Complements the rolling synchronous propose inside

@@ -475,7 +475,7 @@ def test_expire_matches_command_expires_lapsed_match() -> None:
     )
 
     stdout = StringIO()
-    call_command("expire_matches", stdout=stdout)
+    call_command("expire_matches", "--commit", stdout=stdout)
 
     match.refresh_from_db()
     assert match.status == Match.Status.EXPIRED
@@ -489,7 +489,61 @@ def test_expire_matches_command_reports_zero_when_nothing_to_expire() -> None:
     MatchFactory.create(expires_at=_FUTURE)
 
     stdout = StringIO()
-    call_command("expire_matches", stdout=stdout)
+    call_command("expire_matches", "--commit", stdout=stdout)
 
     output = stdout.getvalue()
     assert "0" in output
+
+
+def test_expire_matches_command_is_dry_run_without_commit() -> None:
+    """A bare run lists the lapsed match, names each side's fate, and changes nothing."""
+    from django.core import mail
+
+    ambassador_reg = RegistrationFactory.create(
+        status=Registration.Status.VERIFIED,
+        priority=0,
+    )
+    referee_reg = RegistrationFactory.create(
+        referee=True,
+        status=Registration.Status.VERIFIED,
+        priority=0,
+    )
+    match = MatchFactory.create(
+        ambassador_registration=ambassador_reg,
+        referee_registration=referee_reg,
+        expires_at=_PAST,
+        ambassador_accepted_at=None,
+        referee_accepted_at=_PAST,
+        status=Match.Status.PENDING,
+    )
+
+    stdout = StringIO()
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        call_command("expire_matches", stdout=stdout)
+
+    output = stdout.getvalue()
+    assert f"Match {match.pk}" in output
+    assert f"ambassador reg={ambassador_reg.pk} paused" in output
+    assert f"referee reg={referee_reg.pk} re-queued to front and re-proposed" in output
+    assert "would expire 1 match(es)" in output
+    assert "--commit" in output
+
+    # Read-only: nothing transitioned, nobody re-queued, no email.
+    match.refresh_from_db()
+    assert match.status == Match.Status.PENDING
+    ambassador_reg.refresh_from_db()
+    assert ambassador_reg.status == Registration.Status.VERIFIED
+    referee_reg.refresh_from_db()
+    assert referee_reg.status == Registration.Status.VERIFIED
+    assert referee_reg.priority == 0
+    assert len(mail.outbox) == 0
+
+
+def test_expire_matches_command_dry_run_silent_at_verbosity_zero() -> None:
+    """--verbosity 0 suppresses the dry-run listing and summary."""
+    MatchFactory.create(expires_at=_PAST)
+
+    stdout = StringIO()
+    call_command("expire_matches", verbosity=0, stdout=stdout)
+
+    assert stdout.getvalue() == ""

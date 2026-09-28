@@ -496,7 +496,7 @@ def test_expire_matches_command_reports_zero_when_nothing_to_expire() -> None:
 
 
 def test_expire_matches_command_is_dry_run_without_commit() -> None:
-    """A bare run lists the lapsed match, names each side's fate, and changes nothing."""
+    """A bare run lists the lapsed match and each side's fate, and changes nothing."""
     from django.core import mail
 
     ambassador_reg = RegistrationFactory.create(

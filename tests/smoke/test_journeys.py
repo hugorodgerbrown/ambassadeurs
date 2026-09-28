@@ -433,7 +433,7 @@ def test_match_expiry_pauses_non_responder_and_requeues_faithful_party() -> None
 
     mail.outbox.clear()
     with TestCase.captureOnCommitCallbacks(execute=True):
-        call_command("expire_matches")
+        call_command("expire_matches", "--commit")
 
     match.refresh_from_db()
     assert match.status == Match.Status.EXPIRED

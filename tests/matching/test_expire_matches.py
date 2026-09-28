@@ -524,7 +524,8 @@ def test_expire_matches_command_is_dry_run_without_commit() -> None:
     output = stdout.getvalue()
     assert f"Match {match.pk}" in output
     assert f"ambassador reg={ambassador_reg.pk} paused" in output
-    assert f"referee reg={referee_reg.pk} re-queued to front and re-proposed" in output
+    expected = f"referee reg={referee_reg.pk} re-queued to front and re-proposed"
+    assert expected in output
     assert "would expire 1 match(es)" in output
     assert "--commit" in output
 

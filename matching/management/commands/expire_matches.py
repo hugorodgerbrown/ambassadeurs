@@ -32,7 +32,7 @@ class Command(BaseCommand):
     --commit the command is read-only and lists what it would do.
     """
 
-    help = "Expire contact-window-lapsed matches and re-queue (dry-run unless --commit)."
+    help = "Expire contact-window-lapsed matches and re-queue (dry-run unless --commit)"
 
     def add_arguments(self, parser: Any) -> None:
         """Register the --commit flag (read-only by default)."""
@@ -60,11 +60,8 @@ class Command(BaseCommand):
                 self.stdout.write(f"Expired {count} matches.")
             return
 
-        lapsed = Match.objects.lapsed(cutoff=cutoff).select_related(
-            "ambassador_registration", "referee_registration"
-        )
         count = 0
-        for match in lapsed:
+        for match in Match.objects.lapsed(cutoff=cutoff):
             count += 1
             if verbosity >= 1:
                 self.stdout.write(self._describe(match))
@@ -81,18 +78,18 @@ class Command(BaseCommand):
         A side that accepted is re-queued to the front and proposed a new
         match at once; a side that did not respond is paused.
         """
-        assert match.ambassador_registration is not None
-        assert match.referee_registration is not None
         sides = (
-            ("ambassador", match.ambassador_registration, match.ambassador_accepted_at),
-            ("referee", match.referee_registration, match.referee_accepted_at),
+            (
+                "ambassador",
+                match.ambassador_registration_id,
+                match.ambassador_accepted_at,
+            ),
+            ("referee", match.referee_registration_id, match.referee_accepted_at),
         )
         outcomes = ", ".join(
-            f"{role} reg={reg.pk} "
+            f"{role} reg={reg_pk} "
             + ("re-queued to front and re-proposed" if accepted else "paused")
-            for role, reg, accepted in sides
+            for role, reg_pk, accepted in sides
         )
-        return (
-            f"Match {match.pk} ({match.status}, expired {match.expires_at:%Y-%m-%d %H:%M}): "
-            f"{outcomes}"
-        )
+        expired = f"{match.expires_at:%Y-%m-%d %H:%M}"
+        return f"Match {match.pk} ({match.status}, expired {expired}): {outcomes}"

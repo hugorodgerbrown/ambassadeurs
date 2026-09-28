@@ -22,7 +22,7 @@ test.describe("lifecycle", () => {
 
     // Manually expire: move the window into the past, then run the cron command.
     await expireContactWindowNow();
-    const out = await runManage(["expire_matches"]);
+    const out = await runManage(["expire_matches", "--commit"]);
     expect(out).toMatch(/Expired \d+ match/);
 
     expect(await latestMatchStatus()).toBe("EXPIRED");

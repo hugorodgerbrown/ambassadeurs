@@ -34,6 +34,27 @@ services:
         sync: false
       - key: POSTHOG_HOST
         value: https://eu.i.posthog.com
+      # Outbound email + absolute links. The web service sends magic-link and
+      # match emails; every cron below sends too (expiry and re-queue notices,
+      # proposals from run_matching) and builds its links from BASE_URL with
+      # no request to hand. Declared here so the crons can mirror them via
+      # fromService — a cron without these silently drops every email
+      # (EMAIL_HOST defaults to "", errors are caught on the send thread) and
+      # links to http://localhost:8000. Values stay in the dashboard.
+      - key: BASE_URL
+        sync: false
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        sync: false
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: EMAIL_USE_TLS
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
       # Season configuration (SKI-162). Declared here rather than left to the
       # config/settings/base.py fallbacks so the live configuration is visible
       # in a diff instead of existing only as Render dashboard state. Every
@@ -148,6 +169,44 @@ services:
           envVarKey: POSTHOG_API_KEY
       - key: POSTHOG_HOST
         value: https://eu.i.posthog.com
+      # Outbound email + absolute links, mirrored from the web service: this
+      # cron emails both parties of every match it touches and builds their
+      # links from BASE_URL.
+      - key: BASE_URL
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: BASE_URL
+      - key: EMAIL_HOST
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: EMAIL_HOST
+      - key: EMAIL_PORT
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: EMAIL_PORT
+      - key: EMAIL_HOST_USER
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: EMAIL_HOST_USER
+      - key: EMAIL_HOST_PASSWORD
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: EMAIL_HOST_PASSWORD
+      - key: EMAIL_USE_TLS
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: EMAIL_USE_TLS
+      - key: DEFAULT_FROM_EMAIL
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: DEFAULT_FROM_EMAIL
       # Season configuration (SKI-162), read from the web service so the app
       # and the matching engine can never evaluate different values. Same
       # fromService parity pattern as ADMIN_HOST / POSTHOG_API_KEY above.
@@ -226,6 +285,44 @@ services:
           envVarKey: POSTHOG_API_KEY
       - key: POSTHOG_HOST
         value: https://eu.i.posthog.com
+      # Outbound email + absolute links, mirrored from the web service: this
+      # cron emails both parties of every match it touches and builds their
+      # links from BASE_URL.
+      - key: BASE_URL
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: BASE_URL
+      - key: EMAIL_HOST
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: EMAIL_HOST
+      - key: EMAIL_PORT
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: EMAIL_PORT
+      - key: EMAIL_HOST_USER
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: EMAIL_HOST_USER
+      - key: EMAIL_HOST_PASSWORD
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: EMAIL_HOST_PASSWORD
+      - key: EMAIL_USE_TLS
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: EMAIL_USE_TLS
+      - key: DEFAULT_FROM_EMAIL
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: DEFAULT_FROM_EMAIL
       # Season configuration (SKI-162), read from the web service so the app
       # and the matching engine can never evaluate different values. Same
       # fromService parity pattern as ADMIN_HOST / POSTHOG_API_KEY above.
@@ -305,6 +402,44 @@ services:
           envVarKey: POSTHOG_API_KEY
       - key: POSTHOG_HOST
         value: https://eu.i.posthog.com
+      # Outbound email + absolute links, mirrored from the web service: this
+      # cron emails both parties of every match it touches and builds their
+      # links from BASE_URL.
+      - key: BASE_URL
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: BASE_URL
+      - key: EMAIL_HOST
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: EMAIL_HOST
+      - key: EMAIL_PORT
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: EMAIL_PORT
+      - key: EMAIL_HOST_USER
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: EMAIL_HOST_USER
+      - key: EMAIL_HOST_PASSWORD
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: EMAIL_HOST_PASSWORD
+      - key: EMAIL_USE_TLS
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: EMAIL_USE_TLS
+      - key: DEFAULT_FROM_EMAIL
+        fromService:
+          name: ambassadeurs
+          type: web
+          envVarKey: DEFAULT_FROM_EMAIL
       # Season configuration (SKI-162), read from the web service so the app
       # and the matching engine can never evaluate different values. Same
       # fromService parity pattern as ADMIN_HOST / POSTHOG_API_KEY above.

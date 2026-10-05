@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ambassadeurs\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-31 10:43+0200\n"
+"POT-Creation-Date: 2026-10-05 08:29+0200\n"
 "PO-Revision-Date: 2026-06-24 12:44+0200\n"
 "Last-Translator: \n"
 "Language-Team: English\n"
@@ -135,6 +135,22 @@ msgstr ""
 msgid "Active"
 msgstr ""
 
+#, python-format
+msgid ""
+"%(value)s is not permitted (Invariant 10). Allow the specific origin, or fix "
+"the inline style or script that needs it."
+msgstr ""
+
+#, python-format
+msgid ""
+"Skipped %(count)d violation(s) that would add an unsafe source to the policy "
+"(Invariant 10). Fix the inline style or script instead."
+msgstr ""
+
+#, python-format
+msgid "%(value)s is not permitted in the CSP (Invariant 10)."
+msgstr ""
+
 msgid "Everyone"
 msgstr ""
 
@@ -187,6 +203,9 @@ msgid "Log in as counterpart"
 msgstr ""
 
 msgid "Export selected cancelled matches as CSV"
+msgstr ""
+
+msgid "View as"
 msgstr ""
 
 msgid "I purchased a season or annual pass in 2024/25 or 2025/26."
@@ -882,6 +901,13 @@ msgstr ""
 msgid "Change language"
 msgstr ""
 
+#, python-format
+msgid "Viewing as %(email)s (read-only)."
+msgstr ""
+
+msgid "Stop viewing"
+msgstr ""
+
 msgid "Main navigation"
 msgstr ""
 
@@ -1505,7 +1531,8 @@ msgstr ""
 msgid ""
 "Cookie Policy for the Ski Parrainage partner-matching service. We use only "
 "strictly-necessary cookies, including a session cookie that may record how "
-"you found us — no third-party analytics, advertising, or cross-site tracking."
+"you found us. Visit statistics are cookieless — no advertising or cross-site "
+"tracking."
 msgstr ""
 
 msgid "Last updated"
@@ -1528,15 +1555,26 @@ msgid ""
 "never shared with Facebook, Google, or any other platform."
 msgstr ""
 
+msgid "Visit statistics"
+msgstr ""
+
+msgid ""
+"We count page visits with Fivebar, a cookieless analytics service. Its "
+"script sets no cookies and stores nothing in your browser; it sends the page "
+"address, the referring page, and your screen width so we can see which pages "
+"are used. It is not loaded on pages whose address carries a personal sign-in "
+"or match link."
+msgstr ""
+
 msgid "What we don't use"
 msgstr ""
 
 msgid ""
-"We do not use third-party analytics, advertising, or cross-site tracking "
-"cookies, so there is still no cookie consent banner to manage. The session "
-"cookie may now be set the moment you arrive — not only once you sign in or "
-"submit a form — if your visit carries tracking parameters, but it is never "
-"used to track you across other sites."
+"We do not use analytics, advertising, or cross-site tracking cookies, so "
+"there is still no cookie consent banner to manage. The session cookie may "
+"now be set the moment you arrive — not only once you sign in or submit a "
+"form — if your visit carries tracking parameters, but it is never used to "
+"track you across other sites."
 msgstr ""
 
 msgid "Managing cookies"

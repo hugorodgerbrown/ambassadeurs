@@ -1,1 +1,1 @@
-{% load i18n %}{% translate "Your match has been reported as a no-show" %}
+{% load i18n %}{% translate "Your match has been cancelled" %}

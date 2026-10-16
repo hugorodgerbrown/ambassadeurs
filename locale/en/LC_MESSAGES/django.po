@@ -678,21 +678,16 @@ msgid "You have been matched - Ski Parrainage"
 msgstr ""
 
 msgid ""
-"We have received a no-show report from your match partner for the 4 Vallées "
-"Ambassador Offer."
-msgstr ""
-
-msgid ""
 "Your registration has been removed from the pool. If you believe this report "
 "was made in error, please contact us for help."
 msgstr ""
 
 msgid ""
-"We have received a no-show report from your match partner with Ski "
-"Parrainage."
+"We have received a report confirming that your Ski Parrainage match has "
+"been cancelled."
 msgstr ""
 
-msgid "Your match has been reported as a no-show"
+msgid "Your match has been cancelled"
 msgstr ""
 
 msgid "Good news — your match partner with Ski Parrainage has accepted."
@@ -1889,8 +1884,8 @@ msgid "This match was closed"
 msgstr ""
 
 msgid ""
-"This match was reported as a no-show after acceptance. If you believe this "
-"is a mistake, please contact support."
+"We have received a report confirming that this match has been cancelled. If "
+"you believe this is a mistake, please contact support."
 msgstr ""
 
 msgid "This match expired"

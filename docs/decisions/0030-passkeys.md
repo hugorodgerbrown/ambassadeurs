@@ -51,10 +51,12 @@ several apps. Two smaller gaps showed up at the same time:
 
 - New `accounts.Passkey` table (the accounts app's first model since
   `Account` was removed).
-- `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGINS` default from `BASE_URL`. A passkey is
-  bound to its host: if the site moves domain, or answers on both the apex and
-  `www`, set `WEBAUTHN_ORIGINS` (and expect users to add new passkeys after a
-  move).
+- `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGINS` default from `BASE_URL`. Production
+  answers on both `skiparrainage.com` and `www.skiparrainage.com`, so
+  `render.yaml` pins `WEBAUTHN_RP_ID=skiparrainage.com` and lists both origins.
+  An RP ID may be a registrable suffix of the page's host, so one passkey works
+  on either host. Moving to another domain strands every passkey; users then
+  add new ones.
 - JSON endpoints under `/account/login/passkey/…` and `/account/passkeys/…`.
   They are POST-only, CSRF-protected and rate-limited (30 per IP per 10
   minutes, Titan's limit). Signed-out calls to the registration endpoints get

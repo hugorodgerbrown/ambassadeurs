@@ -297,9 +297,10 @@ browser side. Discoverable credentials, user verification required, challenge
 kept in the session and used once. "Sign in with a passkey" on the login page
 needs no email and lands on `accounts:detail`, like the magic link. The
 `Passkey` rows are listed and removable on the account page; the admin can view
-and delete but never add one. RP ID / origins come from `BASE_URL`
-(`WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGINS` override); changing the site's domain
-strands existing passkeys.
+and delete but never add one. RP ID / origins default from `BASE_URL`;
+production pins them in `render.yaml` (RP ID `skiparrainage.com`, origins apex
++ `www`) so a passkey works on both hosts. Changing the site's domain strands
+existing passkeys.
 
 **Token:** `accounts.tokens.make_login_token` / `read_login_token`, scoped by
 `_LOGIN_SALT` (Invariant 6). Payload is `{user_pk}` only; expires after 1 hour

@@ -90,6 +90,15 @@ services:
       # unaffected by this flag either way.
       - key: SHOW_HOMEPAGE_QUEUE
         value: "false"
+      # Passkeys (ADR 0030). The site answers on both the apex and www, so
+      # both origins may run a ceremony. The RP ID is pinned to the apex: a
+      # passkey made on either host then works on the other, and a later
+      # change to BASE_URL can't silently strand every passkey. Web-only, like
+      # SHOW_HOMEPAGE_QUEUE; the crons never touch passkeys.
+      - key: WEBAUTHN_RP_ID
+        value: skiparrainage.com
+      - key: WEBAUTHN_ORIGINS
+        value: https://skiparrainage.com,https://www.skiparrainage.com
       # Stripe (VERB-85/86, ADR 0014). Set both in the Render dashboard — never
       # in source (Invariant 9). STRIPE_SECRET_KEY drives the hosted-Checkout
       # deposit flow and is read by the close-season cron from this web service;

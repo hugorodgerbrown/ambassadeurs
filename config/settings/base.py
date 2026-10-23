@@ -245,9 +245,9 @@ LOGIN_REDIRECT_URL = "accounts:detail"
 # Passkeys (WebAuthn, ADR 0030). The relying party is the public site: its
 # ID is BASE_URL's host name and the origins a ceremony may come from default
 # to BASE_URL itself. A passkey only works on the host it was made for, so
-# moving the site to another domain means users add new ones. Override
-# WEBAUTHN_ORIGINS (comma-separated) if the site answers on more than one
-# origin, e.g. both the apex and www.
+# moving the site to another domain means users add new ones. Production
+# serves both the apex and www, so render.yaml pins the RP ID to the apex and
+# lists both origins in WEBAUTHN_ORIGINS (comma-separated).
 WEBAUTHN_RP_ID: str = config(
     "WEBAUTHN_RP_ID", default=urlsplit(BASE_URL).hostname or "localhost"
 )

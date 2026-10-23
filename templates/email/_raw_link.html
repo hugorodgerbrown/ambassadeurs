@@ -1,0 +1,11 @@
+{% load i18n %}
+{% comment %}
+    The raw link under an email button (_button.html), for clients that block
+    the button and for people who prefer to paste. Include with url=.
+{% endcomment %}
+<p style="margin: 0 0 4px; color: #71717a; font-size: 14px">
+    {% translate "Or copy and paste this link into your browser:" %}
+</p>
+<p style="margin: 0 0 16px; font-size: 14px; word-break: break-all">
+    <a href="{{ url }}" style="color: #2563eb">{{ url }}</a>
+</p>

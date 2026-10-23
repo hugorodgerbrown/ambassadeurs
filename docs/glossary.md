@@ -30,6 +30,11 @@ implement it. Add a row when a term gains a symbol.
 | Email-confirmation signed link | `accounts.tokens.make_registration_confirmation_token` | `accounts/tokens.py` |
 | Magic-link login token | `accounts.tokens.make_login_token` / `read_login_token` | `accounts/tokens.py` |
 | Send a magic-link login email | `accounts.services.send_login_email` | `accounts/services.py` |
+| Masked email address (`a•••@example.com`) | `core.emails.mask_email` | `core/emails.py` |
+| Email button (bulletproof) + raw link | `templates/email/_button.html`, `_raw_link.html` | `templates/email/` |
+| Passkey (WebAuthn credential) | `accounts.models.Passkey` | `accounts/models.py` |
+| Passkey ceremonies (options + verify) | `accounts.passkeys` | `accounts/passkeys.py` |
+| Passkey relying party (RP ID / origins) | `settings.WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGINS` | `config/settings/base.py` |
 | Send a templated email | `core.emails.send_templated_email` | `core/emails.py` |
 | Background email delivery switch | `settings.EMAIL_SEND_IN_BACKGROUND` | `config/settings/base.py`, `production.py` |
 | Deferred matching moment | `settings.MATCHING_OPENS_AT` (env var) | `config/settings/base.py` |

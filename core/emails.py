@@ -6,6 +6,9 @@
 # every derived value (e.g. the blind-index hash) are always produced from the
 # same normalised form (CLAUDE.md invariant 5).
 #
+# ``mask_email`` shows which account an address belongs to without showing the
+# address (``a•••@example.com``), for pages that may be seen by someone else.
+#
 # ``send_templated_email`` is the single shared helper for sending a
 # multipart (text + HTML) email from a named template triple under
 # ``templates/email/<name>/`` (VERB-108, ADR 0019). It replaces the two
@@ -62,6 +65,24 @@ def normalise_email(email: str) -> str:
     """
     printable = "".join(ch for ch in email if ch.isprintable())
     return printable.strip().lower()
+
+
+def mask_email(email: str) -> str:
+    """Return the address's first letter and domain: ``a•••@example.com``.
+
+    Shown wherever a page needs to say *which* account without displaying the
+    address itself, e.g. the magic-link confirmation page (ported from the
+    Titan template's ``mask_email``). An address with no ``@`` masks to its
+    first letter alone.
+
+    Args:
+        email: The address to mask; normalised first.
+
+    Returns:
+        The masked address.
+    """
+    name, at, domain = normalise_email(email).partition("@")
+    return f"{name[:1]}•••{at}{domain}"
 
 
 def send_templated_email(

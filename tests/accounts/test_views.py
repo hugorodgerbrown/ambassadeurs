@@ -136,12 +136,15 @@ def test_login_verify_get_valid_token_renders_confirm_page() -> None:
     assert SESSION_KEY not in client.session
 
 
-def test_login_verify_get_shows_target_email() -> None:
-    """The verify page shows the target user's email address."""
-    user = UserFactory.create(email="ada@example.com")
+def test_login_verify_get_shows_masked_email() -> None:
+    """The verify page names the account by its masked address, never the address."""
+    user = UserFactory.create(email="ada.lovelace@example.com")
     token = make_login_token(user.pk)
     response = Client().get(reverse("accounts:login_verify", args=[token]))
-    assert b"ada@example.com" in response.content
+    content = response.content.decode()
+    assert "a•••@example.com" in content
+    assert "ada.lovelace@example.com" not in content
+    assert "lovelace" not in content
 
 
 def test_login_verify_get_corrupted_token_returns_400() -> None:

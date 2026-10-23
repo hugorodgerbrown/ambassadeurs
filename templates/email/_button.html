@@ -1,0 +1,18 @@
+{% comment %}
+    Bulletproof email button: a table cell with the background colour, so
+    clients that strip padding on <a> (Outlook) still draw a solid button.
+    Include with url= and label=. The brand accent is alpine red (#cf3127,
+    src/css/main.css --color-accent). Always follow it with the raw link
+    (_raw_link.html): some clients block buttons, and some people copy links.
+{% endcomment %}
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 0 24px">
+    <tr>
+        <td align="center" bgcolor="#cf3127" style="border-radius: 6px; background-color: #cf3127">
+            <a
+                href="{{ url }}"
+                target="_blank"
+                style="display: inline-block; padding: 12px 24px; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 6px"
+            >{{ label }}</a>
+        </td>
+    </tr>
+</table>

@@ -29,6 +29,7 @@ dependencies = [
     "beautifulsoup4>=4.15.0",
     "django-csp-plus>=3.3.0",
     "django-impersonate>=1.9",
+    "webauthn>=3.0.0,<4",
 ]
 
 [dependency-groups]

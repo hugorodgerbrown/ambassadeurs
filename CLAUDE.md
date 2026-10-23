@@ -48,7 +48,7 @@ core/            Shared abstractions (BaseModel; abstract, no concrete tables),
                  HTTP-layer middleware, shared helpers, HTML->Markdown
                  conversion + Accept negotiation (ADR 0026), staff
                  impersonation link helper (ADR 0028)
-accounts/        Magic-link (passwordless) login flow; AUTH_USER_MODEL is the
+accounts/        Magic-link + passkey (passwordless) login (ADR 0030); AUTH_USER_MODEL is the
                  default Django model. Participant attributes (phone,
                  preferred_language) live on matching.Registration
                  (OneToOneField to User). Admin users have a User but no
@@ -266,8 +266,11 @@ so don't skip pieces for "simple" models:
 
 ## Authentication
 
-No passwords. The sole login mechanism is a **magic link** — a signed, expiring
-URL emailed to the user.
+No passwords. There are two ways in: a **magic link** — a signed, expiring URL
+emailed to the user — and, once signed in, an optional **passkey** (WebAuthn)
+added from the account page ([ADR 0030](docs/decisions/0030-passkeys.md)). The
+magic link stays the way every account starts and the way back in on a new
+device; a passkey only shortens the return trip.
 
 **Login journey:**
 
@@ -277,12 +280,27 @@ URL emailed to the user.
 3. `GET /account/login/sent/` — static "check your inbox" page. Under DEBUG,
    the link is surfaced on-page.
 4. `GET /account/login/<token>/` — validates the token and shows "Sign in as
-   you@example.com" + a Confirm button. **Does not log in** (prefetch-safe).
+   y•••@example.com" (masked, `core.emails.mask_email`) + a Confirm button. **Does not log in** (prefetch-safe).
    Invalid or expired tokens render an error page (HTTP 400).
 5. `POST /account/login/<token>/` — re-validates the token, calls
    `django.contrib.auth.login` with `ModelBackend`, and redirects to
    `accounts:detail`.
 6. `POST /account/logout/` — logs out and redirects to `public:home`.
+
+The email (`templates/email/login/`, and `already_registered/`) carries a
+button (`templates/email/_button.html`) **and** the raw link under it
+(`_raw_link.html`) — some clients block buttons, some people paste.
+
+**Passkeys** (ADR 0030, ported from the Titan template): `accounts.passkeys`
+wraps py_webauthn; `static/js/passkeys.js` + `webauthn_json.js` drive the
+browser side. Discoverable credentials, user verification required, challenge
+kept in the session and used once. "Sign in with a passkey" on the login page
+needs no email and lands on `accounts:detail`, like the magic link. The
+`Passkey` rows are listed and removable on the account page; the admin can view
+and delete but never add one. RP ID / origins default from `BASE_URL`;
+production pins them in `render.yaml` (RP ID `skiparrainage.com`, origins apex
++ `www`) so a passkey works on both hosts. Changing the site's domain strands
+existing passkeys.
 
 **Token:** `accounts.tokens.make_login_token` / `read_login_token`, scoped by
 `_LOGIN_SALT` (Invariant 6). Payload is `{user_pk}` only; expires after 1 hour
@@ -578,6 +596,7 @@ feature docs are written:
 | Email delivery (rendered in-request, sent after commit on a background thread, `EMAIL_TIMEOUT`) | [ADR 0029](docs/decisions/0029-background-email-delivery.md) |
 | Structured email templates (text + HTML, translatable) | [ADR 0020](docs/decisions/0020-structured-email-templates.md) |
 | Authentication (magic-link login) | [ADR 0012](docs/decisions/0012-magic-link-login.md) |
+| Authentication (passkeys, masked confirm page, email button) | [ADR 0030](docs/decisions/0030-passkeys.md) |
 | Lighthouse audits (CI, thresholds, baseline) | [`docs/lighthouse.md`](docs/lighthouse.md) |
 | Visitor dashboard (fivebar analytics artifact) | [`docs/analytics/README.md`](docs/analytics/README.md) |
 | Internationalisation (catalogues compiled at deploy) | [ADR 0015](docs/decisions/0015-compile-message-catalogues-at-deploy.md) |

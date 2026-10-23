@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block page_title %}{% translate "Sign in" %}{% endblock %}
 
@@ -36,5 +36,40 @@
                 </button>
             </form>
         </div>
+
+        {% comment %}
+            Passkey sign-in (ADR 0030). Hidden until passkeys.js finds a browser
+            that supports WebAuthn, so a browser without it sees the email form
+            alone. Nothing asks for a passkey until the button is pressed. The
+            data-msg-* attributes carry the script's translated copy, bound
+            with "as" so {{ }} escapes it inside the attribute.
+        {% endcomment %}
+        {% translate "That didn't work. Try again, or use your email." as msg_failed %}
+        {% translate "You're offline. Try again when you're back." as msg_offline %}
+        {% translate "That passkey isn't on your account any more. Sign in with your email." as msg_unknown %}
+        {% translate "This account can't sign in." as msg_disabled %}
+        <div
+            class="card mt-6"
+            data-passkey-sign-in
+            data-options-url="{% url 'accounts:passkey_sign_in_options' %}"
+            data-verify-url="{% url 'accounts:passkey_sign_in' %}"
+            data-msg-failed="{{ msg_failed }}"
+            data-msg-offline="{{ msg_offline }}"
+            data-msg-unknown="{{ msg_unknown }}"
+            data-msg-disabled="{{ msg_disabled }}"
+            hidden
+        >
+            {% csrf_token %}
+            <h2 class="mb-2 text-lg font-semibold text-ink">{% translate "Have a passkey?" %}</h2>
+            <p class="mb-4 text-sm text-body">
+                {% translate "Sign in with Face ID, a fingerprint or your device PIN. No email to wait for." %}
+            </p>
+            <button type="button" class="btn btn--ghost btn--block" data-passkey-button>
+                {% translate "Sign in with a passkey" %}
+            </button>
+            <p class="mt-3 text-sm text-danger" data-passkey-error role="alert" hidden></p>
+        </div>
     </section>
+    <script src="{% static 'js/webauthn_json.js' %}" defer></script>
+    <script src="{% static 'js/passkeys.js' %}" defer></script>
 {% endblock %}

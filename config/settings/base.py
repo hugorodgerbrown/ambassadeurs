@@ -9,8 +9,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
+from urllib.parse import urlsplit
 
-from decouple import config
+from decouple import Csv, config
 from django.utils.translation import gettext_lazy as _
 
 if TYPE_CHECKING:
@@ -240,6 +241,18 @@ AUTH_PASSWORD_VALIDATORS = [
 # LOGIN_URL uses the named URL so @login_required redirects go to the new form.
 LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "accounts:detail"
+
+# Passkeys (WebAuthn, ADR 0030). The relying party is the public site: its
+# ID is BASE_URL's host name and the origins a ceremony may come from default
+# to BASE_URL itself. A passkey only works on the host it was made for, so
+# moving the site to another domain means users add new ones. Production
+# serves both the apex and www, so render.yaml pins the RP ID to the apex and
+# lists both origins in WEBAUTHN_ORIGINS (comma-separated).
+WEBAUTHN_RP_ID: str = config(
+    "WEBAUTHN_RP_ID", default=urlsplit(BASE_URL).hostname or "localhost"
+)
+WEBAUTHN_RP_NAME = "Ski Parrainage"
+WEBAUTHN_ORIGINS: list[str] = config("WEBAUTHN_ORIGINS", default=BASE_URL, cast=Csv())
 
 # Staff impersonation (django-impersonate, ADR 0028). A superuser views the
 # public site as a participant to see what they see. Read-only: any non-GET

@@ -188,6 +188,49 @@ def test_send_login_email_body_contains_verify_url() -> None:
     assert verify_url in mail.outbox[0].body
 
 
+def test_send_login_email_html_has_a_button_and_the_raw_link() -> None:
+    """The HTML part carries a button to the verify URL and the raw link as text."""
+    user = UserFactory.create()
+    request = RequestFactory().get("/")
+    request.META["SERVER_NAME"] = "testserver"
+    request.META["SERVER_PORT"] = "80"
+    mail.outbox.clear()
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        verify_url = send_login_email(request, user)
+
+    html = next(
+        content
+        for content, mimetype in mail.outbox[0].alternatives
+        if mimetype == "text/html"
+    )
+    # Two links to the same URL: the button and the raw link, whose text is
+    # the URL itself so it can be copied.
+    assert html.count(f'href="{verify_url}"') == 2
+    assert 'bgcolor="#cf3127"' in html
+    assert f">{verify_url}</a>" in html
+
+
+def test_send_already_registered_email_html_has_a_button_and_the_raw_link() -> None:
+    """The already-registered sign-in email gets the same button and raw link."""
+    user = UserFactory.create()
+    request = RequestFactory().get("/")
+    request.META["SERVER_NAME"] = "testserver"
+    request.META["SERVER_PORT"] = "80"
+    mail.outbox.clear()
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        verify_url = send_already_registered_email(request, user)
+
+    html = next(
+        content
+        for content, mimetype in mail.outbox[0].alternatives
+        if mimetype == "text/html"
+    )
+    assert html.count(f'href="{verify_url}"') == 2
+    assert f">{verify_url}</a>" in html
+
+
 def test_send_login_email_returns_verify_url() -> None:
     """send_login_email returns the absolute verify URL."""
     user = UserFactory.create()

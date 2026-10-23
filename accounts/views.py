@@ -21,11 +21,20 @@
 #                  POST — validate token, call login(), redirect to accounts:detail
 #   logout         POST — calls logout(), redirects to public:home
 #                  GET  — renders logout confirmation page
+#
+# Passkeys (ADR 0030, ported from the Titan template). JSON endpoints driven by
+# static/js/passkeys.js; the challenge lives in the session (accounts.passkeys):
+#   passkey_sign_in_options   POST — WebAuthn challenge for credentials.get()
+#   passkey_sign_in           POST — verify, login(), answer with where to go
+#   passkey_register_options  POST — challenge for credentials.create() (signed in)
+#   passkey_register          POST — verify and save the Passkey (signed in)
+#   passkey_delete            POST — remove one of the user's passkeys (signed in)
 
 from __future__ import annotations
 
+import json
 import logging
-from typing import cast
+from typing import Any, cast
 
 from django.conf import settings
 from django.contrib import messages
@@ -34,14 +43,19 @@ from django.contrib.auth import logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Q
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import redirect, render
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
+from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
+from accounts import passkeys
+from accounts.models import Passkey
 from billing.models import Payment
-from core.emails import normalise_email
+from core.decorators import login_required_json
+from core.emails import mask_email, normalise_email
 from core.ratelimit import rate_limited_response
 from matching.models import Match, Registration
 from matching.selectors import match_status_context, queue_snapshot_context
@@ -148,7 +162,11 @@ def login_verify(request: HttpRequest, token: str) -> HttpResponse:
         )
         return redirect("accounts:detail")
 
-    return render(request, "accounts/login_verify.html", {"email": user.email})
+    # Masked (``a•••@example.com``): the link can be forwarded or opened on a
+    # shared screen, and the page only needs to say whose account it opens.
+    return render(
+        request, "accounts/login_verify.html", {"masked_email": mask_email(user.email)}
+    )
 
 
 def logout_view(request: HttpRequest) -> HttpResponse:
@@ -161,6 +179,107 @@ def logout_view(request: HttpRequest) -> HttpResponse:
         auth_logout(request)
         return redirect("public:home")
     return render(request, "accounts/logout.html")
+
+
+# ---------------------------------------------------------------------------
+# Passkeys (ADR 0030)
+# ---------------------------------------------------------------------------
+
+_BACKEND = "django.contrib.auth.backends.ModelBackend"
+
+
+def _json_body(request: HttpRequest) -> dict[str, Any] | None:
+    """Return the request's JSON object, or None if it isn't one."""
+    try:
+        data = json.loads(request.body)
+    except ValueError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _rate_limited_json() -> JsonResponse:
+    """Return the 429 a passkey endpoint answers once its rate limit is hit."""
+    return JsonResponse({"error": "rate_limited"}, status=429)
+
+
+@require_POST
+@ratelimit(key="ip", rate="30/10m", method="POST", block=False)  # type: ignore[untyped-decorator]  # django-ratelimit has no type stubs
+def passkey_sign_in_options(request: HttpRequest) -> JsonResponse:
+    """Return a challenge for ``navigator.credentials.get()``.
+
+    Rate-limited to 30 challenges per IP per 10 minutes, as in Titan.
+    """
+    if getattr(request, "limited", False):
+        return _rate_limited_json()
+    return JsonResponse(passkeys.sign_in_options(request.session))
+
+
+@require_POST
+def passkey_sign_in(request: HttpRequest) -> JsonResponse:
+    """Verify a passkey and sign its owner in.
+
+    The body is ``{"credential": <the credential's JSON>}``. Success answers
+    ``{"next": <account page URL>}``, the same landing as the magic link. An
+    unknown passkey answers 404 with its id, so the page can tell the browser
+    to forget it (``PublicKeyCredential.signalUnknownCredential``). A
+    deactivated account answers 403 and is not signed in.
+    """
+    data = _json_body(request)
+    if data is None or not isinstance(data.get("credential"), dict):
+        return JsonResponse({"error": "bad_request"}, status=400)
+    try:
+        user = passkeys.authenticate(json.dumps(data["credential"]), request.session)
+    except passkeys.UnknownPasskeyError as exc:
+        return JsonResponse(
+            {"error": "unknown_passkey", "credentialId": exc.credential_id}, status=404
+        )
+    except passkeys.PasskeyError as exc:
+        logger.info("passkeys.sign_in_failed %s", exc)
+        return JsonResponse({"error": "not_verified"}, status=400)
+    if not user.is_active:
+        return JsonResponse({"error": "account_disabled"}, status=403)
+    login(request, user, backend=_BACKEND)
+    return JsonResponse({"next": reverse("accounts:detail")})
+
+
+@require_POST
+@login_required_json
+def passkey_register_options(request: HttpRequest) -> JsonResponse:
+    """Return a challenge for ``navigator.credentials.create()``."""
+    user = cast(User, request.user)
+    return JsonResponse(passkeys.registration_options(user, request.session))
+
+
+@require_POST
+@login_required_json
+@ratelimit(key="ip", rate="30/10m", method="POST", block=False)  # type: ignore[untyped-decorator]  # django-ratelimit has no type stubs
+def passkey_register(request: HttpRequest) -> JsonResponse:
+    """Verify a new passkey and save it. The body is the credential's JSON."""
+    if getattr(request, "limited", False):
+        return _rate_limited_json()
+    if _json_body(request) is None:
+        return JsonResponse({"error": "bad_request"}, status=400)
+    user = cast(User, request.user)
+    name = passkeys.default_name(request.headers.get("User-Agent", ""))
+    try:
+        passkey = passkeys.register(request.body.decode(), request.session, user, name)
+    except passkeys.PasskeyError as exc:
+        logger.info("passkeys.register_failed %s", exc)
+        return JsonResponse({"error": "not_verified"}, status=400)
+    return JsonResponse({"id": passkey.pk, "name": passkey.name}, status=201)
+
+
+@require_POST
+@login_required
+def passkey_delete(request: HttpRequest, pk: int) -> HttpResponse:
+    """Remove one of the signed-in user's passkeys, then show the account page.
+
+    Scoped to the user: another user's passkey id answers 404. Redirect-only,
+    like ``account_resend_confirmation``: the list itself shows it has gone.
+    """
+    passkey = get_object_or_404(Passkey, pk=pk, user=request.user)
+    passkey.delete()
+    return redirect("accounts:detail")
 
 
 # ---------------------------------------------------------------------------
@@ -211,6 +330,7 @@ def account_detail(request: HttpRequest) -> HttpResponse:
         "accounts/detail.html",
         {
             **status_context,
+            "passkeys": Passkey.objects.for_user(user),
             "email_verified": email_verified,
             "debug_verify_url": debug_verify_url,
             "queue": queue_snapshot_context(

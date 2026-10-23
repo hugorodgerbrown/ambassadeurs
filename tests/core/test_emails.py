@@ -1,4 +1,4 @@
-# Tests for core.emails: normalise_email and send_templated_email.
+# Tests for core.emails: normalise_email, mask_email and send_templated_email.
 #
 # send_templated_email tests assert structural facts only (recipient count,
 # non-empty single-line subject, exactly one non-empty text/html alternative,
@@ -21,9 +21,29 @@ from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 from django.test import TestCase
 
-from core.emails import _send_in_background, normalise_email, send_templated_email
+from core.emails import (
+    _send_in_background,
+    mask_email,
+    normalise_email,
+    send_templated_email,
+)
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.mark.parametrize(
+    ("email", "masked"),
+    [
+        ("ada.lovelace@example.com", "a•••@example.com"),
+        ("  Ada@Example.COM ", "a•••@example.com"),
+        ("x@ex.ch", "x•••@ex.ch"),
+        ("no-at-sign", "n•••"),
+        ("", "•••"),
+    ],
+)
+def test_mask_email(email: str, masked: str) -> None:
+    """mask_email keeps the first letter and the domain, normalised."""
+    assert mask_email(email) == masked
 
 
 def test_normalise_email_lowercases() -> None:

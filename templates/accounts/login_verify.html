@@ -8,7 +8,11 @@
         <p class="eyebrow mb-2">{% translate "Sign in" %}</p>
         <h1 class="mb-4 text-ink">{% translate "Confirm your sign-in" %}</h1>
         <p class="mb-6 text-body">
-            {% blocktranslate trimmed with email=email %}
+            {% comment %}
+                Masked (a•••@example.com): the page only needs to say whose
+                account the link opens, not show the address itself.
+            {% endcomment %}
+            {% blocktranslate trimmed with email=masked_email %}
                 Sign in as <strong>{{ email }}</strong>?
             {% endblocktranslate %}
         </p>

@@ -59,6 +59,8 @@ matching/        The core domain — Registration, Match, the matching engine
 public/          Public-facing registration + match site (full-page views + HTMX partials)
 billing/         Stripe money flows: deposit (`Payment`, ADR 0014) and voluntary
                  tips (`Tip`, ADR 0022); Stripe identifiers only, never card data.
+mcp_server/      Staff-only MCP endpoint (`/mcp`, JSON-RPC) and its read-only
+                 tools, authenticated by mcp-auth's OAuth 2.1 (ADR 0031)
 debug/           DEBUG-only test-data / visual-QA helpers, gated by `@require_debug`
                  (404 when `DEBUG` is false); never active in production.
 templates/       Project-level templates shared across apps
@@ -284,7 +286,9 @@ device; a passkey only shortens the return trip.
    Invalid or expired tokens render an error page (HTTP 400).
 5. `POST /account/login/<token>/` — re-validates the token, calls
    `django.contrib.auth.login` with `ModelBackend`, and redirects to
-   `accounts:detail`.
+   `accounts:detail` — or to a same-host `?next=` that step 1 kept in the
+   session (e.g. the MCP consent page, ADR 0031). Passkey sign-in honours it
+   too; the token itself never carries it.
 6. `POST /account/logout/` — logs out and redirects to `public:home`.
 
 The email (`templates/email/login/`, and `already_registered/`) carries a
@@ -391,7 +395,8 @@ Three consequences to keep in mind when adding routes or copy:
 - **A new public page has two URLs, not one.** Consider both when touching
   `public/sitemaps.py`, `templates/llms.txt`, or a PostHog funnel.
 - **Machine-facing routes stay unprefixed** — `robots.txt`, `llms.txt`,
-  `sitemap.xml`, `healthz/`, `webhooks/stripe/`, `i18n/`, `debug/`. They are
+  `sitemap.xml`, `healthz/`, `webhooks/stripe/`, `i18n/`, `debug/`, and the
+  MCP/OAuth routes (`mcp`, `oauth/`, `.well-known/oauth-*`). They are
   mounted outside `i18n_patterns` in `config/urls_public.py`; keep new ones there.
 - **A URL built for an email needs an explicit language override.**
   `send_templated_email`'s `translation.override` wraps only the template render;
@@ -609,5 +614,6 @@ feature docs are written:
 | Markdown representations (`.md` routes, Accept negotiation, page registry) | [ADR 0026](docs/decisions/0026-markdown-representations.md) |
 | Content-Security-Policy (baseline + runtime rules, admin, reports) | [ADR 0027](docs/decisions/0027-runtime-editable-csp.md) |
 | Staff impersonation (read-only "View as", split-host link, audit log) | [ADR 0028](docs/decisions/0028-staff-impersonation.md) |
+| Staff MCP endpoint (mcp-auth OAuth, staff-only policy, `queue_position` tool) | [ADR 0031](docs/decisions/0031-staff-mcp-endpoint.md) |
 | Deployment (Render single-service) | _to be written_ |
 | Linear workflow (full lifecycle) | _to be written_ |

@@ -30,6 +30,7 @@ dependencies = [
     "django-csp-plus>=3.3.0",
     "django-impersonate>=1.9",
     "webauthn>=3.0.0,<4",
+    "mcp-auth",
 ]
 
 [dependency-groups]
@@ -94,6 +95,8 @@ module = [
     "csp.*",
     # django-impersonate ships no py.typed marker either (ADR 0028).
     "impersonate.*",
+    # django-oauth-toolkit, under mcp_auth (SKI-181), ships no py.typed marker.
+    "oauth2_provider.*",
 ]
 ignore_missing_imports = true
 
@@ -166,3 +169,6 @@ omit = ["*/migrations/*", "*/tests/*", "tests/*", "*/apps.py"]
 show_missing = true
 skip_covered = true
 fail_under = 90
+
+[tool.uv.sources]
+mcp-auth = { git = "https://github.com/hugorodgerbrown/mcp-auth", tag = "v0.1.8" }

@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 
 from decouple import Csv, config
 from django.utils.translation import gettext_lazy as _
+from mcp_auth.conf import oauth2_settings
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -45,6 +46,11 @@ THIRD_PARTY_APPS = [
     "impersonate",
     "side_effects",
     "utm_tracker",
+    # OAuth 2.1 for the staff MCP endpoint (SKI-181): mcp_auth on top of
+    # django-oauth-toolkit, as in the Titan template. Configured under
+    # OAUTH2_PROVIDER / MCP_AUTH below.
+    "oauth2_provider",
+    "mcp_auth",
 ]
 
 LOCAL_APPS = [
@@ -54,6 +60,7 @@ LOCAL_APPS = [
     "billing",
     "public",
     "debug",
+    "mcp_server",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -310,6 +317,29 @@ CACHES = {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
     }
 }
+
+# --- MCP (staff only, SKI-181) ---------------------------------------------
+# /mcp is a JSON-RPC MCP endpoint for staff (mcp_server/), authenticated by
+# mcp_auth's OAuth 2.1 preset (PKCE, rotating refresh tokens, DCR and CIMD)
+# so Claude can add the site as a connector. CAN_CONNECT runs on the consent
+# page and on every call, so removing someone's staff flag cuts them off.
+# CONSENT_RETURN "page": Allow/Cancel hand back to the client with a meta
+# refresh rather than a 302, because the consent view can only widen
+# Django's built-in CSP and this site's policy is django-csp-plus — so the
+# site-wide form-action never has to name claude.ai or loopback ports.
+OAUTH2_PROVIDER = oauth2_settings(
+    resource_name="Ski Parrainage",
+    scope_description="Look up participants' queue positions (staff only)",
+)
+MCP_AUTH = {
+    "CAN_CONNECT": "mcp_server.policy.staff_only",
+    "ACCOUNT_NAME": "mcp_server.policy.account_name",
+    "CONSENT_RETURN": "page",
+}
+# OAuth allows http redirect URIs because Claude Code and other local MCP
+# clients sign in through a loopback port (RFC 8252); mcp_auth only accepts
+# http for loopback.
+SILENCED_SYSTEM_CHECKS = ["oauth2_provider.W008"]
 
 # --- GeoIP (MaxMind GeoLite2-City) ----------------------------------------
 # Path to the local GeoLite2-City .mmdb file. The file is downloaded by

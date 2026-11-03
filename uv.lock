@@ -145,6 +145,7 @@ dependencies = [
     { name = "geoip2" },
     { name = "gunicorn" },
     { name = "markdownify" },
+    { name = "mcp-auth" },
     { name = "nh3" },
     { name = "posthog" },
     { name = "psycopg", extra = ["binary"] },
@@ -186,6 +187,7 @@ requires-dist = [
     { name = "geoip2", specifier = ">=5.2.0" },
     { name = "gunicorn", specifier = ">=23.0" },
     { name = "markdownify", specifier = ">=1.2.3" },
+    { name = "mcp-auth", git = "https://github.com/hugorodgerbrown/mcp-auth?tag=v0.1.8" },
     { name = "nh3", specifier = ">=0.3.6" },
     { name = "posthog", specifier = ">=7.21.2" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
@@ -713,6 +715,22 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/8a/d1/df63cf3cb942c49d2b6237ab57ddd1f5b312186678b609149df2a1744009/django_impersonate-1.9.5.tar.gz", hash = "sha256:1a77459b9174bf2cbe054c03088ed78718211ff9e91e172890f7500ab0385128", size = 26694, upload-time = "2025-04-05T15:14:50.492Z" }
 
 [[package]]
+name = "django-oauth-toolkit"
+version = "3.4.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+    { name = "jwcrypto" },
+    { name = "oauthlib" },
+    { name = "requests" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/66/42/b3c6a5d7e204011a702cc02ababb756d10538645dfd188ea441e4c65a082/django_oauth_toolkit-3.4.1.tar.gz", hash = "sha256:c4de73c0765eed55a99ea0fa8433b20664dcc1f43930149cff569abed166c5c2", size = 256139, upload-time = "2026-08-21T03:45:36.538Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c4/16/11cf2eacd7ac1c32908288b6d56fadef5676071a4ac0af7e626fd1abd3ef/django_oauth_toolkit-3.4.1-py3-none-any.whl", hash = "sha256:c47f2a70e83bade0a47a5e9b20e86030d8ed9c0a8f10ec4ed30446cad7291f2d", size = 163957, upload-time = "2026-08-21T03:45:34.904Z" },
+]
+
+[[package]]
 name = "django-ratelimit"
 version = "4.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1064,6 +1082,19 @@ wheels = [
 ]
 
 [[package]]
+name = "jwcrypto"
+version = "1.6.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/13/8f/e802d77957903483129813ce6fa01a72a906f9cdd454039d1ec1e6d1e44a/jwcrypto-1.6.1.tar.gz", hash = "sha256:a1e1570da5c2e35dbcd375ec1d2891a24de8eb35ee2c1fe8e91978efb72cfe90", size = 116287, upload-time = "2026-09-15T21:22:33.286Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/31/a4/ee780473e42a3edaf65da1ad37f5c601a9c740e215c1e09db36bf90f3f59/jwcrypto-1.6.1-py3-none-any.whl", hash = "sha256:77e856818e514cb3d64a1043b6885a7d52f5cc37773f5e944de02103c8d3a54f", size = 121267, upload-time = "2026-09-15T21:22:32.27Z" },
+]
+
+[[package]]
 name = "librt"
 version = "0.11.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1190,6 +1221,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/30/d3/f9acc21dfc886e4f78e2add1a47db46ce16884346afde53f8a064c02c891/mcp-1.29.0.tar.gz", hash = "sha256:52d01f334de1868cc3bb2d6604931126a67631f99a6c5d3b82ba47290315ec36", size = 643148, upload-time = "2026-07-28T13:41:41.939Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/01/c8/248b201f6d753d69fd5d6506011abbb35a946d9142b2ae311a948fd0be3d/mcp-1.29.0-py3-none-any.whl", hash = "sha256:f5a075bb611f23d6f4d080c6a1699fa62772eebc562ba9e66b306ddde1c755f7", size = 223436, upload-time = "2026-07-28T13:41:40.337Z" },
+]
+
+[[package]]
+name = "mcp-auth"
+version = "0.1.8"
+source = { git = "https://github.com/hugorodgerbrown/mcp-auth?tag=v0.1.8#4423317767b732ffe95e9494f42a3c68d8736802" }
+dependencies = [
+    { name = "django" },
+    { name = "django-oauth-toolkit" },
 ]
 
 [[package]]
@@ -1405,6 +1445,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/24/bf/d1bda4f6168e0b2e9e5958945e01910052158313224ada5ce1fb2e1113b8/nodeenv-1.10.0.tar.gz", hash = "sha256:996c191ad80897d076bdfba80a41994c2b47c68e224c542b48feba42ba00f8bb", size = 55611, upload-time = "2025-12-20T14:08:54.006Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/88/b2/d0896bdcdc8d28a7fc5717c305f1a861c26e18c05047949fb371034d98bd/nodeenv-1.10.0-py2.py3-none-any.whl", hash = "sha256:5bb13e3eed2923615535339b3c620e76779af4cb4c6a90deccc9e36b274d3827", size = 23438, upload-time = "2025-12-20T14:08:52.782Z" },
+]
+
+[[package]]
+name = "oauthlib"
+version = "4.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/33/17/2bb072de0b990303c985f26869fd47bb179024a051f47e7f9d208eb92f8e/oauthlib-4.0.1.tar.gz", hash = "sha256:3d73febdb6faa00f277c81fb04be7b7586fb96fc3b7f0b9c772dada69a25ede7", size = 191219, upload-time = "2026-10-31T09:52:58.008Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/df/ef/3b8adde1b32a6f540758bff734d3442c621734c83708e5f02b0ba2f43b84/oauthlib-4.0.1-py3-none-any.whl", hash = "sha256:498a298876e996301950a5b053d12c31628bb7b895db03666430c69ce182eb61", size = 161934, upload-time = "2026-10-31T09:52:56.206Z" },
 ]
 
 [[package]]
@@ -1789,11 +1838,11 @@ wheels = [
 
 [[package]]
 name = "pyasn1"
-version = "0.6.4"
+version = "0.6.5"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a4/9a/23310166d960def5897e91fe20e5b724601b02a22e84ba1f94232c0b7f67/pyasn1-0.6.4.tar.gz", hash = "sha256:9c447d8431c947fe4c8febc4ed9e760bc29011a5b01e5c74b67025bd9fb8ce81", size = 151262, upload-time = "2026-07-09T01:12:33.988Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/88/7e/3c0da41061a2021cac7cd524fd57092adbe5b515e8bf9005702e366802e2/pyasn1-0.6.5.tar.gz", hash = "sha256:6b11616a6bcf3a40e635f082bb232fa57b5e0dd7f517bd7ddd69ec3794508a47", size = 155152, upload-time = "2026-10-27T06:32:49.125Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9a/3b/6163796d69c3977d1e4287bea4a6979161cbbdd170ebb430511e8e1999ce/pyasn1-0.6.4-py3-none-any.whl", hash = "sha256:deda9277cfd454080ec40b207fb6df82206a3a2688735233cdcd8d3d565f088b", size = 84410, upload-time = "2026-07-09T01:12:32.92Z" },
+    { url = "https://files.pythonhosted.org/packages/19/1f/3eefd5c84c35cae44549ce1c7f7e58f7945b34f5a6bce07a135438522073/pyasn1-0.6.5-py3-none-any.whl", hash = "sha256:4017b0fce125096b8573b39c989fdb1a4b19cf761e683398184550fea0e66587", size = 84807, upload-time = "2026-10-27T06:32:48.045Z" },
 ]
 
 [[package]]

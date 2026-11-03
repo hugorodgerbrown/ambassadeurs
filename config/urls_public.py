@@ -40,6 +40,7 @@ from django.contrib.sitemaps.views import sitemap
 from django.urls import include, path
 
 from core.views import healthz, impersonate_handoff, llms_txt, robots_txt
+from mcp_server.views import mcp
 from public.sitemaps import StaticViewSitemap
 from public.views import stripe_webhook
 
@@ -92,6 +93,11 @@ urlpatterns = [
         name="impersonate-handoff",
     ),
     path("impersonate/", include("impersonate.urls")),
+    # Staff MCP endpoint and its OAuth 2.1 server (SKI-181, mcp_auth):
+    # /.well-known/oauth-*, /oauth/… and /mcp. Unprefixed — machine-facing,
+    # and the OAuth URLs are registered with clients so must never move.
+    path("", include("mcp_auth.urls")),
+    path("mcp", mcp, name="mcp"),
 ]
 
 # Human-facing routes — English unprefixed, French under /fr/.

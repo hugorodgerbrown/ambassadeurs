@@ -24,6 +24,12 @@
 # an ordinal. It takes the queue position from its caller (match_status_context
 # has already computed it for the same page) and reads services.matched_pair_index
 # for a viewer who is matched rather than waiting.
+#
+# queue_standing is the staff-facing counterpart of match_status_context: the
+# same queue place a participant reads on their account page, plus the size of
+# their queue and, when they are not waiting, why not. The Registration admin
+# and the MCP queue_position tool both read it, so staff can answer "where am I
+# in the queue?" without impersonating the participant.
 
 from __future__ import annotations
 
@@ -554,4 +560,86 @@ def build_queue_context(
         "instant_match_role": instant_match_role(
             is_open, ambassadors_waiting, referees_waiting
         ),
+    }
+
+
+class QueueStanding(TypedDict):
+    """Where one registration stands in its queue, for staff (admin and MCP).
+
+    ``position`` is the number the participant sees on their account page
+    (``matching.services.queue_position``), or ``None`` when they are not
+    waiting. ``waiting`` is the size of their role's eligible pool. ``summary``
+    is one translated sentence saying either, and ``active_match`` is the match
+    that keeps them out of the queue, if that is the reason.
+    """
+
+    position: int | None
+    waiting: int
+    summary: str
+    active_match: Match | None
+
+
+def queue_standing(registration: Registration) -> QueueStanding:
+    """Return where ``registration`` stands in its queue, and why if it is not in it.
+
+    The position comes from ``matching.services.queue_position`` — the same
+    call the account page makes — so staff and participant always read the same
+    number. When there is no position, the reason is, in order: the
+    registration is not VERIFIED (its status is named), it holds an active
+    (PROPOSED / PENDING / ACCEPTED) match, or its ``prior_pass`` makes it
+    ineligible for its role.
+
+    Args:
+        registration: The registration to place.
+
+    Returns:
+        The registration's ``QueueStanding``.
+    """
+    if registration.is_ambassador:
+        pool = Registration.objects.eligible_ambassadors()
+        queue_name = _("ambassador")
+    else:
+        pool = Registration.objects.eligible_referees()
+        queue_name = _("referee")
+    waiting = pool.count()
+
+    position = queue_position(registration)
+    active_match: Match | None = None
+    if position is not None:
+        summary = _("Number %(position)d of %(waiting)d in the %(queue)s queue.") % {
+            "position": position,
+            "waiting": waiting,
+            "queue": queue_name,
+        }
+    elif registration.status != Registration.Status.VERIFIED:
+        summary = _("Not in the queue: the registration is %(status)s.") % {
+            "status": registration.get_status_display().lower()
+        }
+    else:
+        active_match = (
+            Match.objects.active()
+            .filter(
+                Q(ambassador_registration=registration)
+                | Q(referee_registration=registration)
+            )
+            .first()
+        )
+        if active_match is not None:
+            summary = _("Not in the queue: in a %(status)s match.") % {
+                "status": active_match.get_status_display().lower()
+            }
+        else:
+            summary = _(
+                "Not in the queue: their prior pass (%(prior_pass)s) is not "
+                "eligible for the %(queue)s side."
+            ) % {
+                "prior_pass": registration.get_prior_pass_display(),
+                "queue": queue_name,
+            }
+
+    return {
+        "position": position,
+        "waiting": waiting,
+        "summary": summary,
+        "active_match": active_match,
     }

@@ -22,7 +22,19 @@ from datetime import datetime
 
 from django.conf import settings
 from django.db import models
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import (
+    Case,
+    Exists,
+    F,
+    Func,
+    IntegerField,
+    OuterRef,
+    Q,
+    Subquery,
+    Value,
+    When,
+)
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django_countries.fields import CountryField
@@ -109,6 +121,51 @@ class RegistrationQuerySet(BaseQuerySet):
             ._without_active_match()
             .filter(prior_pass=Registration.PriorPass.NONE)
         )
+
+    def with_queue_position(self) -> RegistrationQuerySet:
+        """Annotate each row with ``queue_position``: its 1-based place in its queue.
+
+        The single definition of a queue place, shared by
+        ``matching.services.queue_position`` (the participant's account page)
+        and the staff surfaces (the Registration admin, the MCP tool). A row
+        that is in its role's eligible pool (``eligible_ambassadors`` /
+        ``eligible_referees``) gets one plus the number of same-pool rows
+        ranked strictly ahead of it on the engine's ``-priority, created_at``
+        ordering; any other row (not VERIFIED, holding an active match, or with
+        an ineligible ``prior_pass``) gets ``None``.
+
+        It is a correlated subquery rather than a window function so the
+        number does not depend on what else the queryset is filtered to — a
+        changelist search for one name still reads that person's real place.
+        """
+        pools = (
+            (Registration.Role.AMBASSADOR, Registration.objects.eligible_ambassadors()),
+            (Registration.Role.REFEREE, Registration.objects.eligible_referees()),
+        )
+        whens = []
+        for role, pool in pools:
+            ahead = (
+                pool.filter(
+                    Q(priority__gt=OuterRef("priority"))
+                    | Q(
+                        priority=OuterRef("priority"),
+                        created_at__lt=OuterRef("created_at"),
+                    )
+                )
+                .order_by()
+                .annotate(n=Func(F("pk"), function="COUNT"))
+                .values("n")
+            )
+            whens.append(
+                When(
+                    Q(role=role) & Exists(pool.filter(pk=OuterRef("pk"))),
+                    then=Coalesce(Subquery(ahead), Value(0)) + Value(1),
+                )
+            )
+        annotated: RegistrationQuerySet = self.annotate(
+            queue_position=Case(*whens, default=None, output_field=IntegerField())
+        )
+        return annotated
 
 
 class Registration(BaseModel):

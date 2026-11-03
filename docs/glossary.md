@@ -11,6 +11,7 @@ implement it. Add a row when a term gains a symbol.
 | Preferred resort / ticket office | `matching.models.Resort` | `matching/models.py` |
 | Prior-season pass attestation | `Registration.prior_pass` (`PriorPass` TextChoices: `NONE / SEASONAL / ANNUAL / MONT4`) | `matching/models.py` |
 | Queue priority | `Registration.priority` | `matching/models.py` |
+| Queue position | `RegistrationQuerySet.with_queue_position` / `matching.services.queue_position` / `matching.selectors.queue_standing` (staff) | `matching/` |
 | Match | `matching.models.Match` | `matching/models.py` |
 | Match state (proposed → accepted / declined / expired / abandoned) | `matching.models.Match.Status` | `matching/models.py` |
 | Which side of a match a party is on | `matching.models.Match.Side` | `matching/models.py` |

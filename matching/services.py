@@ -220,10 +220,10 @@ def queue_position(registration: Registration) -> int | None:
     position is only meaningful for participants actively queuing in an eligible
     state.
 
-    Picks the same-role eligible pool (``eligible_ambassadors`` or
-    ``eligible_referees``) and counts the rows ranked strictly ahead using the
-    same ``-priority, created_at`` ordering used by the matching engine. The
-    result is that count plus 1.
+    Reads the ``queue_position`` annotation from
+    ``RegistrationQuerySet.with_queue_position`` — the one definition of a queue
+    place, which the staff surfaces (Registration admin, MCP) read too — so the
+    number a participant sees on their account page is the number staff see.
 
     Args:
         registration: The registration whose position to determine.
@@ -234,20 +234,12 @@ def queue_position(registration: Registration) -> int | None:
     """
     if registration.status != Registration.Status.VERIFIED:
         return None
-
-    if registration.role == Registration.Role.AMBASSADOR:
-        pool = Registration.objects.eligible_ambassadors()
-    else:
-        pool = Registration.objects.eligible_referees()
-
-    if not pool.filter(pk=registration.pk).exists():
-        return None
-
-    ahead = pool.filter(
-        Q(priority__gt=registration.priority)
-        | Q(priority=registration.priority, created_at__lt=registration.created_at)
-    ).count()
-    return ahead + 1
+    return cast(
+        "int | None",
+        Registration.objects.with_queue_position()
+        .values_list("queue_position", flat=True)
+        .get(pk=registration.pk),
+    )
 
 
 def matched_pair_index(registration: Registration) -> int | None:

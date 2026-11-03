@@ -1,10 +1,18 @@
-"""Admin registration for the matching app."""
+"""Admin registration for the matching app.
+
+The Registration admin shows each participant's queue place — the number they
+read on their own account page — as a sortable changelist column (one
+correlated subquery, ``RegistrationQuerySet.with_queue_position``) and, on the
+change form, as a sentence that also says why someone is not queuing
+(``matching.selectors.queue_standing``).
+"""
 
 import csv
-from typing import Any
+from typing import Any, cast
 
 from django.contrib import admin
 from django.core.exceptions import PermissionDenied
+from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.urls import URLPattern, path, reverse
@@ -13,7 +21,8 @@ from django.utils.translation import gettext_lazy as _
 
 from core.impersonation import impersonate_handoff_url
 
-from .models import Match, Registration
+from . import selectors
+from .models import Match, Registration, RegistrationQuerySet
 
 
 @admin.action(description=_("Export selected cancelled matches as CSV"))
@@ -72,6 +81,7 @@ class RegistrationAdmin(admin.ModelAdmin):
         "role",
         "prior_pass",
         "status",
+        "queue_position",
         "priority",
         "fee_chf",
         "preferred_location",
@@ -91,6 +101,7 @@ class RegistrationAdmin(admin.ModelAdmin):
     search_fields = ["user__email", "user__first_name", "user__last_name"]
     raw_id_fields = ["user"]
     readonly_fields = [
+        "queue_standing",
         "accepted_terms",
         "terms_accepted_at",
         "fee_chf",
@@ -99,6 +110,45 @@ class RegistrationAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
     ]
+
+    def get_fields(self, request: HttpRequest, obj: Registration | None = None) -> Any:
+        """Lead the change form with the queue position — the question asked most."""
+        fields = [f for f in super().get_fields(request, obj) if f != "queue_standing"]
+        return fields if obj is None else ["queue_standing", *fields]
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[Registration]:
+        """Annotate every row with its queue place for the changelist column."""
+        queryset = cast(RegistrationQuerySet, super().get_queryset(request))
+        return queryset.with_queue_position()
+
+    @admin.display(description=_("Queue"), ordering="queue_position")
+    def queue_position(self, obj: Registration) -> str:
+        """The participant's place in their queue, as their account page shows it.
+
+        Blank (the admin's empty value) when they are not waiting — open the
+        registration to see why.
+        """
+        position = getattr(obj, "queue_position", None)
+        return "" if position is None else f"#{position}"
+
+    @admin.display(description=_("Queue position"))
+    def queue_standing(self, obj: Registration) -> str:
+        """Where the participant stands, or why they are not queuing.
+
+        Links the active match when that is what keeps them out of the queue.
+        """
+        if obj.pk is None:
+            return ""
+        standing = selectors.queue_standing(obj)
+        match = standing["active_match"]
+        if match is None:
+            return standing["summary"]
+        return format_html(
+            '{} <a href="{}">{}</a>',
+            standing["summary"],
+            reverse("admin:matching_match_change", args=[match.pk]),
+            _("View match #%(pk)s") % {"pk": match.pk},
+        )
 
     def get_urls(self) -> list[URLPattern]:
         """Add the "View as" hand-off route ahead of the default admin URLs."""

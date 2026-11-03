@@ -14,6 +14,7 @@ from matching.selectors import (
     instant_match_role,
     match_status_context,
     queue_snapshot_context,
+    queue_standing,
     queue_you_for,
     status_pill_for,
 )
@@ -600,3 +601,76 @@ def test_queue_snapshot_context_paused_registration_highlights_nothing() -> None
 
     assert context["ambassadors"]["you_glyph"] is None
     assert context["matches"]["you_glyph"] is None
+
+
+# ---------------------------------------------------------------------------
+# queue_standing
+# ---------------------------------------------------------------------------
+
+
+def test_queue_standing_gives_position_and_queue_size() -> None:
+    """A waiting registration reads its place and how many share its queue."""
+    RegistrationFactory.create(priority=1)
+    subject = RegistrationFactory.create()
+    RegistrationFactory.create(
+        role=Registration.Role.REFEREE, prior_pass=Registration.PriorPass.NONE
+    )
+
+    standing = queue_standing(subject)
+
+    assert standing["position"] == 2
+    assert standing["waiting"] == 2
+    assert standing["summary"] == "Number 2 of 2 in the ambassador queue."
+    assert standing["active_match"] is None
+
+
+def test_queue_standing_matches_the_account_page_position() -> None:
+    """Staff read exactly the number the participant sees on their account page."""
+    RegistrationFactory.create(
+        role=Registration.Role.REFEREE,
+        prior_pass=Registration.PriorPass.NONE,
+        priority=2,
+    )
+    subject = RegistrationFactory.create(
+        role=Registration.Role.REFEREE, prior_pass=Registration.PriorPass.NONE
+    )
+
+    assert (
+        queue_standing(subject)["position"]
+        == match_status_context(subject.user)["queue_position"]
+        == 2
+    )
+
+
+def test_queue_standing_names_a_non_verified_status() -> None:
+    """A registration outside VERIFIED says which status keeps it out."""
+    subject = RegistrationFactory.create(status=Registration.Status.PAUSED)
+
+    standing = queue_standing(subject)
+
+    assert standing["position"] is None
+    assert standing["summary"] == "Not in the queue: the registration is paused."
+
+
+def test_queue_standing_points_at_the_active_match() -> None:
+    """A matched registration is out of the queue because of that match."""
+    match = MatchFactory.create(status=Match.Status.PENDING)
+
+    standing = queue_standing(match.referee_registration)
+
+    assert standing["position"] is None
+    assert standing["active_match"] == match
+    assert standing["summary"] == "Not in the queue: in a pending match."
+
+
+def test_queue_standing_explains_an_ineligible_prior_pass() -> None:
+    """A VERIFIED referee who held a pass cannot queue, and is told why."""
+    subject = RegistrationFactory.create(
+        role=Registration.Role.REFEREE, prior_pass=Registration.PriorPass.ANNUAL
+    )
+
+    standing = queue_standing(subject)
+
+    assert standing["position"] is None
+    assert standing["waiting"] == 0
+    assert "is not eligible for the referee side" in standing["summary"]

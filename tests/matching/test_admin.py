@@ -6,6 +6,7 @@ from django.http import HttpResponse
 from django.test import Client
 from django.urls import reverse
 
+from matching.models import Match, Registration
 from tests.accounts.factories import UserFactory
 from tests.matching.factories import MatchFactory, RegistrationFactory
 
@@ -162,3 +163,74 @@ def test_csv_export_empty_when_no_cancelled_selected(client: Client) -> None:
     # Only the header row; no data rows.
     assert len(lines) == 1
     assert "match_id" in lines[0]
+
+
+# ---------------------------------------------------------------------------
+# Queue position
+# ---------------------------------------------------------------------------
+
+
+def test_registration_changelist_shows_queue_position(client: Client) -> None:
+    """A search for one name still shows that person's place in the whole queue."""
+    RegistrationFactory.create(priority=1)
+    subject = RegistrationFactory.create(user__first_name="Zélie")
+    client.force_login(make_staff_user())
+
+    response = client.get(
+        reverse("admin:matching_registration_changelist"), {"q": "Zélie"}
+    )
+
+    assert '<td class="field-queue_position">#2</td>' in response.content.decode()
+    assert response.context["cl"].result_count == 1
+    assert response.context["cl"].result_list[0] == subject
+
+
+def test_registration_changelist_sorts_on_queue_position(client: Client) -> None:
+    """The Queue column is sortable, front of the queue first."""
+    back = RegistrationFactory.create()
+    front = RegistrationFactory.create(priority=5)
+    client.force_login(make_staff_user())
+    changelist = reverse("admin:matching_registration_changelist")
+    response = client.get(changelist)
+    column = response.context["cl"].list_display.index("queue_position")
+
+    response = client.get(changelist, {"o": str(column)})
+
+    assert list(response.context["cl"].result_list) == [front, back]
+
+
+def test_registration_change_form_states_queue_position(client: Client) -> None:
+    """The change form spells the position out with the queue's size."""
+    subject = RegistrationFactory.create()
+    client.force_login(make_staff_user())
+
+    response = client.get(
+        reverse("admin:matching_registration_change", args=[subject.pk])
+    )
+
+    assert "Number 1 of 1 in the ambassador queue." in response.content.decode()
+
+
+def test_registration_change_form_links_the_blocking_match(client: Client) -> None:
+    """A matched participant's form links the match that keeps them out."""
+    match = MatchFactory.create(status=Match.Status.PROPOSED)
+    client.force_login(make_staff_user())
+
+    response = client.get(
+        reverse(
+            "admin:matching_registration_change",
+            args=[match.ambassador_registration.pk],
+        )
+    )
+
+    content = response.content.decode()
+    assert "Not in the queue: in a proposed match." in content
+    assert reverse("admin:matching_match_change", args=[match.pk]) in content
+
+
+def test_registration_add_form_has_no_queue_position(client: Client) -> None:
+    """The add form renders without a queue place to compute."""
+    client.force_login(make_staff_user())
+    response = client.get(reverse("admin:matching_registration_add"))
+    assert response.status_code == 200
+    assert Registration.objects.count() == 0

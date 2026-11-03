@@ -5,7 +5,7 @@
 # Registration.pause and Registration.requeue are covered separately in
 # tests/matching/test_expire_match.py (VERB-100) and are not duplicated here.
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.db import IntegrityError
@@ -638,3 +638,72 @@ def test_suspend_raises_for_illegal_source_states(trait: str) -> None:
     assert exc_info.value.current == status_before
     assert exc_info.value.proposed == Registration.Status.SUSPENDED
     assert registration.status == status_before
+
+
+# ---------------------------------------------------------------------------
+# with_queue_position
+# ---------------------------------------------------------------------------
+
+
+def _queued(created_at: datetime, **kwargs: object) -> Registration:
+    """Create a registration with a fixed ``created_at`` (auto_now_add bypassed)."""
+    registration = RegistrationFactory.create(**kwargs)
+    Registration.objects.filter(pk=registration.pk).update(created_at=created_at)
+    registration.refresh_from_db()
+    return registration
+
+
+def test_with_queue_position_ranks_each_role_on_priority_then_age() -> None:
+    """Each role is ranked on its own: -priority first, then oldest first."""
+    base = datetime(2026, 9, 1, 9, 0, tzinfo=UTC)
+    old = _queued(base)
+    young_but_bumped = _queued(base + timedelta(hours=2), priority=1)
+    newest = _queued(base + timedelta(hours=3))
+    referee = _queued(
+        base + timedelta(hours=4),
+        role=Registration.Role.REFEREE,
+        prior_pass=Registration.PriorPass.NONE,
+    )
+
+    positions = dict(
+        Registration.objects.with_queue_position().values_list("pk", "queue_position")
+    )
+
+    assert positions == {
+        young_but_bumped.pk: 1,
+        old.pk: 2,
+        newest.pk: 3,
+        referee.pk: 1,
+    }
+
+
+def test_with_queue_position_is_none_outside_the_pool() -> None:
+    """Paused, matched and ineligible registrations have no queue place."""
+    paused = RegistrationFactory.create(status=Registration.Status.PAUSED)
+    ineligible = RegistrationFactory.create(prior_pass=Registration.PriorPass.NONE)
+    match = MatchFactory.create()
+
+    positions = dict(
+        Registration.objects.with_queue_position().values_list("pk", "queue_position")
+    )
+
+    assert positions[paused.pk] is None
+    assert positions[ineligible.pk] is None
+    assert positions[match.ambassador_registration.pk] is None
+    assert positions[match.referee_registration.pk] is None
+
+
+def test_with_queue_position_ignores_the_queryset_filter() -> None:
+    """Filtering down to one row still reads that row's place in the whole pool."""
+    base = datetime(2026, 9, 1, 9, 0, tzinfo=UTC)
+    _queued(base)
+    second = _queued(base + timedelta(hours=1))
+
+    position = (
+        Registration.objects.filter(pk=second.pk)
+        .with_queue_position()
+        .values_list("queue_position", flat=True)
+        .get()
+    )
+
+    assert position == 2

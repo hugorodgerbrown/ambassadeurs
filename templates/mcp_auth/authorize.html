@@ -1,0 +1,15 @@
+{% extends "mcp_auth/authorize.html" %}
+{% load i18n %}
+{% comment %}
+The shared consent page, in the site's words and title format. Extends the
+package's own template of the same name (Django skips this file's origin).
+{% endcomment %}
+{% block title %}{{ block.super }} &middot; {% translate "Ski Parrainage" %}{% endblock %}
+{% block heading %}
+    {% blocktranslate trimmed with name=application.name|default:_("this app") %}
+        Connect {{ name }} to Ski Parrainage?
+    {% endblocktranslate %}
+{% endblock %}
+{% block description %}
+    {% translate "It will be able to look up participants and their place in the queue, as you. Staff only." %}
+{% endblock %}

@@ -779,3 +779,42 @@
      clear through the middle so the central handshake reads through. */
   .hero-scrim { background: linear-gradient(to bottom, rgb(0 0 0 / 0.68) 0%, rgb(0 0 0 / 0.26) 18%, transparent 36%, transparent 48%, rgb(0 0 0 / 0.50) 66%, rgb(0 0 0 / 0.78) 84%, rgb(0 0 0 / 0.88) 100%); }
 }
+
+/* mcp_auth's OAuth pages (SKI-181): the consent, returning and connected-apps
+   templates ship from the mcp-auth package with bare markup and its own
+   mcp-auth-* hooks, so they are styled here rather than by editing them.
+   Buttons follow .btn--ghost, and the consent page's Connect .btn--primary. */
+@layer components {
+  .mcp-auth h1 { margin-bottom: 1rem; color: var(--color-ink); }
+  .mcp-auth p { margin-bottom: 1rem; color: var(--color-body); }
+  .mcp-auth form { margin-bottom: 1rem; }
+  .mcp-auth .error { color: var(--color-danger); }
+  .mcp-auth form:not(.mcp-auth-account) { display: flex; flex-wrap: wrap; gap: 12px; }
+  .mcp-auth form:not(.mcp-auth-account) button {
+    padding: 14px 22px;
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-control);
+    background: transparent;
+    color: var(--color-ink);
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .mcp-auth form:not(.mcp-auth-account) button[name="allow"] {
+    border-color: transparent;
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+  }
+  .mcp-auth form:not(.mcp-auth-account) button[name="allow"]:hover {
+    background: var(--color-accent-hover);
+  }
+  .mcp-auth .mcp-auth-switch,
+  .mcp-auth .mcp-auth-continue {
+    border: none;
+    background: none;
+    padding: 0;
+    color: var(--color-accent);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+}

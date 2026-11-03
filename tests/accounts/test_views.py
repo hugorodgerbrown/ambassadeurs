@@ -13,6 +13,7 @@ import stripe
 from django.contrib.auth import SESSION_KEY
 from django.contrib.auth.models import User
 from django.core import mail
+from django.http import HttpResponse
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
@@ -1453,3 +1454,64 @@ def test_delete_post_refunds_held_deposit(monkeypatch: pytest.MonkeyPatch) -> No
     payment.refresh_from_db()
     assert payment.status == Payment.Status.REFUNDED
     assert payment.registration_id is None
+
+
+# ---------------------------------------------------------------------------
+# Returning to ?next= after sign-in (SKI-181: the MCP consent page)
+# ---------------------------------------------------------------------------
+
+_CONSENT = "/oauth/authorize/?client_id=abc&redirect_uri=x"
+
+
+def _sign_in_by_link(client: Client, user: User) -> HttpResponse:
+    """Confirm a magic link for ``user`` in ``client``'s session."""
+    token = make_login_token(user.pk)
+    return client.post(reverse("accounts:login_verify", args=[token]))
+
+
+def test_login_returns_to_a_remembered_next() -> None:
+    """A ?next= on the login page is where the magic link lands, once."""
+    user = UserFactory.create()
+    client = Client()
+    client.get(reverse("accounts:login"), {"next": _CONSENT})
+
+    response = _sign_in_by_link(client, user)
+
+    assert response.status_code == 302
+    assert response["Location"] == _CONSENT
+    assert "login_next" not in client.session
+
+
+@pytest.mark.parametrize("unsafe", ["https://evil.example/", "//evil.example/x"])
+def test_login_ignores_an_off_site_next(unsafe: str) -> None:
+    """A next pointing at another site is dropped; the link lands on the account."""
+    user = UserFactory.create()
+    client = Client()
+    client.get(reverse("accounts:login"), {"next": unsafe})
+
+    response = _sign_in_by_link(client, user)
+
+    assert response["Location"] == reverse("accounts:detail")
+
+
+def test_login_without_next_lands_on_the_account() -> None:
+    """With no next remembered the magic link lands on the account page."""
+    response = _sign_in_by_link(Client(), UserFactory.create())
+    assert response["Location"] == reverse("accounts:detail")
+
+
+def test_consent_page_round_trip_through_login() -> None:
+    """A signed-out visit to the consent page comes back to it after signing in."""
+    consent = (
+        "/oauth/authorize/?response_type=code&client_id=abc"
+        "&redirect_uri=https://claude.ai/api/mcp/auth_callback"
+    )
+    client = Client()
+    response = client.get(consent)
+    login_url = response["Location"]
+    assert login_url.startswith(reverse("accounts:login"))
+
+    client.get(login_url)
+    response = _sign_in_by_link(client, UserFactory.create(is_staff=True))
+
+    assert response["Location"] == consent

@@ -47,6 +47,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
@@ -78,13 +79,43 @@ logger = logging.getLogger(__name__)
 # Magic-link login flow (VERB-46)
 # ---------------------------------------------------------------------------
 
+# Where to land after signing in, when the sign-in began somewhere that needs
+# the user back (``@login_required``'s ``?next=``, e.g. the MCP consent page).
+# Kept in the session, never in the login token (Invariant 6: its payload is
+# the user's pk only), so it survives a same-browser magic link and a passkey
+# sign-in; a link opened in another browser lands on the account page.
+_LOGIN_NEXT_SESSION_KEY = "login_next"
+
+
+def _safe_next(request: HttpRequest, url: str) -> str | None:
+    """Return ``url`` when it is a same-site path that is safe to redirect to."""
+    if url and url_has_allowed_host_and_scheme(
+        url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return url
+    return None
+
+
+def _remember_next(request: HttpRequest) -> None:
+    """Keep a safe ``?next=`` in the session for after the sign-in completes."""
+    next_url = _safe_next(request, request.GET.get("next", ""))
+    if next_url is not None:
+        request.session[_LOGIN_NEXT_SESSION_KEY] = next_url
+
+
+def _landing_url(request: HttpRequest) -> str:
+    """Pop the remembered ``next`` (re-checked), or fall back to the account page."""
+    next_url = _safe_next(request, request.session.pop(_LOGIN_NEXT_SESSION_KEY, ""))
+    return next_url or reverse("accounts:detail")
+
 
 @ratelimit(key="ip", rate="20/h", method="POST", block=False)  # type: ignore[untyped-decorator]  # django-ratelimit has no type stubs
 @ratelimit(key="post:email", rate="5/h", method="POST", block=False)  # type: ignore[untyped-decorator]  # django-ratelimit has no type stubs
 def login_request(request: HttpRequest) -> HttpResponse:
     """Show the magic-link login form (GET) or process the email submission (POST).
 
-    GET — renders the email form at ``accounts/login.html``.
+    GET — renders the email form at ``accounts/login.html``. A safe ``?next=``
+    (from ``@login_required``) is remembered in the session for after sign-in.
     POST — normalises the submitted email, looks up an active User with that
     address, and if found sends a magic link via ``send_login_email``. Always
     redirects to ``accounts:login_sent`` regardless of whether the address was
@@ -94,6 +125,7 @@ def login_request(request: HttpRequest) -> HttpResponse:
     Exceeding either limit returns a 429 response without revealing whether
     the email is registered (Invariant 5 preserved).
     """
+    _remember_next(request)
     if request.method == "POST":
         if getattr(request, "limited", False):
             return rate_limited_response(request)
@@ -140,8 +172,8 @@ def login_verify(request: HttpRequest, token: str) -> HttpResponse:
     Confirm button that POSTs to this same URL.
 
     POST — re-validates the token (idempotent guard against replay), then calls
-    ``django.contrib.auth.login`` with ``ModelBackend`` and redirects to
-    ``accounts:detail``.
+    ``django.contrib.auth.login`` with ``ModelBackend`` and redirects to the
+    ``next`` remembered by ``login_request``, else ``accounts:detail``.
     """
     user_pk = read_login_token(token)
     if user_pk is None:
@@ -160,7 +192,7 @@ def login_verify(request: HttpRequest, token: str) -> HttpResponse:
             user,
             backend="django.contrib.auth.backends.ModelBackend",
         )
-        return redirect("accounts:detail")
+        return redirect(_landing_url(request))
 
     # Masked (``a•••@example.com``): the link can be forwarded or opened on a
     # shared screen, and the page only needs to say whose account it opens.
@@ -219,7 +251,8 @@ def passkey_sign_in(request: HttpRequest) -> JsonResponse:
     """Verify a passkey and sign its owner in.
 
     The body is ``{"credential": <the credential's JSON>}``. Success answers
-    ``{"next": <account page URL>}``, the same landing as the magic link. An
+    ``{"next": <landing URL>}``, the same landing as the magic link (a
+    remembered ``?next=``, else the account page). An
     unknown passkey answers 404 with its id, so the page can tell the browser
     to forget it (``PublicKeyCredential.signalUnknownCredential``). A
     deactivated account answers 403 and is not signed in.
@@ -239,7 +272,7 @@ def passkey_sign_in(request: HttpRequest) -> JsonResponse:
     if not user.is_active:
         return JsonResponse({"error": "account_disabled"}, status=403)
     login(request, user, backend=_BACKEND)
-    return JsonResponse({"next": reverse("accounts:detail")})
+    return JsonResponse({"next": _landing_url(request)})
 
 
 @require_POST

@@ -290,6 +290,15 @@ def test_passkey_signs_in_its_owner(verified_sign_in: None) -> None:
     assert passkey.last_used_at is not None
 
 
+def test_passkey_sign_in_returns_to_a_remembered_next(verified_sign_in: None) -> None:
+    """A ?next= remembered by the login page is where a passkey sign-in lands."""
+    client = Client()
+    PasskeyFactory.create(credential_id="credential-1")
+    client.get(reverse("accounts:login"), {"next": "/oauth/authorize/?a=1"})
+    response = sign_in_with(client, CREDENTIAL)
+    assert response.json() == {"next": "/oauth/authorize/?a=1"}
+
+
 def test_unknown_passkey_is_named_so_the_device_can_forget_it() -> None:
     """A passkey deleted here answers 404 with its id."""
     response = sign_in_with(Client(), CREDENTIAL)

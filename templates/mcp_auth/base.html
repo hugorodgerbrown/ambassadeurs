@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+Puts mcp_auth's OAuth pages (consent, returning, connected apps) inside the
+site's own layout. The package's pages fill "title", "head" and "body";
+the site's title format is kept by the per-page overrides beside this file.
+{% endcomment %}
+{% block meta %}
+    {{ block.super }}
+    <meta name="robots" content="noindex">
+    {% block head %}{% endblock %}
+{% endblock %}
+{% block content %}
+    <section class="mcp-auth">
+        <p class="eyebrow mb-2">{% translate "Staff connector" %}</p>
+        {% block body %}{% endblock %}
+    </section>
+{% endblock %}
